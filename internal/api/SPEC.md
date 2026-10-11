@@ -1411,6 +1411,7 @@ magic login, the plugin list, the update and the object cache answer **400**
 | `POST wp/update {what}` | job `wp.update`, site lock: progress 30 `Updating <what> on <domain>`, `WPUpdate{What}`, then `PurgeCache` of the whole site (best effort: new code changes output), 100 `Update complete` | 202 | `wp.update`, what |
 | `GET cache-stats` | `CacheStats` | 200 | — |
 | `POST warm` | job `cache.warm`, no lock: 30 `Warming <domain> from sitemap`, `WarmCache`, 100 `Warmed <n> pages (<m> now cached)` | 202 | `cache.warm` |
+| `PUT wp/two-factor {mode}` | §6.2.1 | 200 `{mode}` | `wp.two_factor`, mode |
 
 After a promote, a rollback or a migration the page cache is warmed again
 in the background (`warmInBackground`): a quiet job `cache.rewarm`
@@ -1419,6 +1420,25 @@ in the background (`warmInBackground`): a quiet job `cache.rewarm`
 deduplicated per site; payload `{site_id}`; rerun after a restart; it reads
 the site at its start and does nothing for one gone or not active), never a
 goroutine (it was one before R-4.3).
+
+#### 6.2.1 Two-factor sign-in (#74, `wp_security.go`)
+
+`config.wp_two_factor`: `""` (off), `optional` (each WordPress account can
+set it up from its profile) or `required` (also compulsory for the
+administrator and shop manager roles). The connector does the work
+(connector/SPEC.md §2.10); the mode reaches it through the PHP master's pool
+(`env[CLOUDGROUND_2FA]`, internal/phpfpm SPEC §5.3), root's file, so the
+site's own `wp-config.php` cannot turn it off.
+
+`PUT /api/sites/{id}/wp/two-factor` `{mode}`, `manage`: `mode` other than
+`off`, `optional` or `required` (exactly) → 400 `mode must be off, optional
+or required`; then, under the site's lock (`freshSite`), a site that is not
+WordPress → 400 `not a WordPress site`. The mode it already has answers 200
+at once, with no render and no audit. Otherwise the agent's
+`ApplySiteConfig` renders the site with the new mode (a PHP reload), and the
+mode is stored (`MutateSiteApplied`, files recorded) only once it has; an
+agent refusal answers as the agent says and stores nothing. Audit
+`wp.two_factor`, the mode as sent. Answer 200 `{mode}`.
 
 ### 6.3 Database console
 

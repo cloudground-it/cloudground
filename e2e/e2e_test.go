@@ -79,6 +79,7 @@ var sections = []section{
 	{name: "migration import", run: (*harness).migration, lane: "migration"},
 	{name: "security", run: (*harness).security, lane: "security"},
 	{name: "woocommerce security", run: (*harness).wooSecurity, fixtures: []string{fxWooSite}, lane: "woocommerce"},
+	{name: "wordpress two-factor", run: (*harness).wpTwoFactor, fixtures: []string{fxWooSite}, lane: "woocommerce"},
 	{name: "F4b Quarry", run: (*harness).dbStudioSection, fixtures: []string{fxWooSite}},
 	{name: "R-0.7 reconcile", run: (*harness).reconcile},
 	{name: "R-5.2 reload drain", run: (*harness).reloadDrain},

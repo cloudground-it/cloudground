@@ -94,7 +94,19 @@ type SiteConfig struct {
 	// Uptime is the panel's periodic check of the site from its public
 	// address (#32).
 	Uptime UptimeCheck `json:"uptime,omitzero"`
+	// WPTwoFactor is two-factor sign-in on a WordPress site (#74,
+	// connector/SPEC.md §2.10): TwoFactorOptional or TwoFactorRequired;
+	// "" is off.
+	WPTwoFactor string `json:"wp_two_factor,omitempty"`
 }
+
+// The modes of two-factor sign-in on a WordPress site. Optional lets each
+// account set it up from its profile; required also makes it compulsory
+// for administrators and shop managers.
+const (
+	TwoFactorOptional = "optional"
+	TwoFactorRequired = "required"
+)
 
 // ProtectedPath is one path behind HTTP basic auth: the path and what is
 // below it (site.ValidProtectedPath), the one username it takes, and the

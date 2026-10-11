@@ -4,7 +4,7 @@
 /ROOT/nginx/conf.d/cloudground-global.conf
 /ROOT/nginx/sites-enabled/staging.blog.example.com.conf
 /ROOT/php-masters/cg-site-7.conf
-/ROOT/srv/staging.blog.example.com/current/wp-content/mu-plugins/cloudground-connector.php c9fbbe79bb8fdd094982a1126db92bf30694e5ad873ea0bc30d78661fe502794
+/ROOT/srv/staging.blog.example.com/current/wp-content/mu-plugins/cloudground-connector.php 9db10f5d02444801ef6502f9f9d04466341dadc1778348c38f7c4753114a5402
 /ROOT/systemd/cg-site-7.slice
 /ROOT/systemd/cloudground-php-cg-site-7.service
 ## /ROOT/nginx-auth/staging.blog.example.com.htpasswd -rw-r-----

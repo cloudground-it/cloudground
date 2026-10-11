@@ -290,6 +290,8 @@ func (s *Server) routeTable() []route {
 			Section: secWP, Doc: "installed plugins and themes, and their updates"},
 		{Method: post, Path: "/api/sites/{id}/wp/update", Policy: policyManage, Load: loadSite, Handle: s.handleWPUpdate,
 			Section: secWP, Doc: "apply updates to `core`, `plugins`, `themes` or `all`"},
+		{Method: put, Path: "/api/sites/{id}/wp/two-factor", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleSetWPTwoFactor,
+			Section: secWP, Doc: "two-factor sign-in for the site's accounts: `{\"mode\": \"off\"}`, `optional` (each account can set it up) or `required` (also compulsory for administrators and shop managers); answers the mode"},
 
 		// SFTP and SSH keys.
 		{Method: post, Path: "/api/sites/{id}/sftp", Policy: policyManage, Load: loadSite, Handle: s.handleSetSFTP,
