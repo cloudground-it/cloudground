@@ -18,6 +18,15 @@ const update = (what: string) => run(() => api.post(`/api/sites/${site.value.id}
 const objectCache = (enable: boolean) => run(() => api.patch(`/api/sites/${site.value.id}`, { object_cache: enable }), enable ? t('wp.ocEnabling') : t('wp.ocDisabling')).then(refresh)
 const warm = () => run(() => api.post(`/api/sites/${site.value.id}/warm`), t('wp.warming'))
 
+// Two-factor sign-in for the site's own accounts (#74), done by the connector.
+const twoFactor = computed(() => site.value.config.wp_two_factor ?? 'off')
+const twoFactorItems = computed(() => [
+  { value: 'off', label: t('wp.tfOff') },
+  { value: 'optional', label: t('wp.tfOptional'), description: t('wp.tfOptionalHint') },
+  { value: 'required', label: t('wp.tfRequired'), description: t('wp.tfRequiredHint') }
+])
+const setTwoFactor = (mode: string) => run(() => api.put(`/api/sites/${site.value.id}/wp/two-factor`, { mode }), t('wp.tfSaved')).then(refresh)
+
 const columns = computed(() => [
   { accessorKey: 'name', header: t('wp.name') },
   { accessorKey: 'status', header: t('wp.status') },
@@ -81,4 +90,11 @@ const columns = computed(() => [
       </template>
     </PanelSection>
   </div>
+
+  <PanelSection :title="t('wp.twoFactor')" :description="t('wp.twoFactorHint')">
+    <URadioGroup :model-value="twoFactor" :items="twoFactorItems" :disabled="!canManage || busy" @update:model-value="v => setTwoFactor(String(v))" />
+    <p class="m-0 text-[13px] text-muted">
+      {{ t('wp.tfMagicNote') }}
+    </p>
+  </PanelSection>
 </template>

@@ -9,8 +9,9 @@ import _ "embed"
 // PHP is the mu-plugin, installed as
 // wp-content/mu-plugins/cloudground-connector.php in every WordPress release.
 // It purges the page-cache entries a change affects, signs the panel in with
-// a one-shot link, reports the object cache's numbers and prints Performance
-// Guard's footer for Guard's own requests.
+// a one-shot link, reports the object cache's numbers, prints Performance
+// Guard's footer for Guard's own requests and, when the panel turns it on,
+// adds two-factor sign-in.
 //
 //go:embed php/cloudground-connector.php
 var PHP string

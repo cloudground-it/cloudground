@@ -45,6 +45,19 @@ func onDemand(site state.Site) bool {
 	return site.Profile == state.ProfileBalanced && site.Type != state.SiteWooCommerce
 }
 
+// twoFactor is the connector's two-factor mode for a WordPress site, ""
+// for none (SPEC §5.3).
+func twoFactor(site state.Site) string {
+	if site.Type != state.SiteWordPress && site.Type != state.SiteWooCommerce {
+		return ""
+	}
+	switch m := site.Config.WPTwoFactor; m {
+	case state.TwoFactorOptional, state.TwoFactorRequired:
+		return m
+	}
+	return ""
+}
+
 // RenderPool renders site's master configuration, its pool sized against
 // budgetMB (SPEC §5), and the path it belongs at.
 func RenderPool(site state.Site, budgetMB int) (path, content string, err error) {
@@ -137,6 +150,15 @@ func RenderPool(site state.Site, budgetMB int) (path, content string, err error)
 	admin("value", "post_max_size", fmt.Sprintf("%dM", l.uploadMB))
 	admin("value", "max_execution_time", fmt.Sprint(l.execSec))
 	f.add("")
+
+	if mode := twoFactor(site); mode != "" {
+		f.addAll(
+			"; Two-factor sign-in, read by the connector (connector/SPEC.md 2.11).",
+			"; Here rather than in wp-config.php, which the site can edit.",
+		)
+		f.add("env[CLOUDGROUND_2FA] = %s", mode)
+		f.add("")
+	}
 
 	f.addAll(
 		"; Object cache in APCu, shared memory inside PHP itself: no separate",

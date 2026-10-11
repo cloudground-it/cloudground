@@ -46,6 +46,17 @@ func TestConnectorPHP(t *testing.T) {
 	t.Logf("%s", out)
 }
 
+// Two-factor sign-in (SPEC 2.10): its own process, because the mode is read
+// from the environment when the mu-plugin loads.
+func TestTwoFactorPHP(t *testing.T) {
+	run := phpRunner(t)
+	out, err := run("display_errors=stderr", "two-factor.php")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	t.Logf("%s", out)
+}
+
 // The drop-in's suite (SPEC part 3) as wp-cli runs it, with APCu off; and
 // as PHP-FPM does, where the APCu extension is installed (test/flush/run.sh
 // always runs it that way).

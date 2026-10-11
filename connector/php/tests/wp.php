@@ -61,9 +61,30 @@ class WP_Comment
 
 class WP_User
 {
-    public function __construct(public int $ID, public array $caps = [])
+    public string $user_login;
+    public string $user_email;
+
+    public function __construct(public int $ID, public array $caps = [], public array $roles = [])
     {
+        $this->user_login = 'user' . $ID;
+        $this->user_email = 'user' . $ID . '@example.com';
     }
+
+    public function has_cap($cap) { return !empty($this->caps[$cap]); }
+}
+
+class WP_Error
+{
+    public array $errors = [];
+
+    public function __construct(public string $code = '', public string $message = '')
+    {
+        if ($code !== '') {
+            $this->errors[$code][] = $message;
+        }
+    }
+
+    public function add($code, $message) { $this->errors[$code][] = $message; }
 }
 
 /** The site the stand-in serves. Tests reset and fill it. */
@@ -86,6 +107,12 @@ final class Site
     public static array $requests = [];
     public static array $dequeued = [];
     public static bool $loggedIn = false;
+    /** user id => meta key => value */
+    public static array $meta = [];
+    public static array $mails = [];
+    public static bool $mailWorks = true;
+    public static int $current = 0;
+    public static array $actions = [];
     public static bool $isCart = false;
     public static string $environment = 'production';
 
@@ -119,7 +146,12 @@ final class Site
             'nav_menu_item' => [false, false, false],
             'revision' => [false, false, false],
         ];
-        self::$users = [1 => new WP_User(1, ['manage_options' => true]), 2 => new WP_User(2, [])];
+        self::$users = [1 => new WP_User(1, ['manage_options' => true, 'edit_posts' => true, 'read' => true], ['administrator']), 2 => new WP_User(2, [])];
+        self::$meta = [];
+        self::$mails = [];
+        self::$mailWorks = true;
+        self::$current = 0;
+        self::$actions = [];
         self::$comments = [];
         self::$requests = [];
         self::$dequeued = [];
@@ -166,8 +198,10 @@ function apply_filters($hook, $value, ...$rest)
     }
     return $value;
 }
+function did_action($hook) { return Site::$actions[$hook] ?? 0; }
 function do_action($hook, ...$args)
 {
+    Site::$actions[$hook] = (Site::$actions[$hook] ?? 0) + 1;
     $all = Site::$hooks[$hook] ?? [];
     ksort($all);
     foreach ($all as $cbs) {
@@ -307,6 +341,24 @@ function get_comment($id) { return Site::$comments[(int) $id] ?? null; }
 // --------------------------------------------------------------- users --
 
 function get_userdata($id) { return Site::$users[(int) $id] ?? false; }
+function get_user_meta($id, $key, $single = false) { return Site::$meta[(int) $id][$key] ?? ''; }
+function update_user_meta($id, $key, $value) { Site::$meta[(int) $id][$key] = $value; return true; }
+function delete_user_meta($id, $key)
+{
+    if (!isset(Site::$meta[(int) $id][$key])) {
+        return false;
+    }
+    unset(Site::$meta[(int) $id][$key]);
+    return true;
+}
+function get_current_user_id() { return Site::$current; }
+function wp_get_current_user() { return Site::$users[Site::$current] ?? new WP_User(0); }
+function current_user_can($cap, ...$args) { return !empty(Site::$users[Site::$current]->caps[$cap]) || ($cap === 'edit_user' && Site::$current === (int) ($args[0] ?? 0)); }
+function wp_salt($scheme = 'auth') { return 'salt-' . $scheme . (Site::$options['salt_suffix'] ?? ''); }
+function wp_mail($to, $subject, $body) { Site::$mails[] = [$to, $subject, $body]; return Site::$mailWorks; }
+function wp_nonce_field($action, $name) { echo '<input type="hidden" name="' . $name . '" value="' . wp_create_nonce($action) . '">'; }
+function wp_create_nonce($action) { return substr(hash('sha256', $action . Site::$current), 0, 10); }
+function wp_verify_nonce($nonce, $action) { return hash_equals(wp_create_nonce($action), (string) $nonce) ? 1 : false; }
 function user_can($user, $cap) { return !empty($user->caps[$cap]); }
 function is_user_logged_in() { return Site::$loggedIn; }
 
@@ -318,6 +370,24 @@ function status_header($code) {}
 function nocache_headers() {}
 function wp_set_auth_cookie($user, $remember = false, $secure = '') {}
 function esc_html($s) { return htmlspecialchars((string) $s, ENT_QUOTES); }
+function esc_attr($s) { return htmlspecialchars((string) $s, ENT_QUOTES); }
+function esc_url($s) { return htmlspecialchars((string) $s, ENT_QUOTES); }
+function __($s, $domain = 'default') { return $s; }
+function _n($one, $many, $n, $domain = 'default') { return $n === 1 ? $one : $many; }
+function esc_html__($s, $domain = 'default') { return esc_html($s); }
+function esc_attr__($s, $domain = 'default') { return esc_attr($s); }
+function wp_unslash($v) { return is_array($v) ? array_map('wp_unslash', $v) : (is_string($v) ? stripslashes($v) : $v); }
+function wp_specialchars_decode($s, $q = ENT_NOQUOTES) { return htmlspecialchars_decode($s, $q); }
+function get_bloginfo($what) { return 'Example'; }
+function site_url($path = '', $scheme = null) { return home_url('/' . ltrim($path, '/')); }
+function wp_login_url() { return site_url('wp-login.php'); }
+function wp_parse_url($url, $component = -1) { return parse_url($url, $component); }
+function wp_doing_ajax() { return false; }
+function wp_validate_redirect($location, $fallback = '')
+{
+    $host = parse_url($location, PHP_URL_HOST);
+    return $location !== '' && ($host === null || $host === 'example.com') ? $location : $fallback;
+}
 function wp_cache_delete($key, $group = '') { return true; }
 function get_num_queries() { return 7; }
 function wp_get_environment_type() { return Site::$environment; }

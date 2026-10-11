@@ -61,6 +61,7 @@ export interface Site {
     blocking?: SiteBlocking
     /** The panel's periodic check from the public address (absent: off). */
     uptime?: { enabled: boolean, path?: string }
+    wp_two_factor?: 'optional' | 'required'
   }
   created_at: string
 }
