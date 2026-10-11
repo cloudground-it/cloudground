@@ -218,7 +218,7 @@ e2e/harness_test.go	canary.check	ALL
 e2e/harness_test.go	clip	ALL
 e2e/harness_test.go	code	ALL
 e2e/harness_test.go	defaultRouteIP	ALL
-e2e/harness_test.go	exists	wordpress certificates|wordpress sftp|wordpress safe push|wordpress releases|wordpress backups|R-4.3 deploys and backups|F9b site databases|migration safety snapshot|migration import|woocommerce security|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-10.5 root boundary
+e2e/harness_test.go	exists	wordpress certificates|wordpress sftp|wordpress safe push|wordpress releases|wordpress backups|R-4.3 deploys and backups|F9b site databases|migration safety snapshot|migration import|security|woocommerce security|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-10.5 root boundary
 e2e/harness_test.go	getenv	ALL
 e2e/harness_test.go	harness.as	woocommerce|wordpress cache|wordpress staging|wordpress cron|wordpress safe push|wordpress releases|wordpress backups|R-4.3 proxies and alerts|F9b site databases|migration import|security|woocommerce security|R-5.4 routing|R-4.3 site settings|SR tenant data
 e2e/harness_test.go	harness.assert	ALL

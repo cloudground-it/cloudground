@@ -276,7 +276,7 @@ So a shell sees what the site's PHP sees: `/srv/sites` with only its own
 tree in it, its logs, no `/home` or `/root`, none of the panel's,
 nginx's, MariaDB's or Let's Encrypt's configuration; other users'
 processes invisible (`ProtectProc=invisible`; the site's own PHP
-processes, same uid, are visible); a private `/tmp` and `/dev`;
+processes, same uid, are visible); a private `/tmp`, `/dev` and `/dev/shm` (phpfpm SPEC §4.1);
 `NoNewPrivileges` and no capabilities (`sudo`, `su` and every setuid
 binary gain nothing); no namespaces (`unshare` fails). Everything the
 session starts is in the service's cgroup and ends with it (a `nohup`ed

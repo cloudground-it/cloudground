@@ -17,6 +17,12 @@ import (
 // processes are invisible (ProtectProc), /tmp and /dev are private, setuid
 // binaries gain nothing (NoNewPrivileges, no capabilities), and no
 // namespace can be made.
+//
+// PrivateDevices binds the host's /dev/shm into the private /dev, where
+// every site could leave files for every other: each unit mounts a tmpfs of
+// its own over it instead, capped at ShmSize. PHP does not need it (APCu
+// and OPcache map anonymous memory, sessions live in the site's tmp), but
+// glibc's POSIX semaphores and shm_open do, so it stays writable.
 // RunHardening is what a site's runs outside the request path (its SSH
 // shell, its cron jobs, wp-cli) add to Sandbox: no setuid or setgid file can
 // be made, an IPC namespace of their own, the system-service syscall set
@@ -38,11 +44,16 @@ func RunSandbox(site state.Site) []string {
 	return append(Sandbox(site), RunHardening...)
 }
 
+// ShmSize caps a site's own /dev/shm (Sandbox): the memory one site can pin
+// there, where the host's is half of RAM.
+const ShmSize = "64M"
+
 func Sandbox(site state.Site) []string {
 	logDir := filepath.Join(LogRoot, site.Domain)
 	return []string{
 		"ProtectSystem=strict",
 		"TemporaryFileSystem=/srv/sites:ro /var/log/cloudground:ro",
+		"TemporaryFileSystem=/dev/shm:size=" + ShmSize + ",mode=1777,nosuid,nodev,noexec",
 		"BindPaths=" + site.RootPath + " " + logDir,
 		"ReadWritePaths=" + site.RootPath + " " + logDir,
 		"InaccessiblePaths=-/etc/nginx -/etc/cloudground -/etc/letsencrypt -/etc/mysql -/var/lib/cloudground -/var/lib/cloudground-agent -/var/cache/cloudground -/var/log/nginx -/var/backups",

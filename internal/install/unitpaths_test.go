@@ -13,8 +13,9 @@ import (
 )
 
 // everyImageHas are the paths a unit may name that every Ubuntu 24.04 and
-// 26.04 image has, container images included (SPEC §3 step 10).
-var everyImageHas = []string{"/etc", "/run", "/var/log", "/usr/local/bin"}
+// 26.04 image has, container images included (SPEC §3 step 10). /dev/shm is
+// also in the private /dev that PrivateDevices makes (phpfpm SPEC §4.1).
+var everyImageHas = []string{"/etc", "/run", "/var/log", "/usr/local/bin", "/dev/shm"}
 
 // covered says why path p will exist when a unit starts, or "" when nothing
 // makes sure it does.

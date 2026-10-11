@@ -158,6 +158,26 @@ func (h *harness) security(t *testing.T) {
 	}
 	h.remove(ar+"/current/cg-a.php", br+"/current/cg-b.php")
 
+	// #46: /dev/shm is each site's own. A file site A's PHP leaves there,
+	// world-readable, is neither in site B's nor on the host's; A reads it
+	// back on a later request (control), and A's is a small tmpfs.
+	shm := fmt.Sprintf("/dev/shm/cg-e2e-shm-%d", pid)
+	h.mustWriteAs(t, ar+"/current/cg-shm-put.php", fmt.Sprintf(`<?php echo @file_put_contents(%q, 'from-a') ? 'put' : 'failed'; @chmod(%q, 0666);`, shm, shm), au)
+	h.mustWriteAs(t, ar+"/current/cg-shm-get.php", fmt.Sprintf(`<?php echo 'got=', @file_get_contents(%q), ' total=', (int)@disk_total_space('/dev/shm');`, shm), au)
+	h.mustWriteAs(t, br+"/current/cg-shm-get.php", fmt.Sprintf(`<?php echo 'got=', @file_get_contents(%q), ' seen=', file_exists(%q) ? 'yes' : 'no';`, shm, shm), bu)
+	put := string(h.get(sa, fmt.Sprintf("/cg-shm-put.php?x=%d", pid)).Body)
+	own := string(h.get(sa, fmt.Sprintf("/cg-shm-get.php?x=%d", pid)).Body)
+	other := string(h.get(sb, fmt.Sprintf("/cg-shm-get.php?x=%d", pid)).Body)
+	h.assert(t, "#46 control: a site's PHP writes /dev/shm and reads it back", put == "put" && strings.HasPrefix(own, "got=from-a "), "put: %.200s; get: %.200s", put, own)
+	h.assert(t, "#46: another site's PHP does not see a site's /dev/shm", strings.HasPrefix(other, "got= seen=no"), "site B answered %.200s", other)
+	h.assert(t, "#46: a site's /dev/shm is not the host's", !exists(shm), "%s is on the host", shm)
+	var total int64
+	if m := regexp.MustCompile(`total=(\d+)`).FindStringSubmatch(own); m != nil {
+		fmt.Sscan(m[1], &total)
+	}
+	h.assert(t, "#46: a site's /dev/shm is capped at 64 MiB", total > 0 && total <= 64<<20, "site A's /dev/shm: %d bytes", total)
+	h.remove(shm, ar+"/current/cg-shm-put.php", ar+"/current/cg-shm-get.php", br+"/current/cg-shm-get.php")
+
 	// S-C5: the agent's scratch space is root's alone.
 	o, m := statOwnerMode("/var/lib/cloudground-agent/work")
 	h.check(t, "agent work dir is root-only", strings.TrimSpace(o+" "+m), "root 700")
