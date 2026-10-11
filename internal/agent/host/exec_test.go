@@ -297,9 +297,13 @@ func TestOSExecStdoutAtLimitSucceeds(t *testing.T) {
 	if err != nil || len(res.Stdout) != 4096 {
 		t.Fatalf("err = %v, %d bytes", err, len(res.Stdout))
 	}
-	res, err = OSExec{}.run(context.Background(), Cmd{Name: "head", Args: []string{"-c", "4097", "/dev/zero"}}, 4096)
-	if !errors.Is(err, ErrStdoutTooLarge) || len(res.Stdout) != 4096 {
-		t.Fatalf("err = %v, %d bytes", err, len(res.Stdout))
+	// One byte over, and the command exits on its own, successfully, before
+	// it can be stopped: still a failure, for what was kept is incomplete.
+	for range 20 {
+		res, err = OSExec{}.run(context.Background(), Cmd{Name: "head", Args: []string{"-c", "4097", "/dev/zero"}}, 4096)
+		if !errors.Is(err, ErrStdoutTooLarge) || len(res.Stdout) != 4096 {
+			t.Fatalf("err = %v, %d bytes", err, len(res.Stdout))
+		}
 	}
 }
 

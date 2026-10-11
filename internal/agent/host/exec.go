@@ -191,14 +191,17 @@ func (o OSExec) run(ctx context.Context, c Cmd, stdoutLimit int) (Result, error)
 		err = cmd.Wait()
 	}
 	res := Result{Stdout: stdout.Bytes(), Stderr: stderr.Bytes()}
-	if err == nil {
-		return res, nil
-	}
-	if ctxErr := ctx.Err(); ctxErr != nil {
+	if ctxErr := ctx.Err(); err != nil && ctxErr != nil {
 		return res, fmt.Errorf("%s: %w", c.Name, ctxErr)
 	}
+	// A command that passed the limit failed, even when it exited on its
+	// own, successfully, before it could be stopped: what was kept is
+	// incomplete.
 	if stdout.overflowed() {
 		return res, fmt.Errorf("%s: %w (more than %d bytes)", c.Name, ErrStdoutTooLarge, stdoutLimit)
+	}
+	if err == nil {
+		return res, nil
 	}
 	var ee *exec.ExitError
 	if errors.As(err, &ee) {
