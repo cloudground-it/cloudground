@@ -73,6 +73,7 @@ var sections = []section{
 	{name: "R-4.3 deploys and backups", run: (*harness).deploysAndBackups, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
 	{name: "firewall", run: (*harness).firewall},
 	{name: "blocklist", run: (*harness).blocklistSection, fixtures: []string{fxFeatureSite}},
+	{name: "site blocking", run: (*harness).siteBlocking, lane: "site blocking"},
 	{name: "R-4.3 proxies and alerts", run: (*harness).proxiesAlerts, fixtures: []string{fxFeatureSite}},
 	{name: "F9b site databases", run: (*harness).siteDatabases, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
 	{name: "migration safety snapshot", run: (*harness).migrationSafety},

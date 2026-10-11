@@ -138,3 +138,8 @@ In plain words:
 
 The WordPress connector under `connector/` (the mu-plugin and the object-cache drop-in, which run
 inside WordPress) is GPL-2.0-or-later: see [connector/LICENSE](./connector/LICENSE).
+
+A site's country rules use the [IP to Country Lite](https://db-ip.com/db/download/ip-to-country-lite)
+database, which the server downloads from DB-IP: IP Geolocation by [DB-IP](https://db-ip.com),
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It is not part of this
+repository or its releases.

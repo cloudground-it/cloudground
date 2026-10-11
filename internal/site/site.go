@@ -182,6 +182,9 @@ func Validate(sitesRoot string, s state.Site) (Valid, error) {
 	if err := checkProtectedPaths(s); err != nil {
 		return Valid{}, err
 	}
+	if err := CheckBlocking(s.Config.Blocking); err != nil {
+		return Valid{}, err
+	}
 	if err := CheckRoot(sitesRoot, s); err != nil {
 		return Valid{}, err
 	}

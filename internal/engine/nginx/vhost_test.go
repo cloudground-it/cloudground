@@ -1,6 +1,7 @@
 package nginx
 
 import (
+	"net/netip"
 	"regexp"
 	"strings"
 	"testing"
@@ -227,6 +228,26 @@ func TestProtectedPathsRefused(t *testing.T) {
 	} {
 		c := in
 		set(&c)
+		if _, err := (Renderer{}).SiteFiles(c); err == nil {
+			t.Errorf("%s: rendered", name)
+		}
+	}
+}
+
+// #25: rules that could not be pasted into the file as they are refuse the
+// render.
+func TestBlockingRefused(t *testing.T) {
+	in := matrixInput(901, state.SiteStatic, state.ProfileBalanced, false)
+	for name, b := range map[string]*engine.Blocking{
+		"user agent quote":  {UserAgents: []string{`a"b`}},
+		"user agent dollar": {UserAgents: []string{"a$b"}},
+		"user agent short":  {UserAgents: []string{"a"}},
+		"country":           {Countries: []string{"cn"}},
+		"only, no country":  {AllowCountriesOnly: true},
+		"zero prefix":       {Addresses: []netip.Prefix{{}}},
+	} {
+		c := in
+		c.Blocking = b
 		if _, err := (Renderer{}).SiteFiles(c); err == nil {
 			t.Errorf("%s: rendered", name)
 		}

@@ -60,6 +60,9 @@ type Input struct {
 	// logs none.
 	AuthLogSocket string
 
+	// Blocking is who the site refuses (#25, SPEC §4.7); nil is nobody.
+	Blocking *Blocking
+
 	// What a custom routing block must not reach (SPEC §7.3): the ports
 	// system services listen on here, this machine's own addresses, and a
 	// resolver for proxy host names. The agent fills them in at every
@@ -67,6 +70,23 @@ type Input struct {
 	SystemPorts []int
 	LocalAddrs  []netip.Addr
 	Resolve     func(host string) ([]netip.Addr, error)
+}
+
+// Blocking is a site's refused visitors, resolved by the agent: the
+// countries are already their prefixes (DB-IP's data, ops/blocklist).
+type Blocking struct {
+	// Exempt are this machine's addresses: never refused, so the panel's
+	// own checks of the site (uptime, Performance Guard, the warmer)
+	// always get through. Loopback is exempt without being listed.
+	Exempt     []netip.Addr
+	Addresses  []netip.Prefix
+	UserAgents []string
+	// Countries are the codes (for the file's comment), CountryPrefixes
+	// their addresses; with AllowCountriesOnly they are the only ones
+	// served.
+	Countries          []string
+	CountryPrefixes    []netip.Prefix
+	AllowCountriesOnly bool
 }
 
 // ProtectedPath is one protected path and its password file.

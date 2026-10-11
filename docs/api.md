@@ -101,6 +101,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `POST /api/tokens`: 8 KiB
   - `POST /api/sites/{id}/protected-paths`: 8 KiB
   - `DELETE /api/sites/{id}/protected-paths`: 8 KiB
+  - `PUT /api/sites/{id}/blocking`: 64 KiB
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
   - `PUT /api/sites/{id}/uptime`: 8 KiB
@@ -186,6 +187,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `PATCH` | `/api/sites/{id}` | manage | change any of the site's settings in one request (fields below) — returns `202`, the site and one task |
 | `POST` | `/api/sites/{id}/protected-paths` | manage | protect a path with a username and password, or change them (`{"path": "/wp-admin", "username": …, "password": …}`); answers the site's protected paths |
 | `DELETE` | `/api/sites/{id}/protected-paths` | manage | stop protecting a path (`{"path": "/wp-admin"}`); answers the site's protected paths |
+| `PUT` | `/api/sites/{id}/blocking` | manage | the visitors the site refuses with 403 (`{"addresses": ["203.0.113.0/24"], "user_agents": ["GPTBot"], "countries": ["CN"], "allow_countries_only": false}`; empty lists refuse nobody); live at once, answers the rules |
 | `GET` | `/api/sites/{id}/routing` | admin, session only | the site's routing block (`routing`, `default`, `custom`, `editable`) and the panel's vhost around it (`before`, `after`) |
 | `PUT` | `/api/sites/{id}/routing` | admin, session only | replace the routing block (`{"routing": "…"}`, `""` restores the default): checked, then live only if `nginx -t` passes |
 | `GET` | `/api/sites/{id}/certificate` | auth | whether the site has a certificate, its issuer and expiry, and the last renewal error |

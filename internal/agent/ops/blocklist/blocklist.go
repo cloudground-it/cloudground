@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/netip"
 	"os/exec"
 	"slices"
@@ -48,6 +49,12 @@ type Ops struct {
 	// LocalAddrs are the machine's own addresses; nil reads the interfaces.
 	LocalAddrs func() []netip.Addr
 	Log        *slog.Logger
+	// The country data (countries.go): its directory ("" is
+	// DefaultGeoDir), the URL of a month's file and the client that
+	// fetches it (nil: DB-IP's, and a client with a 2-minute timeout).
+	GeoDir string
+	GeoURL func(month string) string
+	HTTP   *http.Client
 
 	mu      sync.Mutex
 	pending map[pendingKey]int
@@ -57,6 +64,13 @@ type Ops struct {
 	ownAt time.Time
 
 	sshWatch, nginxWatch atomic.Bool
+
+	// geoMu holds one read or download of the country data at a time;
+	// geoCache is the last answer, for geoCacheKey (the file's time and
+	// the codes).
+	geoMu       sync.Mutex
+	geoCacheKey string
+	geoCache    []netip.Prefix
 }
 
 type pendingKey struct {

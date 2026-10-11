@@ -3,6 +3,7 @@ package nginx
 import (
 	"flag"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sort"
@@ -259,6 +260,37 @@ func matrixCases() []matrixCase {
 	}
 	for _, b := range matrixBuilds {
 		for _, o := range protected {
+			id++
+			name := fmt.Sprintf("%s-opt-%s", b.name, o.name)
+			in := matrixInput(id, o.typ, state.ProfileBalanced, o.typ != state.SiteStatic && o.typ != state.SiteProxy)
+			o.set(&in)
+			add(name, b, in)
+		}
+	}
+	// Blocking (#25, SPEC §4.7), on every build: a WordPress site with
+	// addresses, user agents and countries refused, and a static site that
+	// serves two countries only.
+	blocking := []option{
+		{"blocking", state.SiteWordPress, func(in *engine.Input) {
+			in.Blocking = &engine.Blocking{
+				Exempt:          []netip.Addr{netip.MustParseAddr("192.0.2.10"), netip.MustParseAddr("2001:db8::10")},
+				Addresses:       []netip.Prefix{netip.MustParsePrefix("203.0.113.0/24"), netip.MustParsePrefix("198.51.100.7/32"), netip.MustParsePrefix("2001:db8:bad::/48")},
+				UserAgents:      []string{"GPTBot", "Ahrefs.Bot", "x(y)"},
+				Countries:       []string{"RU", "CN"},
+				CountryPrefixes: []netip.Prefix{netip.MustParsePrefix("1.0.1.0/24"), netip.MustParsePrefix("1.0.2.0/23"), netip.MustParsePrefix("2a00:1::/32")},
+			}
+		}},
+		{"blocking-countries-only", state.SiteStatic, func(in *engine.Input) {
+			in.Blocking = &engine.Blocking{
+				Exempt:             []netip.Addr{netip.MustParseAddr("192.0.2.10")},
+				Countries:          []string{"IT", "SM"},
+				CountryPrefixes:    []netip.Prefix{netip.MustParsePrefix("2.32.0.0/11"), netip.MustParsePrefix("2001:b07::/32")},
+				AllowCountriesOnly: true,
+			}
+		}},
+	}
+	for _, b := range matrixBuilds {
+		for _, o := range blocking {
 			id++
 			name := fmt.Sprintf("%s-opt-%s", b.name, o.name)
 			in := matrixInput(id, o.typ, state.ProfileBalanced, o.typ != state.SiteStatic && o.typ != state.SiteProxy)

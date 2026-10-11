@@ -19,6 +19,10 @@ import (
 // is not "dev.example.com".
 func siteOwnsPath(site state.Site, path string) bool {
 	name, dir := filepath.Base(path), filepath.Base(filepath.Dir(path))
+	// The site's blocking rules (#25).
+	if name == "cloudground-block-"+strconv.FormatInt(site.ID, 10)+".conf" {
+		return true
+	}
 	// A protected path's password file (#26).
 	if strings.HasPrefix(name, site.Domain+".path-") && strings.HasSuffix(name, ".htpasswd") {
 		return true

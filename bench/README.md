@@ -17,7 +17,7 @@ and 6). This folder holds what you need for that. The exact behaviour of each pa
 | `uncached-php.md` | where an uncached render's time goes, and the PHP-FPM candidates A/B (issue #10) |
 | `v0.2.0-rc.md` | the v0.2.0 release candidate: install time, the full e2e, the REST upgrade check, the suites against v0.1.0 |
 | `agent-memory.md`, `agent-memory.sh` | the agent unit's memory limit and its helpers' (issue #66): provisional values and the measurement that sets them |
-| `blocklist.md`, `blocklist-cost.sh` | what the block list costs cached traffic, and the script that measures its netfilter table (issue #21) |
+| `blocklist.md`, `blocklist-cost.sh` | what the block list and the sites' refused visitors cost cached traffic, and the script that measures the netfilter table (issues #21, #25) |
 
 No results are published yet: the benchmarks page comes once the whole suite has run on a
 CloudGround release.

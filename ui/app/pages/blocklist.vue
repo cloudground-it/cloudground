@@ -2,7 +2,8 @@
 /**
  * The server's block list (#21): addresses blocked for repeated failed
  * sign-ins at SSH, WordPress and the panel, or by hand; the addresses never
- * blocked; and the automatic blocking's policy. Netfilter drops a blocked
+ * blocked; and the automatic blocking's policy. Each site's own refused
+ * visitors (#25) sit beside it (SiteBlockingRules). Netfilter drops a blocked
  * address on every port (GET/POST/DELETE /api/blocklist…).
  */
 interface Entry { id: number, address: string, source: 'manual' | 'ssh' | 'wordpress' | 'panel', note: string, failures?: number, created_at: string, expires_at?: string }
@@ -132,6 +133,8 @@ const blockedColumns = computed(() => [
             </template>
           </UTable>
         </PanelSection>
+
+        <SiteBlockingRules />
 
         <div class="grid items-start gap-6 lg:grid-cols-2">
           <PanelSection :title="t('blocklist.allowTitle')" :description="t('blocklist.allowHint')" flush>
