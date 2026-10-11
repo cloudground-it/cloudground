@@ -41,7 +41,7 @@
   "devDependencies": {
     "@intlify/message-compiler": "^11.4.13",
     "@types/node": "^24.19.1",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vue-tsc": "^3.3.11"
   }
 }
