@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/install"
 )
 
@@ -182,8 +183,10 @@ func printKeptAfter(w io.Writer, inv install.Inventory, o install.UninstallOptio
 	repos, creds := env.KeptSummary(o.KeptDir)
 	if len(repos) > 0 {
 		fmt.Fprintln(w, "\nThe backup repositories were kept as they are:")
+		// A rest: or s3: URL can carry a password: the terminal (and any log
+		// the run is captured in) gets it masked; it is in backup.env.
 		for _, r := range repos {
-			fmt.Fprintf(w, "  %s\n", r)
+			fmt.Fprintf(w, "  %s\n", agentrpc.RedactCredentials(r))
 		}
 	}
 	if creds {

@@ -73,6 +73,28 @@ func TestUninstallRemoveSitesWithTheHostname(t *testing.T) {
 	}
 }
 
+// The end of the run lists the kept repositories without the password a
+// rest: URL carries: it goes to the terminal and to whatever log captures
+// the run, while the credentials belong in backup.env only.
+func TestUninstallMasksRepositoryPasswords(t *testing.T) {
+	env := uninstallRoot(t)
+	kept := filepath.Join(env.Root, install.DefaultKeptDir)
+	os.MkdirAll(kept, 0o700)
+	readme := "The backup repositories were NOT touched; they still hold every backup:\n" +
+		"  rest:https://cg:s3cr3t-pw@backup.example.com:8000/cg/\n  /var/backups/cloudground/repo\n"
+	os.WriteFile(filepath.Join(kept, install.KeptReadme), []byte(readme), 0o600)
+	var out bytes.Buffer
+	printKeptAfter(&out, install.Inventory{}, install.UninstallOptions{KeptDir: install.DefaultKeptDir}, env)
+	if strings.Contains(out.String(), "s3cr3t-pw") {
+		t.Errorf("the repository's password is printed:\n%s", out.String())
+	}
+	for _, want := range []string{"rest:https://cg:***@backup.example.com:8000/cg/", "/var/backups/cloudground/repo"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("%q is not listed:\n%s", want, out.String())
+		}
+	}
+}
+
 func TestParseUninstallFlags(t *testing.T) {
 	if _, err := parseUninstallFlags([]string{"--confirm", "x"}); err == nil {
 		t.Error("--confirm without --remove-sites accepted")
