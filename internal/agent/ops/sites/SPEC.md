@@ -138,6 +138,8 @@ the PHP masters' directory, set to 0755 on every PHP render (step 4).
    `CertAvailable` says the chosen fullchain exists; PHP socket
    `<PHPSocketDir>/<user>/php.sock` except for static and proxy sites; a
    staging site (`StagingAuthHash`) gets its password file and internal key;
+   every site the socket WordPress vhosts log failed sign-ins to
+   (`Paths.AuthLogSocket`, ops/blocklist SPEC §1.2; internal/engine SPEC §4.6);
    each protected path (`Config.ProtectedPaths`) its own password file, one
    line `<username>:<bcrypt hash>`.
    `HTTP3` and `HTTP2Directive` (nginx ≥ 1.25.1) come from `nginx -V`, read

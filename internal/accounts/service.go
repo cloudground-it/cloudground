@@ -118,6 +118,10 @@ type Service struct {
 	Limits Limits
 	// Audit records an event in the audit log; nil records nothing.
 	Audit func(actor, action, subject, detail string)
+	// Failed is told the client address of every wrong password and wrong
+	// second-factor code at sign-in, for the block list (#21); nil is
+	// nobody.
+	Failed func(address string)
 	// Now is the clock the second factor reads; nil is time.Now.
 	Now func() time.Time
 	// Sleep waits out a failure delay, or returns ctx's error; nil is a
@@ -165,6 +169,13 @@ func (sv *Service) gate(ctx context.Context, o Origin, email string) (*attempt, 
 func New(store *state.Store, audit func(actor, action, subject, detail string)) *Service {
 	decoy() // hash the decoy now, not during the first sign-in
 	return &Service{Store: store, Limits: DefaultLimits(), Audit: audit, turns: throttle.NewLanes(AccountQueue)}
+}
+
+// failed reports a failed sign-in from address to Failed.
+func (sv *Service) failed(address string) {
+	if sv.Failed != nil {
+		sv.Failed(address)
+	}
 }
 
 func (sv *Service) audit(actor, action, subject, detail string) {

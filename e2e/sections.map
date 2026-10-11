@@ -22,11 +22,11 @@
 # ------------------------------------------------------------------ groups --
 
 # Every section that sends requests to a hosted site through nginx.
-@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths
+@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist
 # Every section with a PHP site (its own FPM master, pool and slice).
 @php = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, protected paths
 # Every section with a WordPress site (database, wp-cli, the connector).
-@wordpress = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, woocommerce security, woocommerce teardown
+@wordpress = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, woocommerce security, woocommerce teardown, blocklist
 # The object cache and the loopback flush through a site's own FPM pool.
 @objectcache = woocommerce, wordpress cache, wordpress sftp, wordpress backups, migration import
 
@@ -68,6 +68,7 @@ internal/api/maintenance.go            R-0.7 reconcile, wordpress certificates
 internal/api/site_apply.go             site resources, R-4.3 site settings, R-4.2 job queue, wordpress slow request, wordpress cache, wordpress sftp
 internal/api/protected_paths.go        protected paths
 internal/api/uptime.go                 uptime
+internal/api/blocklist.go              blocklist
 internal/api/backup_policy.go          R-4.3 site settings, PHP extensions and backup hour
 internal/api/php_extensions.go         PHP extensions and backup hour
 internal/api/site_settings.go          site resources, R-4.3 site settings, wordpress slow request, R-4.7 capabilities, R-4.2 job queue, wordpress cache, wordpress sftp
@@ -162,6 +163,10 @@ internal/agent/ops_staging.go          wordpress staging, wordpress safe push, w
 internal/agent/ops/system/drift.go     wordpress status and drift, site resources
 internal/agent/ops/system/usage.go     site resources
 internal/agent/ops/system/firewall.go  firewall
+internal/agent/ops/blocklist/**        blocklist
+internal/agent/ops_blocklist.go        blocklist
+internal/blocklist/**                  blocklist
+internal/rpc/blocklist.go              blocklist
 internal/agent/host/firewall.go        firewall
 internal/agent/ops/system/journal.go   wordpress logs, security
 internal/agent/ops/system/logs.go      wordpress logs, security

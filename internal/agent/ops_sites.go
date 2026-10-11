@@ -16,7 +16,7 @@ func (a *Agent) sitesHandlers() *sites.Ops {
 				CertLiveDir: p.CertLiveDir, CustomCertDir: p.CustomCertDir,
 				NginxSites: p.NginxSites, NginxConfDir: p.NginxConfDir, NginxAuthDir: p.NginxAuthDir,
 				PHPBinDir: p.PHPBinDir, PHPSocketDir: p.PHPSocketDir, PHPMasterDir: p.PHPMasterDir,
-				SystemdDir: p.SystemdDir,
+				SystemdDir: p.SystemdDir, AuthLogSocket: p.AuthLogSocket,
 			},
 			Renderer:  a.Renderer,
 			Accounts:  a.Accounts,

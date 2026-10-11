@@ -30,6 +30,7 @@ in the rendered comments (they are part of the output and stay with it) and
 | `HTTP2Directive` | this nginx is ≥ 1.25.1: `http2 on;` instead of `listen … http2` |
 | `BasicAuthFile`, `InternalKey` | staging: the password file, and the header value that passes it |
 | `ProtectedPaths` | the site's protected paths (#26), each `{Path, File}`: the path and its password file (§4.5) |
+| `AuthLogSocket` | the agent's datagram socket for failed sign-ins (#21, §4.6); empty logs none |
 
 `Renderer` has `SiteFiles(Input) (path → content)`, `GlobalFiles()` and
 `Routing(Input) (RoutingView)` (§7.5).
@@ -63,8 +64,10 @@ string is empty or made only of tracking parameters: `utm_*`, `fbclid`,
 `_gl`, `igshid`, `yclid`, `twclid`, `ttclid`), `$cg_key` (`$cg_path` when the
 arguments do not bypass, else `$request_uri`), `$cg_no_store` (upstream
 `Cache-Control` with `no-store` or `private`) and `$cg_private_req`
-(`Authorization` or `X-CloudGround-Probe` present). Every comment is part of
-the file.
+(`Authorization` or `X-CloudGround-Probe` present); for the block list
+(§4.6), the map `$cg_auth_failed` (the upstream's `X-CloudGround-Auth` on a
+POST, empty for any other method) and the log format `cloudground_auth`
+(`$remote_addr $cg_auth_failed`). Every comment is part of the file.
 
 ### 3.2 Cache zone
 
@@ -101,7 +104,8 @@ In this order. "Security headers" is the set of §4.3.
      TLS 1.2 and 1.3, `ssl_prefer_server_ciphers off`, session timeout 1d,
      `shared:cg_ssl:10m`;
    - logs: `access.log` in the `cloudground` format, buffered 64k / 1s;
-     `error.log` at `warn`;
+     `error.log` at `warn`; on a WordPress or WooCommerce site with a PHP
+     socket and `AuthLogSocket`, the failed sign-ins' log (§4.6);
    - `client_max_body_size`;
    - `http3 on;` with `HTTP3`;
    - the security headers, at server level;
@@ -151,7 +155,9 @@ bypass on `$cg_skip_<id>` and `$cg_private_req`, no-store on those and
 `$cg_no_store`; the lock with the policy's timeout; stale on `updating error
 timeout invalid_header http_500 http_503` with background update;
 `Cache-Control Expires Vary` ignored — **never `Set-Cookie`**; the
-`X-CloudGround-Cache` header. Then the security headers.
+`X-CloudGround-Cache` header. On a site that logs failed sign-ins (§4.6),
+`fastcgi_hide_header X-CloudGround-Auth` after the buffers. Then the
+security headers.
 
 ### 4.3 Security headers
 
@@ -221,6 +227,31 @@ matches the PHP regex location, not the prefix one, and would reach PHP
 without the password. The access phase runs before the page cache is read,
 so a cached page of a protected path is not served without the password.
 Port 80 only redirects.
+
+### 4.6 Failed sign-ins (#21)
+
+A WordPress or WooCommerce site with a PHP socket, rendered with an
+`AuthLogSocket`, sends each failed sign-in to the agent, which counts it
+towards blocking the address (internal/blocklist SPEC §3, ops/blocklist
+SPEC §1.2). At server level of the 443 server, after the access log:
+
+```
+access_log syslog:server=unix:<AuthLogSocket>,nohostname,tag=cloudground cloudground_auth if=$cg_auth_failed;
+```
+
+The connector marks WordPress's answer to a failed sign-in (wp-login.php,
+xmlrpc.php, application passwords) with `X-CloudGround-Auth: failed=<n>`
+(connector SPEC §2.10); `$cg_auth_failed` is that value on a POST and empty
+otherwise, so only those requests write a line. Only a POST: a response is
+stored in the page cache with its headers, and a GET served from it would
+carry a mark to every visitor. The PHP location hides the header from the
+client. Unbuffered (one datagram per failure, and failures are rare next to
+the traffic); every other request pays the map lookup on the method when it
+is logged. Measured in `bench/blocklist.md`.
+
+A site can mark any of its own responses, so a site's code can count
+failures against the addresses that actually sent it a POST, and against no
+other: nginx writes the address, not the site.
 
 ## 5. Page-cache policy (`velocity.PolicyFor`)
 

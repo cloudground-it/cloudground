@@ -55,6 +55,11 @@ type Input struct {
 	// §4.5), each with the password file the agent writes for it.
 	ProtectedPaths []ProtectedPath
 
+	// AuthLogSocket is where a WordPress site's failed sign-ins are logged
+	// for the block list (#21, SPEC §4.6): the agent's datagram socket. ""
+	// logs none.
+	AuthLogSocket string
+
 	// What a custom routing block must not reach (SPEC §7.3): the ports
 	// system services listen on here, this machine's own addresses, and a
 	// resolver for proxy host names. The agent fills them in at every

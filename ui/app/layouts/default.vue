@@ -27,6 +27,7 @@ const groups = computed<{ label: string, links: NavLink[] }[]>(() => {
       links: [
         { label: t('nav.services'), icon: 'i-cg-services', to: '/services' },
         { label: t('nav.firewall'), icon: 'i-cg-firewall', to: '/firewall' },
+        { label: t('nav.blocklist'), icon: 'i-cg-shield-check', to: '/blocklist' },
         { label: t('nav.users'), icon: 'i-cg-users', to: '/users' },
         { label: t('nav.audit'), icon: 'i-cg-history', to: '/audit' },
         { label: t('nav.settings'), icon: 'i-cg-settings', to: '/settings' }

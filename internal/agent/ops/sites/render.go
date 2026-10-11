@@ -95,6 +95,7 @@ func (o *Ops) input(ctx context.Context, s state.Site) engine.Input {
 		FallbackCert:  o.Paths.FallbackCert,
 		FallbackKey:   o.Paths.FallbackKey,
 		ACMEWebroot:   o.Paths.ACMEWebroot,
+		AuthLogSocket: o.Paths.AuthLogSocket,
 	}
 	if _, err := os.Stat(in.CertFullchain); err == nil {
 		in.CertAvailable = true

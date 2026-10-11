@@ -443,6 +443,20 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 		})
 	}
 	rm("sysctl", managed.Sysctl)
+	if e.Cmd.LookPath("nft") {
+		// The block list's table (internal/blocklist SPEC §5): with the
+		// agent gone nothing would keep it current, and its blocks would
+		// stay until a reboot.
+		follow("netfilter", "delete the block list's netfilter table (inet cloudground)", func(ctx context.Context) error {
+			if _, err := e.Cmd.Run(ctx, "nft", "list", "table", "inet", "cloudground"); err != nil {
+				return nil // there is none
+			}
+			if out, err := e.Cmd.Run(ctx, "nft", "delete", "table", "inet", "cloudground"); err != nil {
+				return fmt.Errorf("nft delete table inet cloudground: %v: %s", err, strings.TrimSpace(out))
+			}
+			return nil
+		})
+	}
 	rm("logrotate", managed.Logrotate)
 	rm("certbot.hook", managed.RenewHook, "/etc/letsencrypt/cloudground-cloudflare.ini")
 	rm("nginx.bootstrap", managed.Vhost)

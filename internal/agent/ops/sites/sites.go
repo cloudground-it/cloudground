@@ -37,6 +37,9 @@ type Paths struct {
 	PHPSocketDir  string
 	PHPMasterDir  string
 	SystemdDir    string
+	// AuthLogSocket is where WordPress vhosts log failed sign-ins for the
+	// block list (ops/blocklist SPEC §1.2); "" logs none.
+	AuthLogSocket string
 }
 
 // Databases is the part of ops/db a site's lifecycle uses: the primary

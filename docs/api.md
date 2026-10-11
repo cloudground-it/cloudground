@@ -111,6 +111,11 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `POST /api/quarry/handoff`: 8 KiB
   - `POST /api/quarry/db/{db}/tables/{table}/edit`: 16 MiB
   - `POST /api/quarry/import/upload`: 8 MiB
+  - `POST /api/blocklist/blocks`: 8 KiB
+  - `DELETE /api/blocklist/blocks`: 8 KiB
+  - `POST /api/blocklist/allowed`: 8 KiB
+  - `DELETE /api/blocklist/allowed`: 8 KiB
+  - `PUT /api/blocklist/settings`: 8 KiB
 - The endpoints that run a database statement while the request waits take at most
   2 at once per account and 4 per site; beyond, **`429`**
   `too many database statements are running: wait for one to finish`:
@@ -464,6 +469,12 @@ session (an API token gets 403); an operator adds `"sftp"` keys to its sites.
 | `GET` | `/api/firewall` | global | the firewall's rules |
 | `POST` | `/api/firewall/rule` | admin, session only | add a firewall rule or take one away |
 | `POST` | `/api/firewall/enable` | admin, session only | turn ufw on: allow the rules `GET /api/firewall` listed as `plan` (`{"expect": ["22/tcp", …]}`), then enable |
+| `GET` | `/api/blocklist` | global | the block list: blocked addresses (by hand or for failed sign-ins) with their end, the allowlist, the automatic blocking's settings, whether netfilter enforces it, and the caller's own address |
+| `POST` | `/api/blocklist/blocks` | admin, session only | block an address or a network (`{"address": "203.0.113.0/24", "note": …, "minutes": 0}`, 0 is until removed); answers the block list |
+| `DELETE` | `/api/blocklist/blocks` | admin, session only | remove a block (`{"address": …}`); answers the block list |
+| `POST` | `/api/blocklist/allowed` | admin, session only | never block an address or a network (`{"address": …, "note": …}`); its automatic blocks end; answers the block list |
+| `DELETE` | `/api/blocklist/allowed` | admin, session only | take an address off the allowlist (`{"address": …}`); answers the block list |
+| `PUT` | `/api/blocklist/settings` | admin, session only | the automatic blocking: `enabled`, `max_failures` (3–100) in `window_minutes` (1–1440) block for `ban_minutes` (1–43200); answers the block list |
 | `GET` | `/api/audit` | global | the audit log: actor, action, address |
 | `GET` | `/api/settings` | global | the panel's settings |
 | `PUT` | `/api/settings` | admin | change the panel's settings (an API token may change only `acme_email` and `probe_target`) |

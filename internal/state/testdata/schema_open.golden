@@ -44,6 +44,8 @@ index sqlite_autoindex_alerts_2 on alerts
   
 index sqlite_autoindex_api_tokens_1 on api_tokens
   
+index sqlite_autoindex_blocklist_1 on blocklist
+  
 index sqlite_autoindex_deployments_1 on deployments
   
 index sqlite_autoindex_managed_files_1 on managed_files
@@ -82,6 +84,10 @@ table audit_events on audit_events
   create table audit_events(id integer primary key autoincrement,actor text not null,action text not null,subject text not null,detail text not null default '',created_at text not null)
 table backups on backups
   create table backups(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,snapshot_id text not null,repository text not null,size_bytes integer not null default 0,kind text not null,verify_status text not null default 'pending',verified_at text,restore_est_ms integer not null default 0,created_at text not null,databases text)
+table blocklist on blocklist
+  create table blocklist(id integer primary key autoincrement,kind text not null check(kind in('block','allow')),prefix text not null,source text not null,note text not null default '',failures integer not null default 0,created_at text not null,expires_at text,unique(kind,prefix))
+table blocklist_settings on blocklist_settings
+  create table blocklist_settings(id integer primary key check(id=1),settings text not null)
 table cron_jobs on cron_jobs
   create table cron_jobs(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,schedule text not null,command text not null,description text not null default '',enabled integer not null default 1,last_run text,last_status text not null default '',created_at text not null)
 table deployments on deployments
@@ -192,6 +198,21 @@ columns of backups
   10 | databases | TEXT | 0 | - | 0
   fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
   index idx_backups_site unique=0 origin=c partial=0 on 0:1:site_id
+
+columns of blocklist
+  0 | id | INTEGER | 0 | - | 1
+  1 | kind | TEXT | 1 | - | 0
+  2 | prefix | TEXT | 1 | - | 0
+  3 | source | TEXT | 1 | - | 0
+  4 | note | TEXT | 1 | '' | 0
+  5 | failures | INTEGER | 1 | 0 | 0
+  6 | created_at | TEXT | 1 | - | 0
+  7 | expires_at | TEXT | 0 | - | 0
+  index sqlite_autoindex_blocklist_1 unique=1 origin=u partial=0 on 0:1:kind, 1:2:prefix
+
+columns of blocklist_settings
+  0 | id | INTEGER | 0 | - | 1
+  1 | settings | TEXT | 1 | - | 0
 
 columns of cron_jobs
   0 | id | INTEGER | 0 | - | 1

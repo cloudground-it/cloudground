@@ -284,8 +284,15 @@ func (v *vhost) render() (before, block, after string) {
 		"ssl_session_timeout 1d;", "ssl_session_cache shared:cg_ssl:10m;", "",
 		"# Log lines go out in 64 KiB batches, at least once a second.",
 		"access_log "+in.LogDir+"/access.log cloudground buffer=64k flush=1s;",
-		"error_log "+in.LogDir+"/error.log warn;", "",
-		"client_max_body_size "+in.ClientMaxBody+";")
+		"error_log "+in.LogDir+"/error.log warn;")
+	if v.authLog() {
+		c.put(1,
+			"# A failed WordPress sign-in also goes to the agent, which counts it",
+			"# towards blocking the address (SPEC §4.6). Unbuffered, and only the",
+			"# requests the connector marked: every other request logs nothing here.",
+			"access_log syslog:server=unix:"+in.AuthLogSocket+",nohostname,tag=cloudground cloudground_auth if=$cg_auth_failed;")
+	}
+	c.put(1, "", "client_max_body_size "+in.ClientMaxBody+";")
 	if in.HTTP3 {
 		c.put(1, "http3 on;")
 	}
@@ -336,6 +343,13 @@ func (v *vhost) render() (before, block, after string) {
 	}
 	t.put(0, "}")
 	return before, block, t.String()
+}
+
+// authLog reports whether the vhost logs failed sign-ins for the block list
+// (SPEC §4.6): a WordPress site's, with a PHP location and a socket to log to.
+func (v *vhost) authLog() bool {
+	t := v.in.Site.Type
+	return v.php && v.in.AuthLogSocket != "" && (t == state.SiteWordPress || t == state.SiteWooCommerce)
 }
 
 // protectedMaps writes the two maps of the protected paths (SPEC §4.5):
@@ -426,6 +440,10 @@ func (v *vhost) php_(c *conf) {
 		"fastcgi_pass unix:"+in.PHPSocket+";")
 	c.putf(2, "fastcgi_read_timeout %ds;", in.Site.Config.PHP.RequestTimeoutSeconds())
 	c.put(2, "fastcgi_buffers 16 32k;", "fastcgi_buffer_size 64k;")
+	if v.authLog() {
+		c.put(2, "# The connector's mark of a failed sign-in is for the log, not the client.",
+			"fastcgi_hide_header X-CloudGround-Auth;")
+	}
 	if p.Enabled {
 		key := "$cg_key"
 		if !p.IgnoreTrackingArgs {

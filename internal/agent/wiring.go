@@ -24,6 +24,7 @@ import (
 
 	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/backup"
+	"github.com/cloudground-it/cloudground/internal/agent/ops/blocklist"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/cache"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/certs"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/cron"
@@ -76,6 +77,7 @@ type Paths struct {
 	SiteIndex     string // the agent's record of its sites (id -> domain); "" keeps none
 	DBRegistry    string // its record of each site's databases and accounts, beside SiteIndex; "" is databases.json in WorkDir
 	StateDB       string // the API's state database, which a self-update snapshots first; "" snapshots none
+	AuthLogSocket string // where WordPress vhosts log failed sign-ins for the block list; "" logs none
 }
 
 // DefaultPaths is the installer's layout.
@@ -111,6 +113,7 @@ func DefaultPaths() Paths {
 		SiteIndex:     "/var/lib/cloudground-agent/sites.json",
 		DBRegistry:    "/var/lib/cloudground-agent/databases.json",
 		StateDB:       "/var/lib/cloudground/state.db",
+		AuthLogSocket: blocklist.DefaultSocket,
 	}
 }
 
@@ -156,7 +159,7 @@ type Agent struct {
 	// the <domain>Handlers methods of the ops_*.go files.
 	sitesOnce, certsOnce, panelOnce, systemOnce, filesOnce, sftpOnce sync.Once
 	wpOnce, cronOnce, dbOnce, releaseOnce, backupOnce, stagingOnce   sync.Once
-	dbStudioOnce                                                     sync.Once
+	dbStudioOnce, blocklistOnce                                      sync.Once
 
 	// index is the record of the sites this agent provisioned.
 	index     siteIndex
@@ -175,6 +178,7 @@ type Agent struct {
 	backupOps  *backup.Ops
 	stagingOps *staging.Ops
 	dbStudio   *dbstudio.Ops
+	blocklist  *blocklist.Ops
 }
 
 // New is the agent of a real machine.
@@ -224,7 +228,7 @@ func (a *Agent) NewServer(cfg agentrpc.Config) *agentrpc.Server {
 		a.systemHandlers(), a.sitesHandlers(), a.certHandlers(), a.dbHandlers(),
 		a.releaseHandlers(), a.stagingHandlers(), a.backupHandlers(), a.cronHandlers(),
 		a.filesHandlers(), a.sftpHandlers(), a.wpHandlers(), a.panelHandlers(), a.migrationHandlers(),
-		a.dbStudioHandlers(),
+		a.dbStudioHandlers(), a.blocklistHandlers(),
 	} {
 		d.Register(s)
 	}
