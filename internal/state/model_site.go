@@ -101,6 +101,29 @@ type SiteConfig struct {
 	// connector/SPEC.md §2.11): TwoFactorOptional or TwoFactorRequired;
 	// "" is off.
 	WPTwoFactor string `json:"wp_two_factor,omitempty"`
+	// WPHardening is a WordPress site's hardening (#75), each item on
+	// its own (internal/engine SPEC §4.8, connector/SPEC.md §2.12).
+	WPHardening WPHardening `json:"wp_hardening,omitzero"`
+}
+
+// WPHardening is the WordPress hardening a site has turned on. The zero
+// value is none.
+type WPHardening struct {
+	// XMLRPCOff answers xmlrpc.php with 403, except for the addresses and
+	// networks of XMLRPCAllow and Jetpack's own signed requests.
+	XMLRPCOff   bool     `json:"xmlrpc_off,omitempty"`
+	XMLRPCAllow []string `json:"xmlrpc_allow,omitempty"`
+	// FileEditOff takes the theme and plugin file editors away.
+	FileEditOff bool `json:"file_edit_off,omitempty"`
+	// HideVersion keeps WordPress's version out of pages, feeds and asset
+	// URLs.
+	HideVersion bool `json:"hide_version,omitempty"`
+	// BlockReadme answers 404 for readme.html, license.txt and the readme,
+	// changelog and licence files of plugins and themes.
+	BlockReadme bool `json:"block_readme,omitempty"`
+	// LoginPath, when set, is the sign-in page instead of wp-login.php
+	// (a path segment such as "my-door"); wp-login.php then answers 404.
+	LoginPath string `json:"login_path,omitempty"`
 }
 
 // SiteBlocking is the visitors a site answers 403: addresses or networks,

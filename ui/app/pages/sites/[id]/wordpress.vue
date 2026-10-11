@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WPPlugin } from '~/types'
+import type { WPHardening, WPPlugin } from '~/types'
 
 interface CacheStats { backend: string, hits: number, misses: number, entries: number, mem_used: number, mem_total: number, hit_rate_pct: number }
 
@@ -26,6 +26,29 @@ const twoFactorItems = computed(() => [
   { value: 'required', label: t('wp.tfRequired'), description: t('wp.tfRequiredHint') }
 ])
 const setTwoFactor = (mode: string) => run(() => api.put(`/api/sites/${site.value.id}/wp/two-factor`, { mode }), t('wp.tfSaved')).then(refresh)
+
+// Hardening (#75): each item on its own; the recommended set leaves the
+// login path alone, since it changes where people sign in.
+const hardening = computed<WPHardening>(() => site.value.config.wp_hardening ?? {})
+const hardeningItems = computed(() => [
+  { key: 'xmlrpc_off' as const, label: t('wp.hXmlrpc'), hint: t('wp.hXmlrpcHint') },
+  { key: 'file_edit_off' as const, label: t('wp.hFileEdit'), hint: t('wp.hFileEditHint') },
+  { key: 'hide_version' as const, label: t('wp.hVersion'), hint: t('wp.hVersionHint') },
+  { key: 'block_readme' as const, label: t('wp.hReadme'), hint: t('wp.hReadmeHint') }
+])
+const allowText = ref('')
+const loginPath = ref('')
+watch(hardening, (h) => {
+  allowText.value = (h.xmlrpc_allow ?? []).join('\n')
+  loginPath.value = h.login_path ?? ''
+}, { immediate: true })
+const loginPathOK = computed(() => loginPath.value === '' || /^[a-z0-9][a-z0-9-]{2,63}$/.test(loginPath.value))
+const saveHardening = (change: Partial<WPHardening>) => run(() => api.put(`/api/sites/${site.value.id}/wp/hardening`, { ...hardening.value, ...change }), t('wp.hSaved')).then(refresh)
+const recommended = () => saveHardening({ xmlrpc_off: true, file_edit_off: true, hide_version: true, block_readme: true })
+const saveDetails = () => saveHardening({
+  xmlrpc_allow: allowText.value.split(/[\s,]+/).filter(Boolean),
+  login_path: loginPath.value
+})
 
 const columns = computed(() => [
   { accessorKey: 'name', header: t('wp.name') },
@@ -90,6 +113,32 @@ const columns = computed(() => [
       </template>
     </PanelSection>
   </div>
+
+  <PanelSection :title="t('wp.hardening')" :description="t('wp.hardeningHint')">
+    <template #actions>
+      <UButton color="neutral" variant="outline" icon="i-cg-lock" :label="t('wp.hRecommended')" :disabled="!canManage || busy" @click="recommended" />
+    </template>
+    <div class="flex flex-col gap-4">
+      <USwitch
+        v-for="item in hardeningItems"
+        :key="item.key"
+        :model-value="!!hardening[item.key]"
+        :label="item.label"
+        :description="item.hint"
+        :disabled="!canManage || busy"
+        @update:model-value="v => saveHardening({ [item.key]: v })"
+      />
+      <UFormField v-if="hardening.xmlrpc_off" :label="t('wp.hAllow')" :help="t('wp.hAllowHelp')">
+        <UTextarea v-model="allowText" :rows="3" class="w-full font-mono text-xs" placeholder="192.0.2.10&#10;198.51.100.0/24" :disabled="!canManage" />
+      </UFormField>
+      <UFormField :label="t('wp.hLoginPath')" :help="t('wp.hLoginPathHelp')" :error="loginPathOK ? undefined : t('wp.hLoginPathBad')">
+        <UInput v-model="loginPath" class="w-full font-mono sm:w-80" placeholder="my-door" :disabled="!canManage" />
+      </UFormField>
+    </div>
+    <template #footer>
+      <UButton :label="t('common.save')" :disabled="!canManage || busy || !loginPathOK" :loading="busy" @click="saveDetails" />
+    </template>
+  </PanelSection>
 
   <PanelSection :title="t('wp.twoFactor')" :description="t('wp.twoFactorHint')">
     <URadioGroup :model-value="twoFactor" :items="twoFactorItems" :disabled="!canManage || busy" @update:model-value="v => setTwoFactor(String(v))" />

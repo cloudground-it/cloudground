@@ -1435,6 +1435,7 @@ magic login, the plugin list, the update and the object cache answer **400**
 | `GET cache-stats` | `CacheStats` | 200 | — |
 | `POST warm` | job `cache.warm`, no lock: 30 `Warming <domain> from sitemap`, `WarmCache`, 100 `Warmed <n> pages (<m> now cached)` | 202 | `cache.warm` |
 | `PUT wp/two-factor {mode}` | §6.2.1 | 200 `{mode}` | `wp.two_factor`, mode |
+| `PUT wp/hardening {…}` | §6.2.2 | 200, the hardening | `wp.hardening`, the items on |
 
 After a promote, a rollback or a migration the page cache is warmed again
 in the background (`warmInBackground`): a quiet job `cache.rewarm`
@@ -1462,6 +1463,32 @@ at once, with no render and no audit. Otherwise the agent's
 mode is stored (`MutateSiteApplied`, files recorded) only once it has; an
 agent refusal answers as the agent says and stores nothing. Audit
 `wp.two_factor`, the mode as sent. Answer 200 `{mode}`.
+
+#### 6.2.2 Hardening (#75, `wp_security.go`)
+
+`config.wp_hardening` `{xmlrpc_off, xmlrpc_allow, file_edit_off,
+hide_version, block_readme, login_path}`, each item on its own: nginx's half
+in internal/engine SPEC §4.8, the connector's in connector/SPEC.md §2.12,
+which reads it from the pool (internal/phpfpm SPEC §5.3).
+
+`PUT /api/sites/{id}/wp/hardening`, `manage`, the whole object (an absent
+field is off; an unknown one → 400 `malformed request`): a `login_path` that
+is not `site.ValidLoginPath` → 400; more than 50 exceptions → 400; an
+exception that is not an IP address or network → 400 naming it. The
+exceptions are stored canonical (`192.0.2.7/24` → `192.0.2.0/24`), once
+each. Then, under the site's lock, a site that is not WordPress → 400 `not a
+WordPress site`; the same hardening it has answers 200 at once, with no
+render and no audit; otherwise rendered and stored as §6.2.1 does, then the
+site's page cache is purged (`PurgeCache`, best effort: cached pages carry
+the version and the sign-in links). Audit
+`wp.hardening`, the items on (`xmlrpc,file_edit,version,readme,login_path`,
+or `none`). Answer 200, the hardening as stored.
+
+The panel's "Apply the recommended set" turns on XML-RPC off, the file
+editor off, the version hidden and the readme files: none of them changes
+what a visitor, a WooCommerce customer or Jetpack sees work (to be measured
+on the e2e server, #75). The login path is never part of it: it changes the
+address people sign in at.
 
 ### 6.3 Database console
 

@@ -121,3 +121,100 @@ func totpCode(secret string, t time.Time) string {
 	n := binary.BigEndian.Uint32(sum[o:o+4]) & 0x7fffffff
 	return fmt.Sprintf("%06d", n%1000000)
 }
+
+// wpHardening (#75): each hardening item on the WooCommerce site, on with
+// the recommended set and then alone off again, checked from outside:
+// readme and licence files answer 404 and come back; xmlrpc.php answers
+// 403, then answers again from an address on the exception list; the
+// version leaves the page head and the asset URLs; the file editor is
+// refused to the administrator; the shop and the cart still answer. Then
+// the login path: wp-login.php answers 404 (in any spelling), the new path
+// shows the form and signs the administrator in, wp-admin answers 404 to a
+// visitor; and with everything off the site is as before.
+func (h *harness) wpHardening(t *testing.T) {
+	w, ok := h.wooSite(t)
+	if !ok {
+		return
+	}
+	path := fmt.Sprintf("/api/sites/%d/wp/hardening", w.id)
+	pool := "/etc/cloudground-php/" + w.user + ".conf"
+	defer h.undo("turn the hardening off on the WooCommerce site", func() { h.api.put(path, map[string]any{}) })()
+	n := 0
+	get := func(p string) resp {
+		n++
+		return h.fetch(req{URL: "https://" + w.dom + p})
+	}
+	codeOf := func(p string) string { return get(p).CodeStr() }
+	xmlrpc := func() resp {
+		x := `<?xml version="1.0"?><methodCall><methodName>system.listMethods</methodName><params></params></methodCall>`
+		return h.fetch(req{URL: "https://" + w.dom + "/xmlrpc.php", Method: "POST", Form: x, Header: map[string]string{"Content-Type": "text/xml"}})
+	}
+	version := h.wp(w.user, w.path, "core", "version").Trim()
+
+	before := map[string]string{}
+	for _, p := range []string{"/readme.html", "/license.txt", "/wp-content/plugins/woocommerce/readme.txt"} {
+		before[p] = codeOf(p)
+	}
+	h.check(t, "#75: before, readme.html is served", before["/readme.html"], "200")
+
+	c, b := h.api.put(path, map[string]any{"xmlrpc_off": true, "file_edit_off": true, "hide_version": true, "block_readme": true})
+	h.check(t, "#75: the recommended set is applied", fmt.Sprint(c), "200")
+	h.assert(t, "#75: the connector's items are in the pool", strings.Contains(readTrim(pool), "env[CLOUDGROUND_HARDENING] = xmlrpc,file_edit,version"), "#75: %s lacks the hardening: %s", pool, b)
+
+	for _, p := range []string{"/readme.html", "/license.txt", "/wp-content/plugins/woocommerce/readme.txt", "/README.html"} {
+		h.check(t, "#75: "+p+" answers 404", codeOf(p), "404")
+	}
+	h.check(t, "#75: an ordinary plugin file is still served", codeOf("/wp-content/plugins/woocommerce/assets/css/woocommerce.css"), "200")
+	h.check(t, "#75: XML-RPC answers 403", xmlrpc().CodeStr(), "403")
+	home := get("/")
+	h.check(t, "#75: the home page answers", home.CodeStr(), "200")
+	h.assert(t, "#75: no generator tag", !strings.Contains(string(home.Body), `content="WordPress`), "#75: the home page still has a WordPress generator tag")
+	h.assert(t, "#75: no core version in asset URLs", version != "" && !strings.Contains(string(home.Body), "ver="+version), "#75: the home page shows ver=%s", version)
+	h.check(t, "#75: the shop answers", codeOf("/shop/"), "200")
+	h.check(t, "#75: the cart answers", codeOf("/cart/"), "200")
+
+	_, b = h.api.post(fmt.Sprintf("/api/sites/%d/wp/login", w.id), `{}`)
+	ml := jsonField(b, "url")
+	jar := NewJar()
+	h.fetch(req{URL: "https://" + w.dom + "/?cloudground_login=1", Form: "cloudground_token=" + ml[strings.LastIndex(ml, "#")+1:], Jar: jar})
+	ed := h.fetch(req{URL: "https://" + w.dom + "/wp-admin/theme-editor.php", Jar: jar})
+	h.assert(t, "#75: the theme editor is refused to the administrator", ed.Code != 200 || strings.Contains(string(ed.Body), "not allowed"), "#75: theme-editor.php answered %s", ed.CodeStr())
+	h.check(t, "#75: wp-admin still opens for the administrator", h.fetch(req{URL: "https://" + w.dom + "/wp-admin/", Jar: jar}).CodeStr(), "200")
+
+	c, _ = h.api.put(path, map[string]any{"xmlrpc_off": true, "xmlrpc_allow": []string{"127.0.0.1"}, "file_edit_off": true, "hide_version": true, "block_readme": true})
+	h.check(t, "#75: an exception is added", fmt.Sprint(c), "200")
+	xr := xmlrpc()
+	h.check(t, "#75: XML-RPC answers an address on the exception list", fmt.Sprintf("%s %t", xr.CodeStr(), strings.Contains(string(xr.Body), "system.listMethods")), "200 true")
+
+	c, _ = h.api.put(path, map[string]any{"xmlrpc_off": true, "file_edit_off": true, "hide_version": true})
+	h.check(t, "#75: one item off on its own", fmt.Sprint(c), "200")
+	h.check(t, "#75: readme.html is served again", codeOf("/readme.html"), before["/readme.html"])
+	h.check(t, "#75: XML-RPC is still off", xmlrpc().CodeStr(), "403")
+
+	// The login path.
+	c, _ = h.api.put(path, map[string]any{"login_path": "cg-door"})
+	h.check(t, "#75: the login path is set", fmt.Sprint(c), "200")
+	h.assert(t, "#75: the pool names the login path", strings.Contains(readTrim(pool), "env[CLOUDGROUND_LOGIN_PATH] = cg-door"), "#75: %s lacks the login path", pool)
+	for _, p := range []string{"/wp-login.php", "//wp-login.php", "/wp-login.ph%70", "/x/../wp-login.php"} {
+		h.check(t, "#75: "+p+" answers 404", codeOf(p), "404")
+	}
+	door := get("/cg-door")
+	h.assert(t, "#75: the new path shows the form, posting to itself", door.Code == 200 && strings.Contains(string(door.Body), `action="https://`+w.dom+`/cg-door"`),
+		"#75: /cg-door answered %s: %.300s", door.CodeStr(), door.Body)
+	adm := get("/wp-admin/")
+	h.check(t, "#75: wp-admin answers 404 to a visitor, with no redirect", fmt.Sprintf("%s %q", adm.CodeStr(), adm.Header.Get("Location")), `404 ""`)
+	h.check(t, "#75: admin-ajax.php still answers", h.fetch(req{URL: "https://" + w.dom + "/wp-admin/admin-ajax.php", Form: "action=cg-none"}).CodeStr(), "400")
+	jar = NewJar()
+	r := h.fetch(req{URL: "https://" + w.dom + "/cg-door", Form: url.Values{"log": {"admin"}, "pwd": {wpAdminPW}, "wp-submit": {"Log In"}}.Encode(), Jar: jar})
+	signedIn := false
+	for _, ck := range jar.Cookies(nil) {
+		signedIn = signedIn || strings.HasPrefix(ck.Name, "wordpress_logged_in_")
+	}
+	h.check(t, "#75: the administrator signs in at the new path", fmt.Sprintf("%s %t", r.CodeStr(), signedIn), "302 true")
+
+	c, _ = h.api.put(path, map[string]any{})
+	h.check(t, "#75: everything off", fmt.Sprint(c), "200")
+	h.assert(t, "#75: the pool carries no hardening", !strings.Contains(readTrim(pool), "CLOUDGROUND_HARDENING") && !strings.Contains(readTrim(pool), "CLOUDGROUND_LOGIN_PATH"), "#75: %s still has hardening", pool)
+	h.check(t, "#75: wp-login.php answers again", codeOf("/wp-login.php"), "200")
+	h.check(t, "#75: XML-RPC answers again", xmlrpc().CodeStr(), "200")
+}
