@@ -541,7 +541,7 @@ func (o *Ops) testPHP(ctx context.Context, s state.Site) error {
 	svc := o.FPMTestService(s)
 	res, err := o.Exec.Run(ctx, host.Cmd{Name: "systemd-run", Args: host.ServiceArgs(svc),
 		Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C.UTF-8"}})
-	if err != nil && ctx.Err() != nil {
+	if err != nil && (ctx.Err() != nil || errors.Is(err, host.ErrStdoutTooLarge)) {
 		sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 		_, _ = o.Exec.Run(sctx, host.Cmd{Name: "systemctl", Args: []string{"stop", svc.Unit}})
 		cancel()

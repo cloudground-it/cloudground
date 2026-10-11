@@ -109,7 +109,9 @@ it started), environment `PATH`, `HOME=<root>`, `SHELL=/bin/sh`,
 sandbox, the slice, `RuntimeMaxSec` = `MaxSeconds`, default and ceiling
 **300 s**, the job's environment, and `/bin/sh -c 'exec 2>&1; /bin/sh -c
 "$1"' cg-cron <command>`: both streams, interleaved, on stdout, whose last
-**64 KiB** are returned. systemd-run's own `Finished with result: <r>`
+**64 KiB** are returned. Only that tail is kept as the output arrives
+(`host.NewTailBuffer`): a job that prints without end costs the agent
+64 KiB, not its memory. systemd-run's own `Finished with result: <r>`
 line, on its stderr, tells the end (the line may start with blanks:
 systemd 259 right-aligns its summary's labels):
 

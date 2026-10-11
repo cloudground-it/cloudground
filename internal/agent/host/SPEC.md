@@ -63,6 +63,16 @@ type Exec interface { Run(ctx, Cmd) (Result, error) }
   later process that was given the same number. The grace timer and the
   cancellation do nothing once the leader has exited.
 - Stderr is always captured separately (the last 64 KiB are kept).
+- **Stdout limit.** A captured stdout (`Cmd.Stdout` nil) keeps at most
+  `StdoutLimit` (16 MiB): the commands read this way print kilobytes, and a
+  child that prints without end (site code under wp-cli) must not grow the
+  agent's heap. The first byte past it stops the command the way a
+  cancellation does (SIGKILL to the group, or SIGINT first with
+  `Interrupt`), and the call fails with `ErrStdoutTooLarge`, with
+  `Result.Stdout` holding exactly the first `StdoutLimit` bytes. A streamed
+  stdout (`Cmd.Stdout` set) is the caller's to bound; `NewTailBuffer(n)` is
+  a writer that keeps the last `n` bytes. `FakeExec` fails a reply past the
+  limit the same way.
 - A non-zero exit is an `*ExitError{Name, Code, Stderr}`. `Code` is the exit
   status, or `-1` when the process was killed by a signal. `host.ExitCode(err)`
   extracts it.
@@ -457,7 +467,8 @@ Interface `Nginx`: `Test`, `Reload`, `BuildInfo`.
   `-p` properties and `RuntimeMaxSec=3000`, running `wp --path=<path>
   <args…>`. Its stdout, stderr and exit status come back through
   systemd-run (`--pipe`, `--wait`), as `runuser`'s did. A slice and a
-  sandbox are required. A cancelled call stops the service (`systemctl
+  sandbox are required. A cancelled call, or one whose output passed
+  `StdoutLimit` (`ErrStdoutTooLarge`), stops the service (`systemctl
   stop`): it is not systemd-run's child;
 - an **explicit minimal environment**: `PATH`, `LANG=C.UTF-8`,
   `WP_CLI_CACHE_DIR` in the run's private `/tmp`, nothing else of the

@@ -100,9 +100,9 @@ func (w *WPCLIRunner) Run(ctx context.Context, inv Invocation) ([]byte, error) {
 		c.Stdin = strings.NewReader(inv.Stdin + "\n")
 	}
 	res, err := w.Exec.Run(ctx, c)
-	if err != nil && ctx.Err() != nil {
-		// systemd-run was killed with the request; the service is not
-		// its child and would run on.
+	if err != nil && (ctx.Err() != nil || errors.Is(err, ErrStdoutTooLarge)) {
+		// systemd-run was killed, with the request or for printing past
+		// the limit; the service is not its child and would run on.
 		sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 		_, _ = w.Exec.Run(sctx, Cmd{Name: "systemctl", Args: []string{"stop", svc.Unit}})
 		cancel()

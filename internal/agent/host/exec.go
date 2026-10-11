@@ -5,7 +5,6 @@
 package host
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -26,6 +25,16 @@ const DefaultTimeout = 10 * time.Minute
 // tools put the line that explains the failure.
 const stderrLimit = 64 << 10
 
+// StdoutLimit bounds the stdout OSExec.Run captures when the Cmd streams it
+// nowhere (SPEC: exec). The commands read this way print kilobytes; a child
+// that writes past it, site code under wp-cli say, must not grow the
+// agent's heap without end.
+const StdoutLimit = 16 << 20
+
+// ErrStdoutTooLarge is a command whose captured stdout passed its limit:
+// the command was stopped, and what was kept is incomplete.
+var ErrStdoutTooLarge = errors.New("output too large")
+
 // Cmd is one command to run. Args are an argv array: there is never a shell.
 type Cmd struct {
 	Name string
@@ -35,8 +44,8 @@ type Cmd struct {
 	Env   []string
 	Dir   string
 	Stdin io.Reader
-	// Stdout nil captures stdout into Result.Stdout; otherwise it is
-	// streamed here and Result.Stdout is empty.
+	// Stdout nil captures stdout into Result.Stdout, at most StdoutLimit
+	// bytes; otherwise it is streamed here and Result.Stdout is empty.
 	Stdout  io.Writer
 	Timeout time.Duration
 	// Interrupt, when set, is how long a cancelled or timed-out command may
@@ -95,8 +104,14 @@ type OSExec struct {
 // Run starts c in its own process group and waits for it. Cancelling ctx, or
 // reaching the timeout, kills the whole group: a tool's children (wp-cli's
 // PHP, certbot's hooks) go with it. With c.Interrupt the tool is first asked
-// to stop (SIGINT) and given that long to do so.
+// to stop (SIGINT) and given that long to do so. Captured stdout past
+// StdoutLimit stops the command the same way and fails it with
+// ErrStdoutTooLarge.
 func (o OSExec) Run(ctx context.Context, c Cmd) (Result, error) {
+	return o.run(ctx, c, StdoutLimit)
+}
+
+func (o OSExec) run(ctx context.Context, c Cmd, stdoutLimit int) (Result, error) {
 	timeout := c.Timeout
 	if timeout <= 0 {
 		timeout = o.Timeout
@@ -106,8 +121,11 @@ func (o OSExec) Run(ctx context.Context, c Cmd) (Result, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	// runCtx is also cancelled when the captured stdout overflows.
+	runCtx, stop := context.WithCancel(ctx)
+	defer stop()
 
-	cmd := exec.CommandContext(ctx, c.Name, c.Args...)
+	cmd := exec.CommandContext(runCtx, c.Name, c.Args...)
 	cmd.Env = c.Env
 	cmd.Dir = c.Dir
 	cmd.Stdin = c.Stdin
@@ -147,13 +165,13 @@ func (o OSExec) Run(ctx context.Context, c Cmd) (Result, error) {
 	// command has its grace first.
 	cmd.WaitDelay = 5*time.Second + max(c.Interrupt, 0)
 
-	var stdout bytes.Buffer
+	stdout := &capBuffer{limit: stdoutLimit, over: stop}
 	if c.Stdout != nil {
 		cmd.Stdout = c.Stdout
 	} else {
-		cmd.Stdout = &stdout
+		cmd.Stdout = stdout
 	}
-	stderr := &tailBuffer{limit: stderrLimit}
+	stderr := NewTailBuffer(stderrLimit)
 	cmd.Stderr = stderr
 
 	err := cmd.Start()
@@ -164,7 +182,7 @@ func (o OSExec) Run(ctx context.Context, c Cmd) (Result, error) {
 		if grace != nil {
 			grace.Stop()
 		}
-		if interrupted || ctx.Err() != nil {
+		if interrupted || runCtx.Err() != nil {
 			// Stopped: what it left in its group goes too, while the
 			// leader, a zombie, still holds the group's id.
 			_ = killGroup()
@@ -178,6 +196,9 @@ func (o OSExec) Run(ctx context.Context, c Cmd) (Result, error) {
 	}
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return res, fmt.Errorf("%s: %w", c.Name, ctxErr)
+	}
+	if stdout.overflowed() {
+		return res, fmt.Errorf("%s: %w (more than %d bytes)", c.Name, ErrStdoutTooLarge, stdoutLimit)
 	}
 	var ee *exec.ExitError
 	if errors.As(err, &ee) {
@@ -198,14 +219,58 @@ func waitExit(pid int) {
 	}
 }
 
-// tailBuffer keeps the last limit bytes written to it.
-type tailBuffer struct {
+// capBuffer keeps the first limit bytes written to it. The first write past
+// them calls over, which stops the command; later writes are dropped
+// without an error, so the pipe drains while the command is stopped.
+type capBuffer struct {
+	mu    sync.Mutex
+	limit int
+	over  func()
+	buf   []byte
+	full  bool
+}
+
+func (b *capBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.full {
+		return len(p), nil
+	}
+	if len(b.buf)+len(p) > b.limit {
+		b.buf = append(b.buf, p[:b.limit-len(b.buf)]...)
+		b.full = true
+		b.over()
+		return len(p), nil
+	}
+	b.buf = append(b.buf, p...)
+	return len(p), nil
+}
+
+func (b *capBuffer) Bytes() []byte {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf
+}
+
+func (b *capBuffer) overflowed() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.full
+}
+
+// TailBuffer keeps the last limit bytes written to it: stderr, where tools
+// put the line that explains a failure, or output a caller shows only the
+// end of.
+type TailBuffer struct {
 	mu    sync.Mutex
 	limit int
 	buf   []byte
 }
 
-func (t *tailBuffer) Write(p []byte) (int, error) {
+// NewTailBuffer returns a TailBuffer that keeps the last limit bytes.
+func NewTailBuffer(limit int) *TailBuffer { return &TailBuffer{limit: limit} }
+
+func (t *TailBuffer) Write(p []byte) (int, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.buf = append(t.buf, p...)
@@ -215,7 +280,7 @@ func (t *tailBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (t *tailBuffer) Bytes() []byte {
+func (t *TailBuffer) Bytes() []byte {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return append([]byte(nil), t.buf...)
@@ -280,6 +345,9 @@ func (f *FakeExec) Run(ctx context.Context, c Cmd) (Result, error) {
 		if _, err := io.WriteString(c.Stdout, r.Stdout); err != nil {
 			return res, err
 		}
+	} else if len(r.Stdout) > StdoutLimit {
+		res.Stdout = []byte(r.Stdout[:StdoutLimit])
+		return res, fmt.Errorf("%s: %w (more than %d bytes)", c.Name, ErrStdoutTooLarge, StdoutLimit)
 	} else {
 		res.Stdout = []byte(r.Stdout)
 	}
