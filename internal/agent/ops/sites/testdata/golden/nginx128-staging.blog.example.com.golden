@@ -340,6 +340,7 @@ LimitNOFILE=65536
 # This, not open_basedir, is the tenant boundary.
 ProtectSystem=strict
 TemporaryFileSystem=/srv/sites:ro /var/log/cloudground:ro
+TemporaryFileSystem=/dev/shm:size=64M,mode=1777,nosuid,nodev,noexec
 BindPaths=/ROOT/srv/staging.blog.example.com /var/log/cloudground/staging.blog.example.com
 ReadWritePaths=/ROOT/srv/staging.blog.example.com /var/log/cloudground/staging.blog.example.com
 InaccessiblePaths=-/etc/nginx -/etc/cloudground -/etc/letsencrypt -/etc/mysql -/var/lib/cloudground -/var/lib/cloudground-agent -/var/cache/cloudground -/var/log/nginx -/var/backups

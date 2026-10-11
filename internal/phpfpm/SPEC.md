@@ -91,6 +91,14 @@ wp-cli/cron runs take their properties from this one list, so they cannot drift 
 are part of the goldens (`sandbox.golden`) and must stay byte-identical: the shell, wp-cli and cron
 pass them to `systemd-run -p`.
 
+`PrivateDevices=yes` gives a private `/dev` but binds the host's `/dev/shm` into it, a directory
+every site can write and read (mode 1777). So `Sandbox` mounts a tmpfs of the unit's own over it
+(`TemporaryFileSystem=/dev/shm:size=64M,mode=1777,nosuid,nodev,noexec`, `ShmSize`): what a site
+leaves there no other site and not the host sees, and it can pin 64 MiB of memory at most. PHP
+does not rely on it (APCu and OPcache map anonymous memory, sessions are in `<root>/tmp`), but
+POSIX semaphores and `shm_open` need it, so it stays writable. The master, the shell and each run
+get separate instances.
+
 `RunSandbox(site)` is `Sandbox(site)` plus `RunHardening` (R-10.5): `RestrictSUIDSGID=yes`,
 `PrivateIPC=yes`, `SystemCallFilter=@system-service`, `SystemCallErrorNumber=EPERM`
 (`LockPersonality=yes` is in `Sandbox` already). Every run of a site off the request path takes it: the SSH shell, cron jobs

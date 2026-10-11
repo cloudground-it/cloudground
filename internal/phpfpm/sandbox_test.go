@@ -20,7 +20,8 @@ func TestUnitCarriesTheSandbox(t *testing.T) {
 		t.Fatalf("the unit's sandbox is not Sandbox():\n%s", unit)
 	}
 	for _, want := range []string{"BindPaths=/srv/sites/a.example /var/log/cloudground/a.example", "NoNewPrivileges=yes",
-		"ProtectProc=invisible", "PrivateTmp=yes", "RestrictNamespaces=yes", "CapabilityBoundingSet="} {
+		"ProtectProc=invisible", "PrivateTmp=yes", "RestrictNamespaces=yes", "CapabilityBoundingSet=",
+		"TemporaryFileSystem=/dev/shm:size=64M,mode=1777,nosuid,nodev,noexec"} {
 		found := false
 		for _, l := range lines {
 			found = found || l == want

@@ -1,6 +1,7 @@
 ===== "site1.example.com"
 ProtectSystem=strict
 TemporaryFileSystem=/srv/sites:ro /var/log/cloudground:ro
+TemporaryFileSystem=/dev/shm:size=64M,mode=1777,nosuid,nodev,noexec
 BindPaths=/srv/sites/site1.example.com /var/log/cloudground/site1.example.com
 ReadWritePaths=/srv/sites/site1.example.com /var/log/cloudground/site1.example.com
 InaccessiblePaths=-/etc/nginx -/etc/cloudground -/etc/letsencrypt -/etc/mysql -/var/lib/cloudground -/var/lib/cloudground-agent -/var/cache/cloudground -/var/log/nginx -/var/backups
@@ -23,6 +24,7 @@ CapabilityBoundingSet=
 ===== "x.test"
 ProtectSystem=strict
 TemporaryFileSystem=/srv/sites:ro /var/log/cloudground:ro
+TemporaryFileSystem=/dev/shm:size=64M,mode=1777,nosuid,nodev,noexec
 BindPaths=/srv/sites/x.test/staging /var/log/cloudground/x.test
 ReadWritePaths=/srv/sites/x.test/staging /var/log/cloudground/x.test
 InaccessiblePaths=-/etc/nginx -/etc/cloudground -/etc/letsencrypt -/etc/mysql -/var/lib/cloudground -/var/lib/cloudground-agent -/var/cache/cloudground -/var/log/nginx -/var/backups
@@ -45,6 +47,7 @@ CapabilityBoundingSet=
 ===== ""
 ProtectSystem=strict
 TemporaryFileSystem=/srv/sites:ro /var/log/cloudground:ro
+TemporaryFileSystem=/dev/shm:size=64M,mode=1777,nosuid,nodev,noexec
 BindPaths= /var/log/cloudground
 ReadWritePaths= /var/log/cloudground
 InaccessiblePaths=-/etc/nginx -/etc/cloudground -/etc/letsencrypt -/etc/mysql -/var/lib/cloudground -/var/lib/cloudground-agent -/var/cache/cloudground -/var/log/nginx -/var/backups
