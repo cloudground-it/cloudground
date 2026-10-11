@@ -34,8 +34,17 @@ Written into `wp-config.php` by the agent (`ops/wp` §11, `ops/staging`):
 | `CLOUDGROUND_PURGE_PAGES` | Optional. How many pages of an archive a change purges, default 10, clamped to 0–50 (§2.3). |
 | `WP_ENVIRONMENT_TYPE` | `staging` on a staging copy (§2.9). |
 
+And in the environment of the site's PHP master (`env[…]` in its pool,
+internal/phpfpm SPEC §5.3), root's file rather than `wp-config.php`, which
+the site can edit; wp-cli does not see it:
+
+| Variable | Meaning |
+| --- | --- |
+| `CLOUDGROUND_2FA` | `optional` or `required`: two-factor sign-in (§2.11). Anything else, or absent, is off. |
+
 The connector stores nothing of its own in the database except the
-one-shot login rows the agent writes (§2.5).
+one-shot login rows the agent writes (§2.5) and the two-factor user meta
+(§2.11); nothing in `wp_options`.
 
 ## 2. The mu-plugin
 
@@ -284,6 +293,116 @@ it towards blocking the address (internal/blocklist SPEC §3). WordPress's
 XML-RPC stops checking credentials after the first failure of a request
 (`system.multicall` included), so a request counts once.
 
+### 2.11 Two-factor sign-in (#74)
+
+On when `CLOUDGROUND_2FA` is `optional` or `required` (§1); off, none of the
+hooks below is added and enrolled accounts sign in with their password
+alone (their keys stay, and count again when it is turned back on).
+Time-based codes, RFC 6238: SHA-1, six digits, 30 s, one step of clock drift
+either way, and a code is accepted only for a time step later than the last
+one the account used (no replay). Keys are 160 random bits, shown in base32
+with an `otpauth://totp/<host>:<login>?secret=…&issuer=<host>` link.
+
+**Who.** An account is *enrolled* when it has a key. With `required`, the
+roles `administrator` and `shop_manager` must have one (filter
+`cloudground_2fa_required(bool, WP_User)` can widen or narrow it). An
+account neither enrolled nor required signs in as before (customers,
+subscribers, and everyone with `optional` until they set it up).
+
+**Sign-in.** `authenticate` filter at priority 99999 (after every other
+authentication plugin). When it receives a `WP_User` for an enrolled or
+required account, typed credentials (an auth cookie, i.e. empty username
+and password, passes) and no application password
+(`application_password_did_authenticate`, which XML-RPC and the REST API
+use; it is its own credential):
+
+- XML-RPC, the REST API, Ajax, wp-cli, or a method other than POST: a
+  `WP_Error` `cloudground_2fa`. A password alone never signs in there.
+- A browser's sign-in form (wp-login.php, WooCommerce's My account and
+  checkout forms, `wp_login_form()`): no auth cookie is set. A token of 32
+  random bytes goes into the cookie `cloudground_2fa` = `<user id>.<hex>`
+  (HttpOnly, Secure, SameSite=Strict, `COOKIEPATH`, 10 minutes), and the user
+  meta `cloudground_2fa_pending` holds its SHA-256, the expiry, a try
+  counter, `rememberme`, the requested destination (`redirect_to`, or
+  WooCommerce's `redirect`, kept only if `wp_validate_redirect` accepts it)
+  and the interim-login flag. 303 to
+  `wp-login.php?action=cloudground_2fa` (`site_url(…, 'login_post')`, plus
+  `&interim-login=1` from the session-expired dialog), and the request ends.
+  The right password is thus distinguishable from a wrong one by the
+  answer, as with every second-step design; the code still stands between
+  it and a session.
+
+**Second step** (`login_form_cloudground_2fa`, inside wp-login.php's own
+frame; `nocache_headers`, `Referrer-Policy: no-referrer`, `X-Robots-Tag:
+noindex`). The cookie must name a user whose pending record has that
+token's hash (`hash_equals`) and has not expired; otherwise "This sign-in
+has expired" and the cookie is cleared. GET shows the form; a POST must
+carry `cg2fa_form` = `hex(hmac_sha256(key=token, "form"))` (another page
+cannot post it), else the form again.
+
+- An enrolled account enters `cg2fa_code`: its current app code, or one of
+  its recovery codes (16 hex characters, dashes and spaces ignored), which is
+  then deleted.
+- A required account without a key sets one up here, and cannot with the
+  password alone: the record also holds a new key (sealed, below) and
+  `hmac_sha256(key=token, <8-digit code>)` of a code mailed to the account's
+  address when the password was accepted (the page says when `wp_mail`
+  failed). The form shows the key and its link and takes both the mailed code
+  (`cg2fa_mail`) and the app's code; both must match.
+
+Every POST counts: the sixth on one pending sign-in deletes it ("sign in
+again"). A wrong code also counts against the account
+(`cloudground_2fa_fails` = `<count>:<unix time>`): from the fifth on, the
+account waits 60 s, doubling with each further one up to an hour, before any
+code is checked, the right one included. A wrong code is also a failed sign-in for
+the server's block list (§2.10: the `X-CloudGround-Auth` mark on that POST),
+and so is a password refused outside the sign-in form, which WordPress
+reports through `wp_login_failed`. A right code: the pending record is
+deleted (a `delete_user_meta` that must succeed, so a replayed post signs in
+nobody), the failure count too, the cookie cleared, and the sign-in done as
+`wp_signon` would: `wp_set_auth_cookie(user, rememberme, secure)`, then
+`wp_login`, then a 303 to the `login_redirect`-filtered destination
+(`admin_url()` when none; validated again with `wp_validate_redirect`;
+`profile.php` or the home page for an account that cannot `edit_posts`). The
+session-expired dialog gets wp-login.php's success page (body class
+`interim-login-success`). A setup shows the ten new recovery codes once,
+with a link on.
+
+**Profile** (`show_user_profile`, `edit_user_profile`, saved on
+`personal_options_update` / `edit_user_profile_update` with the nonce
+`cloudground_2fa_profile_<user id>` and `edit_user` on the account): the
+account itself sets a key up (shown with its link; kept sealed in
+`cloudground_2fa_setup` for an hour so a reload does not change it; saved
+when the code it shows is entered, else the profile reports "the code from
+the app is not right"), makes new recovery codes, or removes its key. An
+administrator (`manage_options`) sees another account's status and can
+reset it (every two-factor meta removed); nobody else sees the section.
+New recovery codes are shown once, on the next view of the profile. A
+required account signed in without a key (from the panel's magic login, or a
+session older than the setting) sees a notice on every admin page with a link
+to the profile.
+
+**The panel's magic login** (§2.5) signs in without the second step: the
+panel's own sign-in, with its own two-factor, is that step, and the link
+stays one-time and signed. It is also the way back for the site's first
+administrator who lost both the phone and the codes.
+
+**Storage**, all user meta (never options, never autoloaded):
+`cloudground_2fa_secret` (the key, sealed), `cloudground_2fa_last` (last
+time step used), `cloudground_2fa_recovery` (SHA-256 of each recovery code,
+64 random bits each), `cloudground_2fa_pending`, `cloudground_2fa_setup`,
+`cloudground_2fa_show` (codes to show once, sealed),
+`cloudground_2fa_fails`. *Sealed* is `v1:` + base64(nonce ‖
+`sodium_crypto_secretbox`) under `hmac_sha256(key=wp_salt('secure_auth'),
+"cloudground-2fa")`: a copy of the database alone does not reveal the keys.
+New salts make the keys unreadable, which counts as a wrong code (fail
+closed); the magic login or an administrator's reset then puts the account
+back.
+
+Not done: a QR code (the key is typed, or the link opened on the phone),
+other second factors (email codes after setup, WebAuthn), ending the
+sessions opened before the setting.
+
 ## 3. The object-cache drop-in
 
 ### 3.1 When it shares
@@ -388,6 +507,20 @@ class `WP_Object_Cache` with public `cache_hits`, `cache_misses` and
   user), else skips. Without the APCu extension (php:8.4-cli has none) the
   shared-segment half is skipped; `test/flush/run.sh` runs both suites with
   APCu first.
+- `php/tests/two-factor.php`: §2.11 against the same stand-in, in its own
+  process (the mode is read when the mu-plugin loads): the RFC 6238 vectors,
+  sealing, which sign-ins are held, the second step, setup at sign-in,
+  recovery codes, throttling, redirects, the profile.
+- Checked by hand on 2026-10-11 against WordPress 7.1.3 and WooCommerce
+  11.2.1 in docker (`wordpress:php8.3-apache`, MariaDB 11, `WP_DEBUG` on,
+  nothing logged): a required administrator's password alone gives no
+  session and wp-admin still redirects to the sign-in; setup with the mailed
+  code and the app's code; sign-in with the app's code to the requested
+  page, remembered; a recovery code works once; XML-RPC with the password
+  is refused; a shop manager signing in from My account is sent to the
+  second step; a customer signs in from My account as before; the magic
+  login signs in; the profile resets, sets up and shows the codes once; the
+  key is sealed in `wp_usermeta`, nothing in `wp_options`.
 - `test/flush/run.sh`: the measurement in §3.4.
 - Checked by hand on 2026-10-09 against WordPress 7.1.3 and WooCommerce
   11.2.1 in docker, intercepting the purge request: the previous connector

@@ -97,6 +97,10 @@ type SiteConfig struct {
 	// Blocking is who the site refuses (#25): addresses, user agents,
 	// countries (internal/engine SPEC §4.7).
 	Blocking SiteBlocking `json:"blocking,omitzero"`
+	// WPTwoFactor is two-factor sign-in on a WordPress site (#74,
+	// connector/SPEC.md §2.11): TwoFactorOptional or TwoFactorRequired;
+	// "" is off.
+	WPTwoFactor string `json:"wp_two_factor,omitempty"`
 }
 
 // SiteBlocking is the visitors a site answers 403: addresses or networks,
@@ -114,6 +118,14 @@ type SiteBlocking struct {
 func (b SiteBlocking) Any() bool {
 	return len(b.Addresses)+len(b.UserAgents)+len(b.Countries) > 0
 }
+
+// The modes of two-factor sign-in on a WordPress site. Optional lets each
+// account set it up from its profile; required also makes it compulsory
+// for administrators and shop managers.
+const (
+	TwoFactorOptional = "optional"
+	TwoFactorRequired = "required"
+)
 
 // ProtectedPath is one path behind HTTP basic auth: the path and what is
 // below it (site.ValidProtectedPath), the one username it takes, and the

@@ -173,6 +173,11 @@ path changes.
   `sys_temp_dir`, `session.save_path = <root>/tmp/sessions`); the error log (§2), `log_errors` on,
   `display_errors` off; `disable_functions = exec,passthru,shell_exec,system,proc_open,popen`.
 - The limits of §3.3.
+- On a WordPress or WooCommerce site with two-factor sign-in (`config.wp_two_factor` `optional` or
+  `required`, #74), `env[CLOUDGROUND_2FA] = <mode>`, which the connector reads
+  (connector/SPEC.md §2.11); nothing otherwise. In the pool, root's, rather than in
+  `wp-config.php`, which the site can edit: a site's own code still runs in the site, but turning
+  the setting off takes the panel.
 - APCu on (`apc.enabled`), sized on the command line (§4). OPcache on, `validate_timestamps = 1`,
   `revalidate_freq = 60` (the JIT mode is on the command line, §4). `apc.enable_cli` and
   `opcache.enable_cli` off.
