@@ -351,6 +351,19 @@ func TestUninstallTakesDebianCnfWithMariaDB(t *testing.T) {
 			return prev(line)
 		}
 		m.write("/etc/mysql/debian.cnf", "[client]\n", 0o600)
+		// Ubuntu's profile: the purge deletes the file, the kernel keeps it.
+		m.write("/etc/apparmor.d/mariadbd", "abi <abi/4.0>,\nprofile mariadbd /usr/{,s}bin/mariadbd flags=(complain) {\n}\n", 0o644)
+		m.write(apparmorFS+"/profiles", "nginx (enforce)\nmariadbd (complain)\n", 0o444)
+		inner := m.cmd.handle
+		m.cmd.handle = func(line string) (string, error, bool) {
+			if line == "dpkg-query -L mariadb-server" {
+				return "/.\n/etc/apparmor.d\n/etc/apparmor.d/mariadbd\n/usr/sbin/mariadbd\n", nil, true
+			}
+			if strings.HasPrefix(line, "apt-get purge") {
+				os.Remove(m.path("/etc/apparmor.d/mariadbd"))
+			}
+			return inner(line)
+		}
 		if own {
 			m.write("/etc/mysql/my.cnf", "[mysqld]\n", 0o644)
 		}
@@ -365,6 +378,9 @@ func TestUninstallTakesDebianCnfWithMariaDB(t *testing.T) {
 		}
 		if !own && !m.gone("/etc/mysql") {
 			t.Error("/etc/mysql with only debian.cnf in it is still there")
+		}
+		if b, err := os.ReadFile(m.path(apparmorFS + "/.remove")); err != nil || string(b) != "mariadbd" {
+			t.Errorf("the mariadbd profile was not unloaded: %q %v", b, err)
 		}
 	}
 }

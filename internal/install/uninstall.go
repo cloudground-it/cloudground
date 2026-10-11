@@ -595,6 +595,9 @@ func (e *Env) purgeActions(inv Inventory, o UninstallOptions) []Action {
 				// orphans (nginx-common, mariadb-server-core, php8.5-common…)
 				// came with CloudGround and goes with it.
 				before := e.orphans(ctx)
+				profiles := e.apparmorProfiles(ctx, pkgs)
+				// Even when a purge fails part way, what it took is unloaded.
+				defer e.unloadProfiles(&profiles)
 				args := append([]string{"purge", "-y", "-qq"}, pkgs...)
 				if out, err := e.Cmd.Run(ctx, "apt-get", args...); err != nil {
 					return fmt.Errorf("apt-get purge: %v: %s", err, strings.TrimSpace(out))
@@ -609,6 +612,7 @@ func (e *Env) purgeActions(inv Inventory, o UninstallOptions) []Action {
 						}
 					}
 					if len(deps) > 0 {
+						profiles = append(profiles, e.apparmorProfiles(ctx, deps)...)
 						args := append([]string{"purge", "-y", "-qq"}, deps...)
 						if out, err := e.Cmd.Run(ctx, "apt-get", args...); err != nil {
 							return fmt.Errorf("apt-get purge (dependencies): %v: %s", err, strings.TrimSpace(out))
@@ -669,6 +673,55 @@ func purgeable(p string) bool {
 		return true
 	}
 	return false
+}
+
+// apparmorFS is where the kernel lists the loaded AppArmor profiles.
+const apparmorFS = "/sys/kernel/security/apparmor"
+
+var (
+	apparmorNamed    = regexp.MustCompile(`(?m)^\s*profile\s+"?([^\s"{]+)`)
+	apparmorAttached = regexp.MustCompile(`(?m)^\s*"?(/[^\s"{]+)"?\s+(?:flags=\([^)]*\)\s*)?\{`)
+)
+
+// apparmorProfiles are the profiles the packages' files in /etc/apparmor.d
+// define. A purge deletes the files but leaves the profiles loaded until a
+// reboot: Ubuntu's "mariadbd" then stops another MariaDB's mariadbd from
+// setting up its data directory (CAP_DAC_OVERRIDE and setgid denied).
+func (e *Env) apparmorProfiles(ctx context.Context, pkgs []string) []string {
+	out, _ := e.Cmd.Run(ctx, "dpkg-query", append([]string{"-L"}, pkgs...)...)
+	var names []string
+	for _, f := range strings.Split(out, "\n") {
+		f = strings.TrimSpace(f)
+		if filepath.Dir(f) != "/etc/apparmor.d" {
+			continue
+		}
+		b, err := os.ReadFile(e.path(f))
+		if err != nil {
+			continue
+		}
+		for _, re := range []*regexp.Regexp{apparmorNamed, apparmorAttached} {
+			for _, m := range re.FindAllStringSubmatch(string(b), -1) {
+				names = append(names, m[1])
+			}
+		}
+	}
+	return names
+}
+
+// unloadProfiles takes the profiles that are still loaded out of the kernel.
+func (e *Env) unloadProfiles(names *[]string) {
+	loaded, err := os.ReadFile(e.path(apparmorFS + "/profiles"))
+	if err != nil {
+		return
+	}
+	for _, n := range *names {
+		if !strings.Contains("\n"+string(loaded), "\n"+n+" (") {
+			continue
+		}
+		if err := os.WriteFile(e.path(apparmorFS+"/.remove"), []byte(n), 0o600); err != nil {
+			e.logf("AppArmor profile %s stays loaded until a reboot: %v", n, err)
+		}
+	}
 }
 
 // onlyFile: dir holds the file name and nothing else but empty directories.
