@@ -83,6 +83,17 @@ done
 # 1,024 bytes, of a size no WordPress release can change.
 printf '%01024d' 0 | tr 0 x | as_site tee "$root/bench-static.txt" >/dev/null
 
+# WooCommerce's first-run steps (they run on a theme switch or a first visit
+# to the admin) put a new store in "coming soon" mode: /shop/ then answers a
+# placeholder with no product, twice as fast as the real page, and the
+# uncached scenario measures the wrong thing (bench/uncached-php.md). Keep
+# the store open, then check that the page lists the products. The flush
+# goes through the generation file, so it reaches PHP-FPM's APCu.
+wp option update woocommerce_coming_soon no >/dev/null
+wp cache flush --skip-plugins --skip-themes >/dev/null
+listed=$(curl -sk --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/shop/?setup=$RANDOM" | grep -o 'Bench product [0-9]*' | sort -u | wc -l)
+(( listed > 0 )) || { echo "https://$DOMAIN/shop/ lists no product: not the page the suite measures" >&2; exit 1; }
+
 echo "site id $site"
 echo "posts $(wp post list --post_type=post --post_status=publish --format=count), products $(wp post list --post_type=product --format=count)"
 echo "WordPress $(wp core version), WooCommerce $(wp plugin get woocommerce --field=version), PHP $PHPV"

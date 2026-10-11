@@ -39,6 +39,9 @@ func RenderUnit(site state.Site, phpBinDir string) (name, content string, err er
 		fmt.Sprintf("-d opcache.memory_consumption=%d", c.OPcacheMB),
 		fmt.Sprintf("-d opcache.interned_strings_buffer=%d", c.InternedMB),
 		fmt.Sprintf("-d opcache.max_accelerated_files=%d", c.MaxFiles),
+		// The JIT mode is read once, when the master starts: a pool's
+		// php_admin_value cannot turn it on, and was silently ignored.
+		"-d opcache.jit=tracing",
 		fmt.Sprintf("-d opcache.jit_buffer_size=%dM", c.JITMB),
 		fmt.Sprintf("-d apc.shm_size=%dM", c.APCuMB),
 	}
@@ -63,9 +66,11 @@ func RenderUnit(site state.Site, phpBinDir string) (name, content string, err er
 	f.addAll(
 		"# The site sees its own tree and nothing of any other site: /srv/sites is an",
 		"# empty tmpfs with only this site bound into it, and the same for its logs.",
-		"# This, not open_basedir, is the tenant boundary.",
+		"# This, not open_basedir, is the tenant boundary. Its SysV shared memory,",
+		"# semaphores and POSIX queues are its own too (PrivateIPC).",
 	)
 	f.addAll(Sandbox(site)...)
+	f.addAll(MasterHardening...)
 	f.add("")
 	f.add("[Install]")
 	f.add("WantedBy=multi-user.target")

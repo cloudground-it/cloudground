@@ -15,6 +15,10 @@ server, as root, and talks to the panel through the API socket (`/run/cloudgroun
   reused, so running the script twice is safe.
 - Content: at least 100 published posts and 50 simple products (`Bench product <n>`, price
   `10+n`), the default theme, and a 1,024-byte file at `/bench-static.txt`.
+- The store is open: `woocommerce_coming_soon` is `no`, and the script fails unless `/shop/` lists
+  at least one bench product. WooCommerce's first-run steps (a theme switch, a first visit to the
+  admin) put a new store in "coming soon" mode, where `/shop/` is a placeholder that renders about
+  twice as fast as the real page (`uncached-php.md`).
 - The script writes files in the site tree as the site's own user. It never writes there as root
   and never runs `chown` (AGENTS.md, uutils).
 - Output: the site id, the post and product counts, the WordPress, WooCommerce and PHP versions,

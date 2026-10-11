@@ -158,6 +158,23 @@ func (h *harness) security(t *testing.T) {
 	}
 	h.remove(ar+"/current/cg-a.php", br+"/current/cg-b.php")
 
+	// The PHP masters' SysV shared memory, semaphores and POSIX queues are
+	// their own (PrivateIPC): neither shares the host's IPC namespace or
+	// the other's. Read from the running processes, not from the units.
+	ipcNS := func(user string) string {
+		p := h.run("systemctl", "show", "-p", "MainPID", "--value", "cloudground-php-"+user+".service").Trim()
+		if p == "" || p == "0" {
+			return "no master"
+		}
+		l, _ := os.Readlink("/proc/" + p + "/ns/ipc")
+		return l
+	}
+	hostIPC, _ := os.Readlink("/proc/1/ns/ipc")
+	aIPC, bIPC := ipcNS(au), ipcNS(bu)
+	h.assert(t, "a site's PHP master has an IPC namespace of its own",
+		strings.HasPrefix(aIPC, "ipc:") && aIPC != hostIPC && aIPC != bIPC && strings.HasPrefix(bIPC, "ipc:") && bIPC != hostIPC,
+		"host %s, site A %s, site B %s", hostIPC, aIPC, bIPC)
+
 	// #46: /dev/shm is each site's own. A file site A's PHP leaves there,
 	// world-readable, is neither in site B's nor on the host's; A reads it
 	// back on a later request (control), and A's is a small tmpfs.
