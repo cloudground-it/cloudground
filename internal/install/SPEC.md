@@ -693,8 +693,9 @@ backup can be read. So, before anything is removed (`keep.state`; directory root
   of the run warn to store it safely, off the server, and delete it. A state this build cannot read leaves the
   copy and says so in the README; it does not stop the uninstall.
 - `README.txt`: what the files are, and every repository the panel used (the setting, and every
-  `backups.repository`), marked as not touched. The end of the run prints the repositories and the
-  path of `backup.env`.
+  `backups.repository`), marked as not touched. The end of the run prints the repositories, a URL's
+  password masked (it is in `backup.env`, not for the terminal or a log), and the path of
+  `backup.env`.
 
 What an earlier uninstall kept there (a server uninstalled, installed again and uninstalled again)
 is never overwritten: `state/`, `backup.env`, `README.txt` and `custom-certs/` are first moved into
