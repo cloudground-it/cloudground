@@ -1,6 +1,7 @@
 package nginx
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -144,5 +145,67 @@ func TestOutputDirectories(t *testing.T) {
 	}
 	if _, ok := (Renderer{ConfDir: "/x/conf"}).GlobalFiles()["/x/conf/cloudground-global.conf"]; !ok {
 		t.Error("global file not in ConfDir")
+	}
+}
+
+// SPEC §4.4: every site with a root answers 404 for leftovers, from a
+// regex location that comes before every other regex location.
+func TestLeftoversAreNotServed(t *testing.T) {
+	re := regexp.MustCompile("(?i)" + leftoverRegex)
+	for _, path := range []string{
+		"/wp-config.php.bak", "/wp-config.php.old", "/wp-config.php.save", "/wp-config.php~",
+		"/wp-config.php-backup", "/WP-CONFIG.PHP.BAK", "/blog/wp-config.php.orig",
+		"/index.php.bak", "/a/b/style.css.old", "/notes.txt.orig", "/x.swp", "/x.swo", "/readme~",
+		"/dump.sql", "/dump.SQL", "/db/site.sql.gz", "/site.sql.bz2", "/site.sql.xz", "/site.sql.zst", "/site.sql.zip",
+		"/backup.tar", "/backup.tar.gz", "/backup.TGZ", "/backup.tar.bz2", "/backup.tbz2", "/backup.tar.xz",
+		"/backup.txz", "/backup.tar.zst", "/site.zip", "/site.7z", "/site.rar",
+	} {
+		if !re.MatchString(path) {
+			t.Errorf("%s is served", path)
+		}
+	}
+	for _, path := range []string{
+		"/", "/index.php", "/wp-config.php", "/wp-config-sample.php", "/wp-login.php",
+		"/wp-content/uploads/2026/10/photo.jpg", "/style.css", "/app.js.gz",
+		"/wp-content/uploads/files/manual.zip", "/downloads/release.tar.gz",
+		"/sql", "/old/", "/bak/page", "/backup", "/my.sqlite", "/zip",
+	} {
+		if re.MatchString(path) {
+			t.Errorf("%s is refused", path)
+		}
+	}
+
+	for _, c := range matrixCases() {
+		files, err := Renderer{}.SiteFiles(c.in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := parseConf(vhostOf(t, files, c.in.Site.Domain))
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		var regexes []*directive
+		directives(p.top, nil, func(d, parent *directive) {
+			if d.name() == "location" && len(d.words) > 2 && strings.HasPrefix(d.words[1], "~") {
+				regexes = append(regexes, d)
+			}
+		})
+		if c.in.Site.Type == state.SiteProxy {
+			for _, d := range regexes {
+				if d.words[2] == leftoverRegex {
+					t.Errorf("%s: a proxy site has the leftovers location", c.name)
+				}
+			}
+			continue
+		}
+		// The hidden-files location, then this one: first among the rest.
+		if len(regexes) < 2 || regexes[1].words[1] != "~*" || regexes[1].words[2] != leftoverRegex {
+			t.Errorf("%s: the leftovers location is not the second regex location", c.name)
+			continue
+		}
+		body := regexes[1].children
+		if len(body) != 1 || strings.Join(body[0].words, " ") != "return 404" {
+			t.Errorf("%s: the leftovers location does not answer 404", c.name)
+		}
 	}
 }

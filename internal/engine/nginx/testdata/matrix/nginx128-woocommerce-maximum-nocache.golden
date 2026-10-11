@@ -59,6 +59,12 @@ server {
         deny all;
     }
 
+    # Leftovers are never served: backup and editor copies, SQL dumps, copies
+    # of wp-config.php and archives at the top of the root (SPEC §4.4).
+    location ~* (?:\.(?:bak|old|orig|save|swp|swo|sql|sql\.(?:gz|bz2|xz|zst|zip))|~|/wp-config\.php.+|^/[^/]+\.(?:tar|tar\.(?:gz|bz2|xz|zst)|tgz|tbz2|txz|zip|7z|rar))$ {
+        return 404;
+    }
+
     # Uploads are data: a .php a plugin let through is never run (SR-T9).
     location ~* ^/wp-content/uploads/.*\.php$ {
         deny all;

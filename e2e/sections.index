@@ -426,6 +426,7 @@ e2e/tenant_data_test.go	tenantDB.definers	SR tenant data
 e2e/tenant_data_test.go	tenantDB.foreignSnapshot	SR tenant data
 e2e/tenant_data_test.go	tenantDB.grantPattern	SR tenant data
 e2e/tenant_data_test.go	tenantDB.importSQL	SR tenant data
+e2e/tenant_data_test.go	tenantDB.leftovers	SR tenant data
 e2e/tenant_data_test.go	tenantDB.linkProtection	SR tenant data
 e2e/tenant_data_test.go	tenantDB.localInfile	SR tenant data
 e2e/tenant_data_test.go	tenantDB.reservedNames	SR tenant data

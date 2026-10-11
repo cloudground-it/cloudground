@@ -279,6 +279,11 @@ func (v *vhost) render() (before, block, after string) {
 			"disable_symlinks if_not_owner from="+symlinkFrom(in)+";", "",
 			`location ~ /\.(?!well-known) {`)
 		c.put(2, "deny all;")
+		c.put(1, "}", "",
+			"# Leftovers are never served: backup and editor copies, SQL dumps, copies",
+			"# of wp-config.php and archives at the top of the root (SPEC §4.4).",
+			"location ~* "+leftoverRegex+" {")
+		c.put(2, "return 404;")
 		c.put(1, "}")
 		if s.Type == state.SiteWordPress || s.Type == state.SiteWooCommerce {
 			// Before every other regex location (the routing block's and
@@ -313,6 +318,14 @@ func (v *vhost) render() (before, block, after string) {
 	t.put(0, "}")
 	return before, block, t.String()
 }
+
+// leftoverRegex matches, without regard to case, the paths a site never
+// serves (SPEC §4.4): a name ending in a backup or editor suffix (.bak,
+// .old, .orig, .save, .swp, .swo, ~), an SQL dump (.sql, compressed or
+// not), a copy of wp-config.php under any longer name, and an archive at
+// the top of the document root, where dumps are left (an archive deeper
+// down, a plugin's download, is served).
+const leftoverRegex = `(?:\.(?:bak|old|orig|save|swp|swo|sql|sql\.(?:gz|bz2|xz|zst|zip))|~|/wp-config\.php.+|^/[^/]+\.(?:tar|tar\.(?:gz|bz2|xz|zst)|tgz|tbz2|txz|zip|7z|rar))$`
 
 // php_ is what follows a PHP site's routing: the cache bypass and the PHP
 // location (SPEC §4.2, §5.1).
