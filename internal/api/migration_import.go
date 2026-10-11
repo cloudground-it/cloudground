@@ -61,27 +61,66 @@ func (s *Server) startMigration(site state.Site, role string, o migrationOrder) 
 			return jobs.Task{}, "", err
 		}
 	}
+	repo, password, err := s.backupRepository()
+	if err != nil {
+		return jobs.Task{}, "", err
+	}
+	safety := migrationSafety{repo: repo, password: password}
+	locks := siteLocks(site.ID)
+	if safety.on() {
+		// One restic process on the repository, as for a restore.
+		locks = append(locks, jobs.RepoLock(repo))
+	}
 	p := rpc.MigrationParams{
 		Archive: o.Archive, SQL: o.SQL, Database: o.Database, MaxRatio: o.MaxRatio,
 		OldDomain: strings.ToLower(strings.TrimSpace(o.OldDomain)),
 		ReleaseID: siteval.NewReleaseID(time.Now()),
 	}
-	task, err := s.runJob(jobReq{kind: "migration.import", siteID: site.ID, locks: siteLocks(site.ID)}, func(ctx context.Context, site state.Site, step func(int, string)) error {
+	task, err := s.runJob(jobReq{kind: "migration.import", siteID: site.ID, locks: locks}, func(ctx context.Context, site state.Site, step func(int, string)) error {
 		run := p
 		run.Site = site
-		return s.runMigration(ctx, run, step)
+		return s.runMigration(ctx, run, safety, step)
 	})
 	return task, p.ReleaseID, err
 }
 
-// runMigration is the migration job: the agent's import, the release it
-// made recorded as promoted, the page cache emptied and warmed again. The
-// agent's refusal is returned as it came, so the task keeps its
-// translation key and each reader sees it in their language.
-func (s *Server) runMigration(ctx context.Context, p rpc.MigrationParams, step func(int, string)) error {
-	step(10, "Validating and extracting migration archive")
+// migrationSafety is the backup repository a migration's safety snapshot
+// goes to, read when the import is queued; both empty when backups are
+// not configured.
+type migrationSafety struct{ repo, password string }
+
+func (m migrationSafety) on() bool { return m.repo != "" && m.password != "" }
+
+// runMigration is the migration job: a restore-tested safety snapshot of
+// the site as it is (an import replaces its uploads and tables, and a
+// stale or wrong archive still succeeds), the agent's import, the release
+// it made recorded as promoted, the page cache emptied and warmed again.
+// Without a backup repository the task says, before anything moves, that
+// the import cannot be undone. The agent's refusal is returned as it
+// came, so the task keeps its translation key and each reader sees it in
+// their language.
+func (s *Server) runMigration(ctx context.Context, p rpc.MigrationParams, safety migrationSafety, step func(int, string)) error {
+	kept := ""
+	if safety.on() {
+		b, err := s.safetySnapshot(ctx, p.Site, safety.repo, safety.password, "pre-migration", step)
+		if err != nil {
+			return err
+		}
+		kept = b.SnapshotID
+		if err := checkpoint(ctx, step, "the import (the safety snapshot "+kept+" is kept)"); err != nil {
+			return err
+		}
+	} else {
+		step(5, "No backup repository is configured: no safety snapshot is taken, and this import cannot be undone")
+	}
+	step(45, "Validating and extracting migration archive")
 	res, err := agentrpc.Call(ctx, s.Agent, agentrpc.ImportMigration, p)
 	if err != nil {
+		if kept != "" {
+			// The agent rolls a failed import back itself; the snapshot is
+			// there for whatever its rollback could not put back.
+			step(-1, "The import failed; the safety snapshot "+kept+" is kept and restores the site as it was before")
+		}
 		return err
 	}
 	step(85, "Recording immutable migration release")
@@ -96,6 +135,9 @@ func (s *Server) runMigration(ctx context.Context, p rpc.MigrationParams, step f
 	done := "Migration imported and activated (" + strconv.Itoa(res.Files) + " files)"
 	if res.Skipped != 0 {
 		done += "; " + strconv.Itoa(res.Skipped) + " unsafe or special entries skipped"
+	}
+	if kept != "" {
+		done += "; safety snapshot " + kept + " retained"
 	}
 	step(100, done)
 	return nil

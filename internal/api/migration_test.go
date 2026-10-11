@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -151,5 +152,77 @@ func TestMigrationErrorIsTranslated(t *testing.T) {
 	_, task = migrate(t, s, admin, site, nil)
 	if got := read(); got != "the agent's own words" {
 		t.Fatalf("unknown key: %q", got)
+	}
+}
+
+// An import replaces a site's uploads and tables, and a stale or wrong
+// archive still succeeds: a restore-tested pre-migration snapshot is taken
+// before the agent is asked, under the repository's lock, and named in the
+// task. One that fails its restore test stops the import; without a
+// repository the task says the import cannot be undone, before it runs.
+func TestMigrationTakesASafetySnapshotFirst(t *testing.T) {
+	s, agent, ts := testServer(t)
+	admin := setupAdmin(t, s, ts)
+	site := migrationSite(t, s)
+	importer := agentrpc.ImportMigration.Name()
+	index := func(method string) int {
+		agent.mu.Lock()
+		defer agent.mu.Unlock()
+		return slices.Index(agent.calls, method)
+	}
+
+	// No repository: the import runs, and says it cannot be undone.
+	_, task := migrate(t, s, admin, site, nil)
+	if task.Status != state.JobSucceeded || agent.called(agentrpc.RunBackup.Name()) {
+		t.Fatalf("without a repository: %s, calls %v", task.Status, agent.calls)
+	}
+	if log := jobs.View(task).Log; !strings.Contains(log, "this import cannot be undone") {
+		t.Fatalf("the task does not say the import cannot be undone: %q", log)
+	}
+	if slices.Contains(task.Locks, jobs.RepoLock("")) {
+		t.Fatalf("locks %v: a repository lock without a repository", task.Locks)
+	}
+
+	const repo = "/var/backups/repo"
+	setBackupRepo(t, s, repo, "correct-horse")
+	agent.setResult(agentrpc.RunBackup.Name(), rpc.BackupResult{SnapshotID: "5afe5afe5afe5afe", SizeBytes: 42})
+
+	// A snapshot that fails its restore test stops the import.
+	agent.forget()
+	agent.setResult(agentrpc.VerifyBackup.Name(), rpc.VerifyResult{Passed: false, Detail: "database dump does not import"})
+	if _, task = migrate(t, s, admin, site, nil); task.Status != state.JobFailed || agent.called(importer) {
+		t.Fatalf("behind an unverified snapshot: %s, calls %v", task.Status, agent.calls)
+	}
+
+	// A verified one comes first, and its ID is in the task.
+	agent.forget()
+	agent.setResult(agentrpc.VerifyBackup.Name(), rpc.VerifyResult{Passed: true, Detail: "ok"})
+	_, task = migrate(t, s, admin, site, nil)
+	if task.Status != state.JobSucceeded {
+		t.Fatalf("migration = %s %q", task.Status, task.Error)
+	}
+	snap, verify, imp := index(agentrpc.RunBackup.Name()), index(agentrpc.VerifyBackup.Name()), index(importer)
+	if snap < 0 || verify < snap || imp < verify {
+		t.Fatalf("calls %v: want the snapshot, its restore test, then the import", agent.calls)
+	}
+	if !hasBackup(t, s, site.ID, "pre-migration", "5afe5afe5afe5afe") {
+		t.Fatal("no verified pre-migration snapshot was recorded")
+	}
+	if !slices.Contains(task.Locks, jobs.RepoLock(repo)) {
+		t.Fatalf("locks %v: the snapshot runs outside the repository's lock", task.Locks)
+	}
+	if log := jobs.View(task).Log; !strings.Contains(log, "safety snapshot 5afe5afe5afe5afe retained") {
+		t.Fatalf("the task does not name the safety snapshot: %q", log)
+	}
+
+	// A failed import keeps the snapshot and says so; the agent's error is
+	// returned as it came.
+	agent.errs[importer] = &agentrpc.Error{Code: agentrpc.CodeInvalid, Message: "the imported dump has no wp_options table"}
+	_, task = migrate(t, s, admin, site, nil)
+	if task.Status != state.JobFailed || task.Error != "the imported dump has no wp_options table" {
+		t.Fatalf("failed import = %s %q", task.Status, task.Error)
+	}
+	if log := jobs.View(task).Log; !strings.Contains(log, "the safety snapshot 5afe5afe5afe5afe is kept") {
+		t.Fatalf("the failed import does not name the safety snapshot: %q", log)
 	}
 }

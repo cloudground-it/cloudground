@@ -72,6 +72,7 @@ var sections = []section{
 	{name: "firewall", run: (*harness).firewall},
 	{name: "R-4.3 proxies and alerts", run: (*harness).proxiesAlerts, fixtures: []string{fxFeatureSite}},
 	{name: "F9b site databases", run: (*harness).siteDatabases, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
+	{name: "migration safety snapshot", run: (*harness).migrationSafety},
 	{name: "F9b site creation", run: (*harness).siteCreation, lane: "site creation"},
 	{name: "F9b Quarry service", run: (*harness).dbStudioService, fixtures: []string{fxWooSite, fxFeatureSite}},
 	{name: "wordpress teardown", run: (*harness).wordpressTeardown, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
@@ -368,6 +369,13 @@ func (h *harness) migration(t *testing.T) {
 	mtask := taskID(b)
 	h.check(t, "migration import accepted", yesNo(mtask != 0), "yes")
 	h.check(t, "migration import succeeds", h.api.waitTask(mtask, 240*time.Second), "succeeded")
+	// #41: with no backup repository there is no safety snapshot, and the
+	// task says so (the lanes run before any section configures one).
+	if _, sb := h.api.get("/api/settings"); jsonField(sb, "backup_repository") == "" {
+		_, rec := h.api.get(fmt.Sprintf("/api/tasks/%d", mtask))
+		h.assert(t, "#41: without a backup repository the migration's task says it cannot be undone",
+			strings.Contains(string(rec), "this import cannot be undone"), "task record: %s", head(rec, 600))
+	}
 
 	// The archive's own content must be live.
 	h.assert(t, "migrated files are live", exists(mroot+"/current/imported-marker.txt"), "migrated files are live")
