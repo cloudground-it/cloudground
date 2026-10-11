@@ -91,7 +91,8 @@
       "task": "Vorgang",
       "service": "Dienst",
       "drift": "Konfiguration",
-      "deploy": "Release"
+      "deploy": "Release",
+      "uptime": "Erreichbarkeit"
     },
     "more": "und {n} weitere unter Warnungen (Glocke oben rechts)",
     "dismiss": "Archivieren",
@@ -1320,5 +1321,25 @@
     "removeTitle": "Schutz für {path} aufheben?",
     "removeHint": "Jeder kann ihn dann wieder ohne Passwort erreichen.",
     "ajaxNote": "admin-ajax.php bleibt für Besucher offen: Themes und Plugins rufen es von den öffentlichen Seiten auf."
+  },
+  "uptime": {
+    "title": "Erreichbarkeit",
+    "hint": "Alle {n} s ruft das Panel die Website über ihre öffentliche Adresse auf, wie ein Besucher. Zwei Fehlschläge hintereinander lösen einen Alarm aus, der an den Alarm-Webhook geht.",
+    "off": "aus",
+    "pending": "erste Prüfung in Kürze",
+    "up": "antwortet",
+    "failing": "ein Fehlschlag",
+    "down": "antwortet nicht",
+    "url": "Geprüfte Adresse",
+    "lastCheck": "Letzte Prüfung",
+    "answer": "Antwort",
+    "downSince": "Antwortet nicht seit",
+    "path": "Abgerufener Pfad",
+    "pathHelp": "Eine Seite, die schnell antwortet; standardmäßig /. Ein 4xx zählt als Antwort, ein 5xx oder keine Antwort als Fehlschlag.",
+    "pathBad": "Beginnt mit /; Buchstaben, Ziffern und . _ ~ - zwischen Schrägstrichen.",
+    "turnOn": "Einschalten",
+    "turnOff": "Ausschalten",
+    "saved": "Erreichbarkeitsprüfung gespeichert",
+    "turnedOff": "Erreichbarkeitsprüfung aus"
   }
 }

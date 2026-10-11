@@ -117,6 +117,8 @@ const details = computed(() => {
     </div>
   </PanelSection>
 
+  <SiteUptime v-if="site.status === 'active'" />
+
   <div class="grid gap-6 lg:grid-cols-2">
     <PanelSection :title="t('overview.details')">
       <SummaryList :rows="details" />

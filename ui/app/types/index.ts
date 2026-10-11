@@ -46,6 +46,8 @@ export interface Site {
     php: { memory_limit_mb: number, upload_max_mb: number, max_execution_seconds: number }
     /** Paths behind a username and password (the hash never leaves the panel). */
     protected_paths?: { path: string, username: string }[]
+    /** The panel's periodic check from the public address (absent: off). */
+    uptime?: { enabled: boolean, path?: string }
   }
   created_at: string
 }

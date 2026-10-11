@@ -103,6 +103,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `DELETE /api/sites/{id}/protected-paths`: 8 KiB
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
+  - `PUT /api/sites/{id}/uptime`: 8 KiB
   - `PUT /api/sites/{id}/backups/policy`: 8 KiB
   - `POST /api/sites/{id}/files/upload`: 16 MiB
   - `POST /api/quarry/login`: 8 KiB
@@ -191,6 +192,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `GET` | `/api/sites/{id}/cache-stats` | auth | APCu hits, misses and memory in use |
 | `GET` | `/api/sites/{id}/logs?source=` | auth | tail one of the site's own logs: `access`, `error` or `php` |
 | `POST` | `/api/sites/{id}/migration` | manage | bring in a site from a files archive and a SQL dump |
+| `GET` | `/api/sites/{id}/uptime` | auth | the site's uptime check: `enabled`, `path`, `url`, `interval_seconds` and the `last` result (`up`, `status`, `latency_ms`, `error`, `down_since`) |
+| `PUT` | `/api/sites/{id}/uptime` | manage | turn the uptime check on or off (`enabled`) and choose the path it requests (`path`, default `/`) |
 
 `PATCH /api/sites/{id}` takes any of these fields; only the fields sent change, and one task applies
 them all:

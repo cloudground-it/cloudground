@@ -1873,8 +1873,13 @@ lasts (across days, across a changing detail line), new when it changes.
 | `task` | `task:<job id>` | — | error | `<the kind's English name> failed: <error's first line>` (the text's first argument is the raw kind, named in the reader's language when read; an alert stored before #13 has the kind with dots as spaces, read the same) | a non-quiet job that failed in the last 24 hours; `at` is its creation. A job of a site that no longer exists (a creation that failed and was rolled back) is a server-wide alert whose `site` is the domain the job recorded (`startJob` stores `{site_id, domain}` as the payload of a function job), or `site #<id>`: admins must see a failed creation |
 | `service` | `service:<name>` | the state | error | `<name> is <state>: <detail>` | a service the agent reports `failed` or `stopped` |
 | `service` | `connector.token_guessing` | the burst's start | error | `<n> invalid connector tokens since <time>: something may be guessing the sites' tokens` | a burst of wrong connector tokens (§8); `at` is its start |
+| `uptime` | `uptime:site:<id>` | when the outage began (RFC 3339) | error | `the site does not answer from its public address: <reason>` (refreshed at each evaluation) | a monitored site whose last two checks or more failed (§11.4); `at` is when the outage began |
 | `drift` | `drift` | the newest open event's id | warning | `<n> managed file(s) changed outside the panel` | open drift events |
 | `deploy` | `deploy:<deployment id>` | the deployment's note | warning | `deploy.drift: the site serves a release the panel had not recorded as live (release <r>, recorded <live or none>)`; `release <r> is live without its post-promotion verification (it was canceled)`; `release <r> regressed after its promotion and could not be rolled back automatically` | a deployment with a note (§4.5); the note's code picks the message |
+
+The uptime set lives in memory (§11.4): until the first round after the
+panel starts has run, the uptime alerts are left as they are, so a
+restart neither clears an outage nor raises it again as a new one.
 
 The service set needs the agent: when `ServiceStatus` fails the service
 alerts are left as they are (neither raised nor cleared; token guessing is
@@ -1958,6 +1963,40 @@ a task alert; nested, so it clashes with no field a chat tool reads.
   never the URL. The agent's errors are logged with every URL password
   replaced by `***` (`agentrpc.RedactCredentials`, applied to every
   error's detail), since restic's output can name the repository.
+
+### 11.4 Uptime (#32, `uptime.go`)
+
+A site's `config.uptime` `{enabled, path}` turns on the panel's check of it
+(off for every site until turned on: a site whose name does not point here
+yet would be an outage). The **uptime watcher**, started with the others,
+runs a round at once and then every minute (or at once when a site's
+check is changed): every active site with the check on is requested, eight
+at a time, as `GET https://<domain><path>` (`/` by default) with the
+`User-Agent` `CloudGround-Uptime/<version>`, a 10 s timeout, the system's
+certificate roots, and no redirect followed (a 3xx is an answer, and the
+check never leaves the site's address; nothing of the body is kept). An
+answer below 500 is up, a 4xx included (the site answers); a 5xx, a
+refused or reset connection, a certificate a browser would refuse or no
+answer within 10 s is a failure, with its reason (`HTTP 502 Bad Gateway`,
+`no answer within 10 s`, the transport's error without the URL). Results
+are kept in memory per site: the last check, its latency, and while it
+fails, when the streak began and how long it is. Two failures in a row are
+an outage (one lost packet or a reload is not), and a round in which a site
+enters or leaves an outage asks the alert watcher for an evaluation, so the
+alert is raised or cleared within seconds and sent by the next
+`alerts.notify` (§11.3), like every other alert. A site whose check is
+turned off, or that stops being active, leaves the set at once.
+
+- `GET /api/sites/{id}/uptime` (signed in, the site's readers): `{enabled,
+  path, url, interval_seconds, last}`; `last` is the last check
+  (`checked_at, up, status, latency_ms, error, down_since, failures`),
+  absent before the first one or while the check is off.
+- `PUT /api/sites/{id}/uptime` (manage) `{enabled?, path?}`: a body naming
+  neither → 400; a path that is not plain (`/` then letters, digits and
+  `. _ ~ -` between slashes, at most 200 bytes, no query) → 400 with
+  `fields.path`. Stored without a render (`MutateSiteApplied`); audit
+  `site.uptime`, `enabled=<bool> path=<path>`; a round runs at once. 200,
+  the view.
 
 ## 12. Settings (R-4.3)
 

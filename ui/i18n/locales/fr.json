@@ -91,7 +91,8 @@
       "task": "Opération",
       "service": "Service",
       "drift": "Configuration",
-      "deploy": "Release"
+      "deploy": "Release",
+      "uptime": "Disponibilité"
     },
     "more": "et {n} de plus dans le panneau Alertes (cloche, en haut à droite)",
     "dismiss": "Archiver",
@@ -1320,5 +1321,25 @@
     "removeTitle": "Ne plus protéger {path} ?",
     "removeHint": "Tout le monde pourra y accéder de nouveau sans mot de passe.",
     "ajaxNote": "admin-ajax.php reste ouvert aux visiteurs : les thèmes et les extensions l’appellent depuis les pages publiques."
+  },
+  "uptime": {
+    "title": "Disponibilité",
+    "hint": "Toutes les {n} s, le panneau demande le site depuis son adresse publique, comme un visiteur. Deux échecs de suite déclenchent une alerte, envoyée au webhook des alertes.",
+    "off": "désactivée",
+    "pending": "premier contrôle bientôt",
+    "up": "répond",
+    "failing": "un échec",
+    "down": "ne répond pas",
+    "url": "Adresse contrôlée",
+    "lastCheck": "Dernier contrôle",
+    "answer": "Réponse",
+    "downSince": "Ne répond plus depuis",
+    "path": "Chemin à demander",
+    "pathHelp": "Une page qui répond vite ; / par défaut. Un 4xx compte comme une réponse, un 5xx ou l’absence de réponse comme un échec.",
+    "pathBad": "Commence par / ; lettres, chiffres et . _ ~ - entre les barres obliques.",
+    "turnOn": "Activer",
+    "turnOff": "Désactiver",
+    "saved": "Contrôle de disponibilité enregistré",
+    "turnedOff": "Contrôle de disponibilité désactivé"
   }
 }
