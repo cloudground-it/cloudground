@@ -202,11 +202,22 @@ func (s *Store) open(name string, sealed []byte) (string, error) {
 
 // Secret returns the named secret, or "" when it is not set.
 func (s *Store) Secret(name string) (string, error) {
+	return s.secretFrom(s.db, name)
+}
+
+// rowQuerier reads one row: the database, a transaction or a connection
+// (connExec).
+type rowQuerier interface {
+	QueryRow(query string, args ...any) *sql.Row
+}
+
+// secretFrom is Secret read through q.
+func (s *Store) secretFrom(q rowQuerier, name string) (string, error) {
 	if s.key == nil {
 		return "", ErrNoSecretKey
 	}
 	var sealed []byte
-	err := s.db.QueryRow(`SELECT sealed FROM secrets WHERE name=?`, name).Scan(&sealed)
+	err := q.QueryRow(`SELECT sealed FROM secrets WHERE name=?`, name).Scan(&sealed)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}

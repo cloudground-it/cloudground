@@ -44,11 +44,20 @@ it is derived from the system except the observations named below
    | `site.<id>.staging_password` | a staging site's HTTP password |
    | `user.<id>.totp` | the account's active TOTP secret (migration 16) |
    | `user.<id>.totp_pending` | a TOTP secret being enrolled, not yet confirmed |
+   | `backup_repository:<URL>` | the password in a repository URL's userinfo (`rest:https://user:pw@host/`); `<URL>` is the URL as stored, with `{sealed}` for it |
 
-   `backup_repository` stays a plain setting: it is also copied into every
-   `backups.repository` row, so encrypting one copy would be theatre. Keep
-   credentials in `backup_s3_*`, not in the URL. A `user.<id>.` secret has
-   no `site_id`; it goes in the transaction that deletes its account.
+   `backup_repository` and `backups.repository` keep the URL, with the
+   password of its userinfo, if any, replaced by `{sealed}`; the password is
+   the secret `backup_repository:<that form>` (`repo_credentials.go`).
+   Writes (`UpdatePanelSettings`, `CreateBackup`) seal it, reads put it
+   back, and a lookup by repository (`LatestVerifiedBackup`, `CountBackups`,
+   `DeleteBackupsBySnapshot`) compares the sealed form (`RepoKey`, also what
+   `jobs.RepoLock` hashes): callers see and pass the URL they stored. Two
+   URLs that differ only in the password are one repository, with the
+   latest password. A store opened without a key reads the sealed form.
+   Rows written before (in plaintext) are sealed on Open with a key, and the
+   file compacted. A `user.<id>.` secret has no `site_id`; it goes in the
+   transaction that deletes its account.
 
 2. **The key.** 32 bytes from `crypto/rand`, hex in a file (default
    `/var/lib/cloudground/secret.key`, `CLOUDGROUND_SECRET_KEY`), mode 0600,

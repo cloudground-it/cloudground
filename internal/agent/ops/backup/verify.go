@@ -50,7 +50,9 @@ func (o *Ops) VerifyBackup(ctx context.Context, p rpc.RestoreParams) (rpc.Verify
 		o.log().Warn("restore test failed", "site", p.Site.Domain, "snapshot", p.SnapshotID, "err", agentrpc.RedactCredentials(err.Error()))
 		return rpc.VerifyResult{Passed: false, RestoreMillis: elapsed, Detail: failDetail(err)}, nil
 	}
-	return rpc.VerifyResult{Passed: true, RestoreMillis: elapsed, Detail: detail}, nil
+	// The detail reaches the API, its journal and the backup's record:
+	// restic's words can carry the repository URL.
+	return rpc.VerifyResult{Passed: true, RestoreMillis: elapsed, Detail: agentrpc.RedactCredentials(detail)}, nil
 }
 
 // restoreTest restores and checks everything a restore would put live.
@@ -154,7 +156,8 @@ func failDetail(err error) string {
 		msg = strings.TrimSuffix(strings.TrimSuffix(msg, ee.Error()), ": ")
 		msg += fmt.Sprintf(": restic exited with status %d (the agent's log has its output)", ee.Code)
 	}
-	return msg
+	// Any other error may still quote the repository URL.
+	return agentrpc.RedactCredentials(msg)
 }
 
 // looksLikeSQL reads the dump's head only: a multi-gigabyte database is not

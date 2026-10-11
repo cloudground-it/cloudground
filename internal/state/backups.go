@@ -35,25 +35,52 @@ func (s *Store) queryBackups(q string, args ...any) ([]Backup, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	out := []Backup{}
+	var out []Backup
 	for rows.Next() {
 		b, err := scanBackupRow(rows)
 		if err != nil {
+			rows.Close()
 			return nil, err
 		}
 		out = append(out, b)
 	}
-	return out, rows.Err()
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	// The repositories' passwords are opened once the rows are read: the
+	// store has one connection, which the open rows hold.
+	for i := range out {
+		if out[i], err = s.openBackup(out[i], nil); err != nil {
+			return nil, err
+		}
+	}
+	if out == nil {
+		out = []Backup{}
+	}
+	return out, nil
+}
+
+// openBackup is b with its repository's password unsealed.
+func (s *Store) openBackup(b Backup, err error) (Backup, error) {
+	if err != nil {
+		return b, err
+	}
+	b.Repository, err = s.openRepo(b.Repository)
+	return b, err
 }
 
 // CreateBackup records a snapshot just taken. Whatever b says, it starts
 // pending: a snapshot counts only once its restore test passed.
 func (s *Store) CreateBackup(b Backup) (Backup, error) {
 	ts := now()
+	repo, err := s.storedRepo(s.db, b.Repository)
+	if err != nil {
+		return Backup{}, err
+	}
 	res, err := s.db.Exec(`INSERT INTO backups (site_id, snapshot_id, repository, size_bytes, kind, verify_status, restore_est_ms, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		b.SiteID, b.SnapshotID, b.Repository, b.SizeBytes, b.Kind, string(VerifyPending), b.RestoreEstMS, ts)
+		b.SiteID, b.SnapshotID, repo, b.SizeBytes, b.Kind, string(VerifyPending), b.RestoreEstMS, ts)
 	if err != nil {
 		return Backup{}, err
 	}
@@ -81,7 +108,7 @@ func (s *Store) SetBackupVerified(id int64, status BackupVerify, restoreMS int64
 
 // GetBackup reads one record.
 func (s *Store) GetBackup(id int64) (Backup, error) {
-	return scanBackupRow(s.db.QueryRow(`SELECT `+backupCols+` FROM backups WHERE id=?`, id))
+	return s.openBackup(scanBackupRow(s.db.QueryRow(`SELECT `+backupCols+` FROM backups WHERE id=?`, id)))
 }
 
 // ListBackups returns a site's records, newest first (at most limit; 50
@@ -103,15 +130,15 @@ func (s *Store) UnverifiedBackups() ([]Backup, error) {
 // restore test passed: retention keeps it whatever its age, and it cannot
 // be deleted.
 func (s *Store) LatestVerifiedBackup(siteID int64, repository string) (Backup, error) {
-	return scanBackupRow(s.db.QueryRow(`SELECT `+backupCols+` FROM backups
+	return s.openBackup(scanBackupRow(s.db.QueryRow(`SELECT `+backupCols+` FROM backups
 		WHERE site_id=? AND repository=? AND verify_status=? ORDER BY id DESC LIMIT 1`,
-		siteID, repository, string(VerifyPassed)))
+		siteID, RepoKey(repository), string(VerifyPassed))))
 }
 
 // CountBackups counts a site's records in repository.
 func (s *Store) CountBackups(siteID int64, repository string) (int, error) {
 	var n int
-	err := s.db.QueryRow(`SELECT COUNT(*) FROM backups WHERE site_id=? AND repository=?`, siteID, repository).Scan(&n)
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM backups WHERE site_id=? AND repository=?`, siteID, RepoKey(repository)).Scan(&n)
 	return n, err
 }
 
@@ -122,16 +149,25 @@ func (s *Store) BackupRepositories() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	var out []string
 	for rows.Next() {
 		var r string
 		if err := rows.Scan(&r); err != nil {
+			rows.Close()
 			return nil, err
 		}
 		out = append(out, r)
 	}
-	return out, rows.Err()
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i := range out {
+		if out[i], err = s.openRepo(out[i]); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 // DeleteBackup removes one record (its snapshot has been forgotten).
@@ -156,7 +192,7 @@ func (s *Store) DeleteBackupsBySnapshot(siteID int64, repository string, ids []s
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	records, err := s.queryBackups(`WHERE site_id=? AND repository=?`, siteID, repository)
+	records, err := s.queryBackups(`WHERE site_id=? AND repository=?`, siteID, RepoKey(repository))
 	if err != nil {
 		return 0, err
 	}
