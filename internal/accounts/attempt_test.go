@@ -149,9 +149,15 @@ func TestDelaysAreSleptOutsideTheQueue(t *testing.T) {
 // R-4.3 (S-H3 review): someone hammering one e-mail from one network, as
 // fast and as parallel as the limits let them, slows their own guesses and
 // never keeps the owner out. Time runs fast for the limits and the delays
-// (a minute is 1.2 s), and the delays are really slept: the owner signs in
+// (a minute is 6 s), and the delays are really slept: the owner signs in
 // from another network while the attack runs, each time within a bound,
 // never refused; the attacker's delays have grown; nothing is left behind.
+// The bounds hold on a slow, busy runner: the owner signs in once the
+// attacker's delays have grown, not after a fixed time; the owner's bound
+// has a margin of seconds and stays below the attacker's minute (6 s
+// here); the limits' 15-minute windows are 90 s long; and the guesses are
+// counted against what sequential ones could do in the limits' time the
+// attack really took.
 func TestAttackerFromOneNetworkCannotKeepTheOwnerOut(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs an attack for a few seconds")
@@ -165,7 +171,7 @@ func TestAttackerFromOneNetworkCannotKeepTheOwnerOut(t *testing.T) {
 	f.sv.Login(bg, SignIn{Email: "someone-else@example.com", Password: "wrong-password", Address: "198.51.100.1"})
 	check := time.Since(t0)
 
-	const speed = 50
+	const speed = 10
 	origin, begun := f.at, time.Now()
 	f.sv.Now = func() time.Time { return origin.Add(time.Since(begun) * speed) }
 	for _, w := range []*throttle.Window{f.sv.Limits.Address, f.sv.Limits.Wide, f.sv.Limits.AddressAccount, f.sv.Limits.Codes} {
@@ -211,8 +217,17 @@ func TestAttackerFromOneNetworkCannotKeepTheOwnerOut(t *testing.T) {
 	}
 
 	// The owner, once the attack has built its delays up, three times.
-	bound := NameMaxDelay/speed + time.Duration(AccountQueue+2)*check + 500*time.Millisecond
-	time.Sleep(1500 * time.Millisecond)
+	bound := NameMaxDelay/speed + time.Duration(AccountQueue+2)*check + 2*time.Second
+	// The owner signs in once the attacker's delays have grown, however
+	// long that takes on this box (some two minutes of the limits' time).
+	for deadline := time.Now().Add(time.Minute); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		mu.Lock()
+		grown := slices.Max(append(slept["attacker"], 0)) >= 16*time.Second
+		mu.Unlock()
+		if grown {
+			break
+		}
+	}
 	for i := range 3 {
 		start := time.Now()
 		_, err := f.sv.Login(as("owner"), SignIn{Email: "victim@example.com", Password: pw, Address: ownerNet})
@@ -227,6 +242,7 @@ func TestAttackerFromOneNetworkCannotKeepTheOwnerOut(t *testing.T) {
 	}
 	close(stop)
 	wg.Wait()
+	limitsTime := time.Since(begun) * speed
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -241,11 +257,12 @@ func TestAttackerFromOneNetworkCannotKeepTheOwnerOut(t *testing.T) {
 		t.Fatalf("the attacker's delays stayed at %v, want them grown to 16s or more", longest)
 	}
 	// Sequential guesses would get five through at once, then one at 1, 3,
-	// 7, 15, 31, 63, 123 and 183 s: parallel ones are no faster (the build
-	// before let 8 a minute through, the per-pair window, once every delay
-	// had reached its minute).
-	if guesses.Load() > 20 {
-		t.Fatalf("%d guesses got through in about 4 s (some 200 s of the limits' time)", guesses.Load())
+	// 7, 15, 31, 63, 123, 183 s and every minute after: parallel ones are no
+	// faster (the build before let 8 a minute through, the per-pair window,
+	// once every delay had reached its minute). Seven more are allowed for
+	// the attempts in flight at each end.
+	if most := sequentialGuesses(limitsTime) + 7; guesses.Load() > int64(most) {
+		t.Fatalf("%d guesses got through in %v of the limits' time, more than %d", guesses.Load(), limitsTime, most)
 	}
 	// Its network's delay outlives the owner's sign-ins.
 	next, err := f.sv.Limits.Delays.Begin("victim@example.com", attackerNet)
@@ -359,4 +376,50 @@ func TestParallelGuessesFromOneNetworkAreNoFaster(t *testing.T) {
 	}
 	close(release)
 	wantRefusal(t, <-first, Unauthorized, msgBadLogin)
+}
+
+// A sign-in whose delay is cut short by its context (the client left, or a
+// deadline of the server's passed) is a throttled refusal, never an
+// internal error, and gives no verdict (#43). The same gate guards the
+// account routes that check the password.
+func TestCancelledDelayIsAThrottledRefusal(t *testing.T) {
+	f := newFixture(t)
+	u := f.user(t, "self@example.com", "admin")
+	for range DelayAfter + 6 {
+		f.sv.Limits.Delays.Fail("self@example.com", attackerNet)
+	}
+	f.sv.Sleep = nil // the real wait, of 30 s or more here
+	ctx, cancel := context.WithTimeout(bg, 20*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := f.sv.Login(ctx, SignIn{Email: "self@example.com", Password: "wrong-password", Address: attackerNet})
+	wantRefusal(t, err, Throttled, msgTooMany)
+	if d := time.Since(start); d > 5*time.Second {
+		t.Fatalf("the cancelled wait took %s", d)
+	}
+	gone, stop := context.WithCancel(bg)
+	stop()
+	_, err = f.sv.BeginTOTP(gone, Origin{Address: attackerNet}, u, pw, "")
+	wantRefusal(t, err, Throttled, msgTooMany)
+	err = f.sv.ChangePassword(gone, Origin{Address: attackerNet}, u, u.Email, pw, "brand-new-password")
+	wantRefusal(t, err, Throttled, msgTooMany)
+	// Nothing was decided: the right password still works once waited out.
+	f.sv.Sleep = func(context.Context, time.Duration) error { return nil }
+	if _, err := f.sv.Login(bg, SignIn{Email: "self@example.com", Password: pw, Address: attackerNet}); err != nil {
+		t.Fatalf("sign-in after the cancelled waits = %v", err)
+	}
+}
+
+// sequentialGuesses is how many wrong passwords one client sending them one
+// after the other gets checked within d: DelayAfter at once, then one after
+// each delay of NetworkDelay.
+func sequentialGuesses(d time.Duration) int {
+	n, at := DelayAfter, time.Duration(0)
+	for fails := DelayAfter; ; fails++ {
+		at += NetworkDelay.Delay(fails)
+		if at > d {
+			return n
+		}
+		n++
+	}
 }

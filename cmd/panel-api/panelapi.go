@@ -116,11 +116,10 @@ func serve(cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 
-	panel := &http.Server{
-		Handler:           srv.Routes(),
-		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second,
-		WriteTimeout: 10 * time.Minute, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 1 << 20,
-	}
+	// No ReadTimeout: it covers the whole connection, and past it the
+	// request's context is cancelled whatever the handler is doing. A body
+	// has a deadline of its own, sized to its limit and lifted once read.
+	panel := api.NewHTTPServer(srv.Routes())
 	connector := &http.Server{
 		Addr: cfg.LocalListen, Handler: srv.ConnectorRoutes(),
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second,

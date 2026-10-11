@@ -316,6 +316,7 @@ func (s *Server) serve(rt route) http.Handler {
 		limit = defaultMaxBody
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		withBodyDeadline(w, r, limit)
 		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		if status, msg := rt.crossSite(r); status != 0 {
 			respondErr(w, status, msg)

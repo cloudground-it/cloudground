@@ -61,7 +61,9 @@ func testServerAt(t *testing.T, path string) (*Server, *fakeAgent, *httptest.Ser
 		errs: map[string]error{},
 	}
 	srv := &Server{Store: store, Agent: agent, Log: slog.Default(), InsecureCookies: true}
-	ts := httptest.NewServer(srv.Routes())
+	ts := httptest.NewUnstartedServer(nil)
+	ts.Config = NewHTTPServer(srv.Routes()) // the panel's own timeouts
+	ts.Start()
 	t.Cleanup(ts.Close)
 	// Cleanups run last-registered first: the jobs end before the HTTP
 	// server and the store they use go away.

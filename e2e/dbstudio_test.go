@@ -104,6 +104,13 @@ func (h *harness) dbStudio(t *testing.T, wid int64) {
 	c, b = h.api.post(base+"/tables/cg_e2e_studio/rows", `{"sort":[{"column":"id`+"`"+`; DROP TABLE cg_e2e_studio; -- "}]}`)
 	h.assert(t, "F4b: an injected sort column is refused and the table stays", c == 404 && mysql("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='"+wdbn+"' AND TABLE_NAME='cg_e2e_studio'") == "1",
 		"answered %d: %.200s", c, b)
+	// A query longer than the 30 s ReadTimeout the panel's server had (#43):
+	// past it the request's context was cancelled and the query failed.
+	start := time.Now()
+	c, b = h.api.post(base+"/query", map[string]any{"sql": "SELECT SLEEP(45) AS slept"})
+	took := time.Since(start)
+	h.assert(t, "#43: a Quarry query that sleeps 45 s completes", c == 200 && contains(b, `"rows"`) && took >= 44*time.Second,
+		"answered %d after %s: %.200s", c, took, b)
 	// The client commands of the mariadb CLI do not exist here.
 	for _, q := range []string{"system id", `\! id`} {
 		_, b = h.api.post(base+"/query", map[string]any{"sql": q, "allow_writes": true})

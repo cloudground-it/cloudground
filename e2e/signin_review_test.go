@@ -27,7 +27,9 @@ import (
 //     they slept at once and one network guessed as fast as the
 //     per-address windows let it), and a fifth while they sleep is not
 //     refused (it was 429 when the delays were slept inside the queue): it
-//     waits its own 16 s after them, about 31 s.
+//     waits its own 16 s after them, about 31 s;
+//   - the eleventh and twelfth failures wait 32 and 60 s, past any server
+//     deadline, and still answer 401 (#43).
 func (h *harness) signinReview(t *testing.T) {
 	email, pw := fmt.Sprintf("e2e-signin-%d@example.com", h.pid), fmt.Sprintf("e2e-signin-password-%d", h.pid)
 	_, ub := h.api.post("/api/users", map[string]any{"email": email, "password": pw, "role": "readonly"})
@@ -123,4 +125,18 @@ func (h *harness) parallelAttempts(t *testing.T, u *apiClient, email, pw string)
 	h.check(t, "R-4.3 review: the four parallel wrong passwords are each refused", strings.Join(codes, ","), "401,401,401,401")
 	h.assert(t, "S-H3 review: parallel attempts for one account from one network are no faster than sequential ones (1, 2, 4, 8 s, one after the other)",
 		slowest >= 14500*time.Millisecond && slowest < 22*time.Second, "the last answered after %v", slowest)
+
+	// Ten failures on record: the eleventh wrong password waits 32 s and the
+	// twelfth 60 s, past the 30 s ReadTimeout the panel's server had (#43),
+	// which cancelled the wait and answered 500.
+	for _, n := range []struct {
+		nth   string
+		delay time.Duration
+	}{{"eleventh", 32 * time.Second}, {"twelfth", 60 * time.Second}} {
+		start := time.Now()
+		c, b := newAPIClient(h, email, pw).post("/api/login", map[string]string{"email": email, "password": "wrong-password-e2e"})
+		took := time.Since(start)
+		h.assert(t, fmt.Sprintf("#43: the %s wrong password waits about %s and answers 401, not 500", n.nth, n.delay),
+			c == 401 && took >= n.delay-2*time.Second, "%d after %v: %s", c, took, head(b, 200))
+	}
 }

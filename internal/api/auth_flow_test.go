@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cloudground-it/cloudground/internal/state"
+	"github.com/cloudground-it/cloudground/internal/throttle"
 )
 
 // Before setup nothing is reachable; setup makes the first admin and spends
@@ -94,6 +95,16 @@ func TestSetupTypoKeepsTheToken(t *testing.T) {
 func TestSignInIsRateLimited(t *testing.T) {
 	s, _, ts := testServer(t)
 	setupAdmin(t, s, ts)
+	// The limits' clock stands still: on a slow runner 40 argon2 checks
+	// under the race detector took longer than the window's minute, and the
+	// limit was never reached.
+	frozen := time.Now()
+	clock := func() time.Time { return frozen }
+	l := s.accounts.Limits
+	for _, w := range []*throttle.Window{l.Address, l.Wide, l.AddressAccount, l.Codes} {
+		w.WithClock(clock)
+	}
+	l.Delays.WithClock(clock)
 	attempt := func(email string) int {
 		body, _ := json.Marshal(map[string]string{"email": email, "password": "wrong-password-123"})
 		resp, err := ts.Client().Post(ts.URL+"/api/login", "application/json", strings.NewReader(string(body)))

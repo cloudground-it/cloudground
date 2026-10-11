@@ -197,6 +197,21 @@ password (change, 2FA enrolment and disable, user creation, password reset)
 and the profile (8 KiB), a custom certificate (256 KiB), a Quarry edit batch
 (16 MiB), a file upload (16 MiB), a Quarry upload chunk (8 MiB).
 
+**Read deadlines.** The panel's `http.Server` (`NewHTTPServer`) gives the
+headers 5 s (`ReadHeaderTimeout`) and has **no `ReadTimeout`**: in
+`net/http` that deadline covers the whole connection, and once a body has
+been read the server's background read hits it and cancels the request's
+context, whatever the handler is doing. Under it a sign-in delay of 32 s or
+more ended in a 500, and long Quarry reads and the repository test failed.
+A request with a body gets a read deadline of its own instead
+(`withBodyDeadline`): 30 s plus one second per 64 KiB of its row's limit
+(or of its `Content-Length`, when smaller), so a 16 MiB upload has 4 min 46 s
+on a slow link and a stalled body is still cut. The deadline is lifted as
+soon as the body has been read to its end, so it never reaches the
+handler's own work. A body that failed (too slow, too large) keeps it:
+`net/http` reads what is left of an unread body before answering, and that
+read stays bounded.
+
 ### 1.7 Errors
 
 One function maps an error to a status and a message a browser may see
@@ -438,6 +453,10 @@ its assigned sites.
      many attempts for this account at once — wait a moment and try again`.
      Another network's attempt is never refused for that backlog: it waits
      at most for the checks already queued.
+   - A wait or a queue place cut short by the request's context (the
+     client went away) is **429** `too many attempts — wait a minute and
+     try again`, never a 500, and gives no verdict. No server deadline
+     reaches a waiting attempt (§1.6).
    - So someone failing an e-mail from one network makes their own network
      wait up to a minute per attempt, parallel or not, and the owner signing in from
      elsewhere waits at most 2 s plus the checks queued ahead (at most 4
