@@ -67,7 +67,7 @@ func TestTokensCannotGovernThePanel(t *testing.T) {
 		t.Fatalf("token PUT of an unknown key = %d, want the 400 naming it", code)
 	}
 
-	for _, p := range []string{"/api/firewall/rule", "/api/panel/certificate", "/api/panel/update"} {
+	for _, p := range []string{"/api/firewall/rule", "/api/firewall/enable", "/api/panel/certificate", "/api/panel/update"} {
 		if code, body := bearer(t, ts, tok.Token, "POST", p, map[string]any{}); code != http.StatusForbidden || !strings.Contains(string(body), "signed-in session") {
 			t.Errorf("token POST %s = %d %s, want 403", p, code, body)
 		}

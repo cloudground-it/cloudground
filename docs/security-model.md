@@ -87,7 +87,9 @@ only. When the firewall (ufw) is active, the installer opens 22, 80, 443 (TCP, a
 and 8443. It never turns ufw on: many servers sit behind a provider's firewall already, and a
 script enabling ufw can lock the operator out (SSH on another port). When ufw is installed but off,
 the end of the install says so and prints the `ufw allow` commands for sshd's real ports and the
-panel's, then `ufw enable` (internal/install/SPEC.md §3, steps 24 and 31). The client address for
+panel's, then `ufw enable` (internal/install/SPEC.md §3, steps 24 and 31). The firewall page can
+turn it on: it shows the same rules first, and the agent allows them before `ufw enable` and
+refuses when they changed since they were shown (internal/agent/ops/system/SPEC.md §4). The client address for
 limits and the audit log comes from nginx's `X-Real-IP` only on the Unix socket, which only nginx
 can open; on TCP, loopback included, the peer address counts and the header is ignored
 (internal/api/SPEC.md §2.7).

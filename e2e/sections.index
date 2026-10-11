@@ -417,6 +417,7 @@ e2e/sites_test.go	harness.siteLifecycle	R-3.7 site lifecycle
 e2e/sites_test.go	procsOfUID	R-3.7 site lifecycle|R-4.5 site shell
 e2e/system_test.go	feat.driftPlanted	wordpress status and drift
 e2e/system_test.go	feat.systemLogs	wordpress logs
+e2e/system_test.go	harness.firewallEnable	firewall
 e2e/system_test.go	harness.firewallGuards	firewall
 e2e/system_test.go	harness.logTail	wordpress logs
 e2e/tenant_data_test.go	harness.tenantData	SR tenant data

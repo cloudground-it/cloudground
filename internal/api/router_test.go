@@ -98,6 +98,7 @@ var sessionOnly = map[string]bool{
 	"GET /api/sites/{id}/routing":       true,
 	"PUT /api/sites/{id}/routing":       true,
 	"POST /api/firewall/rule":           true,
+	"POST /api/firewall/enable":         true,
 	"POST /api/panel/certificate":       true,
 	"POST /api/panel/update":            true,
 	// An API token cannot open Quarry.

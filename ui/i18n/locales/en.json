@@ -724,6 +724,11 @@
     "applied": "Rule applied",
     "delete": "Delete rule",
     "deny": "Deny port",
+    "enable": "Turn on the firewall",
+    "enableConfirm": "The panel allows {rules}, then turns the firewall on. Every other incoming port is closed.",
+    "enableHint": "The firewall is off, so every port on this server is open. Turning it on first allows these rules, so SSH, the sites and the panel stay reachable, then blocks every other incoming connection.",
+    "enableTitle": "Turn on the firewall",
+    "enabled": "Firewall on",
     "from": "Only from this IP",
     "inactive": "inactive",
     "inactiveRules": "The firewall is inactive: these rules are stored, and apply only once it is enabled.",
@@ -731,6 +736,13 @@
     "port": "Port",
     "rule": "Add or remove a rule",
     "ruleHint": "SSH, ports 80 and 443 and the panel's 8443 always stay open to everyone. For tighter security, restrict SSH and the panel to your IPs.",
+    "service": {
+      "ssh": "SSH, the port sshd listens on",
+      "http": "Sites over HTTP",
+      "https": "Sites over HTTPS",
+      "http3": "Sites over HTTP/3",
+      "panel": "This panel"
+    },
     "status": "Status"
   },
   "users": {

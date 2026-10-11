@@ -724,6 +724,11 @@
     "applied": "Regola applicata",
     "delete": "Rimuovi la regola",
     "deny": "Blocca la porta",
+    "enable": "Attiva il firewall",
+    "enableConfirm": "Il pannello consente {rules}, poi attiva il firewall. Ogni altra porta in entrata viene chiusa.",
+    "enableHint": "Il firewall è spento, quindi ogni porta del server è aperta. Attivandolo, prima vengono consentite queste regole, così SSH, i siti e il pannello restano raggiungibili, poi ogni altra connessione in entrata viene bloccata.",
+    "enableTitle": "Attiva il firewall",
+    "enabled": "Firewall attivo",
     "from": "Solo da questo IP",
     "inactive": "inattivo",
     "inactiveRules": "Il firewall non è attivo: queste regole sono salvate e si applicano solo quando viene attivato.",
@@ -731,6 +736,13 @@
     "port": "Porta",
     "rule": "Aggiungi o rimuovi una regola",
     "ruleHint": "SSH, le porte 80 e 443 e la 8443 del pannello restano sempre aperte a tutti. Per più sicurezza, limita SSH e pannello ai tuoi IP.",
+    "service": {
+      "ssh": "SSH, la porta su cui ascolta sshd",
+      "http": "Siti in HTTP",
+      "https": "Siti in HTTPS",
+      "http3": "Siti in HTTP/3",
+      "panel": "Questo pannello"
+    },
     "status": "Stato"
   },
   "users": {

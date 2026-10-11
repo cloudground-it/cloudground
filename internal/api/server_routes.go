@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/api/events"
@@ -146,6 +147,25 @@ func (s *Server) handleFirewallRule(w http.ResponseWriter, r *http.Request, c *c
 			subject += " from " + rule.From
 		}
 		s.audit(c.Actor(), "firewall.rule", subject, "")
+	}
+	answer(w, http.StatusOK, out, err)
+}
+
+// handleFirewallEnable turns ufw on after allowing SSH, the sites and the
+// panel (system.FirewallEnable). The body names the rules the operator was
+// shown; the agent refuses (409) when its plan is no longer that.
+func (s *Server) handleFirewallEnable(w http.ResponseWriter, r *http.Request, c *call) {
+	var req rpc.FirewallEnableParams
+	if !decodeOr400(w, r, &req) {
+		return
+	}
+	if err := req.Validate(); err != nil {
+		respondErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	out, err := agentrpc.Call(r.Context(), s.Agent, agentrpc.FirewallEnable, req)
+	if err == nil {
+		s.audit(c.Actor(), "firewall.enable", "ufw", "allowed "+strings.Join(req.Expect, " "))
 	}
 	answer(w, http.StatusOK, out, err)
 }

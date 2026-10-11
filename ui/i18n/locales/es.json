@@ -724,6 +724,11 @@
     "applied": "Regla aplicada",
     "delete": "Eliminar regla",
     "deny": "Bloquear puerto",
+    "enable": "Activar el firewall",
+    "enableConfirm": "El panel permite {rules} y luego activa el firewall. Todos los demás puertos de entrada se cierran.",
+    "enableHint": "El firewall está desactivado, así que todos los puertos de este servidor están abiertos. Al activarlo, primero se permiten estas reglas, para que SSH, los sitios y el panel sigan accesibles, y luego se bloquea cualquier otra conexión entrante.",
+    "enableTitle": "Activar el firewall",
+    "enabled": "Firewall activado",
     "from": "Solo desde esta IP",
     "inactive": "inactivo",
     "inactiveRules": "El firewall está inactivo: estas reglas están guardadas y solo se aplican cuando se activa.",
@@ -731,6 +736,13 @@
     "port": "Puerto",
     "rule": "Añadir o quitar una regla",
     "ruleHint": "SSH, los puertos 80 y 443 y el 8443 del panel siempre quedan abiertos para todos. Para más seguridad, limita SSH y el panel a tus IP.",
+    "service": {
+      "ssh": "SSH, el puerto en el que escucha sshd",
+      "http": "Sitios por HTTP",
+      "https": "Sitios por HTTPS",
+      "http3": "Sitios por HTTP/3",
+      "panel": "Este panel"
+    },
     "status": "Estado"
   },
   "users": {

@@ -724,6 +724,11 @@
     "applied": "Règle appliquée",
     "delete": "Supprimer la règle",
     "deny": "Bloquer le port",
+    "enable": "Activer le pare-feu",
+    "enableConfirm": "Le panneau autorise {rules}, puis active le pare-feu. Tous les autres ports entrants sont fermés.",
+    "enableHint": "Le pare-feu est désactivé : tous les ports de ce serveur sont ouverts. L’activer autorise d’abord ces règles, pour que SSH, les sites et le panneau restent joignables, puis bloque toute autre connexion entrante.",
+    "enableTitle": "Activer le pare-feu",
+    "enabled": "Pare-feu activé",
     "from": "Uniquement depuis cette IP",
     "inactive": "inactif",
     "inactiveRules": "Le pare-feu est inactif : ces règles sont enregistrées et ne s'appliquent qu'une fois qu'il est activé.",
@@ -731,6 +736,13 @@
     "port": "Port",
     "rule": "Ajouter ou supprimer une règle",
     "ruleHint": "SSH, les ports 80 et 443 et le port 8443 du panneau restent toujours ouverts à tous. Pour plus de sécurité, limitez SSH et le panneau à vos adresses IP.",
+    "service": {
+      "ssh": "SSH, le port sur lequel sshd écoute",
+      "http": "Sites en HTTP",
+      "https": "Sites en HTTPS",
+      "http3": "Sites en HTTP/3",
+      "panel": "Ce panneau"
+    },
     "status": "État"
   },
   "users": {

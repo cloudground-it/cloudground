@@ -5,7 +5,9 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -197,4 +199,86 @@ func (h *harness) firewallGuards(t *testing.T) {
 	h.assert(t, "R-3.10: deleting the source rule keeps the port's own rule", strings.Contains(added, "ufw allow "+port+"/tcp"),
 		"ufw show added:\n%s", added)
 	h.assert(t, "R-3.10: deleting the source rule removes it", !strings.Contains(added, src), "ufw show added:\n%s", added)
+}
+
+// firewallEnable (#14): the firewall page turns an inactive ufw on without
+// locking anyone out. The status offers the plan, SSH on the port sshd
+// really listens on; a plan other than the agent's is refused with ufw left
+// off; the real one leaves ufw active with every rule of the plan allowed,
+// and the panel and SSH still answer on the public address. ufw is put
+// back as it was found (an active one is turned off first, to be turned on
+// by the panel).
+func (h *harness) firewallEnable(t *testing.T) {
+	if !h.run("ufw", "version").OK() {
+		t.Logf("(ufw is not installed: turning the firewall on is not checked)")
+		return
+	}
+	active := func() bool { return strings.Contains(h.run("ufw", "status").Out, "Status: active") }
+	wasActive := active()
+	restore := h.undo("put ufw back as it was", func() {
+		if wasActive {
+			h.run("ufw", "--force", "enable")
+		} else {
+			h.run("ufw", "--force", "disable")
+		}
+	})
+	defer restore()
+	if wasActive {
+		h.run("ufw", "--force", "disable")
+	}
+
+	c, body := h.api.get("/api/firewall")
+	var st struct {
+		Enabled bool `json:"enabled"`
+		Plan    []struct {
+			Port    int    `json:"port"`
+			Proto   string `json:"proto"`
+			Service string `json:"service"`
+		} `json:"plan"`
+	}
+	_ = json.Unmarshal(body, &st)
+	h.check(t, "#14: an inactive firewall answers with the rules to allow first", fmt.Sprint(c, st.Enabled, len(st.Plan) >= 5), "200 false true")
+	var expect []string
+	sshPlanned := false
+	for _, r := range st.Plan {
+		expect = append(expect, fmt.Sprintf("%d/%s", r.Port, r.Proto))
+		if r.Service == "ssh" && fmt.Sprint(r.Port) == h.sshPort() {
+			sshPlanned = true
+		}
+	}
+	h.assert(t, "#14: the plan allows SSH on the port sshd listens on", sshPlanned, "sshd listens on %s, the plan is %v", h.sshPort(), expect)
+	for _, want := range []string{"80/tcp", "443/tcp", "443/udp", "8443/tcp"} {
+		h.assert(t, "#14: the plan allows "+want, slices.Contains(expect, want), "the plan is %v", expect)
+	}
+
+	stale, _ := json.Marshal(map[string][]string{"expect": {"1/tcp"}})
+	c, _ = h.api.post("/api/firewall/enable", stale)
+	h.check(t, "#14: a plan other than the server's is refused", fmt.Sprint(c), "409")
+	h.assert(t, "#14: a refused enable leaves ufw off", !active(), "ufw is active after a refused enable")
+
+	shown, _ := json.Marshal(map[string][]string{"expect": expect})
+	c, body = h.api.post("/api/firewall/enable", shown)
+	var after struct {
+		Enabled bool `json:"enabled"`
+	}
+	_ = json.Unmarshal(body, &after)
+	h.check(t, "#14: the firewall is turned on", fmt.Sprint(c, after.Enabled), "200 true")
+	status := h.run("ufw", "status").Out
+	h.assert(t, "#14: ufw is active", strings.Contains(status, "Status: active"), "ufw status:\n%s", status)
+	for _, rule := range expect {
+		allowed := false
+		for _, line := range strings.Split(status, "\n") {
+			if f := strings.Fields(line); len(f) >= 2 && f[0] == rule && f[1] == "ALLOW" {
+				allowed = true
+			}
+		}
+		h.assert(t, "#14: ufw allows "+rule, allowed, "ufw status:\n%s", status)
+	}
+	h.check(t, "#14: the panel still answers on :8443",
+		h.fetch(req{URL: "https://" + h.IP + ":8443/login", Addr: h.IP + ":8443", Timeout: 8 * time.Second}).CodeStr(), "200")
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(h.IP, h.sshPort()), 5*time.Second)
+	if err == nil {
+		conn.Close()
+	}
+	h.assert(t, "#14: SSH still answers", err == nil, "SSH on %s:%s: %v", h.IP, h.sshPort(), err)
 }

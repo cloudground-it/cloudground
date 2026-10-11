@@ -60,6 +60,7 @@ func (o *Ops) Register(s *agentrpc.Server) {
 		return o.FirewallStatus(ctx)
 	})
 	agentrpc.Handle(s, agentrpc.FirewallRule, o.FirewallRule)
+	agentrpc.Handle(s, agentrpc.FirewallEnable, o.FirewallEnable)
 	agentrpc.Handle(s, agentrpc.CheckDrift, o.CheckDrift)
 }
 

@@ -59,6 +59,8 @@ type Firewall interface {
 	// DeleteDeny removes only the deny rule for r, and reports whether
 	// there was one.
 	DeleteDeny(ctx context.Context, r FirewallRule) (bool, error)
+	// Enable turns ufw on, with the rules it has stored.
+	Enable(ctx context.Context) error
 }
 
 // UFW is the real Firewall.
@@ -174,6 +176,14 @@ func ufwRemoved(out string) bool {
 		}
 	}
 	return false
+}
+
+// Enable runs `ufw --force enable`: without --force ufw asks on its
+// terminal whether to go on, since enabling may cut SSH off. The caller
+// allows what must stay reachable first (system.FirewallEnable).
+func (u *UFW) Enable(ctx context.Context) error {
+	_, err := u.run(ctx, "--force", "enable")
+	return err
 }
 
 var _ Firewall = (*UFW)(nil)

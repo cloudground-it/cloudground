@@ -338,6 +338,8 @@ func (s *Server) routeTable() []route {
 		// (SPEC.md §1.2 step 6).
 		{Method: post, Path: "/api/firewall/rule", Policy: policyAdmin, SessionOnly: true, Handle: s.handleFirewallRule,
 			Section: secServer, Doc: "add a firewall rule or take one away"},
+		{Method: post, Path: "/api/firewall/enable", Policy: policyAdmin, SessionOnly: true, Handle: s.handleFirewallEnable,
+			Section: secServer, Doc: "turn ufw on: allow the rules `GET /api/firewall` listed as `plan` (`{\"expect\": [\"22/tcp\", …]}`), then enable"},
 		{Method: get, Path: "/api/audit", Policy: policyGlobal, Handle: plain(s.handleAudit),
 			Section: secServer, Doc: "the audit log: actor, action, address"},
 		{Method: get, Path: "/api/settings", Policy: policyGlobal, Handle: s.handleGetSettings,

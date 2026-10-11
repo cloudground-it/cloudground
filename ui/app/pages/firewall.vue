@@ -3,9 +3,28 @@ const { t } = useI18n()
 const api = useApi()
 const { isAdmin } = useAuth()
 const { busy, run } = useAction()
+const confirm = useConfirm()
 useHead({ title: () => t('nav.firewall') })
 
-const { data: status, refresh } = useLoad(() => api.get<{ enabled: boolean, rules: string[] | null }>('/api/firewall'))
+interface PlanRule { port: number, proto: 'tcp' | 'udp', service: 'ssh' | 'http' | 'https' | 'http3' | 'panel' }
+const { data: status, refresh } = useLoad(() => api.get<{ enabled: boolean, rules: string[] | null, plan?: PlanRule[] }>('/api/firewall'))
+// ufw installed and off: the rules turning it on allows first, as the
+// server computed them (the ports sshd really listens on among them).
+const plan = computed(() => status.value && !status.value.enabled ? status.value.plan ?? [] : [])
+const ruleText = (r: PlanRule) => `${r.port}/${r.proto}`
+
+async function enable() {
+  const ok = await confirm({
+    title: t('firewall.enableTitle'),
+    description: t('firewall.enableConfirm', { rules: plan.value.map(ruleText).join(', ') }),
+    confirmLabel: t('firewall.enable')
+  })
+  if (!ok) return
+  // The server refuses when its rules are no longer the ones shown here.
+  if (await run(() => api.post('/api/firewall/enable', { expect: plan.value.map(ruleText) }), t('firewall.enabled'))) {
+    await refresh()
+  }
+}
 const form = reactive({ action: 'allow', port: undefined as number | undefined, from: '' })
 const actions = computed(() => [
   { label: t('firewall.allow'), value: 'allow' },
@@ -30,6 +49,18 @@ async function apply() {
     <template #body>
       <UContainer class="flex flex-col gap-6">
         <UPageHeader :title="t('nav.firewall')" :description="t('ux.pages.firewall')" />
+        <PanelSection v-if="isAdmin && plan.length" :title="t('firewall.enableTitle')" :description="t('firewall.enableHint')" flush>
+          <ul class="m-0 list-none divide-y divide-default p-0">
+            <li v-for="r in plan" :key="ruleText(r)" class="flex items-center gap-4 px-4 py-2.5 sm:px-5">
+              <UIcon name="i-cg-check" class="size-4 shrink-0 text-cg-ok" />
+              <span class="mono w-20 shrink-0 text-[13px] text-highlighted">{{ ruleText(r) }}</span>
+              <span class="min-w-0 text-[13px] text-muted">{{ t(`firewall.service.${r.service}`) }}</span>
+            </li>
+          </ul>
+          <template #footer>
+            <UButton icon="i-cg-shield-check" :label="t('firewall.enable')" :loading="busy" @click="enable" />
+          </template>
+        </PanelSection>
         <div class="grid items-start gap-6 lg:grid-cols-2">
           <PanelSection :title="t('firewall.status')" :description="status && !status.enabled && status.rules?.length && status.rules[0] !== 'ufw is not available' ? t('firewall.inactiveRules') : undefined" flush>
             <template v-if="status" #actions>
