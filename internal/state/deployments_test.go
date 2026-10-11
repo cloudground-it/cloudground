@@ -4,6 +4,8 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -137,5 +139,70 @@ func TestDeploymentMachine(t *testing.T) {
 	}
 	if DeploymentTerminal("nonsense") {
 		t.Error("an unknown status is terminal")
+	}
+}
+
+// A site names each release once (UNIQUE (site_id, release_id) since the
+// first schema): a second record of its initial release is refused by the
+// database itself, so no duplicate can exist to be cleaned up.
+func TestOneInitialReleaseRecordPerSite(t *testing.T) {
+	s := testStore(t)
+	site, err := s.CreateSite(Site{Domain: "one.example.com", Type: SiteStatic, Profile: ProfileBalanced, Engine: EngineNginx,
+		SystemUser: "u", RootPath: "/srv/sites/one.example.com", Status: SiteActive})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateDeployment(Deployment{SiteID: site.ID, ReleaseID: InitialRelease, Status: DeployPromoted}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO deployments (site_id, release_id, path, status, created_at) VALUES (?, ?, '', 'superseded', ?)`,
+		site.ID, InitialRelease, now()); err == nil {
+		t.Fatal("the database stored a second record of a site's initial release")
+	}
+}
+
+// The race of #11: a reconcile and a rollback that both find no record of
+// the initial release each used to insert one. Recorded together, many at
+// once, there is one record, and exactly one caller made it.
+func TestRecordInitialReleaseOnce(t *testing.T) {
+	s := testStore(t)
+	site, err := s.CreateSite(Site{Domain: "init.example.com", Type: SiteStatic, Profile: ProfileBalanced, Engine: EngineNginx,
+		SystemUser: "u", RootPath: "/srv/sites/init.example.com", Status: SiteActive})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const callers = 16
+	var made atomic.Int32
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for i := range callers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			status := DeploySuperseded
+			if i%2 == 0 {
+				status = DeployPromoted
+			}
+			ok, err := s.RecordInitialRelease(site.ID, status)
+			if err != nil {
+				t.Error(err)
+			}
+			if ok {
+				made.Add(1)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	deps, err := s.ListDeployments(site.ID, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(deps) != 1 || deps[0].ReleaseID != InitialRelease || made.Load() != 1 {
+		t.Fatalf("%d callers made %d records: %+v", callers, made.Load(), deps)
+	}
+	if ok, err := s.RecordInitialRelease(site.ID, DeployPromoted); ok || err != nil {
+		t.Fatalf("a later call = %v %v, want no new record", ok, err)
 	}
 }

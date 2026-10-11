@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -564,4 +566,35 @@ func evaluatedAlerts(t *testing.T, s *Server) []state.Alert {
 		t.Fatal(err)
 	}
 	return list
+}
+
+// #11: the periodic reconcile and a rollback to provisioning's release
+// both record it when the site has no record of it. Run together, both
+// used to find none and insert, and the loser's insert failed on the
+// table's unique constraint. Now one record is made, by one of them, and
+// no write fails.
+func TestInitialReleaseRecordedOnceUnderRace(t *testing.T) {
+	s, _, _ := testServer(t)
+	var logged syncBuffer
+	s.Log = slog.New(slog.NewTextHandler(&logged, nil))
+	site := seedActiveSite(t, s, "race.example.com", state.SiteStatic, "", 0)
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for range 8 {
+		wg.Add(2)
+		go func() { defer wg.Done(); <-start; s.syncLive(site, siteval.InitialRelease) }()
+		go func() { defer wg.Done(); <-start; s.recordInitialRelease(site.ID, state.DeploySuperseded) }()
+	}
+	close(start)
+	wg.Wait()
+	deps, err := s.Store.ListDeployments(site.ID, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(deps) != 1 || deps[0].ReleaseID != siteval.InitialRelease || deps[0].Status != state.DeployPromoted {
+		t.Fatalf("records after the race: %+v, want one promoted initial", deps)
+	}
+	if strings.Contains(logged.String(), "state write failed") {
+		t.Fatalf("a write failed during the race:\n%s", logged.String())
+	}
 }

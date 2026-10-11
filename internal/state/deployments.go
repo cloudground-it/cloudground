@@ -103,6 +103,40 @@ func scanDeploymentRow(row scanner) (Deployment, error) {
 	return d, nil
 }
 
+// InitialRelease is the release provisioning creates (site.InitialRelease).
+// A site has at most one record of it, as of any release: the table is
+// UNIQUE (site_id, release_id).
+const InitialRelease = "initial"
+
+// RecordInitialRelease gives a site's initial release a record in status
+// when it has none, and reports whether it made one. The check and the
+// insert are one transaction: a reconcile and a rollback that both found
+// no record used to both insert one, and the loser failed on the table's
+// unique constraint (an error in the journal for a record that was there).
+func (s *Store) RecordInitialRelease(siteID int64, status DeploymentStatus) (bool, error) {
+	if _, known := deployMoves[status]; !known {
+		return false, fmt.Errorf("unknown deployment status %q", status)
+	}
+	var made Deployment
+	var superseded []int64
+	err := s.writeTx(func(conn *sql.Conn, ctx context.Context) error {
+		var n int
+		if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM deployments WHERE site_id = ? AND release_id = ?`,
+			siteID, InitialRelease).Scan(&n); err != nil || n > 0 {
+			return err
+		}
+		var err error
+		made, superseded, err = insertDeployment(ctx, conn, Deployment{SiteID: siteID, ReleaseID: InitialRelease, Status: status})
+		return err
+	})
+	if err != nil || made.ID == 0 {
+		return false, err
+	}
+	s.publishDeployments(siteID, superseded, DeploySuperseded)
+	s.publish(events.DeploymentChanged, siteID, map[string]any{"id": made.ID, "status": made.Status})
+	return true, nil
+}
+
 // CreateDeployment records a deployment in its first status. A record
 // created live (a migration's release) takes over from the site's live
 // one, which becomes superseded: a site has at most one promoted release.
@@ -112,27 +146,9 @@ func (s *Store) CreateDeployment(d Deployment) (Deployment, error) {
 	}
 	var superseded []int64
 	err := s.writeTx(func(conn *sql.Conn, ctx context.Context) error {
-		ts := now()
-		var promoted any
-		if d.Status == DeployPromoted {
-			var err error
-			if superseded, err = supersedeLive(ctx, conn, d.SiteID, 0); err != nil {
-				return err
-			}
-			promoted = ts
-		}
-		res, err := conn.ExecContext(ctx, `INSERT INTO deployments (site_id, release_id, path, checksum, status, guard_json, created_at, promoted_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			d.SiteID, d.ReleaseID, d.Path, d.Checksum, string(d.Status), d.GuardJSON, ts, promoted)
-		if err != nil {
-			return err
-		}
-		d.ID, _ = res.LastInsertId()
-		d.CreatedAt = parseTime(ts)
-		if promoted != nil {
-			d.PromotedAt = parseTimePtr(sql.NullString{String: ts, Valid: true})
-		}
-		return nil
+		var err error
+		d, superseded, err = insertDeployment(ctx, conn, d)
+		return err
 	})
 	if err != nil {
 		return Deployment{}, err
@@ -140,6 +156,34 @@ func (s *Store) CreateDeployment(d Deployment) (Deployment, error) {
 	s.publishDeployments(d.SiteID, superseded, DeploySuperseded)
 	s.publish(events.DeploymentChanged, d.SiteID, map[string]any{"id": d.ID, "status": d.Status})
 	return d, nil
+}
+
+// insertDeployment inserts d in its first status, inside a write
+// transaction; a live record supersedes the site's live one, whose ID is
+// returned.
+func insertDeployment(ctx context.Context, conn *sql.Conn, d Deployment) (Deployment, []int64, error) {
+	ts := now()
+	var promoted any
+	var superseded []int64
+	if d.Status == DeployPromoted {
+		var err error
+		if superseded, err = supersedeLive(ctx, conn, d.SiteID, 0); err != nil {
+			return Deployment{}, nil, err
+		}
+		promoted = ts
+	}
+	res, err := conn.ExecContext(ctx, `INSERT INTO deployments (site_id, release_id, path, checksum, status, guard_json, created_at, promoted_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		d.SiteID, d.ReleaseID, d.Path, d.Checksum, string(d.Status), d.GuardJSON, ts, promoted)
+	if err != nil {
+		return Deployment{}, nil, err
+	}
+	d.ID, _ = res.LastInsertId()
+	d.CreatedAt = parseTime(ts)
+	if promoted != nil {
+		d.PromotedAt = parseTimePtr(sql.NullString{String: ts, Valid: true})
+	}
+	return d, superseded, nil
 }
 
 // DeploymentUpdate is what a transition may also record.

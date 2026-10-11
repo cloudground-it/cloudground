@@ -79,18 +79,8 @@ func (s *Server) handleDeploy(w http.ResponseWriter, r *http.Request, c *call) {
 // the Releases list never showed it, and after a rollback to it no row was
 // live. A failure is only logged: the release still serves.
 func (s *Server) recordInitialRelease(siteID int64, status state.DeploymentStatus) {
-	deps, err := s.Store.ListDeployments(siteID, 1000)
-	if err != nil {
-		s.logIfErr(err, "ListDeployments")
-		return
-	}
-	for _, d := range deps {
-		if d.ReleaseID == siteval.InitialRelease {
-			return
-		}
-	}
-	_, err = s.Store.CreateDeployment(state.Deployment{SiteID: siteID, ReleaseID: siteval.InitialRelease, Status: status})
-	s.logIfErr(err, "CreateDeployment initial")
+	_, err := s.Store.RecordInitialRelease(siteID, status)
+	s.logIfErr(err, "RecordInitialRelease")
 }
 
 // sourceDirProblem is why dir cannot be deployed to site ("" when it can).
