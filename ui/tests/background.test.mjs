@@ -38,27 +38,39 @@ const last = path => sent.filter(r => r.path === path).at(-1)
 test('the first load and an explicit refresh are the person\'s; events, resyncs and the timer are background', async () => {
   const api = useApi()
   const scope = effectScope()
+  // The safety poll runs every 30 ms and may fire between any two steps on
+  // a slow machine: each step looks at the request it made, by position.
+  const start = sent.length
   const live = scope.run(() => useLive(() => api.get('/api/sites'), { on: { types: ['site.'] }, safetyMs: 30 }))
-  await settle()
-  assert.equal(last('/api/sites').background, false, 'first load')
+  try {
+    await settle()
+    assert.equal(sent[start]?.path, '/api/sites')
+    assert.equal(sent[start].background, false, 'first load')
 
-  handlers.forEach(fn => fn({ type: 'site.changed' }))
-  await settle()
-  assert.equal(last('/api/sites').background, true, 'refetch after an event')
+    let at = sent.length
+    handlers.forEach(fn => fn({ type: 'site.changed' }))
+    await settle()
+    assert.ok(sent.length > at && sent.slice(at).every(r => r.background), 'refetch after an event')
 
-  resyncs.forEach(fn => fn())
-  await settle()
-  assert.equal(last('/api/sites').background, true, 'refetch after a resync')
+    at = sent.length
+    resyncs.forEach(fn => fn())
+    await settle()
+    assert.ok(sent.length > at && sent.slice(at).every(r => r.background), 'refetch after a resync')
 
-  const before = sent.length
-  await settle(80)
-  const polled = sent.slice(before).filter(r => r.path === '/api/sites')
-  assert.ok(polled.length > 0, 'the safety poll ran')
-  assert.ok(polled.every(r => r.background), 'the safety poll is background')
+    at = sent.length
+    await settle(80)
+    const polled = sent.slice(at).filter(r => r.path === '/api/sites')
+    assert.ok(polled.length > 0, 'the safety poll ran')
+    assert.ok(polled.every(r => r.background), 'the safety poll is background')
 
-  await live.refresh()
-  assert.equal(last('/api/sites').background, false, 'an explicit refresh')
-  scope.stop()
+    at = sent.length
+    const refreshed = live.refresh() // the request is built before the first await
+    assert.equal(sent[at]?.background, false, 'an explicit refresh')
+    await refreshed
+  } finally {
+    // A failed assertion must not leave the poll keeping the run alive.
+    scope.stop()
+  }
 })
 
 test('an async fetcher that awaits the API first (AlertsButton) is marked, and the mark ends with it', async () => {

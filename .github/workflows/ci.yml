@@ -20,6 +20,7 @@ jobs:
   go:
     name: gofmt, vet and tests
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -32,6 +33,7 @@ jobs:
   ui:
     name: UI build and locales
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -59,6 +61,7 @@ jobs:
   nginx:
     name: nginx render matrix
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,6 +72,7 @@ jobs:
   install:
     name: cgctl install in containers
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -79,6 +83,7 @@ jobs:
   release-dry-run:
     name: release dry run
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     env:
       CG_RELEASE_TEST: '1'
     steps:
@@ -118,6 +123,7 @@ jobs:
   shellcheck:
     name: shellcheck
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
