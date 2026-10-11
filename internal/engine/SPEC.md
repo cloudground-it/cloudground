@@ -107,7 +107,8 @@ In this order. "Security headers" is the set of §4.3.
    - **any other site**: `root <DocRoot>`, `index index.php index.html
      index.htm`, `disable_symlinks if_not_owner from=<SymlinkFrom>` (or
      `from=$document_root` when it is empty); the
-     hidden-files location (`~ /\.(?!well-known)` → `deny all`); for a
+     hidden-files location (`~ /\.(?!well-known)` → `deny all`); the
+     leftovers location (§4.4, `return 404`); for a
      WordPress or WooCommerce site, the uploads location
      (`~* ^/wp-content/uploads/.*\.php$` → `deny all`, SR-T9: a `.php` a
      plugin let into the uploads is never run; a regex location, so it
@@ -157,6 +158,24 @@ timeout invalid_header http_500 http_503` with background update;
 so the set is repeated in every location that adds a header of its own:
 the static assets location, the PHP location, and any block of a custom
 routing that does (§7.4).
+
+### 4.4 Leftovers
+
+Files an operator or a plugin leaves in a public root are never served:
+a case-insensitive regex location answers 404 for a path ending in
+`.bak`, `.old`, `.orig`, `.save`, `.swp`, `.swo` or `~`; an SQL dump
+(`.sql`, `.sql.gz`, `.sql.bz2`, `.sql.xz`, `.sql.zst`, `.sql.zip`); a copy of
+`wp-config.php` under a longer name (`wp-config.php.bak`,
+`wp-config.php-old`; `wp-config.php` itself goes to the PHP location); and an
+archive at the top of the document root (`.tar`, `.tar.gz`, `.tgz`,
+`.tar.bz2`, `.tbz2`, `.tar.xz`, `.txz`, `.tar.zst`, `.zip`, `.7z`, `.rar`),
+where dumps are made. An archive deeper down (a plugin's download) is
+served. 404 rather than 403, so the answer does not confirm the file
+exists. A regex location: it comes right after the hidden-files one and
+before the uploads, static, routing and PHP locations, since the first
+regex that matches wins; a request that matches none of them pays one more
+regex test (a cached page is served from the PHP location, so it pays it
+too: measured with `bench/`).
 
 ## 5. Page-cache policy (`velocity.PolicyFor`)
 

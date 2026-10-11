@@ -33,6 +33,7 @@ func (h *harness) tenantData(t *testing.T) {
 	td.localInfile(t)
 	td.linkProtection(t)
 	td.uploadsPHP(t)
+	td.leftovers(t)
 	td.reservedNames(t)
 	td.statementLimit(t)
 	td.foreignSnapshot(t)
@@ -346,5 +347,36 @@ func (td *tenantDB) uploadsPHP(t *testing.T) {
 		r = h.get(td.w.dom, path)
 		h.assert(t, "SR-T9: "+path+" is not run", r.Code == 403 || r.Code == 404, "answered %d: %.200s", r.Code, r.Body)
 		h.assert(t, "SR-T9: "+path+" leaks no output", !strings.Contains(string(r.Body), marker), "answered %d: %.200s", r.Code, r.Body)
+	}
+}
+
+// #44: backup, editor and dump leftovers in a docroot answer 404 and never
+// show their content. Control: a plain file next to them is served.
+func (td *tenantDB) leftovers(t *testing.T) {
+	h := td.h
+	const marker = "cg-e2e-leftover-content"
+	control := "/cg-e2e-leftover.txt"
+	refused := []string{
+		"/wp-config.php.bak", "/wp-config.php~", "/wp-config.php.old", "/WP-CONFIG.PHP.BAK",
+		"/cg-e2e-dump.sql", "/wp-content/cg-e2e-dump.sql.gz", "/cg-e2e-site.tar.gz", "/cg-e2e-site.zip",
+		"/index.php.orig",
+	}
+	var planted []string
+	for _, p := range append([]string{control}, refused...) {
+		planted = append(planted, td.w.path+p)
+	}
+	defer h.remove(planted...)
+	for _, f := range planted {
+		if err := h.writeAs(f, marker+"\n", td.w.user, 0o644); err != nil {
+			h.fail(t, "#44 control: leftovers written as the site", "%s: %v", f, err)
+			return
+		}
+	}
+	r := h.get(td.w.dom, control)
+	h.assert(t, "#44 control: a plain file next to the leftovers is served", r.Code == 200 && strings.Contains(string(r.Body), marker), "answered %d: %.200s", r.Code, r.Body)
+	for _, p := range refused {
+		r = h.get(td.w.dom, p)
+		h.assert(t, "#44: "+p+" answers 404", r.Code == 404, "answered %d: %.200s", r.Code, r.Body)
+		h.assert(t, "#44: "+p+" shows none of its content", !strings.Contains(string(r.Body), marker), "answered %d: %.200s", r.Code, r.Body)
 	}
 }
