@@ -125,6 +125,12 @@ var routePolicy = map[string]string{
 	"POST /api/php/{version}/extensions": "admin",
 	"POST /api/firewall/rule":            "admin",
 	"POST /api/firewall/enable":          "admin",
+	"GET /api/blocklist":                 "global",
+	"POST /api/blocklist/blocks":         "admin",
+	"DELETE /api/blocklist/blocks":       "admin",
+	"POST /api/blocklist/allowed":        "admin",
+	"DELETE /api/blocklist/allowed":      "admin",
+	"PUT /api/blocklist/settings":        "admin",
 	"POST /api/panel/certificate":        "admin",
 	"POST /api/panel/update":             "admin",
 

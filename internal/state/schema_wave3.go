@@ -154,3 +154,25 @@ var stepMalware = schemaStep{version: 26, stmts: []string{
 	)`,
 	`ALTER TABLE panel_settings ADD COLUMN malware_scan INTEGER NOT NULL DEFAULT 0`,
 }}
+
+// stepBlocklist keeps the server's block list (#21, blocklist.go): the
+// addresses blocked by hand or for repeated failed sign-ins, the ones never
+// blocked, and the automatic blocking's settings (one JSON row; none is the
+// defaults).
+var stepBlocklist = schemaStep{version: 27, stmts: []string{
+	`CREATE TABLE blocklist (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		kind       TEXT NOT NULL CHECK (kind IN ('block', 'allow')),
+		prefix     TEXT NOT NULL,
+		source     TEXT NOT NULL,
+		note       TEXT NOT NULL DEFAULT '',
+		failures   INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL,
+		expires_at TEXT,
+		UNIQUE (kind, prefix)
+	)`,
+	`CREATE TABLE blocklist_settings (
+		id       INTEGER PRIMARY KEY CHECK (id = 1),
+		settings TEXT NOT NULL
+	)`,
+}}

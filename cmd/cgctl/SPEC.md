@@ -119,6 +119,20 @@ the databases named, out of those the snapshot holds; without one, every databas
 `POST /api/backups/<id>/restore {confirm, mode, databases?}`. An unknown flag, `--database`
 without a name, or a wrong number of the other arguments is a usage error (exit 2).
 
+## 6.3 blocklist (#21)
+
+    cgctl blocklist                                         the block list (GET /api/blocklist)
+    cgctl blocklist block <address-or-cidr> [minutes]       POST /api/blocklist/blocks
+    cgctl blocklist unblock <address-or-cidr>               DELETE /api/blocklist/blocks
+    cgctl blocklist allow <address-or-cidr>                 POST /api/blocklist/allowed
+    cgctl blocklist disallow <address-or-cidr>              DELETE /api/blocklist/allowed
+
+The address goes in the body (`{"address"}`, with `"minutes"` for a block: a whole number, 0 or
+more, else a usage error), never in the path (internal/api SPEC §7.4). The changes are
+session-only routes, so they sign in with the password (§2.3). Run on the server over the API
+socket, the caller has no address the panel could block: an operator blocked out of the panel and
+SSH (from the provider's console) gets back in with `cgctl blocklist unblock <their address>`.
+
 ## 7. update and uninstall (R-6.4, R-6.5)
 
 `cgctl update` and `cgctl uninstall`, like `install` and `doctor`, run as root on the server and

@@ -186,6 +186,9 @@ func serve(cfg *config.Config, log *slog.Logger) error {
 			log.Warn("the site shell gate is not running", "err", err)
 		}
 	}()
+	// The failed sign-ins the block list counts (ops/blocklist SPEC §1):
+	// each reader restarts on its own, and nothing else depends on them.
+	go a.ServeBlocklist(gateCtx)
 
 	select {
 	case err := <-served:

@@ -40,6 +40,9 @@ type Paths struct {
 	// Quarantine holds the files the malware scan moved out of the sites,
 	// one directory per site id (ops/malware); "" keeps none.
 	Quarantine string
+	// AuthLogSocket is where WordPress vhosts log failed sign-ins for the
+	// block list (ops/blocklist SPEC §1.2); "" logs none.
+	AuthLogSocket string
 }
 
 // Databases is the part of ops/db a site's lifecycle uses: the primary

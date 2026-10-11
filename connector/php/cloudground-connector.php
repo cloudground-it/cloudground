@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CloudGround Connector
  * Description: Purges exactly the cached pages a change affects, signs the panel in, and reports the object cache. Managed by CloudGround.
- * Version: 2.0.0
+ * Version: 2.1.0
  * Requires at least: 6.6
  * Requires PHP: 8.2
  * Author: CloudGround
@@ -795,6 +795,41 @@ final class Guard
     }
 }
 
+/**
+ * A failed sign-in's mark for the block list (SPEC 2.10): nginx logs the
+ * address of a POST WordPress answered with it, and the agent counts it.
+ */
+final class AuthFailure
+{
+    public const HEADER = 'X-CloudGround-Auth';
+
+    /** @var callable(string): void How a header is sent; tests replace it. */
+    public static $send = null;
+
+    private static int $count = 0;
+
+    public static function failed(): void
+    {
+        self::$count++;
+        if (self::$send === null && headers_sent()) {
+            return;
+        }
+        $line = self::HEADER . ': failed=' . self::$count;
+        if (self::$send !== null) {
+            (self::$send)($line);
+            return;
+        }
+        // Replaces the previous mark: one line per request, with the count.
+        header($line, true);
+    }
+
+    /** Tests: a new request. */
+    public static function reset(): void
+    {
+        self::$count = 0;
+    }
+}
+
 /** WooCommerce's cart-fragments script, off outside cart and checkout (SPEC 2.8). */
 final class CartFragments
 {
@@ -812,6 +847,8 @@ final class CartFragments
 add_action('muplugins_loaded', [Stats::class, 'handle'], 0);
 add_action('init', [MagicLogin::class, 'handle'], 1);
 add_action('wp_footer', [Guard::class, 'footer'], PHP_INT_MAX);
+add_action('wp_login_failed', [AuthFailure::class, 'failed'], 10, 0);
+add_action('application_password_failed_authentication', [AuthFailure::class, 'failed'], 10, 0);
 Events::register();
 
 if (defined('CLOUDGROUND_DISABLE_CART_FRAGMENTS') && \CLOUDGROUND_DISABLE_CART_FRAGMENTS) {

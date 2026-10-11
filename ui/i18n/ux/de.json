@@ -6,6 +6,7 @@
     "pages": {
       "sites": "Noch keine Sites auf diesem Server. | Eine Site auf diesem Server. | {n} Sites auf diesem Server.",
       "firewall": "Welche Ports dieses Servers offen sind, und für wen. SSH, HTTP und HTTPS bleiben immer offen.",
+      "blocklist": "Adressen, die dieser Server auf allen Ports abweist: von Hand gesperrt oder wegen wiederholt fehlgeschlagener Anmeldungen bei SSH, WordPress und diesem Panel.",
       "audit": "Wer was in diesem Panel geändert hat, das Neueste zuerst.",
       "users": "Die Personen, die sich an diesem Panel anmelden, und was jede von ihnen darf.",
       "settings": "Wohin Backups gehen, Zertifikate, Benachrichtigungen und Updates, für den ganzen Server.",

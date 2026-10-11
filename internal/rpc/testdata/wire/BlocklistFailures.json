@@ -1,0 +1,24 @@
+{
+  "params": {
+    "full": {},
+    "zero": {}
+  },
+  "result": {
+    "full": {
+      "failures": [
+        {
+          "address": "Address",
+          "source": "Source",
+          "count": 7
+        }
+      ],
+      "ssh_watch": true,
+      "nginx_watch": true
+    },
+    "zero": {
+      "failures": null,
+      "ssh_watch": false,
+      "nginx_watch": false
+    }
+  }
+}

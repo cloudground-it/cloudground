@@ -63,6 +63,22 @@ func call(method, format string, body func(a []string) (any, error)) func([]stri
 	}
 }
 
+// blockRequest is a block list change: the address in the body, never in
+// the path, and for a block an optional duration in minutes.
+func blockRequest(method, path string) func([]string) (request, error) {
+	return func(a []string) (request, error) {
+		body := map[string]any{"address": a[0]}
+		if len(a) > 1 {
+			m, err := strconv.Atoi(a[1])
+			if err != nil || m < 0 {
+				return request{}, fmt.Errorf("%q is not a number of minutes", a[1])
+			}
+			body["minutes"] = m
+		}
+		return request{method: method, path: path, body: body}, nil
+	}
+}
+
 var commands = []command{
 	{words: []string{"sites", "list"}, build: get("/api/sites")},
 	{words: []string{"sites", "create"}, args: siteCreateArgs, min: 2, max: -1, build: buildSiteCreate},
@@ -147,6 +163,14 @@ var commands = []command{
 	{words: []string{"cron", "run"}, args: "<cron-id>", min: 1, max: 1, build: call("POST", "/api/cron/%s/run", nil)},
 	{words: []string{"cert", "issue"}, args: "<site-id>", min: 1, max: 1, build: call("POST", "/api/sites/%s/certificate", nil)},
 	{words: []string{"status"}, build: get("/api/system/status")},
+	// The block list (#21). Its changes are a session's, so they sign in
+	// with the password; over the API socket the caller has no address,
+	// which is how an operator who blocked themselves out gets back in.
+	{words: []string{"blocklist"}, build: get("/api/blocklist")},
+	{words: []string{"blocklist", "block"}, args: "<address-or-cidr> [minutes]", min: 1, max: 2, password: true, build: blockRequest("POST", "/api/blocklist/blocks")},
+	{words: []string{"blocklist", "unblock"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("DELETE", "/api/blocklist/blocks")},
+	{words: []string{"blocklist", "allow"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("POST", "/api/blocklist/allowed")},
+	{words: []string{"blocklist", "disallow"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("DELETE", "/api/blocklist/allowed")},
 	{words: []string{"drift"}, build: get("/api/system/drift")},
 	{words: []string{"tasks"}, build: get("/api/tasks")},
 	{words: []string{"task"}, args: "<task-id>", min: 1, max: 1, build: call("GET", "/api/tasks/%s", nil)},

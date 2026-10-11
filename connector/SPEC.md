@@ -272,6 +272,18 @@ When `wp_get_environment_type()` is `staging`, `pre_wp_mail` returns true:
 `wp_mail()` reports success and sends nothing. Keyed on the environment, so
 the same file is safe after a push to production.
 
+### 2.10 Failed sign-ins (#21)
+
+On `wp_login_failed` (wp-login.php, XML-RPC, any `wp_authenticate`) and
+`application_password_failed_authentication` (the REST API), while headers
+can still be sent: `X-CloudGround-Auth: failed=<n>`, `n` the failures so far
+in this request, replacing the previous mark. A successful sign-in sends
+nothing. nginx hides the header from the client and logs the address of a
+POST that carries it to the agent (internal/engine SPEC §4.6), which counts
+it towards blocking the address (internal/blocklist SPEC §3). WordPress's
+XML-RPC stops checking credentials after the first failure of a request
+(`system.multicall` included), so a request counts once.
+
 ## 3. The object-cache drop-in
 
 ### 3.1 When it shares
@@ -370,7 +382,7 @@ class `WP_Object_Cache` with public `cache_hits`, `cache_misses` and
 - `php/tests/connector.php`: the mu-plugin against a small WordPress
   stand-in (`php/tests/wp.php`): purge targets per event, the shutdown queue
   and its payload, magic login, stats, the Guard footer, cart fragments,
-  staging mail. `php/tests/object-cache.php`: the drop-in, run with
+  staging mail, the failed sign-in mark. `php/tests/object-cache.php`: the drop-in, run with
   `apc.enable_cli` 0 and 1. `go test ./connector` runs both with `php` when
   it is installed, else in `php:8.4-cli` with docker (as an unprivileged
   user), else skips. Without the APCu extension (php:8.4-cli has none) the

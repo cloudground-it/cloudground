@@ -667,3 +667,28 @@ func TestUserManagement(t *testing.T) {
 		t.Fatalf("%d accounts", len(list))
 	}
 }
+
+// #21: every wrong password and wrong code is reported with its address for
+// the block list; a success and a missing code are not.
+func TestLoginFailuresReported(t *testing.T) {
+	f := newFixture(t)
+	u := f.user(t, "a@example.com", "admin")
+	var got []string
+	f.sv.Failed = func(addr string) { got = append(got, addr) }
+	f.sv.Login(bg, SignIn{Email: "nobody@example.com", Password: pw, Address: "198.51.100.7"})
+	f.sv.Login(bg, SignIn{Email: "a@example.com", Password: "wrong-password-1", Address: "198.51.100.8"})
+	if _, err := f.sv.Login(bg, SignIn{Email: "a@example.com", Password: pw, Address: "198.51.100.9"}); err != nil {
+		t.Fatal(err)
+	}
+	secret := f.enrol(t, u)
+	in := SignIn{Email: "a@example.com", Password: pw, Address: "198.51.100.10"}
+	f.sv.Login(bg, in) // no code yet: not a failure
+	in.Code = "000000"
+	if f.code(secret, 0) == "000000" {
+		in.Code = "111111"
+	}
+	f.sv.Login(bg, in)
+	if strings.Join(got, " ") != "198.51.100.7 198.51.100.8 198.51.100.10" {
+		t.Fatalf("reported %v", got)
+	}
+}

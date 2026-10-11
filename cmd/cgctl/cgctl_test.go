@@ -311,3 +311,32 @@ func TestProtectPaths(t *testing.T) {
 		t.Fatal("a site id that is not a number was accepted")
 	}
 }
+
+// #21: the block list's commands put the address in the body, sign in with
+// the password for a change, and refuse a duration that is not a number.
+func TestBlocklistCommands(t *testing.T) {
+	inv, err := parseArgs([]string{"blocklist"})
+	if err != nil || inv.req.method != "GET" || inv.req.path != "/api/blocklist" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	inv, err = parseArgs([]string{"blocklist", "block", "203.0.113.0/24", "30"})
+	if err != nil || inv.req.method != "POST" || inv.req.path != "/api/blocklist/blocks" || !inv.cmd.password {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if b := inv.req.body.(map[string]any); b["address"] != "203.0.113.0/24" || b["minutes"] != 30 {
+		t.Fatalf("body %v", b)
+	}
+	for words, want := range map[string]string{
+		"unblock":  "DELETE /api/blocklist/blocks",
+		"allow":    "POST /api/blocklist/allowed",
+		"disallow": "DELETE /api/blocklist/allowed",
+	} {
+		inv, err := parseArgs([]string{"blocklist", words, "198.51.100.7"})
+		if err != nil || inv.req.method+" "+inv.req.path != want || inv.req.body.(map[string]any)["address"] != "198.51.100.7" {
+			t.Errorf("%s: %+v %v", words, inv.req, err)
+		}
+	}
+	if _, err := parseArgs([]string{"blocklist", "block", "203.0.113.9", "soon"}); err == nil {
+		t.Fatal("a duration that is not a number was accepted")
+	}
+}

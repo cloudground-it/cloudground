@@ -66,6 +66,9 @@ PEM, wp-admin, cron** (the syntax), file names and paths.
 | logs | log | journaux | registros | Logs |
 | audit log | registro attività | journal d'audit | registro de auditoría | Audit-Log |
 | firewall | firewall | pare-feu | firewall | Firewall |
+| block (an address) / blocking | bloccare / blocchi | bloquer / blocages | bloquear / bloqueos | sperren / Sperren |
+| always allowed (allowlist) | sempre consentiti | toujours autorisées | siempre permitidas | immer erlaubt |
+| sign-in (failed) | accesso (fallito) | connexion (échouée) | inicio de sesión (fallido) | Anmeldung (fehlgeschlagen) |
 | rule | regola | règle | regla | Regel |
 | certificate | certificato | certificat | certificado | Zertifikat |
 | wildcard | wildcard | wildcard | wildcard | Wildcard |
