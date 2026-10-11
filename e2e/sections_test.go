@@ -617,6 +617,32 @@ func TestAffectedScript(t *testing.T) {
 	}
 }
 
+// Under pipefail, a pipe into grep -q fails now and then although grep
+// matched: grep quits at its first match, and a writer still writing dies
+// of SIGPIPE (on a loaded machine e2e-affected.sh dropped a section so).
+// The scripts give grep -q a here-string or a file instead.
+func TestScriptsDoNotPipeIntoGrepQuiet(t *testing.T) {
+	files, err := filepath.Glob("../scripts/*.sh")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no scripts: %v", err)
+	}
+	pipeIntoQuiet := regexp.MustCompile(`\|\s*grep\s+-[A-Za-z]*q`)
+	for _, f := range files {
+		src, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(src), "pipefail") {
+			continue
+		}
+		for i, line := range strings.Split(string(src), "\n") {
+			if l := strings.TrimSpace(line); !strings.HasPrefix(l, "#") && pipeIntoQuiet.MatchString(l) {
+				t.Errorf("%s:%d pipes into grep -q under pipefail: %s", filepath.Base(f), i+1, l)
+			}
+		}
+	}
+}
+
 // The function lookup the scripts do in awk agrees with funcKey.
 func TestScriptsFunctionLookup(t *testing.T) {
 	out, errs, err := runScript(t, "", "scripts/e2e-affected.sh", "--func-at", "e2e/features_test.go")

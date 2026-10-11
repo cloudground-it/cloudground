@@ -374,6 +374,7 @@ e2e/routing_test.go	harness.staticRouting	R-5.4 routing
 e2e/routing_visibility_test.go	harness.routingOnlyToAdminSessions	R-5.4 routing
 e2e/sections_test.go	TestAffectedScript	NONE
 e2e/sections_test.go	TestNewChecksPatterns	NONE
+e2e/sections_test.go	TestScriptsDoNotPipeIntoGrepQuiet	NONE
 e2e/sections_test.go	TestScriptsFunctionLookup	NONE
 e2e/sections_test.go	TestScriptsSections	NONE
 e2e/sections_test.go	TestSectionsDeclared	NONE

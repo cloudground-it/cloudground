@@ -551,11 +551,16 @@ func TestEventsAlertRaisedAndCleared(t *testing.T) {
 }
 
 // The live monitor reads the agent once for every browser, only while a
-// server-wide stream is open, and reports a service's change.
+// server-wide stream is open, and reports a service's change. The test's
+// kicks drive it instead of its ticker: the kick channel is unbuffered, so a
+// kick returns when the monitor is between readings, and two in a row mean
+// a whole reading ran after the first (no wall-clock bound a slow runner
+// can miss).
 func TestEventsLiveMonitor(t *testing.T) {
 	s, agent, ts := testServer(t)
 	_, tok := adminSession(t, s, ts)
-	s.monitorEvery = 50 * time.Millisecond
+	s.monitorEvery = time.Hour
+	s.monitorKick = make(chan struct{})
 	since := time.Now().Add(-time.Hour)
 	agent.mu.Lock()
 	agent.results[agentrpc.SystemStatus.Name()] = rpc.SystemStatusResult{CPUCount: 4, CPUHeadroomPct: 77}
@@ -575,33 +580,54 @@ func TestEventsLiveMonitor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go s.liveMonitor(ctx)
+	// reading returns once the monitor has run a whole reading that began
+	// after the call.
+	reading := func() {
+		t.Helper()
+		for range 2 {
+			select {
+			case s.monitorKick <- struct{}{}:
+			case <-time.After(time.Minute):
+				t.Fatal("the live monitor stopped taking kicks")
+			}
+		}
+	}
 
 	// An operator's stream alone does not start it.
 	op := mkOperator(t, s)
 	opSt := openStream(t, ts.URL, sessionFor(t, s, op.ID))
-	time.Sleep(300 * time.Millisecond)
+	reading()
 	if n := statusCalls(); n != 0 {
 		t.Fatalf("the monitor asked the agent %d times with only an operator watching", n)
 	}
 	opSt.close()
 
 	st := openStream(t, ts.URL, tok)
-	got := st.until(2*time.Second, isType("system.status"))
+	reading()
+	got := st.until(time.Minute, isType("system.status"))
 	if !strings.Contains(string(got[len(got)-1].Data), `"cpu_headroom_pct":77`) {
 		t.Fatalf("system.status: %s", got[len(got)-1].Data)
 	}
 	agent.mu.Lock()
 	agent.results[agentrpc.ServiceStatus.Name()] = rpc.ServiceStatusResult{Services: []rpc.ServiceInfo{{Name: "nginx", State: "running", Active: true, Since: time.Now()}}}
 	agent.mu.Unlock()
-	ch := st.until(2*time.Second, isType("service.changed"))
+	reading()
+	ch := st.until(time.Minute, isType("service.changed"))
 	if !strings.Contains(string(ch[len(ch)-1].Data), `"nginx"`) {
 		t.Fatalf("service.changed: %s", ch[len(ch)-1].Data)
 	}
 	st.close()
-	// Nobody watching: no more agent calls.
-	time.Sleep(150 * time.Millisecond)
+	// Nobody watching, once the server has seen the stream go: no more
+	// agent calls.
+	for deadline := time.Now().Add(time.Minute); s.globalStreams.Load() != 0; time.Sleep(time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("the closed stream is still counted as watching")
+		}
+	}
+	reading()
 	n := statusCalls()
-	time.Sleep(300 * time.Millisecond)
+	reading()
+	reading()
 	if m := statusCalls(); m != n {
 		t.Fatalf("the monitor kept asking the agent with nobody watching (%d → %d)", n, m)
 	}
