@@ -5,10 +5,12 @@ import (
 	"regexp"
 	"sync"
 	"time"
+
+	"github.com/cloudground-it/cloudground/internal/state"
 )
 
 // InitialRelease is the release provisioning creates.
-const InitialRelease = "initial"
+const InitialRelease = state.InitialRelease
 
 // A release made by a deploy or a migration is named by a ULID (R-4.3): 26
 // characters of Crockford base32, the first ten the creation time in
