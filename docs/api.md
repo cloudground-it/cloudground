@@ -273,10 +273,10 @@ curl -sk --cookie cookies https://panel.example.com/api/sites \
 
 | Method | Path | Access | What it does |
 | :-- | :-- | :-- | :-- |
-| `GET` | `/api/sites/{id}/backups` | auth | the site's backups |
+| `GET` | `/api/sites/{id}/backups` | auth | the site's backups, each with the `databases` its snapshot holds (`null` for one from before they were recorded) |
 | `POST` | `/api/sites/{id}/backups` | manage | take one, then restore-test it |
 | `POST` | `/api/backups/{id}/verify` | manage | test-restore the backup to a scratch place |
-| `POST` | `/api/backups/{id}/restore` | manage | restore in place — `mode` is `full`, `files` or `database`; `confirm` is the domain |
+| `POST` | `/api/backups/{id}/restore` | manage | restore in place — `mode` is `full`, `files` or `database`; `confirm` is the domain; `databases`, optional, restores only these of the snapshot's (a backup lists them in `databases`) |
 | `DELETE` | `/api/backups/{id}` | admin | delete the snapshot from the repository (queued under its lock); refused for one whose restore test has not run and for the site's newest verified one |
 | `POST` | `/api/backups/test` | admin | try the backup repository's credentials |
 | `PUT` | `/api/sites/{id}/backups/policy` | manage | the site's backup policy: any of `enabled`, `schedule` (`hourly`, `daily`, `weekly`), `hour` (0–23, the panel's time zone, for daily and weekly; -1 for none), `retention_days` (0 keeps every snapshot, at most 3650; changing it is an admin's); answers the policy |

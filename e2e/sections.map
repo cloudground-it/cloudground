@@ -79,8 +79,8 @@ internal/agent/ops/db/accounts.go      F9b site databases, SR tenant data, wordp
 internal/agent/ops/db/registry.go      F9b site databases, SR tenant data, wordpress backups
 internal/agent/ops/backup/databases.go F9b site databases, wordpress backups, R-4.3 deploys and backups
 internal/api/alert_service.go          wordpress status and drift, R-4.3 proxies and alerts, R-4.3 deploys and backups
-internal/api/backup_service.go         wordpress backups, R-4.3 deploys and backups
-internal/api/backup_routes.go          wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption
+internal/api/backup_service.go         wordpress backups, R-4.3 deploys and backups, F9b site databases
+internal/api/backup_routes.go          wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, F9b site databases
 internal/api/backup_retention.go       wordpress backups
 internal/api/panel_settings.go         wordpress backups, R-4.6 backup interruption, R-6.3 release channel, R-10.5 root boundary
 internal/backuprepo/**                 wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, R-10.5 root boundary
@@ -223,6 +223,7 @@ cmd/cgctl/statepeek.go                 R-6.5 upgrade
 # container run (make docker-install-test).
 cmd/cgctl/uninstall.go                 NONE
 cmd/cgctl/sitecreate.go                F9b site creation
+cmd/cgctl/commands.go                  R-4.6 cgctl tokens, F9b site creation, F9b site databases
 cmd/cgctl/**                           R-4.6 cgctl tokens
 cmd/cg-site-shell/**                   R-4.5 site shell, R-10.5 root boundary
 cmd/**                                 ALL

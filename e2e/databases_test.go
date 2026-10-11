@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -258,6 +259,55 @@ func (d *dbFx) backupTwoDatabases(t *testing.T, a int64, data, logs string) {
 	h.check(t, "F9b: the database restore succeeds", h.api.waitTask(taskID(b), 6*time.Minute), "succeeded")
 	h.check(t, "F9b: the restore brought the first database back", d.root("SELECT id FROM `"+data+"`.t"), "7")
 	h.check(t, "F9b: the restore brought the second database back", d.root("SELECT v FROM `"+logs+"`.l"), "before")
+	d.restoreOneOfTwo(t, a, bk.ID, data, logs)
+}
+
+// restoreOneOfTwo (#15): the backup's record names both databases (what
+// the panel's restore dialog offers), and `cgctl backup restore
+// --database` puts back the one named and leaves the other as it is now.
+func (d *dbFx) restoreOneOfTwo(t *testing.T, a, backup int64, data, logs string) {
+	h := d.h
+	var rows []struct {
+		ID        int64    `json:"id"`
+		Databases []string `json:"databases"`
+	}
+	_, lb := h.api.get(d.base(a) + "/backups")
+	_ = json.Unmarshal(lb, &rows)
+	var held []string
+	for _, r := range rows {
+		if r.ID == backup {
+			held = r.Databases
+		}
+	}
+	slices.Sort(held)
+	want := []string{data, logs}
+	slices.Sort(want)
+	h.check(t, "#15: the backup's record names the databases its snapshot holds", strings.Join(held, ","), strings.Join(want, ","))
+
+	code, b := h.api.post("/api/tokens", map[string]any{"name": fmt.Sprintf("e2e-15-%d", h.pid), "expires_in_days": 1})
+	var tok struct {
+		Token    string `json:"token"`
+		APIToken struct {
+			ID int64 `json:"id"`
+		} `json:"api_token"`
+	}
+	_ = json.Unmarshal(b, &tok)
+	if code != 201 || tok.Token == "" {
+		h.fail(t, "#15 control: an API token for cgctl", "= %d %s", code, head(b, 200))
+		return
+	}
+	revoke := h.undo("revoke the #15 token", func() { h.api.del(fmt.Sprintf("/api/tokens/%d", tok.APIToken.ID)) })
+	defer revoke()
+	tokenFile := filepath.Join(t.TempDir(), "token")
+	_ = os.WriteFile(tokenFile, []byte(tok.Token+"\n"), 0o600)
+
+	d.root("UPDATE `" + data + "`.t SET id = 9; UPDATE `" + logs + "`.l SET v = 'after'")
+	r := h.run("env", "-u", "CLOUDGROUND_EMAIL", "-u", "CLOUDGROUND_PASSWORD", "-u", "CLOUDGROUND_TOKEN", "-u", "CLOUDGROUND_CONFIG",
+		"CLOUDGROUND_TOKEN_FILE="+tokenFile, cgctlBinary, "--wait", "--timeout", "10m",
+		"backup", "restore", fmt.Sprint(backup), h.api.site(a).Domain, "database", "--database", logs)
+	h.assert(t, "#15: cgctl backup restore --database of one database out of two succeeds", r.OK() && strings.Contains(r.Out, `"succeeded"`), "%s", r)
+	h.check(t, "#15: the database named was restored", d.root("SELECT v FROM `"+logs+"`.l"), "before")
+	h.check(t, "#15: the database not named kept what it had", d.root("SELECT id FROM `"+data+"`.t"), "9")
 }
 
 // emptyDatabaseBackup: an empty database is a valid backup: its restore

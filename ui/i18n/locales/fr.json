@@ -431,7 +431,10 @@
     "snapshots": "Snapshots",
     "hour": "Heure",
     "hourAny": "N’importe quelle heure",
-    "hourHelp": "Heure du serveur ({zone}). N’importe quelle heure : un jour ou une semaine après la sauvegarde précédente."
+    "hourHelp": "Heure du serveur ({zone}). N’importe quelle heure : un jour ou une semaine après la sauvegarde précédente.",
+    "databases": "Bases de données à restaurer",
+    "databasesHint": "Seules les bases de données cochées sont remplacées ; les autres gardent leur contenu actuel.",
+    "databasesNone": "Choisissez au moins une base de données, ou restaurez seulement les fichiers."
   },
   "ssl": {
     "current": "Certificat actuel",

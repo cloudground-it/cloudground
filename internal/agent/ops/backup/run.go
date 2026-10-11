@@ -98,7 +98,10 @@ func (o *Ops) RunBackup(ctx context.Context, p rpc.BackupParams) (rpc.BackupResu
 	if !ValidSnapshotID(sum.SnapshotID) {
 		return rpc.BackupResult{}, fmt.Errorf("restic reported an invalid snapshot id")
 	}
-	return rpc.BackupResult{SnapshotID: sum.SnapshotID, SizeBytes: sum.TotalBytesProcessed + dbBytes}, nil
+	if databases == nil {
+		databases = []string{}
+	}
+	return rpc.BackupResult{SnapshotID: sum.SnapshotID, SizeBytes: sum.TotalBytesProcessed + dbBytes, Databases: databases}, nil
 }
 
 // backupDatabase streams the database's dump into a snapshot of its own,

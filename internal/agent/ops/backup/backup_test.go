@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -247,8 +248,8 @@ func TestBackupStreamsDatabaseIntoItsOwnSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("backup: %v", err)
 	}
-	if res.SnapshotID != filesID || res.SizeBytes != 14 {
-		t.Fatalf("result = %+v, want the files snapshot and both sizes", res)
+	if res.SnapshotID != filesID || res.SizeBytes != 14 || !slices.Equal(res.Databases, []string{"site_3"}) {
+		t.Fatalf("result = %+v, want the files snapshot, both sizes and the database it holds", res)
 	}
 	if got, _ := os.ReadFile(filepath.Join(f.dir, "stdin")); !strings.Contains(string(got), "CREATE TABLE t") {
 		t.Fatalf("restic was not fed the dump: %q", got)

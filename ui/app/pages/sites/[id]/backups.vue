@@ -104,6 +104,28 @@ const restoreTarget = ref<Backup | null>(null)
 const restoreMode = ref<'full' | 'files' | 'database'>('full')
 const modeItems = computed(() => (['full', 'files', 'database'] as const).map(v => ({ label: t(`backup.mode.${v}`), value: v })))
 
+// The databases a restore may put back: the snapshot's, or, for a backup
+// recorded before they were kept, the site's (the agent then restores those
+// the snapshot holds). All are checked; a subset is sent as `databases`.
+const restoreDbOptions = ref<string[]>([])
+const restoreDbs = ref<string[]>([])
+const restoresDbs = computed(() => restoreMode.value !== 'files' && restoreDbOptions.value.length > 0)
+async function openRestore(b: Backup) {
+  restoreMode.value = 'full'
+  let names = b.databases ?? null
+  if (names === null) {
+    try {
+      const list = await api.get<{ databases: { name: string }[] }>(`/api/sites/${site.value.id}/databases`)
+      names = list.databases.map(d => d.name)
+    } catch {
+      names = []
+    }
+  }
+  restoreDbOptions.value = names
+  restoreDbs.value = [...names]
+  restoreTarget.value = b
+}
+
 const backupNow = () => run(() => api.post(`/api/sites/${site.value.id}/backups`), t('backup.started'))
 const verify = (b: Backup) => run(() => api.post(`/api/backups/${b.id}/verify`), t('backup.verifyStarted'))
 
@@ -127,7 +149,9 @@ async function restore() {
   if (!b) return
   restoreTarget.value = null
   const ok = await confirm({ title: t('backup.restoreTitle', { snapshot: b.snapshot_id.slice(0, 12) }), description: t('backup.restoreHint'), danger: true, typed: site.value.domain, confirmLabel: t('backup.restore') })
-  if (ok) await run(() => api.post(`/api/backups/${b.id}/restore`, { confirm: site.value.domain, mode: restoreMode.value }), t('backup.restoreStarted'))
+  const body: Record<string, unknown> = { confirm: site.value.domain, mode: restoreMode.value }
+  if (restoresDbs.value && restoreDbs.value.length < restoreDbOptions.value.length) body.databases = [...restoreDbs.value]
+  if (ok) await run(() => api.post(`/api/backups/${b.id}/restore`, body), t('backup.restoreStarted'))
 }
 </script>
 
@@ -168,7 +192,7 @@ async function restore() {
       </template>
       <template #actions-cell="{ row: { original: b } }">
         <span class="flex items-center justify-end gap-1">
-          <UButton size="sm" color="neutral" variant="outline" icon="i-cg-restore" :label="t('backup.restore')" :aria-label="t('backup.restore')" :ui="{ label: 'hidden sm:inline' }" :disabled="!canManage" @click="restoreTarget = b; restoreMode = 'full'" />
+          <UButton size="sm" color="neutral" variant="outline" icon="i-cg-restore" :label="t('backup.restore')" :aria-label="t('backup.restore')" :ui="{ label: 'hidden sm:inline' }" :disabled="!canManage" @click="openRestore(b)" />
           <UDropdownMenu :items="snapMenu(b)" :content="{ align: 'end' }">
             <UButton size="sm" color="neutral" variant="ghost" square icon="i-cg-more-horizontal" :aria-label="t('ux.common.moreFor', { name: b.snapshot_id.slice(0, 12) })" />
           </UDropdownMenu>
@@ -208,13 +232,22 @@ async function restore() {
     <template #body>
       <div class="flex flex-col gap-4">
         <URadioGroup v-model="restoreMode" :items="modeItems" />
+        <div v-if="restoresDbs" class="flex flex-col gap-2">
+          <UCheckboxGroup v-model="restoreDbs" :items="restoreDbOptions" :legend="t('backup.databases')" :ui="{ label: 'mono' }" />
+          <p class="text-xs text-muted">
+            {{ t('backup.databasesHint') }}
+          </p>
+          <p v-if="!restoreDbs.length" class="text-sm text-error" role="alert">
+            {{ t('backup.databasesNone') }}
+          </p>
+        </div>
         <UAlert color="neutral" variant="subtle" icon="i-cg-info" :description="t('backup.safety')" />
       </div>
     </template>
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="restoreTarget = null" />
-        <UButton color="error" :label="t('common.continue')" @click="restore" />
+        <UButton color="error" :label="t('common.continue')" :disabled="restoresDbs && !restoreDbs.length" @click="restore" />
       </div>
     </template>
   </UModal>

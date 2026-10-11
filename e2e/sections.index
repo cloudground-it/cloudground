@@ -71,6 +71,7 @@ e2e/databases_test.go	dbFx.grantsEnforced	F9b site databases
 e2e/databases_test.go	dbFx.list	F9b site databases|R-6.5 upgrade
 e2e/databases_test.go	dbFx.namesChecked	F9b site databases
 e2e/databases_test.go	dbFx.proxyNotBackedUp	F9b site databases
+e2e/databases_test.go	dbFx.restoreOneOfTwo	F9b site databases
 e2e/databases_test.go	dbFx.root	ALL
 e2e/databases_test.go	dbFx.stagingPushesThePrimary	F9b site databases
 e2e/databases_test.go	dbFx.startsEmpty	F9b site databases

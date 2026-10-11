@@ -431,7 +431,10 @@
     "snapshots": "Snapshots",
     "hour": "Uhrzeit",
     "hourAny": "Beliebige Uhrzeit",
-    "hourHelp": "Serverzeit ({zone}). Beliebige Uhrzeit: einen Tag oder eine Woche nach dem vorigen Backup."
+    "hourHelp": "Serverzeit ({zone}). Beliebige Uhrzeit: einen Tag oder eine Woche nach dem vorigen Backup.",
+    "databases": "Wiederherzustellende Datenbanken",
+    "databasesHint": "Nur die ausgewählten Datenbanken werden ersetzt; die anderen behalten ihren jetzigen Inhalt.",
+    "databasesNone": "Wähle mindestens eine Datenbank, oder stelle nur die Dateien wieder her."
   },
   "ssl": {
     "current": "Aktuelles Zertifikat",

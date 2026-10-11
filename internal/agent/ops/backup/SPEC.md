@@ -16,7 +16,7 @@ other tool itself.
 
 | Method | Params → Result | Table row |
 |---|---|---|
-| `RunBackup` | `BackupParams{Site, Repository, Password, Kind, Env}` → `BackupResult{SnapshotID, SizeBytes}` | Sites, 7 h |
+| `RunBackup` | `BackupParams{Site, Repository, Password, Kind, Env}` → `BackupResult{SnapshotID, SizeBytes, Databases}` | Sites, 7 h |
 | `RestoreSnapshot` | `RestoreParams{Site, Repository, Password, SnapshotID, Mode, Env}` → `{"restored", "target", "mode"}` | Sites, `LockLiveSite`, 7 h |
 | `VerifyBackup` | `RestoreParams` → `VerifyResult{Passed, RestoreMillis, Detail}` | Sites, 7 h |
 | `TestBackup` | `TestBackupParams{Repository, Password, Env}` → `{"reachable": true, "snapshots": n}` | 15 min |
@@ -135,7 +135,9 @@ read), with the init failure joined. restic before 0.17 (Ubuntu 24.04's
    unreadable: a backup that is not whole does not count), the database
    snapshots of step 2 are forgotten (orphans nothing names), and so is a
    files snapshot restic still made.
-5. Result: the files snapshot's ID and the bytes every snapshot processed.
+5. Result: the files snapshot's ID, the bytes every snapshot processed, and
+   the names of the databases it holds (empty for none; the panel records
+   them, and a restore may name some of them, #15).
 
 A **reverse-proxy site** is never backed up (the API's: internal/api SPEC
 §5.3): its tree holds no content of its own and it has no database, so its

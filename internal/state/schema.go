@@ -42,6 +42,7 @@ var schemaSteps = []schemaStep{
 	stepReservedUI,        // 20
 	stepUpdateChannel,     // 21
 	stepSiteDatabases,     // 22
+	stepBackupDatabases,   // 23
 }
 
 // latestSchema is the version Open brings every database to.

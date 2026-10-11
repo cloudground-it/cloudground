@@ -162,13 +162,13 @@ func (s *Server) routeTable() []route {
 
 		// Backups.
 		{Method: get, Path: "/api/sites/{id}/backups", Policy: policySignedIn, Load: loadSite, Handle: s.handleListBackups,
-			Section: secBackups, Doc: "the site's backups"},
+			Section: secBackups, Doc: "the site's backups, each with the `databases` its snapshot holds (`null` for one from before they were recorded)"},
 		{Method: post, Path: "/api/sites/{id}/backups", Policy: policyManage, Load: loadSite, Handle: s.handleRunBackup,
 			Section: secBackups, Doc: "take one, then restore-test it"},
 		{Method: post, Path: "/api/backups/{id}/verify", Policy: policyManage, Load: loadBackup, Handle: s.handleVerifyBackup,
 			Section: secBackups, Doc: "test-restore the backup to a scratch place"},
 		{Method: post, Path: "/api/backups/{id}/restore", Policy: policyManage, Load: loadBackup, Handle: s.handleRestoreBackup,
-			Section: secBackups, Doc: "restore in place — `mode` is `full`, `files` or `database`; `confirm` is the domain"},
+			Section: secBackups, Doc: "restore in place — `mode` is `full`, `files` or `database`; `confirm` is the domain; `databases`, optional, restores only these of the snapshot's (a backup lists them in `databases`)"},
 		{Method: del, Path: "/api/backups/{id}", Policy: policyAdmin, Load: loadBackup, Handle: s.handleDeleteBackup,
 			Section: secBackups, Doc: "delete the snapshot from the repository (queued under its lock); refused for one whose restore test has not run and for the site's newest verified one"},
 		{Method: post, Path: "/api/backups/test", Policy: policyAdmin, Handle: s.handleTestBackupRepo,

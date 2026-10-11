@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
@@ -120,6 +121,12 @@ func (s *Server) handleRestoreBackup(w http.ResponseWriter, r *http.Request, c *
 	for _, name := range req.Databases {
 		if _, err := s.resolveDB(site, name); err != nil || name == "" {
 			respondErr(w, http.StatusBadRequest, "this site has no database "+strconv.Quote(name))
+			return
+		}
+		// A record from before databases were kept (nil) leaves the
+		// check to the agent, which reads the snapshot.
+		if b.Databases != nil && !slices.Contains(b.Databases, name) {
+			respondErr(w, http.StatusBadRequest, "snapshot "+b.SnapshotID+" holds no database "+strconv.Quote(name))
 			return
 		}
 	}
