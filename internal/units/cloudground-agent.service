@@ -13,13 +13,27 @@ ExecStart=/usr/local/bin/panel-agent
 Restart=on-failure
 RestartSec=2
 
+# The agent's own memory (#66, bench/agent-memory.md): a backstop against
+# its growth, provisional until measured. restic, mariadb-dump, the mariadb
+# client and certbot run in units of their own (cg-helper.slice), so this
+# limit never cuts a backup or a restore. Past MemoryHigh the kernel reclaims
+# and throttles; MemoryMax is the hard stop, after which systemd restarts
+# the agent. A child killed for memory (nginx -t, apt-get) fails its own
+# request only: OOMPolicy=continue keeps the agent running.
+MemoryHigh=768M
+MemoryMax=1G
+OOMPolicy=continue
+
 RuntimeDirectory=cloudground cloudground/php
 RuntimeDirectoryMode=0755
 RuntimeDirectoryPreserve=yes
 
 # The agent is root because its work is root's work: users, nginx, PHP-FPM,
 # MariaDB, certificates, the firewall. The sandbox below still bounds it, and
-# every child it spawns (useradd, wp-cli, restic, certbot, ufw) inherits it.
+# every child it spawns (useradd, nginx -t, ufw) inherits it. Its helpers
+# (restic, mariadb-dump, the mariadb client, certbot) run in units of their
+# own with these same lines (host.HelperProps, held to this file by a test);
+# wp-cli runs in its site's sandbox.
 #
 # It may write only: /etc, the site trees, its own state, cache and log
 # directories, the ACME webroot and certbot's state, cron's spool, /run and

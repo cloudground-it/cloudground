@@ -18,7 +18,7 @@ func (a *Agent) dbHandlers() *db.Ops {
 	a.dbOnce.Do(func() {
 		m := a.MariaDB
 		if m == nil {
-			m = host.NewMariaDB(a.Paths.MySQLSocket, a.Paths.WorkDir, host.OSExec{Timeout: time.Minute})
+			m = host.NewMariaDB(a.Paths.MySQLSocket, a.Paths.WorkDir, helpers(time.Minute))
 		}
 		a.dbOps = &db.Ops{
 			MariaDB:         m,

@@ -156,8 +156,8 @@ func TestRunSandboxedCancelStopsUnitBeforeSystemdRun(t *testing.T) {
 // A unit that outlives its stop has systemd-run killed in the end, after
 // the stop was retried.
 func TestRunSandboxedCancelKillsSystemdRunPastTheWait(t *testing.T) {
-	defer func(w, rt time.Duration) { sandboxStopWait, sandboxStopRetry = w, rt }(sandboxStopWait, sandboxStopRetry)
-	sandboxStopWait, sandboxStopRetry = 200*time.Millisecond, 20*time.Millisecond
+	defer func(w, rt time.Duration) { sandboxStopWait, stopRetry = w, rt }(sandboxStopWait, stopRetry)
+	sandboxStopWait, stopRetry = 200*time.Millisecond, 20*time.Millisecond
 	e := newStopOrderExec(true)
 	r := &ResticCLI{Exec: e, Transient: true}
 	ctx, cancel := context.WithCancel(context.Background())

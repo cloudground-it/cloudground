@@ -39,9 +39,9 @@ func (a *Agent) backupHandlers() *backup.Ops {
 	a.backupOnce.Do(func() {
 		r := a.Restic
 		if r == nil {
-			// restic's bounds come from the handlers; OSExec kills its
-			// process group when the request ends.
-			cli := host.NewRestic(host.OSExec{})
+			// restic's bounds come from the handlers; a cancelled request
+			// stops its unit (host SPEC: helpers).
+			cli := host.NewRestic(helpers(0))
 			cli.Transient = true
 			r = cli
 		}

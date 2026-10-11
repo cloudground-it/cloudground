@@ -98,7 +98,7 @@ func (r *ResticCLI) sandboxArgs(sb TreeSandbox, unit string, args []string) ([]s
 	}
 	svc := Service{
 		Unit: unit, Description: "restic backup of " + sb.Tree,
-		User: "root", Dir: "/", Props: props, MaxRuntime: 24 * time.Hour, Pipe: true,
+		User: "root", Slice: HelperSlice, Dir: "/", Props: props, MaxRuntime: 24 * time.Hour, Pipe: true,
 		Argv: append([]string{agent, ResticExecName, "--"}, args...),
 	}
 	return ServiceArgs(svc), nil
@@ -166,39 +166,11 @@ func (r *ResticCLI) RunSandboxed(ctx context.Context, repo Repo, sb TreeSandbox,
 // killed. A variable for the tests.
 var sandboxStopWait = ResticGrace + 30*time.Second
 
-// sandboxStopRetry spaces the stops of a unit systemd has not loaded yet
-// (the run was cancelled before systemd-run had created it).
-var sandboxStopRetry = time.Second
-
 // stopSandboxed stops a cancelled sandboxed run's unit (SIGINT to restic,
 // which removes its lock and exits) until systemd-run has returned
-// (finished). A stop that finds no unit, because systemd-run has not created
-// it yet, is retried. Past sandboxStopWait systemd-run is killed, and the
-// unit stopped once more in case it started only then.
+// (finished), as a helper's (stopUnitUntil, with sandboxStopWait).
 func (r *ResticCLI) stopSandboxed(ctx context.Context, unit string, finished <-chan struct{}, kill func()) {
-	base := context.WithoutCancel(ctx)
-	stop := func() {
-		sctx, cancel := context.WithTimeout(base, sandboxStopWait)
-		defer cancel()
-		_, _ = r.Exec.Run(sctx, Cmd{Name: "systemctl", Args: []string{"stop", unit}})
-	}
-	deadline := time.NewTimer(sandboxStopWait)
-	defer deadline.Stop()
-	for {
-		stop()
-		retry := time.NewTimer(sandboxStopRetry)
-		select {
-		case <-finished:
-			retry.Stop()
-			return
-		case <-deadline.C:
-			retry.Stop()
-			kill()
-			stop()
-			return
-		case <-retry.C:
-		}
-	}
+	stopUnitUntil(ctx, r.Exec, unit, sandboxStopWait, finished, kill)
 }
 
 // secretEnv is what restic-exec hands restic beyond its fixed environment:

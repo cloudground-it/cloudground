@@ -84,6 +84,10 @@ func run(args []string) int {
 		// A sandboxed restic run (host SPEC: restic): secrets on stdin.
 		return host.ResticExecMain(args[1:], os.Stdin)
 	}
+	if len(args) > 0 && args[0] == host.HelperExecName {
+		// A helper's unit (host SPEC: helpers): its environment on stdin.
+		return host.HelperExecMain(args[1:], os.Stdin)
+	}
 	if len(args) > 0 && args[0] == "update-guard" {
 		return panel.GuardMain(args[1:], log)
 	}
@@ -140,6 +144,11 @@ func serve(cfg *config.Config, log *slog.Logger) error {
 	if err := a.SweepMigrations(); err != nil {
 		log.Warn("a cut-short migration's maintenance not lifted", "err", err)
 	}
+	// Nothing is in flight yet either, so every helper unit still running
+	// was started by an agent that is gone, and nothing reads its output.
+	helpers, cancelHelpers := context.WithTimeout(context.Background(), time.Minute)
+	a.SweepHelpers(helpers)
+	cancelHelpers()
 	restic, cancelRestic := context.WithTimeout(context.Background(), 30*time.Second)
 	a.CheckRestic(restic)
 	cancelRestic()

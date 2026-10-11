@@ -193,8 +193,8 @@ func New(logger *slog.Logger) *Agent {
 		Firewall: host.NewFirewall(ex),
 		// wp-cli runs up to an update's deadline; the request's context ends it.
 		WPCLI:    host.NewWPCLI(host.OSExec{Timeout: 45 * time.Minute}),
-		ACME:     host.NewCertbot(host.OSExec{Timeout: 20 * time.Minute}),
-		MariaDB:  host.NewMariaDB(p.MySQLSocket, p.WorkDir, ex),
+		ACME:     host.NewCertbot(helpers(20 * time.Minute)),
+		MariaDB:  host.NewMariaDB(p.MySQLSocket, p.WorkDir, helpers(time.Minute)),
 		Nginx:    host.NewNginx(ex, sd),
 		Renderer: nginx.Renderer{SitesDir: p.NginxSites, ConfDir: p.NginxConfDir},
 		Log:      logger,
@@ -310,6 +310,14 @@ func (a *Agent) log() *slog.Logger {
 		return a.Log
 	}
 	return slog.Default()
+}
+
+// helpers runs the heavy helpers (restic, mariadb-dump, the mariadb client,
+// certbot) each in its own transient unit of host.HelperSlice, out of the
+// agent's cgroup and so out of its memory limit (host SPEC: helpers);
+// timeout is the default of a command that sets none.
+func helpers(timeout time.Duration) host.Exec {
+	return host.HelperExec{Exec: host.OSExec{Timeout: timeout}, Timeout: timeout}
 }
 
 // exec is the agent's command runner; nil means real processes.
