@@ -43,5 +43,11 @@
     "@types/node": "^26.6.4",
     "typescript": "^6.0.3",
     "vue-tsc": "^3.3.11"
+  },
+  "overrides": {
+    "@vueuse/core": "$@vueuse/core",
+    "@vueuse/shared": "^15.0.0",
+    "@vueuse/metadata": "^15.0.0",
+    "@vueuse/integrations": "^15.0.0"
   }
 }
