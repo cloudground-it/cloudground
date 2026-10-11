@@ -336,3 +336,20 @@ func TestSearch(t *testing.T) {
 		t.Fatalf("browse with a search sent %s", fx.sent())
 	}
 }
+
+// A check-only sign-in (the API has no room for the session) checks the
+// password and keeps nothing.
+func TestSignInCheckOnlyKeepsNothing(t *testing.T) {
+	fx, _, _ := newLoginFixture(t)
+	res, err := fx.o.SignIn(context.Background(), rpc.DBStudioOpenParams{Site: fx.site, User: "site_4", Password: "pw-of-site-4", CheckOnly: true})
+	if err != nil || res.Refused || res.Login != "" {
+		t.Fatalf("check only = %+v %v, want accepted without a session", res, err)
+	}
+	if n := fx.o.logins.count(); n != 0 {
+		t.Fatalf("a check-only sign-in kept %d sessions", n)
+	}
+	res, err = fx.o.SignIn(context.Background(), rpc.DBStudioOpenParams{Site: fx.site, User: "site_4", Password: "wrong", CheckOnly: true})
+	if err != nil || !res.Refused {
+		t.Fatalf("check only with a wrong password = %+v %v", res, err)
+	}
+}

@@ -218,18 +218,34 @@ func (s *Server) handleStudioLogin(w http.ResponseWriter, r *http.Request) {
 		internalError(w, "GetSite", err, "could not read the site")
 		return
 	}
+	// Room for the session is checked before the agent keeps one, which
+	// would otherwise end another to make room. Without room, the
+	// password is still checked (keeping nothing): the reason is given
+	// only to someone the server takes, and a refusal reads the same for
+	// a full site as for any other.
+	release, full, dead := s.studio.reserveLogin(target.ID)
+	for _, x := range dead {
+		s.closeLogin(x)
+	}
+	if release != nil {
+		defer release()
+	}
 	var res rpc.DBStudioOpenResult
 	if err := agentrpc.Into(r.Context(), s.Agent, agentrpc.DBStudioOpen, rpc.DBStudioOpenParams{
-		Site: target, User: in.User, Password: in.Password,
+		Site: target, User: in.User, Password: in.Password, CheckOnly: full != "",
 	}, &res); err != nil {
 		respondAgentErr(w, 0, "", err)
 		return
 	}
-	if res.Refused || res.Login == "" {
+	if res.Refused || (res.Login == "" && full == "") {
 		refuse()
 		return
 	}
 	attempt.Succeed()
+	if full != "" {
+		respondErr(w, http.StatusTooManyRequests, full)
+		return
+	}
 	st := &studioSession{mode: studioLogin, siteID: target.ID, dbUser: in.User, login: res.Login, database: in.Database, address: o.Address}
 	if st.database == "" && len(res.Databases) > 0 {
 		st.database = res.Databases[0]

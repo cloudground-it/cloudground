@@ -1457,7 +1457,12 @@ subdomain can toss with `Domain`). It ends after **30 minutes unused** (a
 request with `X-CG-Background: 1` is not a use, §2.2), **12 hours** after it
 began, on `POST /api/quarry/logout`, and when what it stands on goes (the
 site, the panel session it came from, the password). At most 64 sessions per
-site and 1024 in all; past either, the one unused the longest ends. CSRF:
+site and 1024 in all; past either, the one unused the longest ends.
+Signed-in database users' sessions, which the agent holds too, have the
+agent's own bounds, defined once in `rpc` (`DBStudioMaxSiteLogins` 32 per
+site, `DBStudioMaxLogins` 256 in all): a sign-in past either is refused
+here (step 6), so the agent never ends a session the API still holds to
+make room. CSRF:
 the rules of §1.5 apply to every Quarry row as to the panel's.
 
 **Way in 1: a database user's own name and password** (`POST
@@ -1501,7 +1506,14 @@ the rules of §1.5 apply to every Quarry row as to the panel's.
    `quarry.login_failed` (actor the
    name typed, with control characters as `?`, `(database user)`; subject
    `dbstudio`; detail the address);
-6. success clears the user's refusals from anywhere and those of this
+6. room for the session is reserved before the agent is asked (the live
+   signed-in sessions and the sign-ins under way count): without room, the
+   agent only checks the password (`CheckOnly`, nothing kept), a refusal is
+   step 5's, and an accepted one → **429** `Quarry already has 32 signed-in
+   sessions on this site: sign out of one, or wait until one has gone 30
+   minutes unused` (or `… has 256 signed-in sessions: …` in all), so the
+   reason is given only to someone the server takes;
+7. success clears the user's refusals from anywhere and those of this
    network (and /48), not another network's, starts the session (`mode: login`,
    the agent's handle; the password is not kept here) on `database` or the
    site's primary or the first the user sees, audits `quarry.login`

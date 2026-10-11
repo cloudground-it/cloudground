@@ -3,7 +3,8 @@
     "full": {
       "site": "@state.Site",
       "user": "User",
-      "password": "Password"
+      "password": "Password",
+      "check_only": true
     },
     "zero": {
       "site": "@state.Site",

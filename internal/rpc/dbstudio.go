@@ -425,12 +425,26 @@ func (p *DBStudioAlterParams) Validate() error {
 
 // Signed-in database users (Fase 9b, ops/dbstudio SPEC §11).
 
+// How many signed-in database users' sessions Quarry keeps, in all and per
+// site: the one source of both sides' bounds. The API refuses a sign-in
+// past either, with its reason (internal/api SPEC §6.4); the agent's pool,
+// of the same size, then has room for every session the API has, and ends
+// the one unused the longest only for a session the API no longer holds
+// (ops/dbstudio SPEC §11).
+const (
+	DBStudioMaxLogins     = 256
+	DBStudioMaxSiteLogins = 32
+)
+
 // DBStudioOpenParams signs one of the site's database users in to DB
-// Studio with its own password.
+// Studio with its own password. CheckOnly checks the name and password
+// and keeps no session: the API asks it when it has no room for one, so
+// its refusal is not given to a password it has not seen accepted.
 type DBStudioOpenParams struct {
-	Site     state.Site `json:"site"`
-	User     string     `json:"user"`
-	Password string     `json:"password"`
+	Site      state.Site `json:"site"`
+	User      string     `json:"user"`
+	Password  string     `json:"password"`
+	CheckOnly bool       `json:"check_only,omitempty"`
 }
 
 // DBStudioOpenResult is the session's handle and the databases the user
