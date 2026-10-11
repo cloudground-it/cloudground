@@ -1,0 +1,33 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "login": "Login",
+      "term": "Term",
+      "tables": [
+        "Tables"
+      ]
+    },
+    "zero": {
+      "site": "@state.Site",
+      "term": ""
+    }
+  },
+  "result": {
+    "full": {
+      "tables": [
+        {
+          "table": "Table",
+          "matches": 7
+        }
+      ],
+      "searched": 7,
+      "truncated": true
+    },
+    "zero": {
+      "tables": null,
+      "searched": 0
+    }
+  }
+}

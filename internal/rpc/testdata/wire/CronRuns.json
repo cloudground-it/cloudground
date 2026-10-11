@@ -1,0 +1,24 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site"
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "runs": {
+        "key": {
+          "at": "2026-01-02T03:04:05Z",
+          "status": "Status",
+          "exit_code": 7
+        }
+      }
+    },
+    "zero": {
+      "runs": null
+    }
+  }
+}

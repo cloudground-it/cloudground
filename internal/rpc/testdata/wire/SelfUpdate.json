@@ -1,0 +1,21 @@
+{
+  "params": {
+    "full": {
+      "version": "Version",
+      "channel": "Channel"
+    },
+    "zero": {
+      "version": ""
+    }
+  },
+  "result": {
+    "full": {
+      "updated_to": "UpdatedTo",
+      "restarted": true
+    },
+    "zero": {
+      "updated_to": "",
+      "restarted": false
+    }
+  }
+}

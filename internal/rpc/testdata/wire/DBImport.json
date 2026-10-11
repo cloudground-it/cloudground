@@ -1,0 +1,27 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "rel_path": "RelPath"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "database": "",
+      "rel_path": ""
+    }
+  },
+  "result": {
+    "full": {
+      "imported": "Imported",
+      "size_bytes": 7,
+      "warnings": [
+        "Warnings"
+      ]
+    },
+    "zero": {
+      "imported": "",
+      "size_bytes": 0
+    }
+  }
+}

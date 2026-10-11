@@ -1,0 +1,331 @@
+{{/* The prose of docs/api.md. The endpoint tables come from the route table
+(internal/api/routes.go); regenerate with `go generate ./internal/api` or
+`make docker-api-doc`. */ -}}
+# CloudGround HTTP API
+
+<!-- Generated from internal/api/routes.go and internal/api/apidoc.md.tmpl by `go generate ./internal/api`. Do not edit by hand. -->
+
+Everything the panel does goes through this HTTP API; the web interface uses it like any other
+client. The API listens on the Unix socket `/run/cloudground/api.sock`, and nginx carries outside
+requests to it. On the server, root can call it directly with
+`curl --unix-socket /run/cloudground/api.sock http://localhost/api/...`. A request that changes
+something is sent as `application/json`, and from a browser only from the panel's own origin.
+
+## Signing in
+
+A session starts with `POST /api/login`, whose body holds the account's email and password; the
+answer sets a cookie, which every later request sends back:
+
+```sh
+# sign in once, keeping the cookie in ./cookies
+curl -sk --cookie-jar cookies https://panel.example.com/api/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@example.com","password":"…"}'
+# then any call
+curl -sk --cookie cookies https://panel.example.com/api/sites
+```
+
+The cookie is `HttpOnly`, `Secure` and `SameSite=Strict`. Its value is a random token that the
+panel looks up in its database, so a session can be ended from the server side; it expires after
+24 hours.
+
+An account with two-factor authentication gets `401` and `{"totp_required": true}` at first: send
+the same request again with `"totp"` set to the six-digit code. A code is accepted only once.
+
+### API tokens
+
+Scripts and `cgctl` authenticate with an API token instead: `Authorization: Bearer cgt_…`. An admin
+creates one from a signed-in session (`POST /api/tokens`); the secret is in that response only, and
+the panel keeps just its SHA-256. A token acts as the admin who made it, only while that account is
+an enabled admin, and under the same two-factor requirement. A request with a `Bearer cgt_…` token
+is judged by it alone, even when it also carries a session cookie: a bad or revoked token is `401`.
+Any other `Authorization` header (a proxy's Basic auth, another system's bearer token) is ignored.
+
+A token is for automating sites, not for governing the panel. It never reaches the routes marked
+**session only** below, which answer it `403`: `/api/logout`, every `/api/account/*` route,
+creating, changing, deleting and resetting the password of users, every `/api/tokens` route, a
+site's shell and routing, the firewall rules, the panel's certificate and its self-update. It may
+restore drifted files but not accept drift (`403`). Of the
+settings (`PUT /api/settings`) it may change only `acme_email` and `probe_target`; any other key it
+changes is `403` (one sent back exactly as `GET` showed it passes, so a script can send back the
+map it read). So a leaked token cannot mint another token, create an admin, reset a password,
+turn the 2FA requirement off, send the backups or the alerts somewhere else, or replace the panel. Changing or resetting a password, turning 2FA off, disabling, demoting or
+deleting an account, and `panel-api recover-admin` revoke the account's tokens along with its
+sessions.
+
+Creating and revoking tokens are audited, and so is every audited action made with one, with the
+token named in the actor. `GET /api/events` accepts a token like every other route.
+
+```sh
+curl -sk --cookie cookies https://panel.example.com/api/tokens -H 'Content-Type: application/json' \
+  -d '{"name":"deploy script","expires_in_days":90}'
+curl -sk https://panel.example.com/api/sites -H "Authorization: Bearer $CLOUDGROUND_TOKEN"
+```
+
+## Who may call what
+
+The endpoint tables give each route an access marker. Without a valid session or token the answer
+is `401`; with one whose role the marker does not allow, `403`.
+
+{{roles}}
+
+An `operator` sees and touches only assigned sites (and their staging copies); requests for any
+other site, or for another site's backups, releases or cron jobs, return `404`, not `403`, so the
+API does not confirm that they exist.
+
+When **Require 2FA for admins** is on, an `admin` account without two-factor authentication gets
+`403` on every endpoint except signing out and the two enrolment steps
+(`POST /api/account/2fa/begin` and `/confirm`), until it enrols.
+
+## Requests and answers
+
+- Bodies are JSON both ways.
+- Work that takes time answers **`202`** and a task: follow it with `GET /api/tasks/{id}`, or read
+  the resource again.
+- A failure is a status code with `{"error":"..."}` explaining it.
+- Unknown fields are rejected. Request bodies are capped at 4 MiB, except:
+{{limits}}
+- The endpoints that run a database statement while the request waits take at most
+  {{statementsPerUser}} at once per account and {{statementsPerSite}} per site; beyond, **`429`**
+  `too many database statements are running: wait for one to finish`:
+{{statementRoutes}}
+- A browser request that changes something must come from the panel's own origin (`Sec-Fetch-Site`
+  and `Origin` are checked when sent), and its body must be `application/json`; the two upload
+  endpoints also take the raw file as `application/octet-stream`. Otherwise the answer is `403` or
+  `415`. Clients that send neither header, such as `curl` and `cgctl`, are unaffected.
+
+## Endpoints
+
+### First setup and sessions
+
+{{routes "Setup and session"}}
+
+### Your account
+
+{{routes "Account"}}
+
+### Accounts
+
+{{routes "Users"}}
+
+### Tokens
+
+{{routes "API tokens"}}
+
+### Sites and their settings
+
+{{routes "Sites"}}
+
+`PATCH /api/sites/{id}` takes any of these fields; only the fields sent change, and one task applies
+them all:
+
+| Field | Applies to | Valid values |
+| --- | --- | --- |
+| `aliases` | production sites (admin only) | host names, at most 50, none used by another site; `[]` removes them all |
+| `profile` | every site | `balanced`, `commerce`, `maximum` |
+| `cache_enabled` | every site | `true` / `false` |
+| `cache_ttl_sec` | every site | 0 (the profile's default) to 31536000 |
+| `bypass_cookies` | sites with a page cache | cookie names (letters, digits, `.`, `_`, `-`, at most 64 each), at most 20, that skip the page cache beyond the site type's own; `[]` clears them |
+| `php_workers` | every site | 0 (sized automatically) to 64 |
+| `hsts` | every site | `true` needs a certificate valid for at least 14 more days (else `409`) |
+| `php_version` | PHP sites | a version installed on the server |
+| `memory_limit_mb` | PHP sites | 64–4096 |
+| `upload_max_mb` | PHP sites | 1–2048 |
+| `max_execution_seconds` | PHP sites | 10–600 |
+| `public_root` | every type but `proxy` | a folder inside the release such as `public`; empty for the release itself |
+| `proxy_upstream` | `proxy` sites (admin only) | an `http(s)://host[:port][/path]` URL |
+| `object_cache` | WordPress and WooCommerce | `true` / `false` |
+
+A refused field answers `400` with the first problem in `error` and every one in `fields`
+(`{"error": "...", "fields": {"memory_limit_mb": "..."}}`); an admin-only field from an operator
+answers `403`. When `aliases` changes on a site with a Let's Encrypt certificate, the certificate is
+reissued for the new names after the change is applied (a separate task; if it fails the site keeps
+its old certificate). A custom certificate is not touched: the answer carries
+`"warnings": ["this site serves a custom certificate, which may not cover the new aliases: …"]`.
+A `public_root` that passes through a symbolic link is refused. PHP workers whose memory limits add
+up to more than the site's memory budget are refused with the budget in the message; an
+administrator may send `"allow_over_budget": true`.
+
+```sh
+curl -sk --cookie cookies -X PATCH https://panel.example.com/api/sites/7 \
+  -H 'Content-Type: application/json' \
+  -d '{"php_version":"8.4","memory_limit_mb":512,"cache_ttl_sec":600}'
+```
+
+To bring a site in, `POST /api/sites/{id}/migration` gets `archive`, `sql`, `old_domain` and
+`confirm`. The archive and the SQL dump must already be in the receiving site's folder (send them
+over SFTP), and both paths are relative to it. Every occurrence of `old_domain` in the imported
+database is replaced with the site's domain, and the request is refused unless `confirm` repeats
+that domain.
+An administrator may add `"max_ratio": <1–1000>` to raise the archive's expansion limit (200 times
+its compressed size by default); anyone else sending it gets 403. A refused archive's task error
+says the limit and how to raise it. A task error that carries a translation key (`error_key`,
+`error_args` in the task) is written in the reader's language when the task is read
+(`Accept-Language`, else the user's saved language).
+
+A new WooCommerce store, with its object cache:
+
+```sh
+curl -sk --cookie cookies https://panel.example.com/api/sites \
+  -H 'Content-Type: application/json' \
+  -d '{"domain":"shop.example.com","type":"woocommerce","profile":"commerce","object_cache":true,
+       "admin_email":"owner@example.com","admin_user":"owner","admin_password":"…"}'
+```
+
+### Releases, staging and Safe Push
+
+{{routes "Releases, staging and Safe Push"}}
+
+### Backups
+
+{{routes "Backups"}}
+
+### Files
+
+Jailed to the site root. Every path is resolved by the kernel beneath the site's root
+(`openat2(RESOLVE_BENEATH)`): a relative symlink inside the site (`current`, `wp-config.php`) is
+followed, one leading outside is refused. Saving writes a new file and renames it over the old one,
+so a hard link is never written through. A missing path answers `404`, a name already taken `409`,
+and text sent for a binary file `409`.
+
+{{routes "Files"}}
+
+### Database
+
+{{routes "Database"}}
+
+The console is **read-only unless you pass `"allow_writes": true`** (then the statement is audited).
+Every query is a single statement — `select 1; drop table x` is refused — and runs as a throwaway
+account granted on that site's database only: read-only mode grants `SELECT` and `SHOW VIEW`, so the
+server itself refuses writes and cross-database access, and its error comes back in `message`. A
+statement may run 60 seconds; then the server stops it. Results stop at 5000 rows or 8 MiB.
+
+### Quarry
+
+The panel's database manager, a service of its own at `https://<panel>/quarry` with **its own
+session**: the cookie `__Host-cg-quarry` (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`),
+idle after 30 minutes, ended after 12 hours, on `POST /api/quarry/logout` and when the panel
+restarts. A panel session or an API token reaches none of the `/api/quarry/` routes (`401 sign in
+to Quarry`), and a Quarry session none of the panel's. There are two ways in:
+
+- **A database user's own name and password** (`POST /api/quarry/login`), without a panel
+  account. MariaDB checks them, and every statement then runs as that user: what it sees and changes
+  is what the server grants it. Only a site's own database users sign in (never `root` or the
+  agent's accounts); the password stays in the agent's memory, sealed, for the session's life only.
+  Limits: 20 attempts a minute per network (an IPv4 address, an IPv6 /64), 80 per IPv6 /48, 6 per
+  network and user. After 5 refusals in 15 minutes an attempt waits 1 s, then 2 s, 4 s …: up to
+  60 s for the refusals from its own network, at most 2 s for those from anywhere. Parallel attempts
+  from one network wait one after the other's delay, and one that would wait over 60 s is refused
+  (429): one network is no faster in parallel. The wait comes first and holds nothing; then the user's password is checked one attempt at a time, with at most
+  4 queued per network. A delay, never a lock: someone failing from one network slows their own
+  guesses, not the user signing in from another. A refusal is `401 invalid credentials` whatever
+  the reason, and takes at least 300 ms.
+- **From the panel**: `POST /api/sites/{id}/quarry/handoff` (a signed-in session, never a token)
+  returns a one-time `token` valid 60 seconds, which `POST /api/quarry/handoff` exchanges, with
+  the same panel session, for a Quarry session on that site. It works through a throwaway account
+  granted on one of the site's databases, and only while that panel session lasts and the account
+  still reaches the site. A `readonly` account's session shows the tables and their structure, not
+  their rows (`403`).
+
+Table and column names in a request are looked up in `information_schema` and must match exactly;
+values are always bound. Every write is audited before it is sent, with its action, database, table
+and primary key, never the row's contents; a database user's SQL statements other than reads are
+audited redacted.
+
+{{routes "Quarry"}}
+
+- `edit` and `alter` with `"dry_run": true` return the SQL without running it; without, they return
+  the same SQL, now executed. An edit that fails, or whose key matches no row, rolls the whole batch
+  back.
+- Filters: `eq ne lt le gt ge contains starts null notnull`. Long cells come back cut at 4 KiB (their
+  indexes are in `cut`), binary ones as hex; `null` is NULL.
+- Exports and uploads may reach 16 GiB. A SQL import goes through the sandboxed `mariadb` client:
+  from the panel with a rollback point, as `database/import` does; as a database user, signed in as
+  that user and without one. A CSV import (header row of column names, `\N` for NULL) inserts every
+  row in one transaction. A database user sees, downloads and imports only the files it made.
+- `alter` with `truncate` or `drop` needs `confirm`, the table's name.
+
+### WordPress
+
+{{routes "WordPress"}}
+
+### SFTP, shell and keys
+
+{{routes "SFTP and SSH keys"}}
+
+A fingerprint is `SHA256:` and the standard base64 `ssh-keygen -l` prints; percent-encode it in the
+path (it can contain `/` and `+`). Keys sign in only while SFTP is on.
+
+Every key has a type, `access`: `"sftp"` (the default) or `"shell"`, given when it is added
+(`{"public_key": "...", "access": "shell"}`) and listed with each key. Every key signs in to SFTP
+as the site user, chrooted in the site's folder. While an administrator has the site's shell on,
+the `"shell"` keys also sign in to `ssh <shell_user>@host` (`shell_user` is in the key list,
+`cg-shell-<id>`): bash in the site's folder as the site's uid, inside the site's sandbox. A shell
+is an administrator's: the shell switch and a `"shell"` key need an admin signed in with a
+session (an API token gets 403); an operator adds `"sftp"` keys to its sites.
+
+### Scheduled jobs
+
+{{routes "Cron"}}
+
+### The server
+
+{{routes "Server"}}
+
+`POST /api/system/maintenance` runs, synchronously, one tick of the scheduler's five-minute work, each
+piece a maintenance job: the reconcile after an upgrade or a change in the number of sites (PHP pools
+resized), a capacity sample, the backup and retention sweeps (the scheduled backups they queue are
+not waited for), the certificate renewals if due, the drift scan, then the alerts. A job of the tick
+already queued or running is waited for, not doubled. It answers `{"ran": true, "duration_ms": N}`,
+or, when the tick would hold the request more than 10 s (maintenance waiting behind long jobs),
+`202 {"ran": false, "jobs": [ids]}`: the tick goes on, and its jobs can be polled with
+`GET /api/tasks/{id}`. Each run is recorded in the audit log as `system.maintenance`.
+
+`POST /api/panel/update` takes `{"version": "v0.3.0"}`, which is recorded in the audit log and
+nothing more. The request cannot name a source or waive verification: the update origin and the key
+releases must be signed with are compiled into the agent. See [Update CloudGround](https://docs.cloudground.it/server/update-cloudground).
+
+### Tasks and the event stream
+
+{{routes "Tasks and events"}}
+
+Tasks are the jobs of the panel's persistent queue. A task waiting for another one on the same site
+(or the same backup repository) is `pending`; its `job_status` says `queued`. Cancelling a queued
+task ends it at once (`status` `failed`, `job_status` `canceled`, `error` `Canceled`) and undoes
+what the request stored ahead of it (a settings change's values, a new site's record, a delete's
+status); a running one gets `cancel_requested` and stops before its next change, since a change
+already sent to the agent always runs to its end (a restore canceled during its safety snapshot
+never restores). A restore test cannot be canceled (`409`). Your tasks go before the scheduler's
+in the queue of a site or a repository. After a panel restart nothing stays `running`: an
+interrupted task either runs again (settings renders, backups, restore tests, retention, at most
+three starts) or ends `failed` with `interrupted by panel restart`; a cancel asked before the
+restart is kept. Only an admin cancels a server-wide task.
+
+`GET /api/events` is a `text/event-stream` of the panel's changes, one JSON object per message:
+`{"type": "site.changed", "site_id": 12, "at": "…", "data": {…}}`. `site_id` is absent on
+server-wide events. Each message has an SSE `id`; reconnecting with `Last-Event-ID` (or
+`?last_event_id=`) replays what was missed from a short history, or sends `{"type":"resync"}`
+when that is not possible, after which a client should reload what it shows. A
+`{"type":"ping"}` message without an ID arrives every 25 seconds.
+
+| Type | About | `data` |
+| --- | --- | --- |
+| `task.created`, `task.progress`, `task.finished` | a task (site or server) | the task without its log; progress and message; status, error |
+| `site.changed`, `site.deleted` | a site | `reason` (`created`, `updated`, `applied`), status, generations |
+| `deployment.changed` | a site | release id and status |
+| `backup.finished`, `backup.verified`, `backup.removed` | a site | backup id and kind or verification status; count removed by retention |
+| `cron.changed`, `cert.changed` | a site | job id; nothing |
+| `alert.raised`, `alert.cleared` | a site or the server | the alert (`id`, `level`, `kind`, `message`); its id |
+| `drift.changed`, `service.changed`, `system.status`, `metrics.sample`, `settings.changed`, `user.changed` | the server | drift event id; changed service names; what `GET /api/system/status` answers; the sample; nothing; user id |
+
+Who receives what: `admin` and `readonly` accounts receive every event. An `operator` receives only
+events about its assigned sites and their staging copies, never server-wide ones. The stream ends
+when its session does (logout, expiry, a disabled account), and a request from another origin is
+refused with `403`. The full contract is `internal/api/events/SPEC.md`.
+
+### WordPress connector
+
+{{routes "Connector"}}
+
+These calls carry the site's own bearer token instead of a session, and a token purges only URLs on
+the domains of the site it belongs to.

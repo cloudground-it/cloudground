@@ -1,0 +1,327 @@
+## managed
+/ROOT/nginx/conf.d/cloudground-cache-8.conf
+/ROOT/nginx/conf.d/cloudground-global.conf
+/ROOT/nginx/sites-enabled/fast.example.com.conf
+/ROOT/php-masters/cg-site-8.conf
+/ROOT/systemd/cloudground-php-cg-site-8.service
+## /ROOT/nginx/conf.d/cloudground-cache-8.conf -rw-r--r--
+# Written by CloudGround: page-cache zone of fast.example.com (site 8).
+fastcgi_cache_path /ROOT/cache/fast.example.com levels=1:2 keys_zone=cg_8:32m
+                   max_size=4096m inactive=604800s use_temp_path=off;
+## /ROOT/nginx/conf.d/cloudground-global.conf -rw-r--r--
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+log_format cloudground '$remote_addr - $host [$time_local] "$request" '
+                      '$status $body_bytes_sent $request_time '
+                      'cache:$upstream_cache_status "$http_user_agent"';
+
+
+# Compression settings. "gzip on" already sits in Ubuntu's nginx.conf, and
+# nginx refuses a second one, so this file only adjusts it.
+gzip_vary on;
+gzip_comp_level 5;
+gzip_min_length 1024;
+gzip_types text/plain text/css text/xml text/javascript application/json application/javascript
+           application/xml application/rss+xml application/atom+xml image/svg+xml;
+
+# Descriptors and stat results of busy files stay open between requests,
+# for static files and page-cache entries both (on the 2 vCPU test server,
+# setting this per site instead lost a fifth of the throughput). They are
+# checked again after 60s, so a deploy shows within a minute; the page-cache
+# location of each site lowers that to 1s, so a purged page stops being
+# served almost at once.
+open_file_cache max=20000 inactive=60s;
+open_file_cache_valid 60s;
+open_file_cache_min_uses 2;
+open_file_cache_errors on;
+
+# Links: nginx belongs to every site's group to read its static files, so a
+# site could otherwise point a symlink at a neighbour's files. Every site's
+# server block therefore follows a link only when the link and its target
+# share an owner, starting below the document root (whose path goes through
+# "current", a link owned by root).
+
+# One compressed copy per page. Each site tells PHP the client accepts gzip,
+# PHP compresses the page, and the cache keeps that single copy; a hit costs
+# no compression work, and gunzip unpacks it for a client without gzip.
+# Keying on the visitor's own Accept-Encoding header instead gave every
+# browser, bot and the warmer a separate entry: the warmer filled entries no
+# browser read, a purge reached only some of them, and a client asking for
+# deflate alone could plant a wrong body in the plain entry.
+
+# Campaign and click-ID parameters leave the page as it is: a request whose
+# query string holds only those is served from the cache entry of its path.
+# Any other query string still skips the cache. Otherwise every visit from an
+# ad would reach PHP.
+map $request_uri $cg_path {
+    "~^(?<cg_p>[^?]*)"  $cg_p;
+}
+map $args $cg_args_bypass {
+    ""  0;
+    "~^((utm_[A-Za-z0-9_]+|fbclid|gclid|gbraid|wbraid|msclkid|dclid|mc_cid|mc_eid|_ga|_gl|igshid|yclid|twclid|ttclid)=[^&]*(&|$))+$"  0;
+    default  1;
+}
+map $cg_args_bypass $cg_key {
+    0        $cg_path;
+    default  $request_uri;
+}
+
+# The cache ignores Cache-Control (WordPress sends none, and a plugin's
+# max-age would replace the profile's lifetime), with one exception: a reply
+# marked private or no-store is never kept.
+map $upstream_http_cache_control $cg_no_store {
+    "~*(no-store|private)"  1;
+    default  0;
+}
+
+# Requests with an Authorization header or the guard's probe header (its
+# reply carries server timings) bypass the cache both ways, so such a page is
+# never shown to an anonymous visitor.
+map "$http_authorization$http_x_cloudground_probe" $cg_private_req {
+    ""       0;
+    default  1;
+}
+## /ROOT/nginx/sites-enabled/fast.example.com.conf -rw-r--r--
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+# Site: fast.example.com (id 8, type php, profile maximum)
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name fast.example.com;
+
+    location /.well-known/acme-challenge/ {
+        root /ROOT/acme;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name fast.example.com;
+    server_tokens off;
+
+    # Send small responses at once. With Ubuntu's tcp_nopush and no
+    # tcp_nodelay, the last packet of a kept-alive reply waits for the peer's
+    # delayed ACK (40 ms); measured, that cut cached req/s by about ten times.
+    tcp_nodelay on;
+    tcp_nopush off;
+
+    ssl_certificate /ROOT/certs/fallback.pem;
+    ssl_certificate_key /ROOT/certs/fallback.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:cg_ssl:10m;
+
+    # Log lines go out in 64 KiB batches, at least once a second.
+    access_log /ROOT/logs/fast.example.com/access.log cloudground buffer=64k flush=1s;
+    error_log /ROOT/logs/fast.example.com/error.log warn;
+
+    client_max_body_size 128m;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    root /ROOT/srv/fast.example.com/current;
+    index index.php index.html index.htm;
+    disable_symlinks if_not_owner from=$document_root;
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+
+    location ~* \.(css|js|mjs|jpg|jpeg|png|gif|webp|avif|svg|ico|woff|woff2|ttf|eot|otf|mp4|webm|pdf)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+        access_log off;
+        # A deploy writes .gz copies; send those rather than gzip each time.
+        gzip_static on;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    # Who skips the page cache: POSTs, query strings, the session cookies
+    # and the paths below (logins, carts, the admin) are always rendered.
+    set $cg_skip_8 0;
+    if ($request_method = POST) {
+        set $cg_skip_8 1;
+    }
+    if ($cg_args_bypass) {
+        set $cg_skip_8 1;
+    }
+    if ($http_cookie ~* "wordpress_logged_in_|wp-postpass_|comment_author_|woocommerce_cart_hash|woocommerce_items_in_cart|wp_woocommerce_session_|PHPSESSID|_session=|CAKEPHP=|XSRF-TOKEN=|remember_web_") {
+        set $cg_skip_8 1;
+    }
+    if ($request_uri ~* "^/wp-admin([/?]|$)|^/wp-login\.php([/?]|$)|^/wp-cron\.php([/?]|$)|^/xmlrpc\.php([/?]|$)|^/wp-json/|^/feed([/?]|$)") {
+        set $cg_skip_8 1;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTPS on;
+        fastcgi_pass unix:/ROOT/phpsock/cg-site-8/php.sock;
+        fastcgi_read_timeout 120s;
+        fastcgi_buffers 16 32k;
+        fastcgi_buffer_size 64k;
+
+        # Page cache. PHP is always asked for gzip, so each page is stored once,
+        # compressed; gunzip serves the few clients that do not accept it.
+        fastcgi_param HTTP_ACCEPT_ENCODING "gzip";
+        gunzip on;
+        # After a purge an open descriptor may serve the old file for 1s at most.
+        open_file_cache_valid 1s;
+        fastcgi_cache cg_8;
+        fastcgi_cache_key "$scheme$request_method$host$cg_key";
+        fastcgi_cache_valid 200 301 86400s;
+        fastcgi_cache_valid 404 60s;
+        fastcgi_cache_methods GET HEAD;
+        fastcgi_cache_bypass $cg_skip_8 $cg_private_req;
+        fastcgi_no_cache $cg_skip_8 $cg_no_store $cg_private_req;
+        # One request renders a missing page; the others wait for it.
+        fastcgi_cache_lock on;
+        fastcgi_cache_lock_timeout 5s;
+        # Expired or failing: answer from the old copy, refresh in background.
+        fastcgi_cache_use_stale updating error timeout invalid_header http_500 http_503;
+        fastcgi_cache_background_update on;
+        # The key fixes the encoding, so Vary is not needed. Set-Cookie still
+        # counts: a reply that sets a cookie stays out of the cache, or every
+        # later visitor would receive that cookie.
+        fastcgi_ignore_headers Cache-Control Expires Vary;
+        add_header X-CloudGround-Cache $upstream_cache_status always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    }
+}
+## /ROOT/php-masters/cg-site-8.conf -rw-r-----
+; Managed by CloudGround — do not edit. Changes are detected as drift.
+; Site: fast.example.com (id 8). This master runs as the site user
+; under cloudground-php-cg-site-8.service; it has no other pools.
+
+[global]
+pid = /run/cloudground/php/cg-site-8/fpm.pid
+error_log = syslog
+syslog.ident = php-fpm-cg-site-8
+daemonize = no
+; Ten workers crashing within one minute make the master restart itself.
+emergency_restart_threshold = 10
+emergency_restart_interval = 1m
+process_control_timeout = 30s
+
+[cg-site-8]
+listen = /run/cloudground/php/cg-site-8/php.sock
+listen.mode = 0660
+pm = dynamic
+pm.max_children = 9
+pm.start_servers = 3
+pm.min_spare_servers = 2
+pm.max_spare_servers = 5
+pm.max_requests = 1000
+pm.status_path = /__cloudground/fpm-status
+
+; Connections waiting on the socket. With the default of 511 a burst
+; overflows the queue and nginx answers 502; a long queue makes the burst
+; wait instead. max_children still bounds the work done at once.
+listen.backlog = 65535
+
+; Open files per worker. A plugin-heavy WordPress with persistent outbound
+; connections can pass 1024 and then fails at random places.
+rlimit_files = 65536
+
+request_terminate_timeout = 120s
+catch_workers_output = yes
+
+; The unit's private mount namespace, where no other site is visible,
+; isolates the site (open_basedir is not used). Uploads, temporary files
+; and sessions stay in the site's tmp folder.
+php_admin_value[upload_tmp_dir] = /ROOT/srv/fast.example.com/tmp
+php_admin_value[sys_temp_dir] = /ROOT/srv/fast.example.com/tmp
+php_admin_value[session.save_path] = /ROOT/srv/fast.example.com/tmp/sessions
+php_admin_value[error_log] = /var/log/cloudground/fast.example.com/php-error.log
+php_admin_flag[log_errors] = on
+php_admin_flag[display_errors] = off
+php_admin_value[disable_functions] = exec,passthru,shell_exec,system,proc_open,popen
+
+; Per-request limits
+php_admin_value[memory_limit] = 256M
+php_admin_value[upload_max_filesize] = 64M
+php_admin_value[post_max_size] = 64M
+php_admin_value[max_execution_time] = 120
+
+; Object cache in APCu, shared memory inside PHP itself: no separate
+; service and no socket on a single server. The master's command line
+; sets its size.
+php_admin_flag[apc.enabled] = on
+php_admin_flag[apc.enable_cli] = off
+
+; Compiled scripts are cached. The cache and JIT buffer sizes apply to the
+; whole master and are given on its command line.
+php_admin_flag[opcache.enable] = on
+php_admin_value[opcache.validate_timestamps] = 1
+php_admin_value[opcache.revalidate_freq] = 60
+; Tracing JIT, which PHP 8 ships disabled. It speeds up heavy page renders
+; such as shop pages; a cache hit never reaches PHP, so it costs nothing there.
+php_admin_value[opcache.jit] = tracing
+php_admin_flag[opcache.enable_cli] = off
+
+; PHP compresses its own output: the page cache stores the compressed body
+; and serves hits without compressing again. Pages that are not cached are
+; compressed here as well, instead of by nginx, so there is a single path.
+php_admin_flag[zlib.output_compression] = on
+php_admin_value[zlib.output_compression_level] = 5
+## /ROOT/systemd/cloudground-php-cg-site-8.service -rw-r--r--
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+[Unit]
+Description=PHP-FPM for fast.example.com
+After=network.target mariadb.service
+
+[Service]
+Type=notify
+User=cg-site-8
+Group=cg-site-8
+RuntimeDirectory=cloudground/php/cg-site-8
+RuntimeDirectoryMode=0750
+ExecStart=php-fpm8.4 --nodaemonize --fpm-config /etc/cloudground-php/cg-site-8.conf -d opcache.memory_consumption=64 -d opcache.interned_strings_buffer=8 -d opcache.max_accelerated_files=10000 -d opcache.jit_buffer_size=32M -d apc.shm_size=32M
+ExecReload=/bin/kill -USR2 $MAINPID
+Restart=on-failure
+RestartSec=2
+LimitNOFILE=65536
+
+# The site sees its own tree and nothing of any other site: /srv/sites is an
+# empty tmpfs with only this site bound into it, and the same for its logs.
+# This, not open_basedir, is the tenant boundary.
+ProtectSystem=strict
+TemporaryFileSystem=/srv/sites:ro /var/log/cloudground:ro
+BindPaths=/ROOT/srv/fast.example.com /var/log/cloudground/fast.example.com
+ReadWritePaths=/ROOT/srv/fast.example.com /var/log/cloudground/fast.example.com
+InaccessiblePaths=-/etc/nginx -/etc/cloudground -/etc/letsencrypt -/etc/mysql -/var/lib/cloudground -/var/lib/cloudground-agent -/var/cache/cloudground -/var/log/nginx -/var/backups
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectProc=invisible
+ProcSubset=pid
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

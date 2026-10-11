@@ -1,0 +1,31 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "archive": "Archive",
+      "sql": "SQL",
+      "database": "Database",
+      "old_domain": "OldDomain",
+      "release_id": "ReleaseID",
+      "max_ratio": 7
+    },
+    "zero": {
+      "site": "@state.Site",
+      "archive": "",
+      "release_id": ""
+    }
+  },
+  "result": {
+    "full": {
+      "release_id": "ReleaseID",
+      "files": 7,
+      "bytes": 7,
+      "skipped": 7
+    },
+    "zero": {
+      "release_id": "",
+      "files": 0,
+      "bytes": 0
+    }
+  }
+}

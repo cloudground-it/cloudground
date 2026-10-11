@@ -1,0 +1,24 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "name": "Name",
+      "offset": 7,
+      "data": "Bw=="
+    },
+    "zero": {
+      "site": "@state.Site",
+      "name": "",
+      "offset": 0,
+      "data": null
+    }
+  },
+  "result": {
+    "full": {
+      "size": 7
+    },
+    "zero": {
+      "size": 0
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "max_urls": 7
+    },
+    "zero": {
+      "site": "@state.Site",
+      "max_urls": 0
+    }
+  },
+  "result": {
+    "full": {
+      "warmed": 7,
+      "cached": 7
+    },
+    "zero": {
+      "warmed": 0,
+      "cached": 0
+    }
+  }
+}

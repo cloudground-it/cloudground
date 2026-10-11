@@ -1,0 +1,1 @@
+import{c as e,o as t}from"./BPHMPkfC.js";import{i as n,n as r}from"./_VENyAVz.js";var i=t(async()=>{let{session:t,load:i}=n();if(t.value||await i(),!t.value)return e(r)});export{i as default};

@@ -1,0 +1,25 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "user": "User",
+      "password": "Password",
+      "grants": [
+        {
+          "database": "Database",
+          "level": "Level"
+        }
+      ]
+    },
+    "zero": {
+      "site": "@state.Site",
+      "user": ""
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

@@ -1,0 +1,1 @@
+function e(e,t){let n=`tasks.kind.${t.replace(/\./g,`_`)}`,r=e(n);return r===n?t:r}export{e as t};

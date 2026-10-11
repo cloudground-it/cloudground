@@ -1,0 +1,49 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "login": "Login",
+      "table": "Table",
+      "kind": "Kind",
+      "column": {
+        "name": "Name",
+        "type": "Type",
+        "length": 7,
+        "scale": 7,
+        "unsigned": true,
+        "nullable": true,
+        "default": "Default",
+        "after": "After"
+      },
+      "index": {
+        "name": "Name",
+        "unique": true,
+        "columns": [
+          {
+            "name": "Name",
+            "length": 7
+          }
+        ]
+      },
+      "confirm": "Confirm",
+      "dry_run": true,
+      "read_only": true
+    },
+    "zero": {
+      "site": "@state.Site",
+      "table": "",
+      "kind": ""
+    }
+  },
+  "result": {
+    "full": {
+      "sql": "SQL",
+      "executed": true
+    },
+    "zero": {
+      "sql": "",
+      "executed": false
+    }
+  }
+}

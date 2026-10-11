@@ -1,0 +1,89 @@
+{
+  "ux": {
+    "common": {
+      "moreFor": "Altre azioni per {name}"
+    },
+    "pages": {
+      "sites": "Ancora nessun sito su questo server. | Un sito su questo server. | {n} siti su questo server.",
+      "firewall": "Quali porte del server sono aperte, e per chi. SSH, HTTP e HTTPS restano sempre aperte.",
+      "audit": "Chi ha cambiato cosa in questo pannello, dal più recente.",
+      "users": "Le persone che accedono a questo pannello e cosa può fare ciascuna.",
+      "settings": "Dove vanno i backup, certificati, notifiche e aggiornamenti, per tutto il server.",
+      "security": "Il tuo profilo, la password, la verifica in due passaggi e le sessioni ({email})."
+    },
+    "audit": {
+      "count": "Nessun evento | Un evento | {n} eventi"
+    },
+    "dbs": {
+      "access": "Accesso",
+      "addDatabase": "Aggiungi database",
+      "addUser": "Aggiungi utente",
+      "levelOn": "Privilegi su {name}",
+      "noUsersOn": "Nessun utente ha accesso"
+    },
+    "backup": {
+      "keepDays": "Conserva {n} giorno | Conserva {n} giorni",
+      "keepAll": "Conserva tutti gli snapshot",
+      "retentionHelp": "Gli snapshot più vecchi vengono rimossi una volta al giorno; il più recente che ha superato il test di ripristino resta sempre.",
+      "destination": "Destinazione dei backup",
+      "dest": {
+        "local": "Questo server (una cartella locale)",
+        "aws": "Amazon S3",
+        "r2": "Cloudflare R2",
+        "b2": "Backblaze B2",
+        "wasabi": "Wasabi",
+        "hetzner": "Hetzner Object Storage",
+        "ovh": "OVHcloud Object Storage",
+        "other": "MinIO o un altro servizio compatibile S3",
+        "advanced": "Altro repository restic (avanzato)"
+      },
+      "destHelp": {
+        "local": "Gli snapshot restano in una cartella di questo server.",
+        "aws": "Gli snapshot vanno in un bucket S3 nella regione che scegli.",
+        "r2": "Gli snapshot vanno in un bucket R2 del tuo account Cloudflare.",
+        "b2": "Gli snapshot vanno in un bucket B2 tramite la sua API compatibile S3.",
+        "wasabi": "Gli snapshot vanno in un bucket Wasabi nella regione che scegli.",
+        "hetzner": "Gli snapshot vanno in un bucket Hetzner nella location che scegli.",
+        "ovh": "Gli snapshot vanno in un bucket S3 di OVHcloud nella regione che scegli.",
+        "other": "Qualsiasi servizio che parla l'API S3, all'indirizzo che indichi.",
+        "advanced": "Il repository restic scritto per intero: SFTP, server REST o qualsiasi altro tipo che restic supporta."
+      },
+      "localWarning": "Una cartella su questo server non sopravvive alla perdita del server. Per backup davvero fuori dal server scegli un object storage.",
+      "folder": "Cartella",
+      "folderHelp": "Un percorso assoluto, come /var/backups/cloudground.",
+      "advancedHelp": "Come lo scrive restic: sftp:utente{'@'}host:/percorso, rest:https://host/, s3:https://endpoint/bucket…",
+      "account": "ID account",
+      "accountHelp": "Nella pagina R2 della dashboard di Cloudflare, sotto Dettagli account.",
+      "regionHelp": "Come la scrive il provider, per esempio {example}.",
+      "regionOther": "Solo se il servizio la richiede.",
+      "endpoint": "Endpoint",
+      "endpointHelp": "L'indirizzo del servizio, per esempio https://minio.example.com.",
+      "bucket": "Bucket",
+      "bucketHelp": "Crealo prima presso il provider; può restare privato.",
+      "prefix": "Cartella nel bucket",
+      "prefixHelp": "Per condividere il bucket con altri dati, per esempio cloudground.",
+      "accessKey": "Access key",
+      "secretKey": "Secret key",
+      "keysHelp": "Una chiave con lettura e scrittura solo su questo bucket.",
+      "generate": "Genera",
+      "passwordSet": "Impostata. Cambiala solo per un repository nuovo e vuoto: gli snapshot già presenti si aprono solo con quella vecchia.",
+      "keepTitle": "Conserva questa password",
+      "keepPassword": "Cifra ogni snapshot: senza di essa nessun backup si può ripristinare, nemmeno dal pannello. Copiala o scaricala adesso; una volta salvata non viene più mostrata.",
+      "download": "Scarica",
+      "result": "Repository",
+      "resultHelp": "Quello che viene salvato, come lo legge restic.",
+      "saveFirst": "Salva prima: il test legge le impostazioni salvate.",
+      "testHelp": "Si collega con le impostazioni salvate e conta gli snapshot."
+    },
+    "settings": {
+      "secureShort": "Proteggi il pannello",
+      "moveShort": "Sposta il pannello"
+    },
+    "toc": {
+      "label": "In questa pagina"
+    },
+    "studio": {
+      "result": "Risultato"
+    }
+  }
+}

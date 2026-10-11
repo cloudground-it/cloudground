@@ -1,0 +1,15 @@
+LogRoot=/var/log/cloudground
+MasterConfDir=/etc/cloudground-php
+UnitName("cg-site-1")=cloudground-php-cg-site-1.service
+SocketFor("cg-site-1")=/run/cloudground/php/cg-site-1/php.sock
+UnitName("cg-site-1234")=cloudground-php-cg-site-1234.service
+SocketFor("cg-site-1234")=/run/cloudground/php/cg-site-1234/php.sock
+UnitName("")=cloudground-php-.service
+SocketFor("")=/run/cloudground/php/php.sock
+SizeSiteCaches("wordpress")={OPcacheMB:64 InternedMB:8 MaxFiles:10000 JITMB:32 APCuMB:32}
+SizeSiteCaches("woocommerce")={OPcacheMB:128 InternedMB:16 MaxFiles:20000 JITMB:32 APCuMB:64}
+SizeSiteCaches("laravel")={OPcacheMB:64 InternedMB:8 MaxFiles:10000 JITMB:32 APCuMB:32}
+SizeSiteCaches("php")={OPcacheMB:64 InternedMB:8 MaxFiles:10000 JITMB:32 APCuMB:32}
+SizeSiteCaches("static")={OPcacheMB:64 InternedMB:8 MaxFiles:10000 JITMB:32 APCuMB:32}
+SizeSiteCaches("proxy")={OPcacheMB:64 InternedMB:8 MaxFiles:10000 JITMB:32 APCuMB:32}
+SizeSiteCaches("")={OPcacheMB:64 InternedMB:8 MaxFiles:10000 JITMB:32 APCuMB:32}

@@ -1,0 +1,18 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "what": "What",
+      "enable": true
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "email": "Email",
+      "staging": true,
+      "wildcard": true,
+      "cloudflare_token": "CloudflareToken"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "email": "",
+      "staging": false
+    }
+  },
+  "result": {
+    "full": {
+      "files": [
+        {
+          "path": "Path",
+          "sha256": "SHA256"
+        }
+      ]
+    },
+    "zero": {
+      "files": null
+    }
+  }
+}

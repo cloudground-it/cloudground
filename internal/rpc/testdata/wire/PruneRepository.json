@@ -1,0 +1,21 @@
+{
+  "params": {
+    "full": {
+      "repository": "Repository",
+      "password": "Password",
+      "env": {
+        "key": "Env"
+      }
+    },
+    "zero": {
+      "repository": "",
+      "password": ""
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

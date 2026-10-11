@@ -1,0 +1,89 @@
+{
+  "ux": {
+    "common": {
+      "moreFor": "Autres actions pour {name}"
+    },
+    "pages": {
+      "sites": "Aucun site sur ce serveur pour l’instant. | Un site sur ce serveur. | {n} sites sur ce serveur.",
+      "firewall": "Quels ports de ce serveur sont ouverts, et pour qui. SSH, HTTP et HTTPS restent toujours ouverts.",
+      "audit": "Qui a modifié quoi sur ce panneau, du plus récent au plus ancien.",
+      "users": "Les personnes qui se connectent à ce panneau et ce que chacune peut faire.",
+      "settings": "Destination des sauvegardes, certificats, notifications et mises à jour, pour tout le serveur.",
+      "security": "Votre profil, votre mot de passe, la vérification en deux étapes et vos sessions ({email})."
+    },
+    "audit": {
+      "count": "Aucun événement | Un événement | {n} événements"
+    },
+    "dbs": {
+      "access": "Accès",
+      "addDatabase": "Ajouter une base de données",
+      "addUser": "Ajouter un utilisateur",
+      "levelOn": "Privilèges sur {name}",
+      "noUsersOn": "Aucun utilisateur n’y a accès"
+    },
+    "backup": {
+      "keepDays": "Conserver {n} jour | Conserver {n} jours",
+      "keepAll": "Conserver tous les snapshots",
+      "retentionHelp": "Les snapshots plus anciens sont supprimés une fois par jour ; le plus récent qui a réussi son test de restauration reste toujours.",
+      "destination": "Destination des sauvegardes",
+      "dest": {
+        "local": "Ce serveur (un dossier local)",
+        "aws": "Amazon S3",
+        "r2": "Cloudflare R2",
+        "b2": "Backblaze B2",
+        "wasabi": "Wasabi",
+        "hetzner": "Hetzner Object Storage",
+        "ovh": "OVHcloud Object Storage",
+        "other": "MinIO ou un autre service compatible S3",
+        "advanced": "Autre dépôt restic (avancé)"
+      },
+      "destHelp": {
+        "local": "Les snapshots restent dans un dossier de ce serveur.",
+        "aws": "Les snapshots vont dans un bucket S3, dans la région choisie.",
+        "r2": "Les snapshots vont dans un bucket R2 de votre compte Cloudflare.",
+        "b2": "Les snapshots vont dans un bucket B2 par son API compatible S3.",
+        "wasabi": "Les snapshots vont dans un bucket Wasabi, dans la région choisie.",
+        "hetzner": "Les snapshots vont dans un bucket Hetzner, à l’emplacement choisi.",
+        "ovh": "Les snapshots vont dans un bucket S3 d’OVHcloud, dans la région choisie.",
+        "other": "Tout service qui parle l’API S3, à l’adresse indiquée.",
+        "advanced": "Le dépôt restic écrit en entier : SFTP, serveur REST ou tout autre type pris en charge par restic."
+      },
+      "localWarning": "Un dossier sur ce serveur ne survit pas à la perte du serveur. Pour de vraies sauvegardes hors du serveur, choisissez un stockage objet.",
+      "folder": "Dossier",
+      "folderHelp": "Un chemin absolu, par exemple /var/backups/cloudground.",
+      "advancedHelp": "Tel que restic l’écrit : sftp:utilisateur{'@'}hôte:/chemin, rest:https://hôte/, s3:https://endpoint/bucket…",
+      "account": "ID de compte",
+      "accountHelp": "Sur la page R2 du tableau de bord Cloudflare, sous Détails du compte.",
+      "regionHelp": "Telle que le fournisseur l’écrit, par exemple {example}.",
+      "regionOther": "Seulement si le service en demande une.",
+      "endpoint": "Endpoint",
+      "endpointHelp": "L’adresse du service, par exemple https://minio.example.com.",
+      "bucket": "Bucket",
+      "bucketHelp": "Créez-le d’abord chez le fournisseur ; il peut rester privé.",
+      "prefix": "Dossier dans le bucket",
+      "prefixHelp": "Pour partager le bucket avec d’autres données, par exemple cloudground.",
+      "accessKey": "Clé d’accès",
+      "secretKey": "Clé secrète",
+      "keysHelp": "Une clé en lecture et écriture sur ce bucket uniquement.",
+      "generate": "Générer",
+      "passwordSet": "Défini. Ne le changez que pour un dépôt nouveau et vide : les snapshots déjà présents ne s’ouvrent qu’avec l’ancien.",
+      "keepTitle": "Conservez ce mot de passe en lieu sûr",
+      "keepPassword": "Il chiffre chaque snapshot : sans lui aucune sauvegarde ne peut être restaurée, même par le panneau. Copiez-le ou téléchargez-le maintenant ; une fois enregistré, il n’est plus jamais affiché.",
+      "download": "Télécharger",
+      "result": "Dépôt",
+      "resultHelp": "Ce qui est enregistré, tel que restic le lit.",
+      "saveFirst": "Enregistrez d’abord : le test lit les paramètres enregistrés.",
+      "testHelp": "Se connecte avec les paramètres enregistrés et compte les snapshots."
+    },
+    "settings": {
+      "secureShort": "Sécuriser le panneau",
+      "moveShort": "Déplacer le panneau"
+    },
+    "toc": {
+      "label": "Sur cette page"
+    },
+    "studio": {
+      "result": "Résultat"
+    }
+  }
+}

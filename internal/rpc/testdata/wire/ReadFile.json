@@ -1,0 +1,29 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "rel_path": "RelPath"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "rel_path": ""
+    }
+  },
+  "result": {
+    "full": {
+      "rel_path": "RelPath",
+      "content": "Content",
+      "size": 7,
+      "binary": true,
+      "too_large": true,
+      "encoding": "Encoding"
+    },
+    "zero": {
+      "rel_path": "",
+      "content": "",
+      "size": 0,
+      "binary": false,
+      "too_large": false
+    }
+  }
+}

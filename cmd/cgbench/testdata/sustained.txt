@@ -1,0 +1,13 @@
+Running 1m test @ https://bench.198-51-100-7.sslip.io/shop/
+  4 threads and 500 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    78.14ms  101.92ms 931.20ms   87.95%
+    Req/Sec     2.48k   402.17     3.61k    71.83%
+  Latency Distribution
+     50%   55.30ms
+     75%   88.41ms
+     90%  176.03ms
+     99%  629.43ms
+  592896 requests in 1.00m, 6.28GB read
+Requests/sec:   9877.75
+Transfer/sec:    107.12MB

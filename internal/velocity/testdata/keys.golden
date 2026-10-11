@@ -1,0 +1,10 @@
+["https" "GET" "example.com" "/"] -> "httpsGETexample.com/" -> /var/cache/cloudground/x/7/93/0c6d84446df30d38c2c682134d5ee937
+["http" "HEAD" "example.com" "/a/b/?x=1"] -> "httpHEADexample.com/a/b/?x=1" -> /var/cache/cloudground/x/c/0c/e72afaad7adec094595a6acbdf94f0cc
+["https" "GET" "example.com:443" "/hello/"] -> "httpsGETexample.com:443/hello/" -> /var/cache/cloudground/x/5/f1/cca480ece600d47cfbb2a1c2438eef15
+["" "" "" ""] -> "" -> /var/cache/cloudground/x/e/27/d41d8cd98f00b204e9800998ecf8427e
+SanitizeCacheDirName("example.com")="example.com"
+SanitizeCacheDirName("Shop.Example.COM")="shop.example.com"
+SanitizeCacheDirName("xn--bcher-kva.de")="xn--bcher-kva.de"
+SanitizeCacheDirName("a_b c/../d")="a_b_c_.._d"
+SanitizeCacheDirName("école.fr")="_cole.fr"
+SanitizeCacheDirName("")=""

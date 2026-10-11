@@ -1,0 +1,306 @@
+===== site1.example.com mem=1024 err=<nil>
+; Managed by CloudGround — do not edit. Changes are detected as drift.
+; Site: site1.example.com (id 1). This master runs as the site user
+; under cloudground-php-cg-site-1.service; it has no other pools.
+
+[global]
+pid = /run/cloudground/php/cg-site-1/fpm.pid
+error_log = syslog
+syslog.ident = php-fpm-cg-site-1
+daemonize = no
+; Ten workers crashing within one minute make the master restart itself.
+emergency_restart_threshold = 10
+emergency_restart_interval = 1m
+process_control_timeout = 30s
+
+[cg-site-1]
+listen = /run/cloudground/php/cg-site-1/php.sock
+listen.mode = 0660
+; Workers start on the first request and stop when idle, so a quiet site
+; holds no memory; kept spare by "dynamic" on many small sites, idle
+; workers would take hundreds of MB.
+pm = ondemand
+pm.max_children = 6
+pm.process_idle_timeout = 30s
+pm.max_requests = 1000
+pm.status_path = /__cloudground/fpm-status
+
+; Connections waiting on the socket. With the default of 511 a burst
+; overflows the queue and nginx answers 502; a long queue makes the burst
+; wait instead. max_children still bounds the work done at once.
+listen.backlog = 65535
+
+; Open files per worker. A plugin-heavy WordPress with persistent outbound
+; connections can pass 1024 and then fails at random places.
+rlimit_files = 65536
+
+request_terminate_timeout = 120s
+catch_workers_output = yes
+
+; The unit's private mount namespace, where no other site is visible,
+; isolates the site (open_basedir is not used). Uploads, temporary files
+; and sessions stay in the site's tmp folder.
+php_admin_value[upload_tmp_dir] = /srv/sites/site1.example.com/tmp
+php_admin_value[sys_temp_dir] = /srv/sites/site1.example.com/tmp
+php_admin_value[session.save_path] = /srv/sites/site1.example.com/tmp/sessions
+php_admin_value[error_log] = /var/log/cloudground/site1.example.com/php-error.log
+php_admin_flag[log_errors] = on
+php_admin_flag[display_errors] = off
+php_admin_value[disable_functions] = exec,passthru,shell_exec,system,proc_open,popen
+
+; Per-request limits
+php_admin_value[memory_limit] = 256M
+php_admin_value[upload_max_filesize] = 64M
+php_admin_value[post_max_size] = 64M
+php_admin_value[max_execution_time] = 120
+
+; Object cache in APCu, shared memory inside PHP itself: no separate
+; service and no socket on a single server. The master's command line
+; sets its size.
+php_admin_flag[apc.enabled] = on
+php_admin_flag[apc.enable_cli] = off
+
+; Compiled scripts are cached. The cache and JIT buffer sizes apply to the
+; whole master and are given on its command line.
+php_admin_flag[opcache.enable] = on
+php_admin_value[opcache.validate_timestamps] = 1
+php_admin_value[opcache.revalidate_freq] = 60
+; Tracing JIT, which PHP 8 ships disabled. It speeds up heavy page renders
+; such as shop pages; a cache hit never reaches PHP, so it costs nothing there.
+php_admin_value[opcache.jit] = tracing
+php_admin_flag[opcache.enable_cli] = off
+
+; PHP compresses its own output: the page cache stores the compressed body
+; and serves hits without compressing again. Pages that are not cached are
+; compressed here as well, instead of by nginx, so there is a single path.
+php_admin_flag[zlib.output_compression] = on
+php_admin_value[zlib.output_compression_level] = 5
+===== site2.example.com mem=4096 err=<nil>
+; Managed by CloudGround — do not edit. Changes are detected as drift.
+; Site: site2.example.com (id 2). This master runs as the site user
+; under cloudground-php-cg-site-2.service; it has no other pools.
+
+[global]
+pid = /run/cloudground/php/cg-site-2/fpm.pid
+error_log = syslog
+syslog.ident = php-fpm-cg-site-2
+daemonize = no
+; Ten workers crashing within one minute make the master restart itself.
+emergency_restart_threshold = 10
+emergency_restart_interval = 1m
+process_control_timeout = 30s
+
+[cg-site-2]
+listen = /run/cloudground/php/cg-site-2/php.sock
+listen.mode = 0660
+pm = dynamic
+pm.max_children = 6
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+pm.max_requests = 1000
+pm.status_path = /__cloudground/fpm-status
+
+; Connections waiting on the socket. With the default of 511 a burst
+; overflows the queue and nginx answers 502; a long queue makes the burst
+; wait instead. max_children still bounds the work done at once.
+listen.backlog = 65535
+
+; Open files per worker. A plugin-heavy WordPress with persistent outbound
+; connections can pass 1024 and then fails at random places.
+rlimit_files = 65536
+
+request_terminate_timeout = 120s
+catch_workers_output = yes
+
+; The unit's private mount namespace, where no other site is visible,
+; isolates the site (open_basedir is not used). Uploads, temporary files
+; and sessions stay in the site's tmp folder.
+php_admin_value[upload_tmp_dir] = /srv/sites/site2.example.com/tmp
+php_admin_value[sys_temp_dir] = /srv/sites/site2.example.com/tmp
+php_admin_value[session.save_path] = /srv/sites/site2.example.com/tmp/sessions
+php_admin_value[error_log] = /var/log/cloudground/site2.example.com/php-error.log
+php_admin_flag[log_errors] = on
+php_admin_flag[display_errors] = off
+php_admin_value[disable_functions] = exec,passthru,shell_exec,system,proc_open,popen
+
+; Per-request limits
+php_admin_value[memory_limit] = 512M
+php_admin_value[upload_max_filesize] = 64M
+php_admin_value[post_max_size] = 64M
+php_admin_value[max_execution_time] = 120
+
+; Object cache in APCu, shared memory inside PHP itself: no separate
+; service and no socket on a single server. The master's command line
+; sets its size.
+php_admin_flag[apc.enabled] = on
+php_admin_flag[apc.enable_cli] = off
+
+; Compiled scripts are cached. The cache and JIT buffer sizes apply to the
+; whole master and are given on its command line.
+php_admin_flag[opcache.enable] = on
+php_admin_value[opcache.validate_timestamps] = 1
+php_admin_value[opcache.revalidate_freq] = 60
+; Tracing JIT, which PHP 8 ships disabled. It speeds up heavy page renders
+; such as shop pages; a cache hit never reaches PHP, so it costs nothing there.
+php_admin_value[opcache.jit] = tracing
+php_admin_flag[opcache.enable_cli] = off
+
+; PHP compresses its own output: the page cache stores the compressed body
+; and serves hits without compressing again. Pages that are not cached are
+; compressed here as well, instead of by nginx, so there is a single path.
+php_admin_flag[zlib.output_compression] = on
+php_admin_value[zlib.output_compression_level] = 5
+===== site3.example.com mem=0 err=<nil>
+; Managed by CloudGround — do not edit. Changes are detected as drift.
+; Site: site3.example.com (id 3). This master runs as the site user
+; under cloudground-php-cg-site-3.service; it has no other pools.
+
+[global]
+pid = /run/cloudground/php/cg-site-3/fpm.pid
+error_log = syslog
+syslog.ident = php-fpm-cg-site-3
+daemonize = no
+; Ten workers crashing within one minute make the master restart itself.
+emergency_restart_threshold = 10
+emergency_restart_interval = 1m
+process_control_timeout = 30s
+
+[cg-site-3]
+listen = /run/cloudground/php/cg-site-3/php.sock
+listen.mode = 0660
+pm = dynamic
+pm.max_children = 6
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+pm.max_requests = 1000
+pm.status_path = /__cloudground/fpm-status
+
+; Connections waiting on the socket. With the default of 511 a burst
+; overflows the queue and nginx answers 502; a long queue makes the burst
+; wait instead. max_children still bounds the work done at once.
+listen.backlog = 65535
+
+; Open files per worker. A plugin-heavy WordPress with persistent outbound
+; connections can pass 1024 and then fails at random places.
+rlimit_files = 65536
+
+request_terminate_timeout = 120s
+catch_workers_output = yes
+
+; The unit's private mount namespace, where no other site is visible,
+; isolates the site (open_basedir is not used). Uploads, temporary files
+; and sessions stay in the site's tmp folder.
+php_admin_value[upload_tmp_dir] = /srv/sites/site3.example.com/tmp
+php_admin_value[sys_temp_dir] = /srv/sites/site3.example.com/tmp
+php_admin_value[session.save_path] = /srv/sites/site3.example.com/tmp/sessions
+php_admin_value[error_log] = /var/log/cloudground/site3.example.com/php-error.log
+php_admin_flag[log_errors] = on
+php_admin_flag[display_errors] = off
+php_admin_value[disable_functions] = exec,passthru,shell_exec,system,proc_open,popen
+
+; Per-request limits
+php_admin_value[memory_limit] = 256M
+php_admin_value[upload_max_filesize] = 64M
+php_admin_value[post_max_size] = 64M
+php_admin_value[max_execution_time] = 120
+
+; Object cache in APCu, shared memory inside PHP itself: no separate
+; service and no socket on a single server. The master's command line
+; sets its size.
+php_admin_flag[apc.enabled] = on
+php_admin_flag[apc.enable_cli] = off
+
+; Compiled scripts are cached. The cache and JIT buffer sizes apply to the
+; whole master and are given on its command line.
+php_admin_flag[opcache.enable] = on
+php_admin_value[opcache.validate_timestamps] = 1
+php_admin_value[opcache.revalidate_freq] = 60
+; Tracing JIT, which PHP 8 ships disabled. It speeds up heavy page renders
+; such as shop pages; a cache hit never reaches PHP, so it costs nothing there.
+php_admin_value[opcache.jit] = tracing
+php_admin_flag[opcache.enable_cli] = off
+
+; PHP compresses its own output: the page cache stores the compressed body
+; and serves hits without compressing again. Pages that are not cached are
+; compressed here as well, instead of by nginx, so there is a single path.
+php_admin_flag[zlib.output_compression] = on
+php_admin_value[zlib.output_compression_level] = 5
+===== site4.example.com mem=160 err=<nil>
+; Managed by CloudGround — do not edit. Changes are detected as drift.
+; Site: site4.example.com (id 4). This master runs as the site user
+; under cloudground-php-cg-site-4.service; it has no other pools.
+
+[global]
+pid = /run/cloudground/php/cg-site-4/fpm.pid
+error_log = syslog
+syslog.ident = php-fpm-cg-site-4
+daemonize = no
+; Ten workers crashing within one minute make the master restart itself.
+emergency_restart_threshold = 10
+emergency_restart_interval = 1m
+process_control_timeout = 30s
+
+[cg-site-4]
+listen = /run/cloudground/php/cg-site-4/php.sock
+listen.mode = 0660
+; Workers start on the first request and stop when idle, so a quiet site
+; holds no memory; kept spare by "dynamic" on many small sites, idle
+; workers would take hundreds of MB.
+pm = ondemand
+pm.max_children = 2
+pm.process_idle_timeout = 30s
+pm.max_requests = 1000
+pm.status_path = /__cloudground/fpm-status
+
+; Connections waiting on the socket. With the default of 511 a burst
+; overflows the queue and nginx answers 502; a long queue makes the burst
+; wait instead. max_children still bounds the work done at once.
+listen.backlog = 65535
+
+; Open files per worker. A plugin-heavy WordPress with persistent outbound
+; connections can pass 1024 and then fails at random places.
+rlimit_files = 65536
+
+request_terminate_timeout = 310s
+catch_workers_output = yes
+
+; The unit's private mount namespace, where no other site is visible,
+; isolates the site (open_basedir is not used). Uploads, temporary files
+; and sessions stay in the site's tmp folder.
+php_admin_value[upload_tmp_dir] = /srv/sites/site4.example.com/tmp
+php_admin_value[sys_temp_dir] = /srv/sites/site4.example.com/tmp
+php_admin_value[session.save_path] = /srv/sites/site4.example.com/tmp/sessions
+php_admin_value[error_log] = /var/log/cloudground/site4.example.com/php-error.log
+php_admin_flag[log_errors] = on
+php_admin_flag[display_errors] = off
+php_admin_value[disable_functions] = exec,passthru,shell_exec,system,proc_open,popen
+
+; Per-request limits
+php_admin_value[memory_limit] = 768M
+php_admin_value[upload_max_filesize] = 200M
+php_admin_value[post_max_size] = 200M
+php_admin_value[max_execution_time] = 300
+
+; Object cache in APCu, shared memory inside PHP itself: no separate
+; service and no socket on a single server. The master's command line
+; sets its size.
+php_admin_flag[apc.enabled] = on
+php_admin_flag[apc.enable_cli] = off
+
+; Compiled scripts are cached. The cache and JIT buffer sizes apply to the
+; whole master and are given on its command line.
+php_admin_flag[opcache.enable] = on
+php_admin_value[opcache.validate_timestamps] = 1
+php_admin_value[opcache.revalidate_freq] = 60
+; Tracing JIT, which PHP 8 ships disabled. It speeds up heavy page renders
+; such as shop pages; a cache hit never reaches PHP, so it costs nothing there.
+php_admin_value[opcache.jit] = tracing
+php_admin_flag[opcache.enable_cli] = off
+
+; PHP compresses its own output: the page cache stores the compressed body
+; and serves hits without compressing again. Pages that are not cached are
+; compressed here as well, instead of by nginx, so there is a single path.
+php_admin_flag[zlib.output_compression] = on
+php_admin_value[zlib.output_compression_level] = 5

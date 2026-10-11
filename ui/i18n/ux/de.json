@@ -1,0 +1,89 @@
+{
+  "ux": {
+    "common": {
+      "moreFor": "Weitere Aktionen für {name}"
+    },
+    "pages": {
+      "sites": "Noch keine Sites auf diesem Server. | Eine Site auf diesem Server. | {n} Sites auf diesem Server.",
+      "firewall": "Welche Ports dieses Servers offen sind, und für wen. SSH, HTTP und HTTPS bleiben immer offen.",
+      "audit": "Wer was in diesem Panel geändert hat, das Neueste zuerst.",
+      "users": "Die Personen, die sich an diesem Panel anmelden, und was jede von ihnen darf.",
+      "settings": "Wohin Backups gehen, Zertifikate, Benachrichtigungen und Updates, für den ganzen Server.",
+      "security": "Dein Profil, Passwort, die Zwei-Schritt-Verifizierung und Sitzungen ({email})."
+    },
+    "audit": {
+      "count": "Keine Ereignisse | Ein Ereignis | {n} Ereignisse"
+    },
+    "dbs": {
+      "access": "Zugriff",
+      "addDatabase": "Datenbank hinzufügen",
+      "addUser": "Benutzer hinzufügen",
+      "levelOn": "Rechte auf {name}",
+      "noUsersOn": "Kein Benutzer hat Zugriff"
+    },
+    "backup": {
+      "keepDays": "{n} Tag aufbewahren | {n} Tage aufbewahren",
+      "keepAll": "Alle Snapshots aufbewahren",
+      "retentionHelp": "Ältere Snapshots werden einmal am Tag entfernt; der neueste mit bestandenem Wiederherstellungstest bleibt immer.",
+      "destination": "Backup-Ziel",
+      "dest": {
+        "local": "Dieser Server (ein lokaler Ordner)",
+        "aws": "Amazon S3",
+        "r2": "Cloudflare R2",
+        "b2": "Backblaze B2",
+        "wasabi": "Wasabi",
+        "hetzner": "Hetzner Object Storage",
+        "ovh": "OVHcloud Object Storage",
+        "other": "MinIO oder ein anderer S3-kompatibler Dienst",
+        "advanced": "Anderes restic-Repository (erweitert)"
+      },
+      "destHelp": {
+        "local": "Die Snapshots liegen in einem Ordner auf diesem Server.",
+        "aws": "Die Snapshots gehen in einen S3-Bucket in der gewählten Region.",
+        "r2": "Die Snapshots gehen in einen R2-Bucket deines Cloudflare-Kontos.",
+        "b2": "Die Snapshots gehen über die S3-kompatible API in einen B2-Bucket.",
+        "wasabi": "Die Snapshots gehen in einen Wasabi-Bucket in der gewählten Region.",
+        "hetzner": "Die Snapshots gehen in einen Hetzner-Bucket am gewählten Standort.",
+        "ovh": "Die Snapshots gehen in einen S3-Bucket von OVHcloud in der gewählten Region.",
+        "other": "Jeder Dienst mit S3-API, unter der angegebenen Adresse.",
+        "advanced": "Das restic-Repository vollständig ausgeschrieben: SFTP, REST-Server oder jede andere Art, die restic unterstützt."
+      },
+      "localWarning": "Ein Ordner auf diesem Server übersteht den Verlust des Servers nicht. Für echte Off-Site-Backups wähle einen Object Storage.",
+      "folder": "Ordner",
+      "folderHelp": "Ein absoluter Pfad, etwa /var/backups/cloudground.",
+      "advancedHelp": "So wie restic es schreibt: sftp:benutzer{'@'}host:/pfad, rest:https://host/, s3:https://endpoint/bucket…",
+      "account": "Konto-ID",
+      "accountHelp": "Auf der R2-Seite des Cloudflare-Dashboards, unter Kontodetails.",
+      "regionHelp": "So wie der Anbieter sie schreibt, zum Beispiel {example}.",
+      "regionOther": "Nur wenn der Dienst eine verlangt.",
+      "endpoint": "Endpoint",
+      "endpointHelp": "Die Adresse des Dienstes, zum Beispiel https://minio.example.com.",
+      "bucket": "Bucket",
+      "bucketHelp": "Lege ihn zuerst beim Anbieter an; er kann privat bleiben.",
+      "prefix": "Ordner im Bucket",
+      "prefixHelp": "Um den Bucket mit anderen Daten zu teilen, zum Beispiel cloudground.",
+      "accessKey": "Access Key",
+      "secretKey": "Secret Key",
+      "keysHelp": "Ein Schlüssel mit Lese- und Schreibzugriff nur auf diesen Bucket.",
+      "generate": "Erzeugen",
+      "passwordSet": "Gesetzt. Ändere es nur für ein neues, leeres Repository: vorhandene Snapshots öffnen sich nur mit dem alten.",
+      "keepTitle": "Bewahre dieses Passwort sicher auf",
+      "keepPassword": "Es verschlüsselt jeden Snapshot: ohne es lässt sich kein Backup wiederherstellen, auch nicht vom Panel. Kopiere es oder lade es jetzt herunter; nach dem Speichern wird es nie wieder angezeigt.",
+      "download": "Herunterladen",
+      "result": "Repository",
+      "resultHelp": "Was gespeichert wird, so wie restic es liest.",
+      "saveFirst": "Erst speichern: der Test liest die gespeicherten Einstellungen.",
+      "testHelp": "Verbindet sich mit den gespeicherten Einstellungen und zählt die Snapshots."
+    },
+    "settings": {
+      "secureShort": "Panel absichern",
+      "moveShort": "Panel umziehen"
+    },
+    "toc": {
+      "label": "Auf dieser Seite"
+    },
+    "studio": {
+      "result": "Ergebnis"
+    }
+  }
+}

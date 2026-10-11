@@ -1,0 +1,15 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "reload_only_if_changed": true
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {},
+    "zero": {}
+  }
+}

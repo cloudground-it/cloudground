@@ -1,0 +1,156 @@
+{
+  "cg": {
+    "shell": {
+      "home": "CloudGround, tableau de bord",
+      "navigation": "Navigation",
+      "breadcrumb": "Fil d’Ariane",
+      "search": "Rechercher un site, un service, une action",
+      "themeLight": "Passer au thème clair",
+      "themeDark": "Passer au thème sombre",
+      "alertsCount": "Alertes : {n}",
+      "account": "Compte",
+      "accountMenu": "Menu du compte de {name}",
+      "actions": "Actions"
+    },
+    "common": {
+      "all": "Tous",
+      "actions": "Actions",
+      "details": "Détails",
+      "seconds": "{n} s"
+    },
+    "state": {
+      "ok": "ok",
+      "warn": "attention",
+      "err": "critique",
+      "changed": "modifié"
+    },
+    "level": {
+      "warning": "Attention",
+      "error": "Erreur",
+      "ok": "Tout va bien"
+    },
+    "col": {
+      "site": "Site",
+      "status": "État",
+      "type": "Type",
+      "php": "PHP",
+      "profile": "Profil de cache",
+      "cert": "Certificat",
+      "backup": "Dernière sauvegarde",
+      "actions": "Actions"
+    },
+    "facts": {
+      "noCert": "aucun certificat",
+      "days": "{n} j",
+      "backupOff": "non configurée",
+      "backupNone": "aucune sauvegarde",
+      "verify": {
+        "passed": "vérifiée",
+        "pending": "à vérifier",
+        "failed": "test échoué"
+      }
+    },
+    "dashboard": {
+      "eyebrow": "Tableau de bord · {updated}",
+      "updatedNow": "mis à jour à l’instant",
+      "updatedAgo": "mis à jour {when}",
+      "title": {
+        "ok": "Tout est",
+        "warn": "Quelque chose",
+        "err": "Intervention"
+      },
+      "accent": {
+        "ok": "en ordre.",
+        "warn": "à regarder.",
+        "err": "nécessaire."
+      },
+      "sitesActive": "aucun site actif | un site actif | {n} sites actifs",
+      "alertsToRead": "aucune alerte | une alerte à lire | {n} alertes à lire",
+      "capacity": "Capacité du serveur",
+      "cpuFree": "CPU libre",
+      "memFree": "Mémoire libre",
+      "diskFree": "Disque libre",
+      "cpuNote": "charge {load} · {cores} cœurs",
+      "inUse": "{used} sur {total} utilisés",
+      "sitesNote": "{staging} staging · {active} actifs",
+      "last24": "Dernières 24 heures",
+      "chartAria": "Utilisation sur les dernières 24 heures. Maintenant : CPU {cpu} %, mémoire {mem} %, disque {disk} %.",
+      "allSites": "Tous les sites"
+    },
+    "pages": {
+      "sites": { "eyebrow": "Sites · {n} sur ce serveur", "title": "Les sites,", "accent": "un par un." },
+      "services": { "eyebrow": "Serveur · {n} services", "title": "Services", "accent": "système." },
+      "firewall": { "eyebrow": "Serveur · ufw {state}", "title": "Pare-feu,", "accent": "port par port." },
+      "logs": { "eyebrow": "Serveur · 300 dernières lignes", "title": "Journaux", "accent": "du serveur." },
+      "audit": { "eyebrow": "Serveur · {n} événements", "title": "Journal", "accent": "d’audit." },
+      "users": { "eyebrow": "Serveur · {n} utilisateurs", "title": "Utilisateurs", "accent": "et rôles." },
+      "security": { "eyebrow": "Compte · {email}", "title": "Votre", "accent": "compte." },
+      "settings": { "eyebrow": "Serveur · configuration", "title": "Paramètres", "accent": "du panneau." },
+      "login": { "eyebrow": "CloudGround · connexion", "title": "Connexion", "accent": "au panneau." },
+      "totp": { "eyebrow": "CloudGround · connexion", "title": "Validation", "accent": "en deux étapes." },
+      "setup": { "eyebrow": "CloudGround · installation", "title": "Première", "accent": "connexion." }
+    },
+    "sites": {
+      "filterLabel": "Filtrer par type",
+      "all": "Tous",
+      "wp": "WordPress",
+      "woo": "WooCommerce",
+      "other": "Autres",
+      "search": "Filtrer par domaine",
+      "alias": "alias {a}",
+      "aliases": "{n} alias",
+      "stagingOf": "copie de {d}",
+      "stagingLinked": "staging lié",
+      "upstream": "upstream {u}",
+      "actionsFor": "Actions pour {d}",
+      "noMatch": "Aucun site ne correspond au filtre."
+    },
+    "site": {
+      "profile": "profil {p}",
+      "wpLogin": "Se connecter à WordPress",
+      "sections": "Sections du site",
+      "state": "État du site",
+      "ttlProfile": "du profil",
+      "stats": {
+        "pageCache": "Cache de pages",
+        "pageCacheNote": "TTL {ttl} · profil {p}",
+        "off": "désactivé",
+        "objectCache": "Cache d’objets HIT",
+        "objectCacheNote": "{entries} entrées · {mem} en mémoire",
+        "certificate": "Certificat",
+        "certNote": "{issuer} · expire le {date}",
+        "lastBackup": "Dernière sauvegarde",
+        "backupNote": "{verify} · restauration en ~{est}"
+      },
+      "actions": {
+        "title": "Actions",
+        "purge": "Vider le cache",
+        "backup": "Sauvegarder maintenant",
+        "pushStaging": "Publier le staging",
+        "createStaging": "Créer le staging",
+        "openProduction": "Ouvrir la production",
+        "warm": "Préchauffer le cache"
+      },
+      "details": {
+        "folder": "Dossier",
+        "user": "Utilisateur",
+        "php": "PHP",
+        "database": "Base de données",
+        "cert": "Certificat",
+        "backups": "Sauvegardes",
+        "aliases": "Alias",
+        "upstream": "Upstream",
+        "created": "Créé"
+      },
+      "values": {
+        "sftpOn": "SFTP activé",
+        "sftpOff": "SFTP désactivé",
+        "phpLine": "{v} · mémoire {m} Mo · envoi {u} Mo",
+        "dbOff": "aucune base de données",
+        "backupsLine": "planification {s} · {d} jours",
+        "backupsOff": "désactivées",
+        "certLine": "{issuer} · expire dans {n} jours"
+      }
+    }
+  }
+}

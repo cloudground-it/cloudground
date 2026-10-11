@@ -1,0 +1,156 @@
+{
+  "cg": {
+    "shell": {
+      "home": "CloudGround, dashboard",
+      "navigation": "Navigation",
+      "breadcrumb": "Breadcrumb",
+      "search": "Search a site, a service, an action",
+      "themeLight": "Switch to light theme",
+      "themeDark": "Switch to dark theme",
+      "alertsCount": "Alerts: {n}",
+      "account": "Account",
+      "accountMenu": "Account menu for {name}",
+      "actions": "Actions"
+    },
+    "common": {
+      "all": "All",
+      "actions": "Actions",
+      "details": "Details",
+      "seconds": "{n} s"
+    },
+    "state": {
+      "ok": "ok",
+      "warn": "attention",
+      "err": "critical",
+      "changed": "changed"
+    },
+    "level": {
+      "warning": "Warning",
+      "error": "Error",
+      "ok": "All clear"
+    },
+    "col": {
+      "site": "Site",
+      "status": "Status",
+      "type": "Type",
+      "php": "PHP",
+      "profile": "Cache profile",
+      "cert": "Certificate",
+      "backup": "Last backup",
+      "actions": "Actions"
+    },
+    "facts": {
+      "noCert": "no certificate",
+      "days": "{n} d",
+      "backupOff": "not set up",
+      "backupNone": "no backup yet",
+      "verify": {
+        "passed": "verified",
+        "pending": "to verify",
+        "failed": "test failed"
+      }
+    },
+    "dashboard": {
+      "eyebrow": "Dashboard · {updated}",
+      "updatedNow": "updated now",
+      "updatedAgo": "updated {when}",
+      "title": {
+        "ok": "All",
+        "warn": "Something",
+        "err": "Needs"
+      },
+      "accent": {
+        "ok": "clear.",
+        "warn": "to look at.",
+        "err": "attention."
+      },
+      "sitesActive": "no active sites | one active site | {n} active sites",
+      "alertsToRead": "no alerts | one alert to read | {n} alerts to read",
+      "capacity": "Server capacity",
+      "cpuFree": "CPU free",
+      "memFree": "Memory free",
+      "diskFree": "Disk free",
+      "cpuNote": "load {load} · {cores} cores",
+      "inUse": "{used} of {total} in use",
+      "sitesNote": "{staging} staging · {active} active",
+      "last24": "Last 24 hours",
+      "chartAria": "Use over the last 24 hours. Now: CPU {cpu}%, memory {mem}%, disk {disk}%.",
+      "allSites": "All sites"
+    },
+    "pages": {
+      "sites": { "eyebrow": "Sites · {n} on this server", "title": "Sites,", "accent": "one by one." },
+      "services": { "eyebrow": "Server · {n} services", "title": "System", "accent": "services." },
+      "firewall": { "eyebrow": "Server · ufw {state}", "title": "Firewall,", "accent": "port by port." },
+      "logs": { "eyebrow": "Server · last 300 lines", "title": "Server", "accent": "logs." },
+      "audit": { "eyebrow": "Server · {n} events", "title": "Activity", "accent": "log." },
+      "users": { "eyebrow": "Server · {n} users", "title": "Users", "accent": "and roles." },
+      "security": { "eyebrow": "Account · {email}", "title": "Your", "accent": "account." },
+      "settings": { "eyebrow": "Server · configuration", "title": "Panel", "accent": "settings." },
+      "login": { "eyebrow": "CloudGround · sign-in", "title": "Sign in", "accent": "to the panel." },
+      "totp": { "eyebrow": "CloudGround · sign-in", "title": "Two-step", "accent": "verification." },
+      "setup": { "eyebrow": "CloudGround · installation", "title": "First", "accent": "sign-in." }
+    },
+    "sites": {
+      "filterLabel": "Filter by type",
+      "all": "All",
+      "wp": "WordPress",
+      "woo": "WooCommerce",
+      "other": "Other",
+      "search": "Filter by domain",
+      "alias": "alias {a}",
+      "aliases": "{n} aliases",
+      "stagingOf": "copy of {d}",
+      "stagingLinked": "staging linked",
+      "upstream": "upstream {u}",
+      "actionsFor": "Actions for {d}",
+      "noMatch": "No site matches the filter."
+    },
+    "site": {
+      "profile": "{p} profile",
+      "wpLogin": "Log in to WordPress",
+      "sections": "Site sections",
+      "state": "Site status",
+      "ttlProfile": "from the profile",
+      "stats": {
+        "pageCache": "Page cache",
+        "pageCacheNote": "TTL {ttl} · {p} profile",
+        "off": "off",
+        "objectCache": "Object cache HIT",
+        "objectCacheNote": "{entries} entries · {mem} in memory",
+        "certificate": "Certificate",
+        "certNote": "{issuer} · expires {date}",
+        "lastBackup": "Last backup",
+        "backupNote": "{verify} · restore in ~{est}"
+      },
+      "actions": {
+        "title": "Actions",
+        "purge": "Purge the cache",
+        "backup": "Back up now",
+        "pushStaging": "Publish staging",
+        "createStaging": "Create staging",
+        "openProduction": "Open production",
+        "warm": "Warm the cache"
+      },
+      "details": {
+        "folder": "Folder",
+        "user": "User",
+        "php": "PHP",
+        "database": "Database",
+        "cert": "Certificate",
+        "backups": "Backups",
+        "aliases": "Aliases",
+        "upstream": "Upstream",
+        "created": "Created"
+      },
+      "values": {
+        "sftpOn": "SFTP on",
+        "sftpOff": "SFTP off",
+        "phpLine": "{v} · memory {m} MB · upload {u} MB",
+        "dbOff": "no database",
+        "backupsLine": "schedule {s} · {d} days",
+        "backupsOff": "off",
+        "certLine": "{issuer} · expires in {n} days"
+      }
+    }
+  }
+}

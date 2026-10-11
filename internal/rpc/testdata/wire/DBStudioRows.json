@@ -1,0 +1,78 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "login": "Login",
+      "table": "Table",
+      "page": 7,
+      "page_size": 7,
+      "sort": [
+        {
+          "column": "Column",
+          "desc": true
+        }
+      ],
+      "filters": [
+        {
+          "column": "Column",
+          "op": "Op",
+          "value": "Value"
+        }
+      ],
+      "search": "Search"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "table": "",
+      "page": 0,
+      "page_size": 0
+    }
+  },
+  "result": {
+    "full": {
+      "columns": [
+        {
+          "name": "Name",
+          "type": "Type",
+          "data_type": "DataType",
+          "nullable": true,
+          "default": "Default",
+          "key": "Key",
+          "extra": "Extra",
+          "collation": "Collation",
+          "comment": "Comment",
+          "binary": true
+        }
+      ],
+      "primary_key": [
+        "PrimaryKey"
+      ],
+      "rows": [
+        {
+          "v": [
+            "Values"
+          ],
+          "cut": [
+            7
+          ]
+        }
+      ],
+      "total": 7,
+      "total_estimated": true,
+      "page": 7,
+      "page_size": 7,
+      "truncated": true,
+      "sql": "SQL"
+    },
+    "zero": {
+      "columns": null,
+      "primary_key": null,
+      "rows": null,
+      "total": 0,
+      "page": 0,
+      "page_size": 0,
+      "sql": ""
+    }
+  }
+}

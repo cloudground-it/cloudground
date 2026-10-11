@@ -1,0 +1,32 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site"
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "exports": [
+        {
+          "name": "Name",
+          "size": 7,
+          "modified": "2026-01-02T03:04:05Z"
+        }
+      ],
+      "imports": [
+        {
+          "name": "Name",
+          "size": 7,
+          "modified": "2026-01-02T03:04:05Z"
+        }
+      ]
+    },
+    "zero": {
+      "exports": null,
+      "imports": null
+    }
+  }
+}

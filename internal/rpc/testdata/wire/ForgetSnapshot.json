@@ -1,0 +1,30 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "repository": "Repository",
+      "password": "Password",
+      "snapshot_id": "SnapshotID",
+      "env": {
+        "key": "Env"
+      }
+    },
+    "zero": {
+      "site": "@state.Site",
+      "repository": "",
+      "password": "",
+      "snapshot_id": ""
+    }
+  },
+  "result": {
+    "full": {
+      "forgotten": [
+        "Forgotten"
+      ],
+      "missing": true
+    },
+    "zero": {
+      "forgotten": null
+    }
+  }
+}

@@ -1,0 +1,18 @@
+[Unit]
+Description=CloudGround panel API socket
+
+# The API listens on a Unix socket that only nginx (group www-data) may open.
+# A loopback port would be open to every process here, each site's PHP
+# included, and a client talking to the API directly could claim any
+# X-Real-IP to the login rate limiter; behind this socket the one client is
+# the proxy, which sets that header itself.
+[Socket]
+ListenStream=/run/cloudground/api.sock
+SocketUser=cloudground
+SocketGroup=www-data
+SocketMode=0660
+DirectoryMode=0755
+Backlog=4096
+
+[Install]
+WantedBy=sockets.target

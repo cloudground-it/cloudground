@@ -1,0 +1,28 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "login": "Login",
+      "format": "Format",
+      "tables": [
+        "Tables"
+      ]
+    },
+    "zero": {
+      "site": "@state.Site",
+      "format": ""
+    }
+  },
+  "result": {
+    "full": {
+      "name": "Name",
+      "size_bytes": 7,
+      "rows": 7
+    },
+    "zero": {
+      "name": "",
+      "size_bytes": 0
+    }
+  }
+}

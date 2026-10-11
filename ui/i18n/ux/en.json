@@ -1,0 +1,89 @@
+{
+  "ux": {
+    "common": {
+      "moreFor": "More actions for {name}"
+    },
+    "pages": {
+      "sites": "No sites on this server yet. | One site on this server. | {n} sites on this server.",
+      "firewall": "Which ports of this server are open, and to whom. SSH, HTTP and HTTPS always stay open.",
+      "audit": "Who changed what on this panel, newest first.",
+      "users": "The people who sign in to this panel and what each of them may do.",
+      "settings": "Where backups go, certificates, notifications and updates, for the whole server.",
+      "security": "Your profile, password, two-step verification and sessions ({email})."
+    },
+    "audit": {
+      "count": "No events | One event | {n} events"
+    },
+    "dbs": {
+      "access": "Access",
+      "addDatabase": "Add database",
+      "addUser": "Add user",
+      "levelOn": "Privileges on {name}",
+      "noUsersOn": "No user has access"
+    },
+    "backup": {
+      "keepDays": "Keep {n} day | Keep {n} days",
+      "keepAll": "Keep every snapshot",
+      "retentionHelp": "Older snapshots are removed once a day; the newest one that passed its restore test always stays.",
+      "destination": "Backup destination",
+      "dest": {
+        "local": "This server (a local folder)",
+        "aws": "Amazon S3",
+        "r2": "Cloudflare R2",
+        "b2": "Backblaze B2",
+        "wasabi": "Wasabi",
+        "hetzner": "Hetzner Object Storage",
+        "ovh": "OVHcloud Object Storage",
+        "other": "MinIO or another S3-compatible service",
+        "advanced": "Other restic repository (advanced)"
+      },
+      "destHelp": {
+        "local": "Snapshots are kept in a folder on this server.",
+        "aws": "Snapshots go to an S3 bucket in the region you choose.",
+        "r2": "Snapshots go to an R2 bucket of your Cloudflare account.",
+        "b2": "Snapshots go to a B2 bucket through its S3-compatible API.",
+        "wasabi": "Snapshots go to a Wasabi bucket in the region you choose.",
+        "hetzner": "Snapshots go to a Hetzner bucket in the location you choose.",
+        "ovh": "Snapshots go to an OVHcloud S3 bucket in the region you choose.",
+        "other": "Any service that speaks the S3 API, at the address you give.",
+        "advanced": "The restic repository written out in full: SFTP, REST server, or any other kind restic supports."
+      },
+      "localWarning": "A folder on this server does not survive the loss of the server. For real off-site backups choose object storage.",
+      "folder": "Folder",
+      "folderHelp": "An absolute path, such as /var/backups/cloudground.",
+      "advancedHelp": "As restic writes it: sftp:user{'@'}host:/path, rest:https://host/, s3:https://endpoint/bucket…",
+      "account": "Account ID",
+      "accountHelp": "On the R2 page of the Cloudflare dashboard, under Account details.",
+      "regionHelp": "As the provider writes it, for example {example}.",
+      "regionOther": "Only if the service asks for one.",
+      "endpoint": "Endpoint",
+      "endpointHelp": "The address of the service, for example https://minio.example.com.",
+      "bucket": "Bucket",
+      "bucketHelp": "Create it first at the provider; it can stay private.",
+      "prefix": "Folder in the bucket",
+      "prefixHelp": "To share a bucket with other data, for example cloudground.",
+      "accessKey": "Access key",
+      "secretKey": "Secret key",
+      "keysHelp": "A key with read and write access to this bucket only.",
+      "generate": "Generate",
+      "passwordSet": "Set. Change it only for a new, empty repository: the snapshots already there open only with the old one.",
+      "keepTitle": "Keep this password safe",
+      "keepPassword": "It encrypts every snapshot: without it no backup can be restored, not even by the panel. Copy it or download it now; once saved it is never shown again.",
+      "download": "Download",
+      "result": "Repository",
+      "resultHelp": "What is saved, as restic reads it.",
+      "saveFirst": "Save first: the test reads the saved settings.",
+      "testHelp": "Connects with the saved settings and counts the snapshots."
+    },
+    "settings": {
+      "secureShort": "Secure the panel",
+      "moveShort": "Move the panel"
+    },
+    "toc": {
+      "label": "On this page"
+    },
+    "studio": {
+      "result": "Result"
+    }
+  }
+}

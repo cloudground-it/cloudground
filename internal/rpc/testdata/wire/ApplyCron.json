@@ -1,0 +1,27 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "jobs": [
+        {
+          "id": 7,
+          "schedule": "Schedule",
+          "command": "Command",
+          "enabled": true
+        }
+      ]
+    },
+    "zero": {
+      "site": "@state.Site",
+      "jobs": null
+    }
+  },
+  "result": {
+    "full": {
+      "entries": 7
+    },
+    "zero": {
+      "entries": 0
+    }
+  }
+}

@@ -1,0 +1,420 @@
+index idx_alerts_kind on alerts
+  create index idx_alerts_kind on alerts(kind)
+index idx_alerts_site on alerts
+  create index idx_alerts_site on alerts(site_id)
+index idx_api_tokens_user on api_tokens
+  create index idx_api_tokens_user on api_tokens(user_id)
+index idx_backups_site on backups
+  create index idx_backups_site on backups(site_id)
+index idx_cron_site on cron_jobs
+  create index idx_cron_site on cron_jobs(site_id)
+index idx_deployments_live on deployments
+  create unique index idx_deployments_live on deployments(site_id)where status='promoted'
+index idx_jobs_dedup on jobs
+  create unique index idx_jobs_dedup on jobs(dedup_key)where dedup_key is not null and status in('queued','running')
+index idx_jobs_listed on jobs
+  create index idx_jobs_listed on jobs(quiet,id)
+index idx_jobs_site on jobs
+  create index idx_jobs_site on jobs(site_id)
+index idx_jobs_status on jobs
+  create index idx_jobs_status on jobs(status)
+index idx_metric_samples_time on metric_samples
+  create index idx_metric_samples_time on metric_samples(sampled_at)
+index idx_secrets_lookup on secrets
+  create unique index idx_secrets_lookup on secrets(lookup)where lookup is not null
+index idx_secrets_site on secrets
+  create index idx_secrets_site on secrets(site_id)
+index idx_sessions_user on sessions
+  create index idx_sessions_user on sessions(user_id)
+index idx_site_databases_site on site_databases
+  create index idx_site_databases_site on site_databases(site_id)
+index idx_site_db_grants_database on site_db_grants
+  create index idx_site_db_grants_database on site_db_grants(database_id)
+index idx_site_db_users_site on site_db_users
+  create index idx_site_db_users_site on site_db_users(site_id)
+index idx_sites_staging_of on sites
+  create index idx_sites_staging_of on sites(staging_of)
+index idx_user_sites_site on user_sites
+  create index idx_user_sites_site on user_sites(site_id)
+index sqlite_autoindex_alerts_1 on alerts
+  
+index sqlite_autoindex_alerts_2 on alerts
+  
+index sqlite_autoindex_api_tokens_1 on api_tokens
+  
+index sqlite_autoindex_deployments_1 on deployments
+  
+index sqlite_autoindex_managed_files_1 on managed_files
+  
+index sqlite_autoindex_meta_1 on meta
+  
+index sqlite_autoindex_schedule_state_1 on schedule_state
+  
+index sqlite_autoindex_secrets_1 on secrets
+  
+index sqlite_autoindex_sessions_1 on sessions
+  
+index sqlite_autoindex_settings_1 on settings
+  
+index sqlite_autoindex_setup_tokens_1 on setup_tokens
+  
+index sqlite_autoindex_site_databases_1 on site_databases
+  
+index sqlite_autoindex_site_db_grants_1 on site_db_grants
+  
+index sqlite_autoindex_site_db_users_1 on site_db_users
+  
+index sqlite_autoindex_sites_1 on sites
+  
+index sqlite_autoindex_totp_import_1 on totp_import
+  
+index sqlite_autoindex_user_sites_1 on user_sites
+  
+index sqlite_autoindex_users_1 on users
+  
+table alerts on alerts
+  create table alerts(id integer primary key autoincrement,key text not null unique,public_id text not null unique,kind text not null,site_id integer references sites(id)on delete cascade,subject text not null default '',level text not null,fingerprint text not null default '',message text not null,text_key text not null default '',text_count integer not null default -1,text_args text not null default '[]',detail_key text not null default '',detail_args text not null default '[]',at text not null default '',raised_at text not null,seen_at text not null,dismissed_at text,notified_at text)
+table api_tokens on api_tokens
+  create table api_tokens(id integer primary key autoincrement,user_id integer not null references users(id)on delete cascade,name text not null,token_hash text not null unique,hint text not null,created_at text not null,expires_at text not null default '',last_used_at text not null default '')
+table audit_events on audit_events
+  create table audit_events(id integer primary key autoincrement,actor text not null,action text not null,subject text not null,detail text not null default '',created_at text not null)
+table backups on backups
+  create table backups(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,snapshot_id text not null,repository text not null,size_bytes integer not null default 0,kind text not null,verify_status text not null default 'pending',verified_at text,restore_est_ms integer not null default 0,created_at text not null)
+table cron_jobs on cron_jobs
+  create table cron_jobs(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,schedule text not null,command text not null,description text not null default '',enabled integer not null default 1,last_run text,last_status text not null default '',created_at text not null)
+table deployments on deployments
+  create table deployments(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,release_id text not null,path text not null,checksum text not null default '',status text not null,guard_json text not null default '',created_at text not null,promoted_at text,rollback_to text not null default '',regressed integer not null default 0,note text not null default '',unique(site_id,release_id))
+table drift_events on drift_events
+  create table drift_events(id integer primary key autoincrement,path text not null,expected_hash text not null,actual_hash text not null,status text not null default 'open',detected_at text not null,resolved_at text)
+table jobs on jobs
+  create table jobs(id integer primary key autoincrement,kind text not null,site_id integer not null default 0,status text not null,progress integer not null default 0,message text not null default '',log_head text not null default '',log_tail text not null default '',log_dropped integer not null default 0,error text not null default '',error_key text not null default '',error_args text not null default '',payload text not null default '{}',locks text not null default '[]',dedup_key text,quiet integer not null default 0,attempts integer not null default 0,cancel_requested integer not null default 0,background integer not null default 0,not_before text,created_at text not null,started_at text,finished_at text)
+table managed_files on managed_files
+  create table managed_files(path text primary key,sha256 text not null,updated_at text not null)
+table meta on meta
+  create table meta(key text primary key,value text not null)
+table metric_samples on metric_samples
+  create table metric_samples(id integer primary key autoincrement,cpu_headroom_pct integer not null,mem_headroom_pct integer not null,disk_headroom_pct integer not null,load1 real not null,sampled_at text not null)
+table panel_settings on panel_settings
+  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')))
+table schedule_state on schedule_state
+  create table schedule_state(key text primary key,last_run text not null)
+table schema_migrations on schema_migrations
+  create table schema_migrations(version integer primary key,applied_at text not null)
+table secrets on secrets
+  create table secrets(name text primary key,site_id integer references sites(id)on delete cascade,sealed blob not null,updated_at text not null,lookup text)
+table sessions on sessions
+  create table sessions(token_hash text primary key,user_id integer not null references users(id)on delete cascade,expires_at text not null,created_at text not null,last_seen_at text not null default '',user_agent text not null default '',ip text not null default '')
+table settings on settings
+  create table settings(key text primary key,value text not null)
+table setup_tokens on setup_tokens
+  create table setup_tokens(token_hash text primary key,expires_at text not null,used integer not null default 0)
+table site_databases on site_databases
+  create table site_databases(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,name text not null unique,created_at text not null)
+table site_db_grants on site_db_grants
+  create table site_db_grants(user_id integer not null references site_db_users(id)on delete cascade,database_id integer not null references site_databases(id)on delete cascade,level text not null check(level in('all','read')),primary key(user_id,database_id))
+table site_db_users on site_db_users
+  create table site_db_users(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,name text not null unique,secret text not null,created_at text not null)
+table site_status on site_status
+  create table site_status(site_id integer primary key references sites(id)on delete cascade,cert_expiry text not null default '',cert_error text not null default '')
+table sites on sites
+  create table sites(id integer primary key autoincrement,domain text not null unique,aliases text not null default '[]',type text not null,profile text not null,engine text not null default 'nginx',php_version text not null default '',system_user text not null,root_path text not null,status text not null,staging_of integer not null default 0,config text not null default '{}',created_at text not null,updated_at text not null,desired_generation integer not null default 1,applied_generation integer not null default 0,last_apply_error text not null default '')
+table sqlite_sequence on sqlite_sequence
+  create table sqlite_sequence(name,seq)
+table totp_import on totp_import
+  create table totp_import(user_id integer not null references users(id)on delete cascade,slot text not null check(slot in('active','pending')),secret text not null,primary key(user_id,slot))
+table user_sites on user_sites
+  create table user_sites(user_id integer not null references users(id)on delete cascade,site_id integer not null references sites(id)on delete cascade,primary key(user_id,site_id))
+table users on users
+  create table users(id integer primary key autoincrement,email text not null unique,password_hash text not null,role text not null default 'admin',created_at text not null,totp_enabled integer not null default 0,totp_last_step integer not null default 0,first_name text not null default '',last_name text not null default '',disabled integer not null default 0,locale text not null default '')
+
+columns of alerts
+  0 | id | INTEGER | 0 | - | 1
+  1 | key | TEXT | 1 | - | 0
+  2 | public_id | TEXT | 1 | - | 0
+  3 | kind | TEXT | 1 | - | 0
+  4 | site_id | INTEGER | 0 | - | 0
+  5 | subject | TEXT | 1 | '' | 0
+  6 | level | TEXT | 1 | - | 0
+  7 | fingerprint | TEXT | 1 | '' | 0
+  8 | message | TEXT | 1 | - | 0
+  9 | text_key | TEXT | 1 | '' | 0
+  10 | text_count | INTEGER | 1 | -1 | 0
+  11 | text_args | TEXT | 1 | '[]' | 0
+  12 | detail_key | TEXT | 1 | '' | 0
+  13 | detail_args | TEXT | 1 | '[]' | 0
+  14 | at | TEXT | 1 | '' | 0
+  15 | raised_at | TEXT | 1 | - | 0
+  16 | seen_at | TEXT | 1 | - | 0
+  17 | dismissed_at | TEXT | 0 | - | 0
+  18 | notified_at | TEXT | 0 | - | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index idx_alerts_kind unique=0 origin=c partial=0 on 0:3:kind
+  index idx_alerts_site unique=0 origin=c partial=0 on 0:4:site_id
+  index sqlite_autoindex_alerts_1 unique=1 origin=u partial=0 on 0:1:key
+  index sqlite_autoindex_alerts_2 unique=1 origin=u partial=0 on 0:2:public_id
+
+columns of api_tokens
+  0 | id | INTEGER | 0 | - | 1
+  1 | user_id | INTEGER | 1 | - | 0
+  2 | name | TEXT | 1 | - | 0
+  3 | token_hash | TEXT | 1 | - | 0
+  4 | hint | TEXT | 1 | - | 0
+  5 | created_at | TEXT | 1 | - | 0
+  6 | expires_at | TEXT | 1 | '' | 0
+  7 | last_used_at | TEXT | 1 | '' | 0
+  fk 0 | 0 | users | user_id | id | NO ACTION | CASCADE | NONE
+  index idx_api_tokens_user unique=0 origin=c partial=0 on 0:1:user_id
+  index sqlite_autoindex_api_tokens_1 unique=1 origin=u partial=0 on 0:3:token_hash
+
+columns of audit_events
+  0 | id | INTEGER | 0 | - | 1
+  1 | actor | TEXT | 1 | - | 0
+  2 | action | TEXT | 1 | - | 0
+  3 | subject | TEXT | 1 | - | 0
+  4 | detail | TEXT | 1 | '' | 0
+  5 | created_at | TEXT | 1 | - | 0
+
+columns of backups
+  0 | id | INTEGER | 0 | - | 1
+  1 | site_id | INTEGER | 1 | - | 0
+  2 | snapshot_id | TEXT | 1 | - | 0
+  3 | repository | TEXT | 1 | - | 0
+  4 | size_bytes | INTEGER | 1 | 0 | 0
+  5 | kind | TEXT | 1 | - | 0
+  6 | verify_status | TEXT | 1 | 'pending' | 0
+  7 | verified_at | TEXT | 0 | - | 0
+  8 | restore_est_ms | INTEGER | 1 | 0 | 0
+  9 | created_at | TEXT | 1 | - | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index idx_backups_site unique=0 origin=c partial=0 on 0:1:site_id
+
+columns of cron_jobs
+  0 | id | INTEGER | 0 | - | 1
+  1 | site_id | INTEGER | 1 | - | 0
+  2 | schedule | TEXT | 1 | - | 0
+  3 | command | TEXT | 1 | - | 0
+  4 | description | TEXT | 1 | '' | 0
+  5 | enabled | INTEGER | 1 | 1 | 0
+  6 | last_run | TEXT | 0 | - | 0
+  7 | last_status | TEXT | 1 | '' | 0
+  8 | created_at | TEXT | 1 | - | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index idx_cron_site unique=0 origin=c partial=0 on 0:1:site_id
+
+columns of deployments
+  0 | id | INTEGER | 0 | - | 1
+  1 | site_id | INTEGER | 1 | - | 0
+  2 | release_id | TEXT | 1 | - | 0
+  3 | path | TEXT | 1 | - | 0
+  4 | checksum | TEXT | 1 | '' | 0
+  5 | status | TEXT | 1 | - | 0
+  6 | guard_json | TEXT | 1 | '' | 0
+  7 | created_at | TEXT | 1 | - | 0
+  8 | promoted_at | TEXT | 0 | - | 0
+  9 | rollback_to | TEXT | 1 | '' | 0
+  10 | regressed | INTEGER | 1 | 0 | 0
+  11 | note | TEXT | 1 | '' | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index idx_deployments_live unique=1 origin=c partial=1 on 0:1:site_id
+  index sqlite_autoindex_deployments_1 unique=1 origin=u partial=0 on 0:1:site_id, 1:2:release_id
+
+columns of drift_events
+  0 | id | INTEGER | 0 | - | 1
+  1 | path | TEXT | 1 | - | 0
+  2 | expected_hash | TEXT | 1 | - | 0
+  3 | actual_hash | TEXT | 1 | - | 0
+  4 | status | TEXT | 1 | 'open' | 0
+  5 | detected_at | TEXT | 1 | - | 0
+  6 | resolved_at | TEXT | 0 | - | 0
+
+columns of jobs
+  0 | id | INTEGER | 0 | - | 1
+  1 | kind | TEXT | 1 | - | 0
+  2 | site_id | INTEGER | 1 | 0 | 0
+  3 | status | TEXT | 1 | - | 0
+  4 | progress | INTEGER | 1 | 0 | 0
+  5 | message | TEXT | 1 | '' | 0
+  6 | log_head | TEXT | 1 | '' | 0
+  7 | log_tail | TEXT | 1 | '' | 0
+  8 | log_dropped | INTEGER | 1 | 0 | 0
+  9 | error | TEXT | 1 | '' | 0
+  10 | error_key | TEXT | 1 | '' | 0
+  11 | error_args | TEXT | 1 | '' | 0
+  12 | payload | TEXT | 1 | '{}' | 0
+  13 | locks | TEXT | 1 | '[]' | 0
+  14 | dedup_key | TEXT | 0 | - | 0
+  15 | quiet | INTEGER | 1 | 0 | 0
+  16 | attempts | INTEGER | 1 | 0 | 0
+  17 | cancel_requested | INTEGER | 1 | 0 | 0
+  18 | background | INTEGER | 1 | 0 | 0
+  19 | not_before | TEXT | 0 | - | 0
+  20 | created_at | TEXT | 1 | - | 0
+  21 | started_at | TEXT | 0 | - | 0
+  22 | finished_at | TEXT | 0 | - | 0
+  index idx_jobs_dedup unique=1 origin=c partial=1 on 0:14:dedup_key
+  index idx_jobs_listed unique=0 origin=c partial=0 on 0:15:quiet, 1:0:id
+  index idx_jobs_site unique=0 origin=c partial=0 on 0:2:site_id
+  index idx_jobs_status unique=0 origin=c partial=0 on 0:3:status
+
+columns of managed_files
+  0 | path | TEXT | 0 | - | 1
+  1 | sha256 | TEXT | 1 | - | 0
+  2 | updated_at | TEXT | 1 | - | 0
+  index sqlite_autoindex_managed_files_1 unique=1 origin=pk partial=0 on 0:0:path
+
+columns of meta
+  0 | key | TEXT | 0 | - | 1
+  1 | value | TEXT | 1 | - | 0
+  index sqlite_autoindex_meta_1 unique=1 origin=pk partial=0 on 0:0:key
+
+columns of metric_samples
+  0 | id | INTEGER | 0 | - | 1
+  1 | cpu_headroom_pct | INTEGER | 1 | - | 0
+  2 | mem_headroom_pct | INTEGER | 1 | - | 0
+  3 | disk_headroom_pct | INTEGER | 1 | - | 0
+  4 | load1 | REAL | 1 | - | 0
+  5 | sampled_at | TEXT | 1 | - | 0
+  index idx_metric_samples_time unique=0 origin=c partial=0 on 0:5:sampled_at
+
+columns of panel_settings
+  0 | id | INTEGER | 0 | - | 1
+  1 | acme_email | TEXT | 1 | '' | 0
+  2 | panel_domain | TEXT | 1 | '' | 0
+  3 | probe_target | TEXT | 1 | '' | 0
+  4 | backup_repository | TEXT | 1 | '' | 0
+  5 | backup_s3_access_key | TEXT | 1 | '' | 0
+  6 | backup_s3_region | TEXT | 1 | '' | 0
+  7 | require_2fa_admin | INTEGER | 1 | 0 | 0
+  8 | update_check | INTEGER | 1 | 1 | 0
+  9 | update_channel | TEXT | 1 | 'stable' | 0
+
+columns of schedule_state
+  0 | key | TEXT | 0 | - | 1
+  1 | last_run | TEXT | 1 | - | 0
+  index sqlite_autoindex_schedule_state_1 unique=1 origin=pk partial=0 on 0:0:key
+
+columns of schema_migrations
+  0 | version | INTEGER | 0 | - | 1
+  1 | applied_at | TEXT | 1 | - | 0
+
+columns of secrets
+  0 | name | TEXT | 0 | - | 1
+  1 | site_id | INTEGER | 0 | - | 0
+  2 | sealed | BLOB | 1 | - | 0
+  3 | updated_at | TEXT | 1 | - | 0
+  4 | lookup | TEXT | 0 | - | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index idx_secrets_lookup unique=1 origin=c partial=1 on 0:4:lookup
+  index idx_secrets_site unique=0 origin=c partial=0 on 0:1:site_id
+  index sqlite_autoindex_secrets_1 unique=1 origin=pk partial=0 on 0:0:name
+
+columns of sessions
+  0 | token_hash | TEXT | 0 | - | 1
+  1 | user_id | INTEGER | 1 | - | 0
+  2 | expires_at | TEXT | 1 | - | 0
+  3 | created_at | TEXT | 1 | - | 0
+  4 | last_seen_at | TEXT | 1 | '' | 0
+  5 | user_agent | TEXT | 1 | '' | 0
+  6 | ip | TEXT | 1 | '' | 0
+  fk 0 | 0 | users | user_id | id | NO ACTION | CASCADE | NONE
+  index idx_sessions_user unique=0 origin=c partial=0 on 0:1:user_id
+  index sqlite_autoindex_sessions_1 unique=1 origin=pk partial=0 on 0:0:token_hash
+
+columns of settings
+  0 | key | TEXT | 0 | - | 1
+  1 | value | TEXT | 1 | - | 0
+  index sqlite_autoindex_settings_1 unique=1 origin=pk partial=0 on 0:0:key
+
+columns of setup_tokens
+  0 | token_hash | TEXT | 0 | - | 1
+  1 | expires_at | TEXT | 1 | - | 0
+  2 | used | INTEGER | 1 | 0 | 0
+  index sqlite_autoindex_setup_tokens_1 unique=1 origin=pk partial=0 on 0:0:token_hash
+
+columns of site_databases
+  0 | id | INTEGER | 0 | - | 1
+  1 | site_id | INTEGER | 1 | - | 0
+  2 | name | TEXT | 1 | - | 0
+  3 | created_at | TEXT | 1 | - | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index idx_site_databases_site unique=0 origin=c partial=0 on 0:1:site_id
+  index sqlite_autoindex_site_databases_1 unique=1 origin=u partial=0 on 0:2:name
+
+columns of site_db_grants
+  0 | user_id | INTEGER | 1 | - | 1
+  1 | database_id | INTEGER | 1 | - | 2
+  2 | level | TEXT | 1 | - | 0
+  fk 0 | 0 | site_databases | database_id | id | NO ACTION | CASCADE | NONE
+  fk 1 | 0 | site_db_users | user_id | id | NO ACTION | CASCADE | NONE
+  index idx_site_db_grants_database unique=0 origin=c partial=0 on 0:1:database_id
+  index sqlite_autoindex_site_db_grants_1 unique=1 origin=pk partial=0 on 0:0:user_id, 1:1:database_id
+
+columns of site_db_users
+  0 | id | INTEGER | 0 | - | 1
+  1 | site_id | INTEGER | 1 | - | 0
+  2 | name | TEXT | 1 | - | 0
+  3 | secret | TEXT | 1 | - | 0
+  4 | created_at | TEXT | 1 | - | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index idx_site_db_users_site unique=0 origin=c partial=0 on 0:1:site_id
+  index sqlite_autoindex_site_db_users_1 unique=1 origin=u partial=0 on 0:2:name
+
+columns of site_status
+  0 | site_id | INTEGER | 0 | - | 1
+  1 | cert_expiry | TEXT | 1 | '' | 0
+  2 | cert_error | TEXT | 1 | '' | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+
+columns of sites
+  0 | id | INTEGER | 0 | - | 1
+  1 | domain | TEXT | 1 | - | 0
+  2 | aliases | TEXT | 1 | '[]' | 0
+  3 | type | TEXT | 1 | - | 0
+  4 | profile | TEXT | 1 | - | 0
+  5 | engine | TEXT | 1 | 'nginx' | 0
+  6 | php_version | TEXT | 1 | '' | 0
+  7 | system_user | TEXT | 1 | - | 0
+  8 | root_path | TEXT | 1 | - | 0
+  9 | status | TEXT | 1 | - | 0
+  10 | staging_of | INTEGER | 1 | 0 | 0
+  11 | config | TEXT | 1 | '{}' | 0
+  12 | created_at | TEXT | 1 | - | 0
+  13 | updated_at | TEXT | 1 | - | 0
+  14 | desired_generation | INTEGER | 1 | 1 | 0
+  15 | applied_generation | INTEGER | 1 | 0 | 0
+  16 | last_apply_error | TEXT | 1 | '' | 0
+  index idx_sites_staging_of unique=0 origin=c partial=0 on 0:10:staging_of
+  index sqlite_autoindex_sites_1 unique=1 origin=u partial=0 on 0:1:domain
+
+columns of sqlite_sequence
+  0 | name |  | 0 | - | 0
+  1 | seq |  | 0 | - | 0
+
+columns of totp_import
+  0 | user_id | INTEGER | 1 | - | 1
+  1 | slot | TEXT | 1 | - | 2
+  2 | secret | TEXT | 1 | - | 0
+  fk 0 | 0 | users | user_id | id | NO ACTION | CASCADE | NONE
+  index sqlite_autoindex_totp_import_1 unique=1 origin=pk partial=0 on 0:0:user_id, 1:1:slot
+
+columns of user_sites
+  0 | user_id | INTEGER | 1 | - | 1
+  1 | site_id | INTEGER | 1 | - | 2
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  fk 1 | 0 | users | user_id | id | NO ACTION | CASCADE | NONE
+  index idx_user_sites_site unique=0 origin=c partial=0 on 0:1:site_id
+  index sqlite_autoindex_user_sites_1 unique=1 origin=pk partial=0 on 0:0:user_id, 1:1:site_id
+
+columns of users
+  0 | id | INTEGER | 0 | - | 1
+  1 | email | TEXT | 1 | - | 0
+  2 | password_hash | TEXT | 1 | - | 0
+  3 | role | TEXT | 1 | 'admin' | 0
+  4 | created_at | TEXT | 1 | - | 0
+  5 | totp_enabled | INTEGER | 1 | 0 | 0
+  6 | totp_last_step | INTEGER | 1 | 0 | 0
+  7 | first_name | TEXT | 1 | '' | 0
+  8 | last_name | TEXT | 1 | '' | 0
+  9 | disabled | INTEGER | 1 | 0 | 0
+  10 | locale | TEXT | 1 | '' | 0
+  index sqlite_autoindex_users_1 unique=1 origin=u partial=0 on 0:1:email

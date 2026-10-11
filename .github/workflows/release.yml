@@ -1,0 +1,246 @@
+# A release, from a pushed v* tag to a GitHub Release of
+# cloudground-it/cloudground (setup and procedure: .github/RELEASING.md).
+#
+#   build    no secrets: builds the release reproducibly, twice, and fails if
+#            the two builds differ; uploads it unsigned
+#   sign     environment `release` (the owner approves every run): the only
+#            job that sees the ed25519 private key; signs SHA256SUMS
+#   publish  checks the signature with the keys compiled into the binaries,
+#            attests the build provenance, publishes the release (install.sh
+#            among its assets), marked latest only when it is the newest
+#            stable release
+#   pages    for that newest stable release only: publishes its install.sh
+#            on GitHub Pages, served as https://get.cloudground.it/
+#
+# vX.Y.Z is a stable release; vX.Y.Z-beta.N a pre-release, which only servers
+# on the beta channel are offered. Any other v* tag fails the build job.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  build:
+    if: github.repository == 'cloudground-it/cloudground'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      channel: ${{ steps.channel.outputs.channel }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # go.mod's toolchain line is the release's Go; no caches, so nothing
+      # from an earlier run reaches the release.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.23.3'
+
+      - name: Release channel of the tag
+        id: channel
+        run: echo "channel=$(go run ./scripts/release-sign channel "$TAG")" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: make release-build RELEASE_TAG="$TAG"
+
+      # The same commit must give the same bytes: a second build from a cold
+      # Go cache is compared file by file with the first.
+      - name: Check the build is reproducible
+        run: |
+          go clean -cache
+          make release-build RELEASE_TAG="$TAG" RELEASE_DIR=dist/repro
+          (cd "dist/release/$TAG" && sha256sum -- *) > first.sums
+          (cd dist/repro && sha256sum -- *) > second.sums
+          cat first.sums
+          diff first.sums second.sums
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-unsigned
+          path: dist/release/${{ github.ref_name }}/
+          if-no-files-found: error
+          retention-days: 7
+
+  sign:
+    needs: build
+    runs-on: ubuntu-24.04
+    # Required reviewer: the owner. The private key is a secret of this
+    # environment only, so no other job, branch or pull request can read it.
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-unsigned
+          path: dist/release/${{ github.ref_name }}/
+
+      # make release-sign fails unless the signature verifies with the keys
+      # the release binaries were built with (internal/version/keys.go).
+      - name: Sign
+        env:
+          SIGNING_KEY_B64: ${{ secrets.CLOUDGROUND_SIGNING_KEY }}
+        run: |
+          test -n "$SIGNING_KEY_B64" || { echo "::error::the release environment has no CLOUDGROUND_SIGNING_KEY"; exit 1; }
+          umask 077
+          key="$RUNNER_TEMP/release.key"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$SIGNING_KEY_B64" > "$key"
+          make release-sign RELEASE_TAG="$TAG" SIGNING_KEY="$key"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-signature
+          path: |
+            dist/release/${{ github.ref_name }}/SHA256SUMS
+            dist/release/${{ github.ref_name }}/SHA256SUMS.sig
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [build, sign]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    outputs:
+      newest_stable: ${{ steps.publish.outputs.newest_stable }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-unsigned
+          path: dist/release/${{ github.ref_name }}/
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-signature
+          path: dist/release/${{ github.ref_name }}/
+
+      # Nothing is published unless it is signed by a key the binaries trust.
+      - name: Verify the signed release
+        run: make release-verify RELEASE_TAG="$TAG"
+
+      # The published install.sh is the release's stamped copy (its version
+      # and its cgctl's SHA-256), never installer/install.sh with its
+      # placeholders: releases/latest/download/install.sh is where the
+      # bootstrap's `latest` hop lands.
+      - name: Check the stamped bootstrap
+        run: |
+          f="dist/release/$TAG/install.sh"
+          test -f "$f" || { echo "::error::the release has no install.sh"; exit 1; }
+          if grep -qE '@CGCTL_(VERSION|SHA256)@' "$f"; then echo "::error::install.sh is not stamped"; exit 1; fi
+          sum=$(sha256sum "dist/release/$TAG/cgctl" | cut -d' ' -f1)
+          if ! { grep -qF "CLOUDGROUND_VERSION:-$TAG}" "$f" && grep -qF "CLOUDGROUND_CGCTL_SHA256:-$sum}" "$f"; }; then
+            echo "::error::install.sh does not name $TAG and its cgctl"; exit 1
+          fi
+
+      # Signed by GitHub's OIDC identity for this workflow and stored outside
+      # the release: it ties these exact bytes to this workflow and commit.
+      #   gh attestation verify cgctl --repo cloudground-it/cloudground
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/release/${{ github.ref_name }}/*
+
+      # releases/latest is what the bootstrap's `latest` hop and the
+      # documented install command download (releases/latest/download/
+      # install.sh): only the newest stable release may be it. A patch to an
+      # older line (v0.2.5 after v0.3.0) is published, but not as latest, and
+      # get.cloudground.it keeps serving the newest.
+      - name: Publish
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ needs.build.outputs.channel }}
+        run: |
+          newest=false
+          if [ "$CHANNEL" = stable ]; then
+            top=$( { gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --exclude-pre-releases --exclude-drafts --json tagName --jq '.[].tagName'; echo "$TAG"; } |
+              grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | sort -V | tail -n 1)
+            [ "$top" = "$TAG" ] && newest=true
+          fi
+          if [ "$CHANNEL" = beta ]; then flags="--prerelease --latest=false"
+          elif [ "$newest" = true ]; then flags="--latest"
+          else flags="--latest=false"; fi
+          # shellcheck disable=SC2086
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
+            --title "CloudGround $TAG" $flags dist/release/"$TAG"/*
+          echo "newest_stable=$newest" >> "$GITHUB_OUTPUT"
+
+  # https://get.cloudground.it/ is GitHub Pages of this repository, serving
+  # the newest stable release's stamped install.sh at / (as index.html:
+  # Pages serves it as text/html, which curl | bash does not look at) and at
+  # /install.sh. Its trust argument is internal/install/SPEC.md §6.1; the
+  # repository settings and DNS it needs are in .github/RELEASING.md.
+  pages:
+    needs: [publish]
+    if: needs.publish.outputs.newest_stable == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-unsigned
+          path: release/
+
+      - name: The site
+        run: |
+          f=release/install.sh
+          grep -qF "CLOUDGROUND_VERSION:-$TAG}" "$f" || { echo "::error::install.sh does not name $TAG"; exit 1; }
+          mkdir site
+          cp "$f" site/install.sh
+          cp "$f" site/index.html
+          # Pages takes the custom domain from the repository's settings when
+          # it deploys from Actions; the file records it beside the site.
+          echo get.cloudground.it > site/CNAME
+          (cd site && sha256sum install.sh)
+
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: site/
+
+      - id: deploy
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

@@ -1,0 +1,132 @@
+## managed
+/ROOT/nginx/conf.d/cloudground-global.conf
+/ROOT/nginx/sites-enabled/app.example.com.conf
+## /ROOT/nginx/conf.d/cloudground-global.conf -rw-r--r--
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+log_format cloudground '$remote_addr - $host [$time_local] "$request" '
+                      '$status $body_bytes_sent $request_time '
+                      'cache:$upstream_cache_status "$http_user_agent"';
+
+
+# Compression settings. "gzip on" already sits in Ubuntu's nginx.conf, and
+# nginx refuses a second one, so this file only adjusts it.
+gzip_vary on;
+gzip_comp_level 5;
+gzip_min_length 1024;
+gzip_types text/plain text/css text/xml text/javascript application/json application/javascript
+           application/xml application/rss+xml application/atom+xml image/svg+xml;
+
+# Descriptors and stat results of busy files stay open between requests,
+# for static files and page-cache entries both (on the 2 vCPU test server,
+# setting this per site instead lost a fifth of the throughput). They are
+# checked again after 60s, so a deploy shows within a minute; the page-cache
+# location of each site lowers that to 1s, so a purged page stops being
+# served almost at once.
+open_file_cache max=20000 inactive=60s;
+open_file_cache_valid 60s;
+open_file_cache_min_uses 2;
+open_file_cache_errors on;
+
+# Links: nginx belongs to every site's group to read its static files, so a
+# site could otherwise point a symlink at a neighbour's files. Every site's
+# server block therefore follows a link only when the link and its target
+# share an owner, starting below the document root (whose path goes through
+# "current", a link owned by root).
+
+# One compressed copy per page. Each site tells PHP the client accepts gzip,
+# PHP compresses the page, and the cache keeps that single copy; a hit costs
+# no compression work, and gunzip unpacks it for a client without gzip.
+# Keying on the visitor's own Accept-Encoding header instead gave every
+# browser, bot and the warmer a separate entry: the warmer filled entries no
+# browser read, a purge reached only some of them, and a client asking for
+# deflate alone could plant a wrong body in the plain entry.
+
+# Campaign and click-ID parameters leave the page as it is: a request whose
+# query string holds only those is served from the cache entry of its path.
+# Any other query string still skips the cache. Otherwise every visit from an
+# ad would reach PHP.
+map $request_uri $cg_path {
+    "~^(?<cg_p>[^?]*)"  $cg_p;
+}
+map $args $cg_args_bypass {
+    ""  0;
+    "~^((utm_[A-Za-z0-9_]+|fbclid|gclid|gbraid|wbraid|msclkid|dclid|mc_cid|mc_eid|_ga|_gl|igshid|yclid|twclid|ttclid)=[^&]*(&|$))+$"  0;
+    default  1;
+}
+map $cg_args_bypass $cg_key {
+    0        $cg_path;
+    default  $request_uri;
+}
+
+# The cache ignores Cache-Control (WordPress sends none, and a plugin's
+# max-age would replace the profile's lifetime), with one exception: a reply
+# marked private or no-store is never kept.
+map $upstream_http_cache_control $cg_no_store {
+    "~*(no-store|private)"  1;
+    default  0;
+}
+
+# Requests with an Authorization header or the guard's probe header (its
+# reply carries server timings) bypass the cache both ways, so such a page is
+# never shown to an anonymous visitor.
+map "$http_authorization$http_x_cloudground_probe" $cg_private_req {
+    ""       0;
+    default  1;
+}
+## /ROOT/nginx/sites-enabled/app.example.com.conf -rw-r--r--
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+# Site: app.example.com (id 6, type proxy, profile balanced)
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name app.example.com;
+
+    location /.well-known/acme-challenge/ {
+        root /ROOT/acme;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name app.example.com;
+    server_tokens off;
+
+    # Send small responses at once. With Ubuntu's tcp_nopush and no
+    # tcp_nodelay, the last packet of a kept-alive reply waits for the peer's
+    # delayed ACK (40 ms); measured, that cut cached req/s by about ten times.
+    tcp_nodelay on;
+    tcp_nopush off;
+
+    ssl_certificate /ROOT/certs/fallback.pem;
+    ssl_certificate_key /ROOT/certs/fallback.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:cg_ssl:10m;
+
+    # Log lines go out in 64 KiB batches, at least once a second.
+    access_log /ROOT/logs/app.example.com/access.log cloudground buffer=64k flush=1s;
+    error_log /ROOT/logs/app.example.com/error.log warn;
+
+    client_max_body_size 128m;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 60s;
+    }
+}

@@ -1,0 +1,32 @@
+{
+  "params": {
+    "full": {
+      "production": "@state.Site",
+      "staging": "@state.Site",
+      "db_password": "DBPassword",
+      "connector_token": "ConnectorToken"
+    },
+    "zero": {
+      "production": "@state.Site",
+      "staging": "@state.Site",
+      "db_password": "",
+      "connector_token": ""
+    }
+  },
+  "result": {
+    "full": {
+      "database": "Database",
+      "tables": [
+        {
+          "name": "Name",
+          "protected": true,
+          "reason": "Reason"
+        }
+      ]
+    },
+    "zero": {
+      "database": "",
+      "tables": null
+    }
+  }
+}

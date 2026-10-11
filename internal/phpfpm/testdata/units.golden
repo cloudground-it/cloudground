@@ -1,0 +1,121 @@
+type="wordpress" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-101.service err=<nil> sha=579153a7f2a3a857
+type="wordpress" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-102.service err=<nil> sha=6869c55ff7b4686d
+type="wordpress" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-103.service err=<nil> sha=e2a8554c91b3759c
+type="wordpress" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-104.service err=<nil> sha=bfbb93c31b56a6e6
+type="woocommerce" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-105.service err=<nil> sha=24d76f835301d349
+type="woocommerce" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-106.service err=<nil> sha=e2d71578b5347c5c
+type="woocommerce" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-107.service err=<nil> sha=606191a8900e6ba9
+type="woocommerce" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-108.service err=<nil> sha=549c2bcbed024c7e
+type="laravel" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-109.service err=<nil> sha=220556d75c164c84
+type="laravel" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-110.service err=<nil> sha=e9cd6b4fc6b08804
+type="laravel" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-111.service err=<nil> sha=e9b603b44440cc23
+type="laravel" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-112.service err=<nil> sha=7f4fd41143ab385b
+type="php" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-113.service err=<nil> sha=9b74e8f91c8e6a62
+type="php" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-114.service err=<nil> sha=a18c68e463216d0b
+type="php" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-115.service err=<nil> sha=cfe42999d5d64a7d
+type="php" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-116.service err=<nil> sha=5c86c60013a17a6a
+type="static" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-117.service err=<nil> sha=cf03e2864646e7a9
+type="static" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-118.service err=<nil> sha=ad32256a826ffcc4
+type="static" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-119.service err=<nil> sha=0ebcbe4643d79b12
+type="static" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-120.service err=<nil> sha=03c654181c112fdf
+type="proxy" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-121.service err=<nil> sha=1d2bfffe38b21ec6
+type="proxy" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-122.service err=<nil> sha=cacb2648fbea372f
+type="proxy" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-123.service err=<nil> sha=065ee44396006ed8
+type="proxy" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-124.service err=<nil> sha=8a2c0acbd354984b
+type="" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-125.service err=<nil> sha=7d3387763b4c76fa
+type="" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-126.service err=<nil> sha=76e16dbd1a1d7a0f
+type="" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-127.service err=<nil> sha=1c8a43dd5b403593
+type="" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-128.service err=<nil> sha=7d8e340e28f32abc
+missing: name="" content="" err=site "a.test" missing system user, php version or root
+missing: name="" content="" err=site "b.test" missing system user, php version or root
+missing: name="" content="" err=site "c.test" missing system user, php version or root
+===== wordpress err=<nil>
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+[Unit]
+Description=PHP-FPM for site9.example.com
+After=network.target mariadb.service
+
+[Service]
+Type=notify
+User=cg-site-9
+Group=cg-site-9
+RuntimeDirectory=cloudground/php/cg-site-9
+RuntimeDirectoryMode=0750
+ExecStart=/usr/sbin/php-fpm8.4 --nodaemonize --fpm-config /etc/cloudground-php/cg-site-9.conf -d opcache.memory_consumption=64 -d opcache.interned_strings_buffer=8 -d opcache.max_accelerated_files=10000 -d opcache.jit_buffer_size=32M -d apc.shm_size=32M
+ExecReload=/bin/kill -USR2 $MAINPID
+Restart=on-failure
+RestartSec=2
+LimitNOFILE=65536
+
+# The site sees its own tree and nothing of any other site: /srv/sites is an
+# empty tmpfs with only this site bound into it, and the same for its logs.
+# This, not open_basedir, is the tenant boundary.
+ProtectSystem=strict
+TemporaryFileSystem=/srv/sites:ro /var/log/cloudground:ro
+BindPaths=/srv/sites/site9.example.com /var/log/cloudground/site9.example.com
+ReadWritePaths=/srv/sites/site9.example.com /var/log/cloudground/site9.example.com
+InaccessiblePaths=-/etc/nginx -/etc/cloudground -/etc/letsencrypt -/etc/mysql -/var/lib/cloudground -/var/lib/cloudground-agent -/var/cache/cloudground -/var/log/nginx -/var/backups
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectProc=invisible
+ProcSubset=pid
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target
+===== woocommerce err=<nil>
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+[Unit]
+Description=PHP-FPM for site9.example.com
+After=network.target mariadb.service
+
+[Service]
+Type=notify
+User=cg-site-9
+Group=cg-site-9
+RuntimeDirectory=cloudground/php/cg-site-9
+RuntimeDirectoryMode=0750
+ExecStart=/usr/sbin/php-fpm8.4 --nodaemonize --fpm-config /etc/cloudground-php/cg-site-9.conf -d opcache.memory_consumption=128 -d opcache.interned_strings_buffer=16 -d opcache.max_accelerated_files=20000 -d opcache.jit_buffer_size=32M -d apc.shm_size=64M
+ExecReload=/bin/kill -USR2 $MAINPID
+Restart=on-failure
+RestartSec=2
+LimitNOFILE=65536
+
+# The site sees its own tree and nothing of any other site: /srv/sites is an
+# empty tmpfs with only this site bound into it, and the same for its logs.
+# This, not open_basedir, is the tenant boundary.
+ProtectSystem=strict
+TemporaryFileSystem=/srv/sites:ro /var/log/cloudground:ro
+BindPaths=/srv/sites/site9.example.com /var/log/cloudground/site9.example.com
+ReadWritePaths=/srv/sites/site9.example.com /var/log/cloudground/site9.example.com
+InaccessiblePaths=-/etc/nginx -/etc/cloudground -/etc/letsencrypt -/etc/mysql -/var/lib/cloudground -/var/lib/cloudground-agent -/var/cache/cloudground -/var/log/nginx -/var/backups
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectProc=invisible
+ProcSubset=pid
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

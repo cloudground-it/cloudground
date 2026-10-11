@@ -1,0 +1,16 @@
+# Review owners. One maintainer owns everything for now; the paths below are
+# named anyway, because a mistake there costs the most: the root agent and its
+# RPC surface, the installer, the release workflows and the security policy.
+#
+# "Require review from Code Owners" stays off in branch protection while there
+# is a single maintainer: GitHub does not let an author approve their own pull
+# request, so it would block every merge.
+
+*                    @manuto276
+
+/internal/agent/     @manuto276
+/internal/rpc/       @manuto276
+/internal/install/   @manuto276
+/installer/          @manuto276
+/.github/workflows/  @manuto276
+/SECURITY.md         @manuto276

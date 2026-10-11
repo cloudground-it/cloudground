@@ -1,0 +1,40 @@
+{
+  "params": {
+    "full": {},
+    "zero": {}
+  },
+  "result": {
+    "full": {
+      "cpu_count": 7,
+      "load1": 1.5,
+      "mem_total_mb": 7,
+      "mem_available_mb": 7,
+      "disk_total_mb": 7,
+      "disk_free_mb": 7,
+      "nginx_running": true,
+      "mariadb_running": true,
+      "redis_running": true,
+      "agent_version": "AgentVersion",
+      "uptime_seconds": 7,
+      "cpu_headroom_pct": 7,
+      "mem_headroom_pct": 7,
+      "disk_headroom_pct": 7
+    },
+    "zero": {
+      "cpu_count": 0,
+      "load1": 0,
+      "mem_total_mb": 0,
+      "mem_available_mb": 0,
+      "disk_total_mb": 0,
+      "disk_free_mb": 0,
+      "nginx_running": false,
+      "mariadb_running": false,
+      "redis_running": false,
+      "agent_version": "",
+      "uptime_seconds": 0,
+      "cpu_headroom_pct": 0,
+      "mem_headroom_pct": 0,
+      "disk_headroom_pct": 0
+    }
+  }
+}

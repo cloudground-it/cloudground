@@ -1,0 +1,35 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "db_password": "DBPassword",
+      "connector_token": "ConnectorToken",
+      "admin_email": "AdminEmail",
+      "admin_user": "AdminUser",
+      "admin_password": "AdminPassword",
+      "site_title": "SiteTitle"
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "system_user": "SystemUser",
+      "root_path": "RootPath",
+      "database_name": "DatabaseName",
+      "database_user": "DatabaseUser",
+      "files": [
+        {
+          "path": "Path",
+          "sha256": "SHA256"
+        }
+      ]
+    },
+    "zero": {
+      "system_user": "",
+      "root_path": "",
+      "files": null
+    }
+  }
+}

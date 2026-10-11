@@ -1,0 +1,22 @@
+{
+  "params": {
+    "full": {
+      "production": "@state.Site",
+      "staging": "@state.Site",
+      "tables": [
+        "Tables"
+      ]
+    },
+    "zero": {
+      "production": "@state.Site",
+      "staging": "@state.Site",
+      "tables": null
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

@@ -1,0 +1,14 @@
+Running 30s test @ https://bench.198-51-100-7.sslip.io/shop/
+  8 threads and 2000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   262.48ms  287.11ms   4.98s    90.12%
+    Req/Sec     1.00k   381.40     2.61k    68.42%
+  Latency Distribution
+     50%  196.27ms
+     75%  301.88ms
+     90%  512.44ms
+     99%    1.43s
+  236046 requests in 30.10s, 2.50GB read
+  Socket errors: connect 0, read 0, write 0, timeout 1054
+Requests/sec:   7863.04
+Transfer/sec:     85.07MB

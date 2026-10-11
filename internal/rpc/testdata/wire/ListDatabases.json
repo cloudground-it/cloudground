@@ -1,0 +1,37 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site"
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "databases": [
+        {
+          "name": "Name",
+          "size_bytes": 7,
+          "tables": 7
+        }
+      ],
+      "users": [
+        {
+          "name": "Name",
+          "grants": [
+            {
+              "database": "Database",
+              "level": "Level"
+            }
+          ]
+        }
+      ],
+      "stats_error": "StatsError"
+    },
+    "zero": {
+      "databases": null,
+      "users": null
+    }
+  }
+}

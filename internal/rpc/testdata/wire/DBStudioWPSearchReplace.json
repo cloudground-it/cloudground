@@ -1,0 +1,26 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "from": "From",
+      "to": "To",
+      "dry_run": true,
+      "read_only": true
+    },
+    "zero": {
+      "site": "@state.Site",
+      "from": "",
+      "to": ""
+    }
+  },
+  "result": {
+    "full": {
+      "replacements": 7,
+      "executed": true
+    },
+    "zero": {
+      "replacements": 0,
+      "executed": false
+    }
+  }
+}

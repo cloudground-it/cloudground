@@ -1,0 +1,30 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site"
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "table": "Table",
+      "count": 7,
+      "bytes": 7,
+      "top": [
+        {
+          "name": "Name",
+          "bytes": 7,
+          "autoload": "Autoload"
+        }
+      ]
+    },
+    "zero": {
+      "table": "",
+      "count": 0,
+      "bytes": 0,
+      "top": null
+    }
+  }
+}

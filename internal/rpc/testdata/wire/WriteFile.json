@@ -1,0 +1,20 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "rel_path": "RelPath",
+      "content": "Content"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "rel_path": "",
+      "content": ""
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

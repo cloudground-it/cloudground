@@ -1,0 +1,28 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "fullchain": "Fullchain",
+      "key": "Key",
+      "remove": true
+    },
+    "zero": {
+      "site": "@state.Site",
+      "fullchain": "",
+      "key": ""
+    }
+  },
+  "result": {
+    "full": {
+      "files": [
+        {
+          "path": "Path",
+          "sha256": "SHA256"
+        }
+      ]
+    },
+    "zero": {
+      "files": null
+    }
+  }
+}

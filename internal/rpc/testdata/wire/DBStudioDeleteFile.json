@@ -1,0 +1,20 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "dir": "Dir",
+      "name": "Name"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "dir": "",
+      "name": ""
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

@@ -1,0 +1,37 @@
+# Weekly dependency pull requests. Minor and patch updates of an ecosystem
+# arrive together as one pull request; each major update comes alone, since
+# that is where builds break and it needs a review of its own.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    labels: ["dependencies"]
+    commit-message: { prefix: "build(deps)" }
+    groups:
+      go-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: npm
+    directory: /ui
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    labels: ["dependencies"]
+    commit-message: { prefix: "build(deps)" }
+    groups:
+      ui-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # The workflows pin each action to a commit SHA with its version as a
+  # comment; Dependabot updates the two together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    labels: ["dependencies"]
+    commit-message: { prefix: "ci(deps)" }
+    groups:
+      actions:
+        patterns: ["*"]

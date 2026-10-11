@@ -1,0 +1,29 @@
+name: Feature request
+description: Something CloudGround could do and does not
+labels: ["type: feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        CloudGround runs websites on one server, and stops there: mail, DNS, billing and
+        reselling are outside it on purpose. Describing the problem you have helps more than
+        a finished design; a good idea may still be declined when it falls outside that scope.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The task that is hard or impossible with CloudGround today.
+    validations: { required: true }
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: How it could work
+      description: Optional, and a sketch is enough.
+
+  - type: textarea
+    id: today
+    attributes:
+      label: How you manage today
+      description: Your workaround, if there is one; it shows how much the gap costs.

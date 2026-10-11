@@ -1,0 +1,16 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "login": "Login"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "login": ""
+    }
+  },
+  "result": {
+    "full": {},
+    "zero": {}
+  }
+}

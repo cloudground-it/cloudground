@@ -1,0 +1,154 @@
+## /etc/nginx/conf.d/cloudground-cache-149.conf
+# Written by CloudGround: page-cache zone of c149.example.test (site 149).
+fastcgi_cache_path /srv/cgt/cache/c149.example.test levels=1:2 keys_zone=cg_149:32m
+                   max_size=1024m inactive=604800s use_temp_path=off;
+## /etc/nginx/sites-enabled/c149.example.test.conf
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+# Site: c149.example.test (id 149, type wordpress, profile balanced)
+
+map $http_x_cloudground_internal $cg_staging_realm_149 {
+    "d22221758bcdd57938e8e8af0dab6446"  off;
+    default  "Staging";
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name c149.example.test;
+
+    location /.well-known/acme-challenge/ {
+        root /srv/cgt/acme;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    # HTTP/3 over QUIC, present because this nginx has the v3 module.
+    # "reuseport" is allowed once per address and this file is one site
+    # among many, so the default server set up at install time holds it.
+    listen 443 quic;
+    listen [::]:443 quic;
+    server_name c149.example.test;
+    server_tokens off;
+
+    # A staging copy asks for a password. CloudGround's own requests (guard
+    # probes, warming, connector flushes) skip it with a header key kept in
+    # a file only root reads; 127.0.0.1 gets no pass, since PHP runs here.
+    auth_basic $cg_staging_realm_149;
+    auth_basic_user_file /srv/cgt/auth/c149.example.test.htpasswd;
+
+    # Send small responses at once. With Ubuntu's tcp_nopush and no
+    # tcp_nodelay, the last packet of a kept-alive reply waits for the peer's
+    # delayed ACK (40 ms); measured, that cut cached req/s by about ten times.
+    tcp_nodelay on;
+    tcp_nopush off;
+
+    ssl_certificate /srv/cgt/fallback/cert.pem;
+    ssl_certificate_key /srv/cgt/fallback/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:cg_ssl:10m;
+
+    # Log lines go out in 64 KiB batches, at least once a second.
+    access_log /srv/cgt/log/c149.example.test/access.log cloudground buffer=64k flush=1s;
+    error_log /srv/cgt/log/c149.example.test/error.log warn;
+
+    client_max_body_size 128m;
+    http3 on;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Alt-Svc 'h3=":443"; ma=86400' always;
+
+    root /srv/cgt/sites/c149.example.test/current;
+    index index.php index.html index.htm;
+    disable_symlinks if_not_owner from=$document_root;
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+
+    # Uploads are data: a .php a plugin let through is never run (SR-T9).
+    location ~* ^/wp-content/uploads/.*\.php$ {
+        deny all;
+    }
+
+    location ~* \.(css|js|mjs|jpg|jpeg|png|gif|webp|avif|svg|ico|woff|woff2|ttf|eot|otf|mp4|webm|pdf)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Alt-Svc 'h3=":443"; ma=86400' always;
+        access_log off;
+        # A deploy writes .gz copies; send those rather than gzip each time.
+        gzip_static on;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    # Who skips the page cache: POSTs, query strings, the session cookies
+    # and the paths below (logins, carts, the admin) are always rendered.
+    set $cg_skip_149 0;
+    if ($request_method = POST) {
+        set $cg_skip_149 1;
+    }
+    if ($cg_args_bypass) {
+        set $cg_skip_149 1;
+    }
+    if ($http_cookie ~* "wordpress_logged_in_|wp-postpass_|comment_author_|woocommerce_cart_hash|woocommerce_items_in_cart|wp_woocommerce_session_") {
+        set $cg_skip_149 1;
+    }
+    if ($request_uri ~* "^/wp-admin([/?]|$)|^/wp-login\.php([/?]|$)|^/wp-cron\.php([/?]|$)|^/xmlrpc\.php([/?]|$)|^/wp-json/|^/feed([/?]|$)") {
+        set $cg_skip_149 1;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTPS on;
+        fastcgi_pass unix:/srv/cgt/php/cg-site-149/php.sock;
+        fastcgi_read_timeout 120s;
+        fastcgi_buffers 16 32k;
+        fastcgi_buffer_size 64k;
+
+        # Page cache. PHP is always asked for gzip, so each page is stored once,
+        # compressed; gunzip serves the few clients that do not accept it.
+        fastcgi_param HTTP_ACCEPT_ENCODING "gzip";
+        gunzip on;
+        # After a purge an open descriptor may serve the old file for 1s at most.
+        open_file_cache_valid 1s;
+        fastcgi_cache cg_149;
+        fastcgi_cache_key "$scheme$request_method$host$cg_key";
+        fastcgi_cache_valid 200 301 600s;
+        fastcgi_cache_valid 404 60s;
+        fastcgi_cache_methods GET HEAD;
+        fastcgi_cache_bypass $cg_skip_149 $cg_private_req;
+        fastcgi_no_cache $cg_skip_149 $cg_no_store $cg_private_req;
+        # One request renders a missing page; the others wait for it.
+        fastcgi_cache_lock on;
+        fastcgi_cache_lock_timeout 5s;
+        # Expired or failing: answer from the old copy, refresh in background.
+        fastcgi_cache_use_stale updating error timeout invalid_header http_500 http_503;
+        fastcgi_cache_background_update on;
+        # The key fixes the encoding, so Vary is not needed. Set-Cookie still
+        # counts: a reply that sets a cookie stays out of the cache, or every
+        # later visitor would receive that cookie.
+        fastcgi_ignore_headers Cache-Control Expires Vary;
+        add_header X-CloudGround-Cache $upstream_cache_status always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Alt-Svc 'h3=":443"; ma=86400' always;
+    }
+}

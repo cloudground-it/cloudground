@@ -1,0 +1,74 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "login": "Login",
+      "table": "Table"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "table": ""
+    }
+  },
+  "result": {
+    "full": {
+      "table": "Table",
+      "type": "Type",
+      "columns": [
+        {
+          "name": "Name",
+          "type": "Type",
+          "data_type": "DataType",
+          "nullable": true,
+          "default": "Default",
+          "key": "Key",
+          "extra": "Extra",
+          "collation": "Collation",
+          "comment": "Comment",
+          "binary": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "Name",
+          "unique": true,
+          "type": "Type",
+          "columns": [
+            {
+              "name": "Name",
+              "length": 7
+            }
+          ]
+        }
+      ],
+      "foreign_keys": [
+        {
+          "name": "Name",
+          "columns": [
+            "Columns"
+          ],
+          "ref_table": "RefTable",
+          "ref_columns": [
+            "RefColumns"
+          ],
+          "on_update": "OnUpdate",
+          "on_delete": "OnDelete"
+        }
+      ],
+      "primary_key": [
+        "PrimaryKey"
+      ],
+      "create_sql": "CreateSQL"
+    },
+    "zero": {
+      "table": "",
+      "type": "",
+      "columns": null,
+      "indexes": null,
+      "foreign_keys": null,
+      "primary_key": null,
+      "create_sql": ""
+    }
+  }
+}

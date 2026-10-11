@@ -1,0 +1,32 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "what": "What",
+      "enable": true
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "backend": "Backend",
+      "hits": 7,
+      "misses": 7,
+      "entries": 7,
+      "mem_used": 7,
+      "mem_total": 7,
+      "hit_rate_pct": 7
+    },
+    "zero": {
+      "backend": "",
+      "hits": 0,
+      "misses": 0,
+      "entries": 0,
+      "mem_used": 0,
+      "mem_total": 0,
+      "hit_rate_pct": 0
+    }
+  }
+}

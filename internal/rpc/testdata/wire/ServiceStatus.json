@@ -1,0 +1,26 @@
+{
+  "params": {
+    "full": {},
+    "zero": {}
+  },
+  "result": {
+    "full": {
+      "services": [
+        {
+          "name": "Name",
+          "unit": "Unit",
+          "active": true,
+          "enabled": true,
+          "state": "State",
+          "detail": "Detail",
+          "memory_bytes": 7,
+          "since": "2026-01-02T03:04:05Z",
+          "version": "Version"
+        }
+      ]
+    },
+    "zero": {
+      "services": null
+    }
+  }
+}

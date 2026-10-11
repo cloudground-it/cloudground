@@ -1,0 +1,68 @@
+name: Bug report
+description: CloudGround does something other than what its documentation says
+labels: ["type: bug", "status: needs repro"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A security problem does not belong here: report it privately through
+        [Security → Report a vulnerability](../../security/advisories/new).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What went wrong
+      description: What you did, what you expected to see, and what you saw instead.
+      placeholder: |
+        After creating a WooCommerce site, https://shop.example.com/shop/ answered 404,
+        where the shop page should have loaded.
+    validations: { required: true }
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to make it happen again
+      description: Steps someone else can follow, best on a freshly installed throwaway server.
+      placeholder: |
+        1. Ubuntu 24.04, CloudGround installed with install.sh
+        2. cgctl sites create shop.example.com woocommerce
+        3. curl -I https://shop.example.com/shop/
+    validations: { required: true }
+
+  - type: input
+    id: version
+    attributes:
+      label: CloudGround version
+      description: What `cgctl --version` prints
+      placeholder: v0.1.0
+    validations: { required: true }
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Server system
+      options:
+        - Ubuntu 24.04 LTS
+        - Ubuntu 26.04 LTS
+        - Something else (not supported)
+    validations: { required: true }
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        The panel's: `journalctl -u cloudground-api -u cloudground-agent -n 100`. For a site,
+        also `/var/log/cloudground/<domain>/error.log`. Remove passwords, tokens and addresses
+        you do not want public.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send it
+      options:
+        - label: It is not a security problem (those go through SECURITY.md)
+          required: true
+        - label: I looked for it in the [documentation](https://docs.cloudground.it)
+          required: true

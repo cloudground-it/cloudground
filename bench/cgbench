@@ -1,0 +1,25 @@
+#!/bin/sh
+# Runs cmd/cgbench from wherever it can be found (bench/SPEC.md §7):
+# $CGBENCH, then dist/cgbench in this checkout, then cgbench on PATH, and as a
+# last resort `go run` when Go is installed. `make dist` or `make docker-dist`
+# builds dist/cgbench.
+set -eu
+
+repo=$(cd -- "$(dirname -- "$0")/.." && pwd)
+
+if [ -n "${CGBENCH:-}" ]; then
+  exec "$CGBENCH" "$@"
+fi
+if [ -x "$repo/dist/cgbench" ]; then
+  exec "$repo/dist/cgbench" "$@"
+fi
+if command -v cgbench >/dev/null 2>&1; then
+  exec cgbench "$@"
+fi
+if command -v go >/dev/null 2>&1; then
+  bin=$(mktemp -d)/cgbench
+  (cd "$repo" && go build -o "$bin" ./cmd/cgbench)
+  exec "$bin" "$@"
+fi
+echo "cgbench not found: build it with 'make docker-dist' (dist/cgbench) and copy it next to bench/, or set CGBENCH" >&2
+exit 127

@@ -1,0 +1,21 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "operation": "Operation",
+      "rel_path": "RelPath",
+      "dest_path": "DestPath"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "operation": "",
+      "rel_path": ""
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

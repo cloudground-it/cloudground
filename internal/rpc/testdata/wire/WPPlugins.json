@@ -1,0 +1,36 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "what": "What",
+      "enable": true
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "plugins": [
+        {
+          "name": "Name",
+          "status": "Status",
+          "version": "Version",
+          "update": "Update"
+        }
+      ],
+      "themes": [
+        {
+          "name": "Name",
+          "status": "Status",
+          "version": "Version",
+          "update": "Update"
+        }
+      ]
+    },
+    "zero": {
+      "plugins": null,
+      "themes": null
+    }
+  }
+}

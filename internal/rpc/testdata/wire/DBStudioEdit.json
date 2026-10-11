@@ -1,0 +1,42 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "login": "Login",
+      "table": "Table",
+      "changes": [
+        {
+          "op": "Op",
+          "key": {
+            "key": "Key"
+          },
+          "values": {
+            "key": "Values"
+          }
+        }
+      ],
+      "dry_run": true,
+      "read_only": true
+    },
+    "zero": {
+      "site": "@state.Site",
+      "table": "",
+      "changes": null
+    }
+  },
+  "result": {
+    "full": {
+      "sql": [
+        "SQL"
+      ],
+      "affected": 7,
+      "executed": true
+    },
+    "zero": {
+      "sql": null,
+      "affected": 0,
+      "executed": false
+    }
+  }
+}

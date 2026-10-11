@@ -1,0 +1,29 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "repository": "Repository",
+      "password": "Password",
+      "kind": "Kind",
+      "env": {
+        "key": "Env"
+      }
+    },
+    "zero": {
+      "site": "@state.Site",
+      "repository": "",
+      "password": "",
+      "kind": ""
+    }
+  },
+  "result": {
+    "full": {
+      "snapshot_id": "SnapshotID",
+      "size_bytes": 7
+    },
+    "zero": {
+      "snapshot_id": "",
+      "size_bytes": 0
+    }
+  }
+}

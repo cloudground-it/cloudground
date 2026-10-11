@@ -1,0 +1,177 @@
+# e2e sections and their fixtures
+
+`TestE2E` is a list of sections (`sections` in `e2e_test.go`), each a top-level subtest
+`TestE2E/<section>` (`go test` shows and matches spaces as underscores). Any single section, or any
+set of them, can be run with `-test.run` and gives the verdicts it gives in a full run: what a
+section needs from outside itself is a **fixture** it declares, which the first section that asks for
+it makes and every later one reuses.
+
+```sh
+./cg-e2e -test.v -test.run '^TestE2E$/^wordpress_backups$'
+./cg-e2e -test.v -test.run '^TestE2E$/^(security|woocommerce_security)$'
+./cg-e2e -test.v -test.run '^TestE2E$/^wordpress_'      # every WordPress feature section
+```
+
+`scripts/e2e-affected.sh` and `scripts/e2e-new-checks.sh` print these regexps for a change (see
+`README.md`). At the end of every run the log lists each section that ran with its time and tally
+(`SECTIONS (in the order they finished)`), before the `RESULT` line.
+
+## Fixtures
+
+| Fixture | What it is | Made by | Deleted by |
+| --- | --- | --- | --- |
+| `woocommerce site` | `shop.<ip>.sslip.io`, type `woocommerce`, commerce profile, object cache on | the first section that asks (`woocommerce` in a full run), with the check `woocommerce provisions` | `woocommerce teardown`, else the end of the run |
+| `feature site` | `feat.<ip>.sslip.io`, a plain WordPress site (object cache off, as created) | the first section that asks (`wordpress cache`), with the check `feature-site provisions` | `wordpress teardown`, else the end of the run |
+| `feature staging` | the feature site's staging copy (`POST /staging`) | `wordpress staging`, which clones it between its layout probes; any other section that asks first clones it plainly, with the checks `staging clone accepted` and `staging clone completes` | with the feature site |
+
+Rules the code enforces (`fixtures_test.go`):
+
+- A section may ask only for the fixtures declared in its table entry; the table below must list
+  exactly those (`TestSectionsDocumented`, a unit test without the e2e tag).
+- A fixture that cannot be made fails each section that asks for it with `t.Errorf` on the section
+  itself, never as a check subtest, so a check-name filter cannot hide it. It is counted in `RESULT`
+  as `fixture: <name>`.
+- A fixture a teardown section deleted is not handed out again: a later section asking for it fails.
+- Every site a fixture makes is deleted at the end of the run (the safety net of
+  `apiClient.createSite`) when no teardown section ran.
+
+A section that needs a setting of a shared site puts it in place itself rather than relying on an
+earlier section: `feat.ensureObjectCache` turns the feature site's object cache on (a check named
+`control: the object cache is turned on before …`) only when it is off. In a full run the earlier
+sections have left it on, so it does nothing there and the full run is unchanged.
+
+Not fixtures, on purpose:
+
+- **Backup repository.** `wordpress backups` configures a throwaway restic repository and puts the
+  setting back at the end of the section. As a run-wide fixture it would stay configured for the
+  sections after it, and the scheduler would then run its own backups (and restore tests) during
+  them.
+- **Operator user.** Only `security` uses one, made and deleted inside the section.
+- **The site types, the security sites, the migration site, the R-0.7 probes, the R-3.7 storm
+  sites, the certificate-race sites.** Each belongs to one section and is created and deleted in it.
+
+## Sections
+
+Lane: with `CG_E2E_PARALLEL=1` the sections of one lane run in order, beside the other lanes; a
+section with no lane (—) is exclusive and runs alone after all the lanes, in the table's order.
+Without `CG_E2E_PARALLEL` every section runs alone, in the table's order (the bash suite's).
+
+| Section | Fixtures | Lane | Checks |
+| --- | --- | --- | --- |
+| `site types` | — | site types | create, serve, delete each of static, php, proxy, laravel, WordPress; R-1.2 (the distribution's php-fpm stays off); the modes the agent (UMask=0027) leaves on each new site's tree and log directory, and for a PHP site /etc/cloudground-php 0755, its pool 0640 root:<site> and read by the site's user, its drop-in directory 0755, its FPM socket reached by www-data |
+| `woocommerce` | `woocommerce site` | woocommerce | the provisioner installs WooCommerce; home, /shop, /cart serve; R-3.8 warmer covers products |
+| `wordpress cache` | `feature site` | feature | page cache, pre-compression, browser variants, purge after edit, utm, cookies; object cache, magic login, cron create, purge; R-3.8 warmer, cache statistics, object cache re-enable; template-part purge |
+| `wordpress staging` | `feature site`, `feature staging` | feature | R-2.3 layout around the clone; staging password, loopback, internal key, vhost mode; the staging password hash stays out of the API |
+| `wordpress status and drift` | `feature site` | — | certificate status, alerts, drift answer; every WordPress site runs the current connector; R-3.10 a symlink or FIFO at the connector is drift |
+| `wordpress certificates` | `feature site` | feature | custom certificate served and removed, R-3.9 marked custom; R-0.4 certificate racing a delete; R-1.2 custom certificate goes with its site |
+| `wordpress sftp` | `feature site` | feature | SFTP keys and password, R-2.4 deny group, R-3.1 fingerprints; R-0.5 concurrent object-cache and SFTP changes |
+| `wordpress logs` | `feature site` | — | PHP errors reach php-error.log; R-3.10 journal and access-log tails; nginx reopens the site logs |
+| `wordpress slow request` | `feature site` | — | R-0.8: a 130 s request completes under max_execution_seconds 300 |
+| `wordpress cron` | `feature site` | feature | the site's cron.d file runs WordPress's events through the sandboxed runner, no per-user crontab, wp-cron off; R-4.5 scheduled jobs, run now and wp-cli in the site's sandbox; R-3.11 typed jobs, escapes, disable/enable, run now, time limit |
+| `wordpress safe push` | `feature site`, `feature staging` | — | Performance Guard passes identical code and blocks a 400 ms slower staging; R-4.5 the block rests on render time under the lower-bound policy, a heavy page passes A/A; selective push; staging recreate |
+| `wordpress releases` | `feature site` | feature | R-3.2 concurrent deploys, rollback, promote, ownership, gzip_static, retention of releases |
+| `wordpress backups` | `feature site`, `feature staging` | — | R-2.1 secrets sealed; backup, verified restore, in-place restore; R-0.2, R-0.3, R-3.6, R-0.10 safety snapshots, R-3.3 staging database push, R-3.4 database restore reaches the site, R-0.9 corrupt dump, R-0.6 retention; R-4.2 a restore canceled during its safety snapshot changes nothing |
+| `R-4.6 cgctl tokens` | `feature site` | — | the installed cgctl with an API token: --wait exits 0 on a task that succeeds and 1 on one that fails, actions audited under the token, a token cannot create a user or a token, turn a site's shell on or add a shell key (R-4.5), a revoked token refused by cgctl and the API; R-4.3 review: a token cannot change the alert webhook or the update check (403, settings unchanged) but may set acme_email, and is refused the firewall, the panel certificate, the self-update and accepting drift (restoring it still reaches the handler) |
+| `R-4.6 backup interruption` | `feature site` | — | restic has typed exit codes (≥ 0.17), the agent's Capabilities reports its version as supported; a backup stopped mid-run leaves no repository lock and the next one succeeds and passes its restore test; files vanishing under tmp/ do not fail a backup, which holds nothing of tmp/ (all through the agent's socket, with a repository of its own: the panel's backup setting is not touched) |
+| `R-4.3 deploys and backups` | `feature site`, `feature staging` | — | deployments as a state machine: a new release is a ULID, created and not live, promoted it supersedes the live one (exactly one live), a rollback goes to the release live before past one built and never promoted and records it, a rollback to a release never live is refused (409), a safe push that regresses production after its promotion is rolled back to the release live before it (not a newer unpromoted one) and is no rollback target, a failed build is failed and its promote refused (409); one snapshot deleted with its database half, the newest verified one refused (409), no lock left, the remaining snapshot still restores (a repository of its own, the setting put back) |
+| `firewall` | — | — | firewall status, the panel on :8443 only, 443 and SSH cannot be closed; R-3.10 panel port guards, source-limited rules |
+| `F9b site databases` | `feature site`, `feature staging` | — | a static site starts with no database; databases and users are created with checked names (reserved, system and other sites' names refused, a name in use is 409); MariaDB refuses the read user's write and accepts the all user's; a grant change and a user deletion take effect; the agent refuses an RPC naming another site's database; a backup of two databases restore-tests and restores both; an empty database's backup passes; a proxy site is not backed up; a staging push moves the primary; deleting the site drops its databases and users |
+| `F9b site creation` | — | site creation | Fase 9b/2: a WordPress site created with a chosen database name, user and password (one with a space inside): the answer's summary holds them, the site URL and the WordPress admin; wp-config.php has the three, MariaDB signs the user in with them, the home page serves 200 without a fatal; a database or user name another site has is 409 naming the field, nothing recorded; no GET of the site, the sites, its databases, its task, the tasks or the audit holds the password; a static site with `create_database` gets the database on the server, the generated password of its summary signs its user in, listed as its primary; `cgctl --wait sites create … php --with-database --db-name … --db-password-stdin` (the password on stdin) succeeds, prints the summary with the name and password, and the database is on the server; `--db-password-stdin` with an empty stdin is a usage error (exit 2) |
+| `R-4.3 proxies and alerts` | `feature site` | — | wrong connector tokens are limited per address (401, then 429) and the site's own token still purges from that address; a failed task becomes an alert of its site, a dismissal survives a re-evaluation, the alert list is a database read (median under 60 ms) |
+| `F9b Quarry service` | `woocommerce site`, `feature site` | — | Quarry as a service of its own: a site's read user signs in with its password (no panel account), browses, and MariaDB refuses its edit and its INSERT; the all user writes; the all user's simulated UPDATE and DELETE report how many rows they would change and change none, and a simulation on a MyISAM table or of a TRUNCATE is refused; neither reaches the feature site's database; the cookie is `__Host-`, Secure, HttpOnly, SameSite=Strict, Path=/ and no panel route takes it; an export as the user is among its own files only and leaves no credentials file; a changed password ends the session; a root `[client] user=` in the server's option files does not make the read user's SQL import root's (it is refused, nothing is made); five wrong passwords are refused and delay the next attempt, which still signs in; with five refusals on record and four wrong passwords in flight from one address (`X-Real-IP` over the API socket), the user signs in from another within 8 s (no 429), and the attacker's address still waits its own delay after; root cannot sign in; logout ends the session; the panel's handoff opens Quarry once and expires after a minute |
+| `wordpress teardown` | `feature site`, `feature staging` | — | the feature site (and its staging copy) deletes; R-3.3 the staging password file goes with it |
+| `migration import` | — | migration | an import from a foreign tree keeps the connector, serves, caches, cleans up; R-4.4 a dump with table prefix xyz_ serves its content, the site answers 503 and never the installer while the migration switches it (a wp-cli stand-in, for the migration site's user only, slows the switch); R-3.5 hostile archives, R-4.4 the bomb's refusal in the reader's language naming the limit, the limit an administrator's only, a raised limit lets a 380× archive through |
+| `security` | — | security | R-2.5 agent peer credentials, R-2.2 safe errors, S-C1 deploy confinement, S-C8 cross-tenant symlink, file editor and upload, S-H4 CSRF, R-0.13, R-0.14 operator scope, R-4.1 route table, S-H3, S-C7 isolation, S-C5, S-H5 |
+| `F4b Quarry` | `woocommerce site` | — | Quarry on the WooCommerce database, a large export and import; SR-T4 a read-only account lists the tables and reads a structure but gets 403 for rows and for SQL (the users table's hashes), an administrator reads rows |
+| `woocommerce security` | `woocommerce site` | woocommerce | S-C2 database console (claimed link, no client commands, confinement, R-3.6 statement timeout), wp-config permissions, SQL imports |
+| `R-0.7 reconcile` | — | — | a site-count change re-renders only what it sizes: the static probe and nginx untouched, unchanged PHP masters keep running |
+| `R-5.2 reload drain` | — | — | during the PHP master reload a site creation on another site causes: a 20 s request survives, a concurrent uncached request answers within 35 s (wait logged), a 60 s request is ended at the 30 s cap (process_control_timeout = min(request limit, 30 s)) |
+| `R-6.1 installer` | — | — | `cgctl doctor` finds no drift and `cgctl install --plan` nothing to do; the directories made for the sites' files (/srv/sites, the log, cache and ACME roots, /run/cloudground/php, /etc/cloudground-php) are 0755 root:root; every path the installed units need exists, and the agent and the API are active and not crash-looping; every rendered installer file on disk is the render; nginx.conf tuned; Redis not running; wp-cli the pinned build; a drifted bootstrap vhost is reported by doctor, put back by `cgctl install`, and nginx reloaded; an agent that cannot start (a drop-in naming a missing path) is reported by doctor and fails `cgctl install`, which names the unit and shows its journal |
+| `R-2.4 services` | — | — | the services page reads systemd; a restart returns after the job finished |
+| `R-3.9 certificates and panel` | — | — | the panel's certificate status is panel.pem; the agent answers the request in flight when stopped |
+| `R-3.7 site lifecycle` | — | — | site slices, a create/delete storm, nothing of a deleted site left |
+| `R-3.13 interrupted create` | — | — | the agent killed mid-create: the site stays listed, its delete removes it all |
+| `R-4.5 site shell` | — | shell | a "shell" key opens bash as the site's uid, a sandboxed service in its slice, an "SFTP only" key does not; git, composer, wp, php start; the PHP sandbox: other sites absent, ps shows only the site's processes, private /tmp, sudo/su/unshare fail, agent and gate sockets refused (also to PHP), crontab refused; terminal and job control; an interactive login with a real TERM prints no /proc/sys/kernel/random errors and systemd's terminal-integration login script is unreadable in the shell (W3); a checkout in ~/src becomes a release and rolls back; the shell's processes end with the session, when it is turned off and with the site |
+| `R-4.2 job queue` | — | — | with the agent frozen: two changes to one site serialised, a queued one canceled, an API restart mid-job resumes it |
+| `F8 events` | — | — | the event stream: per-role filtering, resume, through nginx |
+| `R-4.7 capabilities` | — | capabilities | the PHP versions offered are the box's FPM binaries, a missing one is refused at create, the restartable services, the sites' root |
+| `R-5.4 routing` | — | routing | R-5.2 a Laravel page is cached anonymously and bypasses with a session, XSRF or remember-me cookie and under /login; R-5.4 a site's routing: SPA routes, a real 404, a location adding a header keeps the security headers, stored as custom, covered by drift, survives a regeneration; refused: a forbidden directive, one off the allowlist (with its line), a root outside the tree or in shared/, R-10.5/F any `autoindex on` (autoindex off accepted), proxies to system services (3306, 6379, 443, 8443, a listening sshd), another Host towards this machine; a symlink to another tenant not followed inside the custom block; an edit nginx rejects refused with nginx's reason and the site still serving, restore default; a Slim front controller (app.php), a PHP site of endpoints; R-4.3 review: a custom block is in the site's record for the admin's session only, not for an API token (alone and in the list) |
+| `R-4.3 accounts` | — | — | a fresh account's TOTP secret, pending and active, is sealed in the secret store: not in state.db or its WAL in plaintext, not in the users table (no secret columns left); sign-in asks for a code, takes a code from the sealed secret and refuses it a second time; turning 2FA off removes the sealed secrets; wrong codes for the account wait longer from the fifth failure, the tenth in an hour stops the right code (429) on turning 2FA off and at sign-in and is audited `login.2fa_brute`; with five failures on record and four wrong passwords in flight from one address (`X-Real-IP` over the API socket), the owner signs in from another within 8 s (no 429), and the attacker's address still waits its own delay after |
+| `R-4.3 sign-in review` | — | — | requests marked `X-CG-Background: 1` authenticate but leave the session's last use alone (a request without the mark moves it); with five failures on record, four parallel wrong passwords for one account from one network each wait their own delay, 1, 2, 4, 8 s, spaced one after the other (the last after 14.5 to 22 s: parallel guesses are no faster than sequential ones) and are each refused, a fifth while they sleep is not refused for the account but waits its own 16 s after them (30 s or more) |
+| `R-4.3 site settings` | — | settings | one PATCH sets aliases, public root, PHP limits and cache TTL in one site.update task, with a warning that the site's custom certificate may not cover the new aliases; a public root through a symlink to another tenant is refused at the PATCH, and one swapped for such a link afterwards is not served by nginx (control: the other tenant serves the file on its own site): nginx answers for the alias, PHP-FPM serves the new root with the new limits; a wrong patch names each field and changes nothing; R-8.2: the removed PUT /php and POST /wp/object-cache answer 404 from the API and change nothing, and the backup policy is stored as sent without a render, an unknown schedule refused |
+| `R-6.3 release channel` | — | settings | the settings carry a release channel (stable by default); beta is chosen, kept and followed by the update check; an unknown channel is refused (400) and changes nothing; stable again; the installed cgctl refuses to verify a release directory without a signed manifest |
+| `SR tenant data` | `woocommerce site` | — | the final security review's tenant-data fixes: SR-T1 the server's local_infile is 0, and a Quarry import of a dump with `LOAD DATA LOCAL INFILE '/etc/hostname'` fails, names the statement in its task, and leaves no part of the file in the database; SR-T6 in a throwaway repository, the site's full backup passes its restore test, and the same snapshot retagged as another site's fails it and is refused (400) by a files restore (agent called directly); SR-T5 with two `SELECT SLEEP(8)` of the administrator running in Quarry, a third statement in the console is 429 at once, and one after them runs; SR-T9 a .php written as the site in wp-content/uploads answers 403 and never runs (also as .PHP), while a .php outside the uploads runs; SR-T8 /etc/sysctl.d/60-cloudground.conf pins fs.protected_hardlinks and fs.protected_symlinks to 1 and the kernel runs with both; SR-R1 the agent (called as root with the token) refuses DropDatabase and CreateDatabase of names not of the form `site_<id>` (throwaway names: the database and account stay, or are not made); SR-T2 as the site's own account (password from wp-config.php), another database `siteZ<N>` is unreadable and `CREATE DATABASE site9<N>` is refused, and `mysql.db` grants it `site\_<N>` only; SR-T3 `@@have_symlink` is DISABLED and the site account's `CREATE TABLE … DATA DIRECTORY='/srv/cg-e2e-datadir'` puts nothing there; SR-T7 a Quarry import of a dump with a trigger and a view of DEFINER root succeeds, both are the site account's, run as it (the trigger fires on the site account's insert, the view answers), and the account is left with its own password only |
+| `R-10.5 root boundary` | — | boundary | two PHP sites of its own, the agent called on its socket with a repository of its own: R-10.5/1 a files restore does not bring back a key revoked after the snapshot, and every file of the restored `.ssh` is root's; R-10.5/2 the file manager cannot write `.ssh/shell_keys` (directly or through a link the tenant planted) nor delete `current`, `shared` or `.ssh`, and still writes inside `shared/`; R-10.5/3 the agent refuses a record pairing B's id and user with A's domain, its site index is root's 0600 and records both sites; R-10.5/4 the files backup's restic (seen through a stand-in ahead of it on the agent's PATH, for this repository only) sees only its own site under /srv/sites and no system or agent files, and a link the tenant planted to a root-only file is stored as a link; R-10.5/5 the agent refuses a local repository outside the backup roots (none made), the API refuses a loopback rest: endpoint by the rule and stores nothing; R-10.5/6 a full apply's php-fpm configuration test runs as a transient service of the site (its unit in the journal) and the site still serves; R-10.5/7 a WordPress deploy whose wp-content is a link to `.ssh` is refused and writes nothing there; R-10.5/8 sshd forces the gate (ForceCommand) for the shell login, and a `$HOME` in a cron job run now reaches the job unexpanded; R-10.5/A site A's routing cannot proxy to a port site B's user listens on (its own listener can), R-10.5/B a proxy_pass host name is refused; a WordPress staging copy whose database user is not site_<id> is refused with nothing made; R-10.5/C a cron job cannot make a setuid file and has its own IPC namespace; R-10.5/D `/usr/local/bin/cg-site-shell` is a binary of its own (not the link to panel-agent, not its bytes, less than half its size); R-10.5/E a PHP page is not served from the cache with ci_session or CAKEPHP, nor with a cookie the site added (bypass_cookies), a name nginx would read as syntax refused; R-10.5/G the panel API is not on TCP 5252 but on its Unix socket, 9080 is loopback only, no CloudGround program binds an abstract socket |
+| `R-10.5 agent limits` | — | — | R-10.5/8 with 64 requests held open (headers sent, body never) the agent answers a Ping 503 at once, and 200 once they are closed |
+| `woocommerce teardown` | `woocommerce site` | — | the WooCommerce site deletes |
+| `R-6.5 upgrade` | — | — | only with `CG_E2E_UPGRADE_BUNDLE` (else it logs why and checks nothing; docs/e2e.md): from releases signed with a throwaway key and served by the section on 127.0.0.1:18931, v0.1.0 installs over the box's build from its signed release; a static site made on it; `cgctl update --check` offers v0.2.0 and changes nothing; `cgctl update` takes it to v0.2.0 (the agent reports it, the floor is v0.2.0, a snapshot `…-v0.1.0-to-v0.2.0` holds the state database); the site still serves its page and is active in the panel; `cgctl update --to v0.1.0` is refused (downgrade) and changes nothing; v0.2.1's installer refuses the installed v0.2.0, naming `cgctl update --to v0.2.1`, and v0.2.0's own installer repairs; the panel's `POST /api/panel/update {"version":"v0.2.1"}` is accepted and the guard's verdict is healthy on v0.2.1, the site still served; the panel refuses v0.2.0 (409, downgrade); v0.3.0, whose API exits at once, is rolled back by `cgctl update` (exit 1, "rolled back: v0.2.1 runs again"), the verdict says the state snapshot went back and the old release came back healthy, v0.2.1 runs, the floor stays v0.2.1, the site still serves; the box's own build, floor and snapshots are put back at the end |
+
+### Why the exclusive sections are exclusive
+
+- `wordpress status and drift`: "every WordPress site runs the current connector" reads every site on
+  the box, including ones another lane is provisioning.
+- `wordpress logs`: "nginx reopens the site logs" reads nginx's shared error.log, where `security`'s
+  refused cross-tenant symlink writes "Permission denied".
+- `wordpress slow request`: a 130 s request; a PHP master reload (the site-count reconcile another
+  lane's site creation causes) ends a running request after `process_control_timeout` (30 s since
+  R-5.2, 10 s before), well under 130 s.
+- `wordpress safe push`: the Performance Guard measures response times; other lanes' load is noise.
+- `wordpress backups`: puts a fake `mariadb-dump` on the agent's PATH for one backup, which any
+  database dump elsewhere (staging clone, SQL import rollback point, `wp db export`) would pick up;
+  `R-0.9` also counts every `cgv_` scratch database on the server.
+- `R-4.6 cgctl tokens`: warms the feature site's page cache, which the `wordpress cache` lane's
+  HIT/MISS checks would see.
+- `R-4.3 deploys and backups`: changes the feature site's live release (and, for one safe push,
+  makes production answer 500), and configures its own backup repository, which the scheduler and
+  every other backup section would use.
+- `R-4.6 backup interruption`: puts a throttling `restic` stand-in on the agent's PATH, which every
+  other backup, restore or restore test would pick up, and configures its own backup repository.
+- `firewall`: changes ufw rules while other lanes reach sites through the public address.
+- `R-0.7 reconcile`: counts nginx reloads and PHP master events across the box in a time window.
+- `R-5.2 reload drain`: creates a site and runs the site-count reconcile while 20 s and 60 s requests
+  are in flight, times a request during the reload, and reads its master's reloads from the journal
+  in that window.
+- `R-2.4 services`: restarts nginx. `R-3.9 certificates and panel`: restarts the agent.
+- `R-3.7 site lifecycle`: a create/delete storm; it asserts on the exact set of its vhosts and on
+  processes by uid.
+- `R-3.13 interrupted create`: kills the agent.
+- `R-4.2 job queue`: freezes the agent (SIGSTOP) and restarts the API with a job running.
+- `F8 events`: the admin stream sees every site's events, and a stream through nginx is held open
+  for 65 s while others would publish onto it.
+- `F4b Quarry`: a large export and import measure the agent's memory (RSS) while they run.
+- `R-4.3 accounts`: signs in six times over the API socket, where every e2e client has the same
+  address (`unix`) and the panel allows 30 sign-ins a minute per address; beside the lanes' own
+  sign-ins it could meet that limit. Its attack check times sign-ins too, from addresses of its own
+  (`X-Real-IP`), so it does not add to `unix`'s count.
+- `R-4.3 sign-in review`: times sign-in attempts for one account (other lanes' load would blur the
+  delays) and makes eleven password checks over the API socket, where every client is `unix` and the
+  panel allows 30 a minute per address. It waits 65 s first (a session use is written once a
+  minute), which also lets `R-4.3 accounts`' attempts leave the window.
+- `wordpress teardown`, `woocommerce teardown`: delete fixtures the lanes use.
+- `R-6.5 upgrade`: replaces the installed binaries four times, restarts the agent and the API with
+  each, and puts the box's own build back at the end; it runs last.
+
+## What a section run alone does not reproduce
+
+The verdicts are the same; a few states differ, none of them asserted on by a later section:
+
+- `R-0.7 reconcile` has one "pool unchanged / master reloaded" check per active PHP site, so a full
+  run (with the WooCommerce site alive) has more of them than the section run alone.
+- `wordpress status and drift`'s connector check reads every WordPress site on the box, so it also
+  depends on what else is there (a site left by an aborted run included).
+- In a full run, later feature sections see what earlier ones left on the site: the cron job "echo
+  hi" (`wordpress cache`), the hard-link fixture in the live release (`wordpress staging`),
+  `max_execution_seconds` 300 (`wordpress slow request`), the theme marker the selective push put
+  live (`wordpress safe push`), the restored snapshot (`wordpress backups`). Run alone, a section
+  starts from a fresh feature site.
+- The R-0.7 check that a restart of the API still reconciles waits for the tick that follows a
+  restart (up to 300 s). If the scheduler's own 5-minute tick takes the probe site's count change in
+  the seconds between the probe's provisioning and the restart, there is nothing left to reconcile
+  and the check times out. This was so before the split.
+
+## Former names
+
+Until 2026-10-10 the WordPress feature checks were one section, `wordpress features` (now
+`wordpress cache` … `wordpress teardown`, with `firewall`), and each site type's checks sat under a
+subtest of its own (`site types/static/static provisions`, now `site types/static provisions`).
+`PARITY.md` uses the former paths; the check names are unchanged.

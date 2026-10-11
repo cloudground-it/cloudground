@@ -1,0 +1,20 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "password": "Password",
+      "enable": true
+    },
+    "zero": {
+      "site": "@state.Site",
+      "password": "",
+      "enable": false
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

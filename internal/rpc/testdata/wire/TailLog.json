@@ -1,0 +1,23 @@
+{
+  "params": {
+    "full": {
+      "source": "Source",
+      "site": "Site",
+      "lines": 7
+    },
+    "zero": {
+      "source": "",
+      "lines": 0
+    }
+  },
+  "result": {
+    "full": {
+      "path": "Path",
+      "content": "Content"
+    },
+    "zero": {
+      "path": "",
+      "content": ""
+    }
+  }
+}

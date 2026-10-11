@@ -1,0 +1,18 @@
+{
+  "params": {
+    "full": {
+      "domain": "Domain",
+      "email": "Email"
+    },
+    "zero": {
+      "domain": "",
+      "email": ""
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database"
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "database": "Database",
+      "tables": [
+        {
+          "name": "Name",
+          "rows": 7,
+          "data_bytes": 7,
+          "index_bytes": 7,
+          "engine": "Engine",
+          "collation": "Collation"
+        }
+      ],
+      "truncated": true
+    },
+    "zero": {
+      "database": "",
+      "tables": null
+    }
+  }
+}

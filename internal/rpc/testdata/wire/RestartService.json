@@ -1,0 +1,16 @@
+{
+  "params": {
+    "full": {
+      "name": "Name"
+    },
+    "zero": {
+      "name": ""
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

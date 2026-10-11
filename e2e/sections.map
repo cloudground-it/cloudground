@@ -1,0 +1,229 @@
+# Which e2e sections a change affects: scripts/e2e-affected.sh reads this file.
+#
+#   <glob>  <section>, <section>, ...
+#
+# A changed path takes the sections of the FIRST line whose glob matches it,
+# so a specific line goes above the general one that would also match. In a
+# glob, ** is any number of path elements (also none), * anything but a /, ?
+# one character but a /. ALL is every section, NONE no section. @name stands
+# for a group defined on a line "@name = <section>, ...", above its first use.
+# A path no line matches affects every section.
+#
+# Changes to e2e/*.go do not come here: the script maps each changed line to
+# the function it is in, and that function to the sections that reach it,
+# with e2e/sections.index (generated from the code: make e2e-index).
+#
+# Keep it honest: a line maps a path to the sections that exercise it on the
+# box, not to the ones that are named after it. When unsure, leave the path
+# to the catch-all lines at the bottom (ALL). TestSectionsMap (sections_test.go)
+# checks that every section named here exists and that every section is named
+# by at least one line.
+
+# ------------------------------------------------------------------ groups --
+
+# Every section that sends requests to a hosted site through nginx.
+@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data
+# Every section with a PHP site (its own FPM master, pool and slice).
+@php = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing
+# Every section with a WordPress site (database, wp-cli, the connector).
+@wordpress = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, woocommerce security, woocommerce teardown
+# The object cache and the loopback flush through a site's own FPM pool.
+@objectcache = woocommerce, wordpress cache, wordpress sftp, wordpress backups, migration import
+
+# ------------------------------------------------ not what the suite runs --
+
+docs/**                                NONE
+bench/**                               NONE
+.github/**                             NONE
+scripts/upgrade-bundle.sh              R-6.5 upgrade
+scripts/upgrade-e2e/**                 R-6.5 upgrade
+scripts/**                             NONE
+**/SPEC.md                             NONE
+**/testdata/**                         NONE
+internal/**/*_test.go                  NONE
+cmd/**/*_test.go                       NONE
+internal/agent/host/*_fake.go          NONE
+*.md                                   NONE
+LICENSE                                NONE
+.gitignore                             NONE
+.local/**                              NONE
+# e2e/*.go is mapped through e2e/sections.index before this file is read;
+# the rest of e2e/ (this file, the docs) changes no verdict.
+e2e/**                                 NONE
+
+# ------------------------------------------------------------------- panel --
+
+# The UI the panel serves. No section drives the pages; "firewall" fetches
+# the sign-in page on :8443 (the panel answers, a foreign host name does not
+# get it), which is the only UI smoke the suite has.
+ui/**                                  firewall, F8 events
+
+# ---------------------------------------------------------- the connector --
+
+connector/**                           @wordpress
+
+# --------------------------------------------------------------------- API --
+
+internal/api/maintenance.go            R-0.7 reconcile, wordpress certificates
+internal/api/site_apply.go             R-4.3 site settings, R-4.2 job queue, wordpress slow request, wordpress cache, wordpress sftp
+internal/api/backup_policy.go          R-4.3 site settings
+internal/api/site_settings.go          R-4.3 site settings, wordpress slow request, R-4.7 capabilities, R-4.2 job queue, wordpress cache, wordpress sftp
+internal/api/staging.go                wordpress staging, wordpress safe push, wordpress backups, wordpress teardown
+internal/api/site_certs.go             wordpress certificates, wordpress status and drift
+internal/api/site_databases.go         F9b site databases
+internal/api/site_create_db.go         F9b site creation, F9b site databases
+internal/agent/ops/db/accounts.go      F9b site databases, SR tenant data, wordpress backups
+internal/agent/ops/db/registry.go      F9b site databases, SR tenant data, wordpress backups
+internal/agent/ops/backup/databases.go F9b site databases, wordpress backups, R-4.3 deploys and backups
+internal/api/alert_service.go          wordpress status and drift, R-4.3 proxies and alerts, R-4.3 deploys and backups
+internal/api/backup_service.go         wordpress backups, R-4.3 deploys and backups
+internal/api/backup_routes.go          wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption
+internal/api/backup_retention.go       wordpress backups
+internal/api/panel_settings.go         wordpress backups, R-4.6 backup interruption, R-6.3 release channel, R-10.5 root boundary
+internal/backuprepo/**                 wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, R-10.5 root boundary
+internal/api/connector_purge.go        woocommerce, wordpress cache, migration import, R-4.3 proxies and alerts
+internal/api/cronjobs.go               wordpress cron, wordpress cache
+internal/api/site_database.go          woocommerce security, F9b site databases
+internal/api/deployments.go            wordpress safe push, wordpress releases, R-4.3 deploys and backups, R-4.5 site shell, security
+internal/api/deployflow.go             wordpress safe push, wordpress releases, R-4.3 deploys and backups, R-4.5 site shell, security
+internal/api/site_filemanager.go       security, wordpress staging
+internal/api/sitessh.go                wordpress sftp, R-4.5 site shell, R-4.6 cgctl tokens
+internal/api/routing.go                R-5.4 routing
+internal/api/migration_import.go       migration import
+internal/api/server_routes.go          R-2.4 services, firewall, wordpress logs, security, R-4.7 capabilities, wordpress status and drift, R-0.7 reconcile
+internal/api/drift_service.go          wordpress status and drift, security, R-0.7 reconcile
+internal/api/site_wordpress.go         woocommerce, wordpress cache, wordpress sftp, wordpress backups, migration import, wordpress releases
+internal/api/users.go                  security, R-4.3 accounts
+# The suite never reaches the release feed; it checks the channel it reports.
+internal/api/release_check.go          R-6.3 release channel
+internal/api/studio*.go                F4b Quarry, F9b Quarry service, SR tenant data
+internal/api/site_wptools.go            F4b Quarry, SR tenant data
+internal/api/statement_limit.go        SR tenant data, F4b Quarry, F9b Quarry service, woocommerce security
+internal/api/sites_rollback.go         R-3.13 interrupted create, R-3.7 site lifecycle
+internal/api/apitokens.go              R-4.6 cgctl tokens, security
+internal/api/events/**                 F8 events
+# auth, sites, tasks, the job queue, server, recover: every request and
+# every site.
+internal/api/**                        ALL
+# Every background operation is a job.
+internal/jobs/**                       ALL
+# The per-account delays and queue of attempts, which only parallel attempts for one
+# account exercise (every section signs in, so a queue that blocked every
+# sign-in would stop the run at its first login).
+internal/accounts/attempt.go           R-4.3 sign-in review, R-4.3 accounts, security
+# Sign-in, sessions and the limits: every section signs in.
+internal/accounts/**                   ALL
+internal/throttle/**                   ALL
+
+# ------------------------------------------------------------------- agent --
+
+internal/agent/ops/dbstudio/**         F4b Quarry, F9b Quarry service, SR tenant data
+internal/agent/ops/backup/**           wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, SR tenant data, R-10.5 root boundary, F9b site databases
+internal/agent/ops_backup.go           wordpress backups, R-4.6 backup interruption, R-10.5 root boundary
+internal/agent/host/restic.go          wordpress backups, R-4.6 backup interruption, R-10.5 root boundary
+internal/agent/ops/cache/**            woocommerce, wordpress cache, wordpress backups, migration import
+internal/agent/ops/certs/**            wordpress certificates, wordpress status and drift, R-3.9 certificates and panel
+internal/agent/host/acme.go            wordpress certificates, R-3.9 certificates and panel
+internal/agent/ops_certs_panel.go      wordpress certificates, R-3.9 certificates and panel
+internal/agent/ops/panel/guard.go      R-6.5 upgrade
+internal/agent/ops/panel/snapshot.go   R-6.5 upgrade
+internal/agent/ops/panel/plan.go       R-6.5 upgrade
+internal/agent/ops/panel/selfupdate.go R-6.5 upgrade
+internal/agent/ops/panel/**            R-3.9 certificates and panel, firewall, R-6.5 upgrade
+# Every root file and directory the agent makes outside site trees: the
+# sites' render, certificates, cron, the shell's sshd drop-in, self-update.
+internal/agent/ops/rootfile/**         ALL
+internal/agent/ops/cron/**             wordpress cron, wordpress cache, R-3.7 site lifecycle, R-10.5 root boundary
+internal/agent/ops_cron.go             wordpress cron, wordpress cache, R-3.7 site lifecycle
+internal/agent/host/transient.go       wordpress cron, R-3.7 site lifecycle
+internal/cronjob/**                    wordpress cron, wordpress cache
+internal/agent/ops/db/provision.go     @wordpress, SR tenant data
+# The SQL console and the table list (the database page, the staging push).
+internal/agent/ops/db/console.go       woocommerce security, wordpress backups, SR tenant data
+# The restore test of a dump, and the sweep at agent start.
+internal/agent/ops/db/sweep.go         wordpress backups, woocommerce security, R-3.9 certificates and panel, SR tenant data
+internal/agent/ops/db/**               woocommerce security, wordpress backups, wordpress staging, wordpress safe push, migration import, woocommerce teardown, SR tenant data, F9b site databases
+internal/agent/ops_db.go               woocommerce security, wordpress backups, migration import, SR tenant data, F9b site databases
+internal/agent/dbtools.go              woocommerce security, wordpress backups, migration import
+internal/agent/host/mariadb.go         @wordpress, SR tenant data
+internal/tune/**                       @wordpress, SR tenant data
+internal/agent/ops/files/**            security, wordpress staging, R-10.5 root boundary
+internal/agent/ops/sftp/**             wordpress sftp, R-4.5 site shell, R-10.5 root boundary
+internal/siteshell/**                  R-4.5 site shell, R-10.5 root boundary
+internal/agent/host/accounts_force.go  R-4.5 site shell
+internal/agent/ops_files_sftp.go       wordpress sftp, security, wordpress staging, R-4.5 site shell
+internal/agent/ops/migration/**        migration import
+internal/agent/ops_migration.go        migration import
+internal/agent/ops/staging/**          wordpress staging, wordpress safe push, wordpress backups, wordpress teardown, R-10.5 root boundary
+internal/agent/ops_staging.go          wordpress staging, wordpress safe push, wordpress backups, wordpress teardown
+internal/agent/ops/system/drift.go     wordpress status and drift
+internal/agent/ops/system/firewall.go  firewall
+internal/agent/host/firewall.go        firewall
+internal/agent/ops/system/journal.go   wordpress logs, security
+internal/agent/ops/system/logs.go      wordpress logs, security
+internal/agent/ops/system/services.go  R-2.4 services
+internal/agent/ops_capabilities.go     R-4.7 capabilities, R-4.6 backup interruption
+internal/agent/ops/system/sshd.go      wordpress sftp, security, R-4.5 site shell
+internal/agent/ops/system/status.go    security, R-0.7 reconcile
+internal/agent/ops/wp/login.go         wordpress cache
+internal/agent/ops/wp/warm.go          woocommerce, wordpress cache
+internal/agent/ops/wp/objectcache.go   @objectcache, R-10.5 root boundary
+internal/agent/ops/wp/refresh.go       @objectcache
+internal/agent/ops/wp/loopback.go      @objectcache
+internal/agent/ops/wp/tableprefix.go   migration import
+internal/agent/ops/wp/connector.go     @wordpress, R-10.5 root boundary
+internal/agent/ops/wp/**               @wordpress
+internal/agent/ops_wp.go               @wordpress
+internal/agent/host/wpcli.go           @wordpress
+internal/agent/host/service.go         @wordpress, R-4.5 site shell, R-10.5 root boundary
+internal/agent/host/nginx.go           @serving
+# The agent's RPC server: peer credentials (security), draining on stop
+# (certificates and panel); every call goes through it.
+internal/agentrpc/server.go            ALL
+internal/guard/**                      wordpress safe push
+internal/velocity/**                   @serving, R-10.5 root boundary
+internal/engine/nginx/panel.go         firewall, security, R-3.9 certificates and panel
+internal/engine/nginx/guard.go         R-5.4 routing, R-10.5 root boundary
+internal/engine/**                     @serving
+internal/phpfpm/sandbox.go             @php, R-4.5 site shell, R-10.5 root boundary
+internal/phpfpm/**                     @php
+internal/sysprobe/**                   @php
+
+internal/agent/ops/sites/routing.go    R-5.4 routing
+internal/agent/ops/sites/reach.go      R-5.4 routing, R-10.5 root boundary
+# Site creation and deletion, rendering, releases, accounts, systemd units,
+# confined file access, the state store, the RPC types, the entrypoints:
+# every section makes or uses a site through them.
+internal/agent/ops/sites/**            ALL
+internal/agent/ops/release/**          ALL
+internal/agent/host/**                 ALL
+internal/agent/sitefs/**               ALL
+internal/agent/**                      ALL
+internal/agentrpc/limit.go             R-10.5 agent limits
+internal/agentrpc/**                   ALL
+internal/rpc/**                        ALL
+internal/state/**                      ALL
+internal/site/**                       ALL
+internal/version/**                    ALL
+# The installer: cgctl install/doctor and what they set up, with the
+# systemd units every release carries.
+cmd/cgctl/install.go                   R-6.1 installer
+internal/install/**                    ALL
+internal/units/**                      ALL
+installer/**                           ALL
+# cgctl: the token section drives the installed binary, the release
+# channel section its release verification.
+cmd/cgctl/release.go                   R-6.3 release channel
+cmd/cgctl/update.go                    R-6.5 upgrade
+cmd/cgctl/statepeek.go                 R-6.5 upgrade
+# The uninstall cannot run on the box the suite runs on: its check is the
+# container run (make docker-install-test).
+cmd/cgctl/uninstall.go                 NONE
+cmd/cgctl/sitecreate.go                F9b site creation
+cmd/cgctl/**                           R-4.6 cgctl tokens
+cmd/cg-site-shell/**                   R-4.5 site shell, R-10.5 root boundary
+cmd/**                                 ALL
+internal/config/**                     ALL
+go.mod                                 ALL
+go.sum                                 ALL
+Makefile                               ALL

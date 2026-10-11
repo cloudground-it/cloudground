@@ -1,0 +1,1917 @@
+# internal/api — behaviour spec
+
+The panel's HTTP control plane. This file specifies the parts of the package
+that every route shares. The event stream has its own spec
+(`events/SPEC.md`).
+
+## 1. Router (R-4.1)
+
+Every route the panel serves is one row of a single table (`routes.go`,
+`Server.routeTable`). A row declares everything the router enforces before
+the handler runs. Nothing registers a route outside the table: `Routes` and
+`ConnectorRoutes` build their muxes only by walking it, and `Routes` panics
+on a row without a policy, a handler or a valid loader.
+
+### 1.1 A row
+
+| Field | Meaning |
+| --- | --- |
+| `Method`, `Path` | a Go 1.22 `ServeMux` pattern. `Method` empty means any method (only the UI's catch-all `/`). |
+| `Query` | the query parameters docs/api.md shows after the path (documentation only). |
+| `Policy` | who may call it (§1.3). There is no default: the zero value is invalid. |
+| `Load` | the resource loader (§1.4): what `{id}` names, loaded once and checked against the caller. |
+| `Body` | how a state-changing request's body may be typed (§1.5). |
+| `MaxBody` | the most bytes of request body the handler can read; 0 is the default, 4 MiB. |
+| `Enrol` | the route stays open to an admin the 2FA requirement holds back (§1.3). |
+| `SessionOnly` | a signed-in session only: a request authenticated with an API token gets 403 (§1.2 step 6). Only on a row whose policy signs the caller in. |
+| `SameOriginRead` | a read (GET) is refused from another origin too, as writes are (§1.5). |
+| `Loopback` | also served on the plaintext loopback listener (§1.8). |
+| `Section`, `Doc` | where `docs/api.md` lists it and what it says (§1.9). |
+| `Handle` | `func(w, r, *call)`. |
+
+A handler receives a `*call`: the signed-in `User` (zero on `open` and
+`token` routes), the API `Token` it authenticated with (zero for a session
+cookie; `c.Actor()` then names it: `email (API token "name" #id)`), and what
+the loader found (`Site`, and `Backup`,
+`Deployment` or `Cron` for routes on those). Handlers do not read the
+session cookie, parse `{id}` or check site assignments themselves; the one
+exception is `GET /api/session` and the event stream, which read their own
+session by design (the first must answer `null` rather than 401, the second
+re-reads it for as long as it streams).
+
+### 1.2 Pipeline
+
+For every request, in this order; the first step that refuses answers.
+
+1. Common headers on every response, matched or not: `X-Content-Type-Options:
+   nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`,
+   `Cross-Origin-Opener-Policy: same-origin`, `Permissions-Policy: camera=(),
+   microphone=(), geolocation=(), payment=()`, and the CSP (§1.10).
+2. The mux picks the row. Because `/` matches every method and path, a
+   request that matches no API row is the UI's (§1.10), never a 404/405 from
+   the mux.
+3. Body limit: the body is wrapped in `http.MaxBytesReader` at the row's
+   `MaxBody`. A handler reading past it gets an error; JSON decoding then
+   answers 400 `malformed request`, a raw upload 413.
+4. Cross-site checks (§1.5): 403 or 415.
+5. Authentication, for every policy but `open` and `token`
+   (`authenticate`). A request with `Authorization: Bearer cgt_…` is judged by
+   that API token alone, never by a cookie it also carries: a token that is
+   unknown, expired or revoked, or whose owner is not an enabled admin →
+   **401** `invalid or revoked API token`. Any other `Authorization` header (a
+   bearer that is not `cgt_`, another scheme such as a proxy's Basic auth) is
+   ignored. Without a token: no session cookie, or one that names no live
+   session of an enabled account → **401** `authentication required`.
+6. Session only: a token-authenticated request to a `SessionOnly` row →
+   **403** `this needs a signed-in session: an API token cannot manage
+   accounts, users, tokens, site shells or the panel itself`. The rows: `POST
+   /api/logout`, every `/api/account/*` route, `POST /api/users`, `PUT` and
+   `DELETE /api/users/{id}`, `POST /api/users/{id}/password`, the three
+   `/api/tokens` routes, `POST /api/sites/{id}/ssh-shell` (R-4.5), `GET` and
+   `PUT /api/sites/{id}/routing` (R-5.4), and the panel's own governance:
+   `POST /api/firewall/rule`, `POST /api/panel/certificate` and `POST
+   /api/panel/update`. So a leaked token cannot mint another, create an
+   admin, reset a password, open a site's shell, open the firewall or
+   replace the panel's binary. `PUT /api/settings` is an `admin` row a token
+   reaches, and its handler refuses a token any change but to `acme_email`
+   and `probe_target` (§12). `POST /api/sites/{id}/ssh-keys` is a `manage` row
+   (an operator adds SFTP keys to its sites), and its handler refuses a key
+   with `"access": "shell"` with **403** `only an administrator, signed in
+   with a session, can add a shell key` to anyone but an admin's session:
+   a shell key is a shell for whoever holds it.
+7. Second factor (S-C9): when `require_2fa_admin` is on, an `admin` account
+   without TOTP is refused on every row except those marked `Enrol`
+   (`POST /api/logout`, `GET /api/account/sessions`, the enrolment page's one read, `POST /api/account/2fa/begin`, `POST
+   /api/account/2fa/confirm`) → **403** `two-factor authentication is required
+   for admin accounts: enrol in Security before continuing`. An unreadable
+   setting counts as on (fail closed). Only admins are held; the check comes
+   before the role check, so it applies to every policy, and to a token
+   exactly as to the session of its owner.
+8. Policy (§1.3) → **403** with the policy's message.
+9. Loader (§1.4).
+10. The handler.
+
+### 1.2.1 What an API token is (threat model)
+
+An API token is its admin **without a second factor**: whoever holds the
+`cgt_` string acts as that admin until it expires or is revoked, from
+anywhere, with no sign-in limit, no delay and no 2FA prompt in the way
+(a token is checked only against the hash of its secret). It is meant for
+scripts and `cgctl` automating **sites**: creating and changing them,
+deploying, backing up and restoring, purging, cron jobs, reading the
+server's state.
+
+What a token can still do is therefore what such a script needs, and is
+a lot: everything an admin can do to a site, which includes code that runs
+on the server as the site's user (a deployment, a cron job, a PHP file
+through the file manager), a database import, and a restore. It can also
+run maintenance, restart services and restore drifted files (the panel's
+own render put back). Revoke a token you do
+not need; give it the shortest expiry that works.
+
+What it **cannot** do, because each would turn one leaked string into the
+panel itself (§1.2 step 6):
+
+| Without a session | Why |
+| --- | --- |
+| accounts, users, tokens, sessions, 2FA | it would mint another token or a new admin and outlive its own revocation |
+| a site's shell and routing | a shell is a login on the server; the routing block is nginx configuration |
+| `require_2fa_admin` | it would take the second factor away from every admin |
+| `backup_repository`, `backup_password`, the S3 keys and region | it would send every backup, with the key that opens it, to a store of its choosing |
+| `notify_webhook` | it would receive every alert |
+| `cloudflare_api_token` | it is the DNS credential of the panel's certificates |
+| `update_channel`, `update_check`, `POST /api/panel/update` | it would choose what the panel runs |
+| `POST /api/firewall/rule` | it would open the server's ports |
+| `POST /api/panel/certificate` | it would choose the certificate admins trust |
+| drift `accept` (`POST /api/system/drift/{id}/resolve`) | it would make a managed file it changed itself the expected one, so drift stops reporting it |
+
+Before this list (R-4.3 review) a token could do every one of the last seven.
+
+### 1.3 Policies
+
+| Policy | Docs marker | Allowed | Refused with |
+| --- | --- | --- | --- |
+| `open` | open | anyone | — |
+| `token` | site token | the handler authenticates a per-site bearer token itself | — (the connector's own 401/429) |
+| `signedIn` | auth | every signed-in account | 401 only |
+| `global` | global | `admin`, `readonly` (server-wide data; never an operator, whose view is its own sites) | 403 `server-wide access required` |
+| `manage` | manage | `admin`, `operator` (an operator only on its assigned sites, §1.4) | 403 `site management access required` |
+| `admin` | admin | `admin` | 403 `this is a read-only account` to a read-only account; to an operator `only administrators can <what>`, the row's `AdminOnly` (`create sites` on `POST /api/sites`), else `do this` (it used to be told its account is read-only) |
+| `studio` | dbstudio | a Quarry session (§6.4), never a panel session or an API token | 401 `sign in to Quarry` |
+| `studioData` | dbstudio data | a Quarry session that may read the rows: a signed-in database user's, or one opened from the panel by an `admin` or `operator` | 401 as `studio`; 403 `this is a read-only account: Quarry shows it the tables and their structure, not their rows` |
+
+`global` admits every role but `operator`; `manage` and `admin` admit only
+the roles they name. Every account has one of the three roles. The two DB
+Studio policies replace steps 5–8 of §1.2 with Quarry's own (§6.4,
+`studioCall`): its session from its cookie, the session's site (a site gone
+ends the session), and for a session opened from the panel the panel
+session it came from, the account's reach, the 2FA requirement and, on
+`studioData`, its role. Such a row takes no loader; its handler gets the
+session in `call.Studio` and the site in `call.Site`.
+
+### 1.4 Loaders
+
+The loader runs after the policy, so a refused caller learns nothing about
+the resource.
+
+| Loader | `{id}` names | Bad `{id}` | Missing, or out of an operator's reach | Store failure |
+| --- | --- | --- | --- | --- |
+| `loadNone` | — | — | — | — |
+| `loadSite` | a site | 400 `invalid id` | 404 `site not found` | 500 `could not read the site` |
+| `loadBackup` | a backup, and its site | 400 `invalid id` | 404 `backup not found` | 500 `could not read the backup` |
+| `loadDeployment` | a release, and its site | 400 `invalid id` | 404 `deployment not found` | 500 `could not read the deployment` |
+| `loadCron` | a cron job, and its site | 400 `invalid id` | 404 `cron job not found` | 500 `could not read the cron job` |
+
+"Out of reach": an `operator` may reach a site it is assigned, or the staging
+copy of one (`Store.UserCanAccessSite`). Other roles reach every site. A
+site out of reach answers **404, not 403**, so the API does not confirm that
+it exists. Rows whose `{id}` is not one of these (users, sessions, drift
+events, alerts, tasks) parse it in the handler.
+
+### 1.5 Cross-site requests (S-H4)
+
+`SameSite=Strict` does not stop a sibling subdomain (every hosted site can be
+one, and the panel creates `staging.<domain>` itself), so state-changing
+requests carry their own proof:
+
+- Methods `GET`, `HEAD`, `OPTIONS` are reads and pass, unless the row says
+  `SameOriginRead` (the event stream), which then gets the next check too.
+- `Sec-Fetch-Site`, when sent, must be `same-origin` or `none` → else 403
+  `cross-site request refused`.
+- `Origin`, when sent, must parse, must not be `null`, and its host must equal
+  the request's `Host` (case-insensitive) → else 403 `cross-origin request
+  refused`.
+- Writes only: the `Content-Type` media type must be `application/json`; a row
+  with `Body: bodyUpload` also takes `application/octet-stream` → else 415
+  `requests must be sent as application/json`. A `DELETE` without a body
+  (`Content-Length` 0 or unknown -1) needs no type.
+- `token` rows are exempt: they carry no cookie, so there is nothing to forge.
+
+Non-browser clients (cgctl, curl) send neither header and are unaffected.
+
+### 1.6 Body limits
+
+Default 4 MiB. Rows that differ: setup, sign-in, every route that takes a
+password (change, 2FA enrolment and disable, user creation, password reset)
+and the profile (8 KiB), a custom certificate (256 KiB), a Quarry edit batch
+(16 MiB), a file upload (16 MiB), a Quarry upload chunk (8 MiB).
+
+### 1.7 Errors
+
+One function maps an error to a status and a message a browser may see
+(`errorReply`):
+
+| Error | Status | Message |
+| --- | --- | --- |
+| agent `invalid` | 400 | the agent error's message |
+| agent `not_found` | 404 | 〃 |
+| agent `conflict` | 409 | 〃 |
+| agent `timeout` | 504 | 〃 |
+| agent `unavailable` | 503 | 〃 |
+| other agent codes (`internal`, `unauthorized`, `canceled`) | the caller's default, 502 when none | 〃 |
+| `state.ErrNotFound` | 404 | the caller's fallback |
+| `*http.MaxBytesError` | 413 | `request body too large` |
+| anything else | the caller's default, 502 when none | the caller's fallback |
+
+A caller may prefix the message (`repository not reachable: …`). The agent
+error's detail, which can name commands and host paths, never reaches the
+response. Neither does the text of a failure of the panel's own (its
+database: a table, a column, a constraint, SQLite's wording): a handler
+answers it **500** with a fixed message, `the panel could not complete the
+request` or one naming what failed (`could not start a session`, `could not
+end the session`, `could not revoke the session`, `could not read the site`,
+`could not read the backup settings`), and writes the error to the journal
+(`internalError`). `TestStoreFailuresDoNotReachTheBrowser` walks the handlers
+with a broken table each. Every error body is `{"error": "..."}`.
+
+### 1.8 Loopback listener
+
+`ConnectorRoutes` serves only the rows marked `Loopback`: `POST
+/api/connector/purge` and `GET /healthz`, with the common headers. The full
+API and the UI are served only over the TLS listener.
+
+### 1.9 docs/api.md
+
+`docs/api.md` is generated from the table and the prose template
+`apidoc.md.tmpl`: `go generate ./internal/api` (or `make api-doc` /
+`make docker-api-doc`). Every row with a `Section` appears in that section's
+table with its method, path, the policy's docs marker and its `Doc`.
+`TestAPIDocIsCurrent` fails when the committed file differs from what the
+generator writes, and the generator fails on a row whose section the template
+does not place.
+
+### 1.10 UI and CSP
+
+A path under `/api/` that no row matches answers 404 `no such API route:
+<method> <path>` (R-8.2: a script still calling a removed route must not
+get the app's page with 200). Every other path no row matches serves the
+embedded single-page app: a regular
+file when one exists at that path, else `index.html`. Content-hashed assets
+(`_nuxt/`, `_fonts/`) are cached for a year, `immutable`; everything else is
+`no-cache`. Without an embedded UI the answer is 404 `ui not embedded`.
+
+The CSP allows scripts from the panel and, by SHA-256, each inline script of
+the UI's `index.html` that a browser executes (not a JSON data block).
+
+### 1.11 Tests
+
+- `TestEveryRouteEnforcesItsPolicy` (authz_test.go): every registered pattern
+  against a hand-written policy map, through the real router, for anonymous,
+  read-only, operator and admin.
+- `TestStudioRouteMatrix` (studio_routes_test.go): every Quarry row for a
+  request with no session, with a panel session only, and with a Quarry
+  session of a database user, of an admin and of a read-only account
+  opened from the panel; and every panel row for a Quarry session alone
+  (401).
+- `TestRouteTableMatrix` (router_test.go): walks the table itself; for every
+  row and every role (anonymous, readonly, operator on its own site, operator
+  on another site, admin, admin held by the 2FA requirement) it checks that an
+  allowed caller is not refused with 401/403 by the router and a refused one
+  gets exactly the denial in §1.2–1.4.
+- `TestRouteTableIsWellFormed`: every row is valid and documented; every path
+  under `/api/sites/{id}`, `/api/backups/{id}`, `/api/deployments/{id}` and
+  `/api/cron/{id}` has the matching loader (a missing one would hand the
+  handler a zero site, unchecked); exactly the four enrolment routes are
+  `Enrol`; exactly the connector and the probe are `Loopback`; exactly the
+  routes of the hand-written `sessionOnly` list are `SessionOnly`.
+- `TestTokensRefusedOnSessionOnlyRoutes` (apitokens_test.go): an API token
+  gets 403 on each of those routes, and the session reaches them.
+- `TestRoutesComeOnlyFromTheTable`: the patterns registered on the mux are
+  exactly the table's, in order; no non-test file of the package but
+  `router.go` calls `Handle`, `HandleFunc` or `NewServeMux`; the loopback
+  listener answers 404/405 for every other row.
+- `TestRouteTableCrossSiteRules`: every write row (but the token one) refuses
+  a foreign `Sec-Fetch-Site` or `Origin` with 403 and a non-JSON body with 415,
+  takes `application/octet-stream` exactly where it says `bodyUpload`; the
+  event stream refuses a cross-site read.
+- `TestRouteBodyLimits`, `TestErrorReply`, `TestAPIDocIsCurrent`.
+
+## 2. Accounts (R-4.3)
+
+Sign-in, sessions, second factors, users and host recovery. The rules live
+in package `internal/accounts` (`accounts.Service`), plain Go over the store,
+tested without HTTP. The handlers (`accounts.go`, `users.go`) decode the
+request, call one service method and answer. A refusal is an
+`*accounts.Error`: a kind and the message the caller sees. Kinds map to
+statuses one to one:
+
+| Kind | Status |
+| --- | --- |
+| `Invalid` | 400 |
+| `Unauthorized` | 401 |
+| `Forbidden` | 403 |
+| `NotFound` | 404 |
+| `Conflict` | 409 |
+| `Throttled` | 429 |
+| any other error (the store failed) | 500 `the panel could not complete the request`; the error's text only in the journal |
+
+A body the decoder refuses (bad JSON, an unknown field, over the row's
+`MaxBody`) is **400** `malformed request` on every route here. Error bodies
+are `{"error": "..."}`; a sign-in refusal about the second factor adds
+`"totp_required": true`.
+
+### 2.1 Accounts and their fields
+
+Roles: `admin`, `operator`, `readonly` (§1.3). An account has an e-mail (its
+sign-in name, unique), an argon2id password, a first and last name, an
+interface locale, a disabled flag, a two-factor state and, for an operator,
+its assigned sites.
+
+- **E-mail.** One normaliser for setup, user creation and host recovery. The
+  value is trimmed. It must parse as a bare address identical to itself: no
+  display name, no angle brackets, no comment. At most 254 bytes. It is
+  stored lowercased. Otherwise: `invalid email: give a bare address such as
+  name@example.com`. Sign-in trims and lowercases what it gets.
+- **Password.** A new password has 12 to 1024 bytes, else `password must be
+  12 to 1024 characters`. Hash: argon2id with time 3, 64 MiB, 2 lanes, a
+  32-byte key and a 16-byte random salt, stored as `argon2id$<salt>$<key>`
+  (standard base64 without padding). **At most two argon2 computations run at
+  once** per process: each takes 64 MiB, and sign-in needs no account. At most
+  32 more requests wait for a slot, each for at most 20 seconds and only while
+  the request lasts; past either, the answer is **503** `the panel is busy
+  checking other passwords — try again in a few seconds` with `Retry-After:
+  5` (sign-in, setup, the account's own changes, user creation and reset). A
+  password over 1024 bytes is never hashed.
+- **Names.** Trimmed, at most 64 bytes, no control characters, else `invalid
+  name`.
+- **Locale.** One of `it, en, fr, es, de`, else `locale must be one of it,
+  en, fr, es, de`. Empty means not chosen: the UI follows the browser.
+- **At least one enabled admin.** Demoting, disabling or deleting the last
+  enabled admin is refused by the store, inside the transaction that would
+  do it (`state.ErrLastAdmin`) → **400** `the panel needs at least one
+  enabled administrator`. Disabled admins do not count.
+
+### 2.2 Sessions
+
+- A session is a random 32-byte token (URL-safe base64) in a cookie; the
+  store keeps its SHA-256 only. Cookie name `__Host-cloudground_session`,
+  `Secure`; with insecure cookies (plain-HTTP development) `cloudground_session`
+  without `Secure`. Always `Path=/`, `HttpOnly`, `SameSite=Strict`,
+  `Max-Age=86400`.
+- It lasts 24 hours at most, and **ends after 2 hours unused**. A use is
+  written at most once a minute. Only what the person does is a use, so an
+  open tab alone does not keep the session alive:
+  - the event stream re-checks its session without counting a use;
+  - a request carrying `X-CG-Background: 1` is authenticated exactly as any
+    other (an idle or expired session is refused and deleted) but is not a
+    use. The UI sends it on every request it makes on its own: `useLive`'s
+    refetches after an event or a resync and its timer (the safety and
+    fallback polls), the site page's reloads after an event and its interval,
+    the task list (`useTasks`). A page's first load and a refresh after an
+    action are uses. `GET /api/session` honours the header too. The header
+    only ever shortens a session's life, so nothing checks who sent it.
+- Presented expired, idle, or of a disabled account, the session is deleted
+  and counts as none. Every sign-in (a session started: setup, sign-in, a
+  password change) also deletes every other expired or idle session in the
+  store, so dead sessions do not pile up.
+- **At most 20 sessions per account.** Starting the 21st ends the account's
+  oldest (by when they started).
+- It records the browser's User-Agent (first 400 bytes) and the client
+  address (§2.7) it signed in from.
+- **What ends sessions.** A password change or reset ends all of the
+  account's sessions; a change from Security then opens a fresh one for the
+  device that made it. Turning 2FA on or off ends the *other* sessions.
+  Disabling the account ends all. Deleting it deletes them.
+- **What revokes API tokens** (`apitokens.go`): a password change or reset,
+  turning 2FA off, disabling, demotion from admin, deletion, host recovery.
+
+### 2.3 Setup and sign-in
+
+`GET /api/bootstrap` → 200 `{"setup_complete": <any account exists>}`.
+
+`POST /api/setup` `{email, password, token}`:
+1. any account exists → **409** `setup already complete`;
+2. the e-mail, then the password (§2.1) → **400**. Both are checked before
+   the token is spent, so a typo does not burn it;
+3. the one-time token (stored as SHA-256, with an expiry, consumed in one
+   atomic write so two requests cannot both pass) → **403** `invalid or
+   expired setup token`. `panel-api` mints one at every start while no
+   account exists, valid 24 hours, and printing a new one invalidates every
+   earlier one: only the newest link works;
+4. the first `admin` is created, `setup.complete` audited, a session started
+   → **201** with the account.
+
+`POST /api/login` `{email, password, totp?}`, in this order:
+1. an e-mail over 254 or a password over 1024 bytes → **400** `malformed
+   request`, before any hashing;
+2. **limits (S-H2):** 30 password checks a minute per client network (§2.7:
+   an IPv4 address, an IPv6 /64), whatever e-mail they name, 120 a minute per
+   IPv6 /48, and 8 sign-ins a minute per network and e-mail → **429** `too
+   many attempts — wait a minute and try again`. The network and /48 windows
+   also count the password checks of §2.4. They are counted in that order; a
+   request one refuses does not count for the next. The /48 bound keeps the
+   65,536 /64s of one allocation from taking the whole argon2 queue (§2.1)
+   between them;
+3. **the account's delay, then one check at a time (S-H3):** attempts naming
+   one e-mail (trimmed and lowercased, known or not), here and on the routes
+   of §2.4, first wait out the e-mail's failures, then are checked one at a
+   time.
+   - *Failures* are wrong passwords and wrong codes (step 5, step 7, §2.4)
+     counted over 15 minutes twice: per e-mail and client network (§2.7; an
+     IPv6 address also per e-mail and /48), and per e-mail from anywhere. A
+     key keeps at most 32 (the delays stop growing well before), and a key
+     with none in the 15 minutes is forgotten.
+   - *The delay* (`throttle.Delays`, the schedules `accounts.NetworkDelay`
+     and `accounts.NameDelay`): from the fifth failure 1 s, then 2 s, 4 s …,
+     at most **60 s** counting the failures of the attempt's own network (or
+     /48), at most **2 s** counting those from anywhere; the attempt waits
+     the longer of the two. Each count includes the attempts on the same
+     key still in flight, so parallel guesses each wait their own, growing,
+     delay instead of sharing one.
+   - *Spaced per network (S-H3 review):* on the network's (and /48's) key
+     an attempt's delay runs from when the attempt before it on that key
+     starts its check, not from its own arrival, so parallel guesses from
+     one network are no faster than sequential ones (five failures on
+     record: four at once start after 1, 3, 7 and 15 s). One whose wait
+     would pass 60 s → **429** `too many attempts for this account at
+     once — wait a moment and try again` at once, counting no failure and
+     holding nothing; with the delay at its minute, one network (or /48,
+     whatever /64s it uses) gets one guess a minute at an e-mail. The
+     e-mail's own delay from anywhere is not spaced: it stays at most 2 s
+     whatever other networks do, and never refuses.
+   - The wait comes **first and holds nothing** but the request itself: no
+     place in the e-mail's queue. Then the attempt queues for the e-mail's
+     check, which is evaluated one at a time, in arrival order; at most 4
+     attempts *from one network* may be queued for an e-mail (the one being
+     checked and those waiting), one more from that network → **429** `too
+     many attempts for this account at once — wait a moment and try again`.
+     Another network's attempt is never refused for that backlog: it waits
+     at most for the checks already queued.
+   - So someone failing an e-mail from one network makes their own network
+     wait up to a minute per attempt, parallel or not, and the owner signing in from
+     elsewhere waits at most 2 s plus the checks queued ahead (at most 4
+     per network that has attempts in flight). It is a delay, never a lock.
+     The cost is that guesses from many networks are each delayed by their
+     own network's failures only: their total rate is one a minute per
+     network (and /48) at the e-mail, and the argon2 queue (§2.1), not per
+     e-mail. Behind one address
+     (a shared NAT, an IPv6 /48) an attacker and the owner share a network's
+     delay.
+   - The delay is the same for an unknown e-mail, an account without 2FA
+     and one with it: the wait and the answers that follow say nothing
+     about the account. A request that goes away while it waits, delayed or
+     queued, ends there and counts as no failure. What the delays and the
+     queue hold is bounded by the requests in flight and the failures of
+     the last 15 minutes;
+4. no such e-mail: the password is checked against a fixed dummy hash, so it
+   takes as long as a wrong one; a failure is counted; `login.failed` audited
+   (actor the e-mail with control characters replaced by `?`, subject
+   `panel`, detail the address) → **401** `invalid credentials`;
+5. wrong password: a failure counted, `login.failed` → **401** `invalid
+   credentials`;
+6. a disabled account, refused only now so the answer does not say which
+   addresses exist: `login.disabled` → **403** `this account is disabled — ask
+   an administrator`;
+7. second factor, when enrolled, reached only with the right password:
+   - the account's code cap reached (below) → **429** `too many wrong
+     two-factor codes for this account — try again in an hour`, whatever the
+     code;
+   - no code → **401** `two-factor code required` (not a failure);
+   - a wrong code → a failure counted, one towards the cap,
+     `login.totp_failed`, **401** `invalid two-factor code`;
+   - a code whose time step is not after the last one accepted for this
+     account → `login.totp_replay`, **401** `that two-factor code has already
+     been used — wait for the next one`;
+   - all four carry `"totp_required": true`. A secret that cannot be read
+     (no key, a damaged row) → **500**: a second factor that cannot be checked
+     lets nobody in;
+   - **code cap:** 10 wrong codes for one account within an hour, at sign-in,
+     enrolment and disabling, from anywhere. At the cap no code is checked for
+     the account (429 here, on enrolment and on disabling) until the hour has
+     passed since the earliest of them; a success does not clear it. The
+     tenth is audited `login.2fa_brute` (actor the e-mail, detail the last
+     address);
+8. success: the pair's count, the e-mail's failures from anywhere and those
+   of this network (and /48) are cleared; another network's failures, and
+   the code cap, are not (an attacker's network keeps its delay when the
+   owner signs in from elsewhere). `login.success` audited, a session
+   started → **200** with the account.
+
+What the answers tell. Before the password is right they are the same for
+every e-mail: 401 `invalid credentials`, after the same delay. With the right
+password, an account with 2FA answers 401 `two-factor code required`: the UI
+must know to ask for a code. That confirms the password to whoever guessed
+it, which the delay (password guesses) and the code cap (code guesses, after
+it) make acceptable. A disabled account answers 403 only with the right
+password.
+
+`POST /api/logout` deletes the session and expires the cookie → 200
+`{"status": "logged out"}`. A session that cannot be deleted → **500**
+`could not end the session`: "logged out" with the session still working
+would be worse.
+
+`GET /api/session` → 200 `{"user": <account>}` for a live session, otherwise
+`{"user": null}`, never 401 (it is the UI's first request). An admin held by
+the 2FA requirement is reported signed in; the router keeps it to the
+enrolment routes (§1.2 step 7). With a user the answer also carries
+`enrol_required` (whether the requirement holds it back): the UI then keeps
+it on the Security page, showing the 2FA enrolment and the session list and
+hiding the profile, password and API token sections, which answer 403 until
+it enrols (they used to be shown and fail).
+
+### 2.4 The caller's own account (`/api/account/*`, sessions only)
+
+Every check of the account's password or current code here goes through
+§2.3 steps 2 and 3: the per-network and /48 limits (not the per-pair one),
+the delay of the account's failures, then its turn, and a wrong password or
+code is one. A right password here clears nothing. The turn is held until
+the route has answered. A wrong current code also counts towards the code
+cap, and at the cap these routes answer **429** `too many wrong two-factor
+codes for this account — try again in an hour` instead of checking one.
+
+- `POST /api/account/password` `{current_password, new_password}`: a wrong
+  current password (or one over 1024 bytes) → **403** `current password is
+  incorrect`; a new one out of bounds → **400** `new password must be 12 to
+  1024 characters`. Success ends every session and API token of the account,
+  audits `password.change`, starts a fresh session → 200 `{"status":
+  "password changed"}`.
+- `POST /api/account/2fa/begin` `{password, code?}`: a wrong password → **403**
+  `password is incorrect`. With 2FA already on, a current code is needed too,
+  and is spent → otherwise **403** `enter a code from your current
+  authenticator to replace it` (a failure, and one towards the cap, as when
+  disabling). A new random 20-byte secret (base32, no
+  padding) becomes the *pending* secret, beside the active one, which keeps
+  working: starting an enrolment never turns 2FA off → 200 `{"secret", "uri",
+  "qr_data"}`: the secret, its `otpauth://totp/CloudGround:<email>?…` URI
+  (issuer `CloudGround`, SHA1, 6 digits, period 30) and a 256-pixel PNG QR
+  code of the URI as a data URI.
+- `POST /api/account/2fa/confirm` `{code}`: no pending secret → **400** `start
+  enrollment first`; a code that does not match it → **400** `code did not
+  match — check your device clock`. Success makes the pending secret the
+  active one, sets the replay watermark to the confirming code's step (that code is spent: it used to sign in once more, the watermark being reset to 0), ends the other sessions, audits
+  `2fa.enabled` → 200 `{"status": "two-factor enabled"}`. The secret switched
+  on is exactly the one the code was checked against: when another enrolment
+  replaced it in between, **409** `another enrolment was started meanwhile:
+  confirm with a code from the newest secret`, and 2FA stays as it was.
+- `POST /api/account/2fa/disable` `{password, code}`: a wrong password →
+  **403** `password is incorrect`; 2FA on and no fresh current code → a
+  failure counted (and, for a wrong one, one towards the cap), **403** `enter a code from your authenticator to turn it
+  off`. Success removes both secrets, ends the other sessions and every API
+  token, audits `2fa.disabled` → 200 `{"status": "two-factor disabled"}`.
+- `GET /api/account/sessions` → 200, newest first, the account's sessions
+  that still work (neither expired nor idle past the 2 hours): `id` (the first 12 hex digits of the token's hash), `current` (the
+  caller's), `created_at`, `expires_at`, `last_seen`, `browser` and `os`
+  (coarse names from the User-Agent: Edge, Opera, Firefox, Chrome, Safari,
+  curl; iOS, Android, macOS, Windows, Linux), `ip`.
+- `DELETE /api/account/sessions/{id}` ends the first of the account's
+  sessions whose hash starts with `{id}`, audits `session.revoke` → 200
+  `{"status": "revoked"}`; none matches → **404** `session not found`.
+- `PUT /api/account/profile` `{first_name?, last_name?, locale?}`: a field
+  left out is left alone → 200 with the account.
+
+**Codes.** RFC 6238, HMAC-SHA1, 6 digits, 30-second steps; a code of the
+current step or one step either side is accepted. Where a code is spent
+(sign-in, enrolment while 2FA is on, disabling) its step is recorded, and
+only a later step is accepted again for the account. The record only moves
+forward, so two requests with one code cannot both pass.
+
+**Where the secrets are.** The active and the pending secret live in the
+encrypted secret store (`internal/state/SPEC.md`, invariant 1), never in the
+`users` table.
+
+### 2.5 Users (admin, sessions only; the list is `global`)
+
+- `GET /api/users` → 200, every account by id, with `site_ids` for operators;
+  never a hash or a secret.
+- `POST /api/users` `{email, password, role, site_ids?, first_name?,
+  last_name?}`: the e-mail and the password (§2.1) → 400; no role → **400**
+  `role required: admin, operator or readonly`; another role → **400**
+  `unknown role "<role>": use admin, operator or readonly` (never a default: a
+  typo used to make an admin); an operator without sites → **400** `assign at
+  least one site to an operator`; a bad name → 400; the e-mail taken → **409**
+  `a user with this email already exists`; a site that does not exist →
+  **400** `invalid site assignment`, and no account is left behind. Audits
+  `user.create` (subject the e-mail, detail the role) → **201** with the
+  account.
+- `PUT /api/users/{id}` `{first_name, last_name, role, disabled, site_ids}`,
+  the whole account: a bad id → 400 `invalid id`; a role not one of the three
+  → **400** `unknown role: use admin, operator or readonly`; an operator
+  without sites → 400; a bad name → 400; no such account → **404** `user not
+  found`; the caller's own account with another role or `disabled` → **400**
+  `you cannot change your own role or disable your own account`; the admin
+  rule → 400; a site that does not exist → **400** `invalid site assignment`.
+  Role, disabled flag, names and sites change in **one transaction**, so a
+  refused change changes nothing. Sites are kept for an operator only.
+  Disabling ends the account's sessions; disabling or demoting revokes its
+  API tokens. Audits `user.update` (detail the role, then `, disabled` when
+  it is) → 200 with the account.
+- `POST /api/users/{id}/password` `{password}`: a bad id → 400; out of bounds
+  → 400; the caller's own id → **400** `change your own password from
+  Security`; no such account → **404** `user not found`. Ends its sessions and
+  tokens, audits `user.password_reset` (subject the id) → 200 `{"status":
+  "password reset"}`.
+- `DELETE /api/users/{id}`: a bad id → 400; the caller's own → **400** `you
+  cannot delete your own account`; the admin rule → 400; none → **404** `user
+  not found`. Its sessions, tokens, site assignments and 2FA secrets go with
+  it. Audits `user.delete` (subject the deleted e-mail) → 200 `{"status":
+  "deleted"}`.
+
+### 2.6 Host recovery (`panel-api recover-admin`)
+
+Physical access is the credential: it refuses to run unless the process is
+root. It opens the database without the secret key, so it never creates a
+key file and works on a box whose key is lost. It reads whether 2FA is on,
+never a secret.
+
+- A given address goes through the e-mail normaliser; a malformed one is
+  refused: `"<given>" is not a bare e-mail address`.
+- No account at all: with an address it creates that `admin` (audited
+  `user.create`); without one it refuses: `no accounts exist: pass --email to
+  create the first admin`.
+- Accounts, no address: it lists each account and its role and asks for
+  `--email`. It never guesses.
+- An unknown address is refused, naming it.
+- Otherwise it resets the account's password, which ends its sessions and
+  revokes its API tokens. `--disable-2fa` also turns 2FA off and says whether
+  it was on; without it, it warns when 2FA is still on. A disabled admin is
+  re-enabled when no admin is enabled (the new password would open nothing,
+  and nobody else could); any other disabled account stays disabled, and it
+  says so. It says when the account is not an admin, and when no enabled
+  admin remains. Every step is audited by `root (console)`.
+- The password is generated, never an argument (it would sit in the shell
+  history and in `ps`): 24 characters from an alphabet without `l 1 I O 0`,
+  printed once on standard output with the account, stored nowhere else.
+
+### 2.7 Client address
+
+The address the limits and the audit log use. On the Unix socket, which only
+the panel's nginx can open, the `X-Real-IP` header nginx sets, when it parses
+as an IP; otherwise `unix`. On a TCP connection, loopback included (any local
+process can open one), the peer address: the header is ignored.
+
+The per-address limits count the address's network: an IPv4 address
+(IPv4-mapped IPv6 included) is its own; an IPv6 address counts as its /64,
+which a single host or customer is usually given whole (one address each
+would hand an attacker 2^64 fresh ones). An IPv6 address also counts
+towards its /48, at a higher bound (§2.3 step 2). `unix` counts as itself.
+The audit log keeps the full address.
+
+### 2.8 Tests
+
+`internal/accounts`: the RFC 6238 vectors, passwords and their bounds, the
+argon2 limit, the e-mail normaliser, the limiter, every sign-in step,
+enrolment, disabling, user changes and host recovery against a real store;
+the delays slept outside the queue, and an attacker hammering one e-mail
+from one network, as fast and as parallel as the limits allow, no faster
+than sequential guesses, while the owner signs in from another within a
+bound, never refused, and nothing is left behind (`attempt_test.go`).
+`internal/throttle`: the schedules, the delays per network and per name,
+their spacing per network and /48 and the refusal past a minute, the
+queue per key and network.
+`internal/api`: the same flows over HTTP (`api_test.go`, `users_test.go`,
+`apitokens_test.go`), the client address and network (`clientaddr_test.go`, `accounts_test.go`). e2e section
+`R-4.3 accounts`: on the box, 2FA on a fresh account leaves no secret in the
+database file or the `users` table, and sign-in with it, its replay refusal
+and turning it off work; four wrong passwords in flight from one address do
+not keep the owner, from another, out (`X-Real-IP` over the API socket
+stands for the addresses). `R-4.3 sign-in review`: parallel attempts from one
+network each wait their own delay, one after the other, and one more is
+not refused.
+
+## 3. Sites and staging (R-4.3)
+
+The sites domain is two services of plain Go over the store, the agent and
+the job queue: `siteService` (`site_service.go`, `site_settings.go`,
+`site_apply.go`) and `stagingService` (`staging.go`). A handler
+(`sites_http.go`) decodes the request, calls one method and writes its
+answer; a service method returns a `*problem` (a refusal whose kind gives the
+status, §3.8) or another error, and never writes a response. Every piece of
+work that changes a server goes through the job queue
+(`internal/jobs/SPEC.md` §8); nothing here starts a goroutine.
+
+### 3.1 The record
+
+A site's identity derives from its immutable record ID, assigned when the
+row is inserted: system user `cg-site-<id>`, database and database user
+`site_<id>` (sites that run PHP), secrets `site.<id>.db_password` and
+`site.<id>.connector_token` (24 random bytes each, URL-safe base64), and for
+a staging copy `site.<id>.staging_password` (15 random bytes). The root is
+`<SitesRoot>/<domain>`, where `SitesRoot` is the agent's answer
+(Capabilities).
+
+Defaults at creation:
+
+| Field | Default |
+| --- | --- |
+| `profile` | `commerce` for `woocommerce`, else `balanced` |
+| `php_version` | none for `static` and `proxy` (whatever the request says); otherwise the request's, else the configured default when installed, else the newest installed |
+| `config.cache_enabled` | off for `static` and `proxy` (the request cannot turn it on); else the request's `cache_enabled`, on when absent |
+| `config.object_cache` | the request's (off when absent) |
+| `config.proxy_upstream` | `proxy`: the normalised upstream; other types: the request's value as sent |
+| `config.public_root` | `public` for `laravel`, else empty (the release root) |
+| `config.database` | PHP sites: enabled, `127.0.0.1:3306`, `site_<id>` / `site_<id>` |
+| `config.backups` | enabled, `daily`, 30 days |
+| `engine`, `status` | `nginx`, `provisioning` |
+
+Reads: `GET /api/sites` lists every site for `admin` and `readonly`, and an
+operator's assigned sites with their staging copies, by domain;
+`GET /api/sites/{id}` is one site. Both, and every other answer that
+carries a site (create, PATCH, staging create), give the caller's view
+(`call.siteView`): never the staging password hash (`Site.Public`), and
+`config.routing` only to an administrator's **session**, the callers
+`GET /api/sites/{id}/routing` admits (an `admin`, `SessionOnly` row). For
+an operator, a read-only account or an API token the field is absent. An
+empty list is `[]`.
+
+### 3.2 Create (`POST /api/sites`, admin)
+
+Checks, in this order; the first that fails answers:
+
+1. The body decodes (unknown fields refused) → else 400 `malformed request: <decoder error>`.
+2. `domain`, lowercased and trimmed, is a plain host name → 400 `invalid domain "<d>"`; each alias, lowercased and trimmed, the same.
+3. `type` is one of `wordpress`, `woocommerce`, `static`, `php`, `laravel`, `proxy` → 400 `invalid site type`.
+4. `profile` (after its default) is `balanced`, `commerce` or `maximum` → 400 `invalid profile`.
+5. WordPress and WooCommerce: `admin_email` parses as an address → 400 `valid admin email required for WordPress`; `admin_user` non-empty and `admin_password` at least 12 bytes → 400 `admin user and a 12+ character password required`.
+6. The database (Fase 9b, `site_create_db.go`). WordPress, WooCommerce and Laravel always get one (`create_database: false` → 400); a static or plain PHP site gets one with `create_database: true`; a proxy never (`create_database: true` → 400). A site that gets none may not name `database_name`, `database_user` or `database_password` → 400. A chosen `database_name` or `database_user` (trimmed) passes `internal/site.ClaimableBy` as §6.5's names do, and is never of the panel's `site_<n>` shape (the site has no number yet) → 400; a chosen `database_password` follows the one rule of §6.5's passwords (`dbPasswordProblem`) → 400. Each refusal of this step names its field in `fields` (§3.8).
+7. `proxy`: `proxy_upstream` normalises (`internal/site.NormalizeProxyUpstream`) → 400 with its message.
+8. The agent's Capabilities: an error answers as an agent error (§1.7); no `SitesRoot` → 502 `the agent did not report where sites live`.
+9. A PHP site naming `php_version`: well formed and installed → 400 `unsupported PHP version` / `PHP <v> is not installed on this server`.
+10. A chosen database name some site already has (`site_databases`), or a chosen user name some site already has (`site_db_users`; the two lists are separate, so a user may be called like a database) → **409** naming the field, before anything is written.
+11. The insert, under the panel-wide names lock (§3.10): the domain is another site's domain → **409** `a site with this domain already exists` (also the store's `ErrDomainTaken`); it is another site's alias → 409 `<d> is already an alias of <owner>`; an alias is another site's domain or alias → 409 `alias <a> is already used by <owner>`; an alias that is the site's own domain or listed twice → 400 (checked with step 2); another store error 500, and a failure after the insert removes the record.
+12. The identity fields and the secrets are written; a secret that cannot be stored deletes the record and answers 500 (a site that could never reach its database is not provisioned). A site that gets a database (step 6) has it as its primary: `config.database` names the chosen database and user, or `site_<id>` for whichever was not chosen, on `127.0.0.1:3306`, recorded as the site's first database and user (`site_databases`, `site_db_users`), the user granted `all` on it and its password the site's `db_password` secret (the chosen one, else 24 random bytes); a name recorded on the server between step 10 and this one answers 409 naming the field, and the record goes. Other sites get none (`config.database.enabled` false, no rows); a database is added later (§6.5). A proxy site's backup policy starts off (§5.3).
+
+Then `site.create` is audited (domain, type) and a `site.create` job is
+queued under the site's lock: **202** `{"site": <public view as stored now>,
+"task": <task>, "summary": <summary>}`. The summary is what the site's
+creator needs to use it: `site_url` (`https://<domain>/`), `panel_path`
+(`/sites/<id>`) and `panel_url` (`https://<host><panel_path>`, the host the
+request named when it is an address, else the panel's certificate domain
+on 8443; absent when neither: cgctl on the Unix socket of a panel with no
+domain), `wordpress {admin_url, admin_user}` for WordPress and WooCommerce,
+`database {host, port, socket, name, user, password}` when the site has a
+database (`socket` from Capabilities `paths.mysql_socket`), and `sftp
+{enabled, user, host, port}` (a new site's SFTP is off: host and port only
+when on). **`summary.database.password` is the only place the API ever
+answers the primary user's password**, chosen or generated: no read
+(`GET /api/sites`, `/api/sites/{id}`, `databases`, tasks, audit) carries it;
+a new one is set from the Database tab (§6.5). The UI's summary screen and
+`cgctl sites create` show this summary. A queue that refuses the job (the panel is draining)
+answers 503 and the record goes with its secrets: nothing was provisioned
+(before R-4.3 the record stayed `provisioning` for ever).
+
+The job, on the record as it reads it at its start:
+
+1. `CreateSite` with the record, the database password, the connector token and, for WordPress, the admin account and title.
+2. `MarkApplied` at the record's generation; every file the agent reports is recorded as managed.
+3. With an ACME e-mail set, `IssueCert`; a failure is a progress line (DNS may not point here yet), never the job's failure; the certificate's files are recorded.
+4. The status becomes `active`. WordPress and WooCommerce get their crontab (a failure is a progress warning).
+
+Failures (R-3.13, `sites_rollback.go`):
+
+- `CreateSite` answered with an error: the agent undid its own steps; the record, its managed-file records and its secrets go.
+- `CreateSite` got no answer (`unavailable`, `timeout`, `canceled`): the agent may have built the site; the record stays, in `error`, for a delete to clean up. Dropping it would leave a running site no page shows, whose domain could never be created again.
+- A later step failed (recording a managed file, the status write): the site is torn down with `DeleteSite`; the record goes only once the agent removed the site, otherwise it stays in `error`.
+- Canceled before it started: the record goes. Interrupted by a restart once started: a site still `provisioning` goes to `error`.
+
+### 3.3 Delete (`DELETE /api/sites/{id}`, admin)
+
+The status becomes `deleting` at once (the previous one is kept in the job's
+payload) and a `site.delete` job is queued with the dedup key
+`site.delete:<id>`: a second delete of the same site joins the first and
+answers its task. **202** `{"task": <task>}`, audited `site.delete`. A queue
+that refuses the job (503) gives the site its previous status back.
+
+Deleting a production site also deletes its staging copy: the job holds both
+sites' locks, removes the staging copy first (one gone meanwhile is not an
+error), then production. Each removal is `DeleteSite` on the agent, then the
+site's managed-file records, then the record (its secrets, certificate state
+and alert dismissals go in the same transaction; deployments, backups, cron
+jobs and assignments cascade). An agent failure puts that site in `error`
+and fails the job. A cancel between the two removals stops before
+production, which gets its previous status back. Canceled before it ran:
+the previous status comes back. Interrupted: a site still `deleting` goes
+to `error`.
+
+### 3.4 Settings: `PATCH /api/sites/{id}` (manage)
+
+One request changes any editable setting; every field is optional, and only
+the fields present change (JSON `null` is the same as absent). A body that
+names no field → 400 `name at least one setting to change`.
+
+| Field | Applies to | Valid |
+| --- | --- | --- |
+| `aliases` | production sites (not staging) | each a plain host name (lowercased, trimmed), not the site's own domain, no duplicates, at most 50, none another site's domain or alias (checked and written under the names lock, §3.10); `[]` clears them. **admin only** |
+| `profile` | every site | `balanced`, `commerce`, `maximum` |
+| `cache_enabled` | every site | boolean |
+| `cache_ttl_sec` | every site | 0 (the profile's default) to 31 536 000 |
+| `bypass_cookies` | sites with a page cache (not static, not proxy) | cookie names, `^[A-Za-z0-9_.-]{1,64}$` (`velocity.ValidBypassCookie`), at most 20, trimmed, deduplicated and sorted; `[]` clears them. admin and operator. Rendered as `<name>=` into the site's cookie bypass (velocity SPEC §1.4, R-10.5); the agent's `site.Validate` refuses an invalid list too |
+| `php_workers` | every site | 0 (sized automatically) to 64; with the memory limit, see the budget below |
+| `hsts` | every site | boolean; turning it on needs a live certificate (below) |
+| `php_version` | PHP sites | well formed and installed; the site's own version passes even when no longer installed |
+| `memory_limit_mb` | PHP sites | 64–4096 |
+| `upload_max_mb` | PHP sites | 1–2048 |
+| `max_execution_seconds` | PHP sites | 10–600 |
+| `public_root` | every type but `proxy` | empty (the release root) or a relative path of segments of letters, digits, `-` and `_` (`internal/site.ValidPublicRoot`), and the agent's `CheckDocRoot` passes: no component below the release is a symbolic link or a file (its `invalid` answer is the field's message; another agent error answers as one) |
+| `proxy_upstream` | `proxy` sites | `internal/site.NormalizeProxyUpstream`; stored normalised. **admin only** |
+| `object_cache` | WordPress and WooCommerce | boolean |
+
+Refusals, in order:
+
+1. Body malformed or an unknown field → 400 `malformed request: <decoder error>`.
+2. An admin-only field from anyone else → **403** `only an administrator can change a site's aliases or proxy upstream`, with `fields` naming each such field. (Both decide which hosts a site answers for or where its traffic goes, as creating a site does, which is an admin's.)
+3. Field validation: every field present is checked, in the table's order. Any failure → **400** `{"error": <the first failure's message>, "fields": {<field>: <message>, …}}`. The installed PHP versions come from Capabilities; an agent failure there answers as an agent error (§1.7) at that point.
+4. The PHP budget (PATCH only; the deprecated routes never checked it): with `php_workers` > 0 and either it or `memory_limit_mb` sent, workers × memory limit (the pool's default, 256 MB or 512 for a store, when unset) must not exceed the site's own memory limit (`resources.memory_high_mb`), else the server's memory (the agent's `SystemStatus`) → 400 `<w> PHP workers × <m> MB is <n> MB, more than <what> (<b> MB): …`, naming the fields sent. `"allow_over_budget": true` (a flag, not a setting) skips it; anyone but an admin sending it → 403 `only an administrator can allow PHP workers beyond the site's memory budget`.
+5. `hsts: true` while the agent's certificate status for the domain shows no certificate, or one that lapses within 14 days → **409** `issue a certificate for this site before enabling HSTS`; the status call failing answers as an agent error. (HSTS makes browsers refuse anything but valid HTTPS for a year.)
+
+Then the named fields change in one store write on the record as stored now
+(another request's change saved since this one read the site stays); the
+desired generation goes up if anything changed. The change is audited
+(`site.update`, the domain, the names of the fields sent) and one
+`site.update` job is queued (a queue that refuses it, 503, undoes the
+change as a cancel would): **202** `{"site": <public view after the
+change>, "task": <task>}`, plus `"warnings": [...]` when there is
+something to know.
+
+Aliases and the certificate. When `aliases` changes the set of names
+(an unchanged list asks for nothing), the agent's certificate status for
+the domain decides, before the write (its failure answers as an agent
+error):
+
+- no certificate: nothing more;
+- a Let's Encrypt certificate and an ACME e-mail set: the job's payload
+  carries `reissue_cert`, and after the render succeeds the job queues a
+  `certificate.issue` job (the issue path's kind and site lock, so it runs
+  after this one) for the new name set, wildcard if the site's certificate
+  is; a reissue that fails leaves the site serving its old certificate, and
+  its task error begins `the certificate was not reissued for the new
+  aliases; the site keeps serving its old certificate`; a reissue that
+  cannot be queued (no ACME e-mail any more, no Cloudflare token for a
+  wildcard) is a warning line in the apply job's log, not its failure;
+- a Let's Encrypt certificate without an ACME e-mail: the warning `set
+  acme_email in settings, then issue the certificate again to cover the new
+  aliases`;
+- a custom certificate (the operator's): no reissue, and the warning `this
+  site serves a custom certificate, which may not cover the new aliases:
+  install one that does`.
+
+### 3.5 The apply job (`site_apply.go`)
+
+Kinds `site.update`, `site.apply-config`, `site.php` and `wp.object_cache`
+(the last three queued only by the removed routes of §3.6, before an
+upgrade) share one implementation; they are resumable (rerun after a restart:
+rendering is idempotent). The payload is what the request set (`ours`) and
+what it replaced (`previous`), each with every editable field, and the
+generations before and after the change (`prev_generation`,
+`our_generation`). A payload written before R-4.3 (without the newer
+fields) runs the same way.
+
+Under the site's lock, on the site as stored now (deleted → the job fails
+with `the site was deleted before this job could run`):
+
+1. **Render** — `ApplySiteConfig` with the site — unless the kind is `wp.object_cache` or `object_cache` is the only field the request changed. `MarkApplied` at the site's generation records the outcome. A failure puts back every field of the request that no later change replaced, and fails the job. On success the rendered files are recorded and the site's configuration files the render no longer writes stop being tracked (§3.9). With `reissue_cert`, the certificate reissue is queued then (§3.4).
+2. **Object cache** — `WPObjectCache` with `enable` = the stored value — when the kind is `wp.object_cache` or `object_cache` changed. A failure puts `object_cache` back (unless a later change replaced it), records the error (`MarkApplied`) and fails the job. When no render ran, success marks `our_generation` applied if the site had been applied up to `prev_generation`: the agent made the change itself. (Before R-4.3 an object-cache toggle left the site showing a pending change for ever.)
+
+Before step 1, a job whose payload has no `ours` (an object-cache toggle
+queued by a version before R-4.3, which stored none) fails with `this change
+was queued by an earlier version of the panel without saying what to apply;
+make it again`; nothing is changed. A change of aliases checks again, under
+the names lock, that none is another site's; one that is fails the job and
+is put back.
+
+**Put-back** (a failed step, a cancel before the job ran, a queue that
+refused it). The fields put back are those the request changed (`ours` ≠
+`previous`) that no later change set, and "later" is by generation, not by
+value: a field counts as set later when a settings job of the site with a
+greater `our_generation` changed it, unless that job failed or was canceled
+(its own change was then put back). So A 128→256, B 256→128, C 128→256:
+A's failure leaves C's 256. Restored aliases go through the names lock; one
+another site holds now is left off, and the task log says `alias <a> is left
+off: <owner> uses it now`. When nothing changed the site after the request
+(`desired == our_generation` before the put-back), what was there before had
+been rendered (`applied >= prev_generation`) and nothing was left off, the
+put-back's new generation is the configuration that was rendered, and it is
+marked applied — after a failed object-cache switch, a cancel, or a queue
+refusal, so these never leave the site pending (the failure is the task's).
+A failed render keeps its error and `desired > applied` (internal/state
+SPEC invariant 5): what the server runs after it is the agent's to say.
+
+Progress lines: `Applying settings for <domain>` / `Settings applied`
+(`site.update`); `Re-rendering configuration for <domain>` / `Configuration
+applied` (`site.apply-config`); `Applying PHP settings for <domain>` / `PHP
+settings applied` (`site.php`); `Installing the APCu object-cache drop-in`
+before turning it on, then `Object cache enabled` / `Object cache disabled`.
+
+### 3.6 The routes PATCH replaced (removed in R-8.2)
+
+`PUT /api/sites/{id}/config`, `PUT /api/sites/{id}/php` and `POST
+/api/sites/{id}/wp/object-cache` were thin wrappers over the patch until
+Phase 8, when the UI, the e2e suite and cgctl had moved to PATCH. They are
+gone: the paths answer as any unknown `/api/` path does. Their job kinds
+(`site.apply-config`, `site.php`, `wp.object_cache`) stay registered, so a
+job one of them queued before the upgrade still runs its payload (§3.5).
+
+### 3.7 Staging (`stagingService`, `staging.go`)
+
+A production site has at most one staging copy, `staging.<domain>`: a site
+record whose `staging_of` is production's ID. A staging site cannot be
+staged. Every staging entry point finds the copy through the service,
+including Safe Push (`deployments.go`, `/safe-push`).
+
+**Only the primary database is staged** (Fase 9b): the copy gets a primary
+database and user of its own (`site_<staging id>`, recorded as its rows,
+§3.2), the clone copies production's primary into it, and a push moves
+tables of the copy's primary into production's primary. A site's other
+databases are neither cloned nor pushed: they are not what its application
+(wp-config.php) is configured with, and a copy of a database nothing in the
+copy uses would only double the data. They stay production's alone.
+
+- `Of(prod)`: the staging copy, or `state.ErrNotFound`.
+- `Create(prod)` — `POST /api/sites/{id}/staging` (manage): prod is a staging site → 400 `cannot stage a staging site`; prod is being deleted → 409 `this site is being deleted`; a copy exists → 409 `staging already exists for this site`; the root is resolved from Capabilities **before anything is written** (an agent that cannot say answers as an agent error and no record is made). The record is production's with a new ID, the staging domain, no aliases, `provisioning`, `staging_of`, HSTS off, its own system user, database name and user and root, and the bcrypt hash of a fresh staging password (the password is the secret `site.<id>.staging_password`). Audited `staging.create` (production, staging domain); job `staging.create` under both sites' locks, payload `{staging_id}`: **202** `{"staging": <public view>, "task"}`. The staging name another site holds as its domain or an alias → 409 (as a create's, §3.2); a failure after the insert removes the record and its secrets. A queue that refuses the job removes the record and its secrets (503).
+- The clone: `CreateStaging` (production, staging, the new database password and connector token); a failure as in R-3.13 (§3.2); success: `MarkApplied`, the files recorded, with an ACME e-mail set the Let's Encrypt certificate of `staging.<domain>` requested as for a new site (a failure is the log line `Certificate pending (DNS may not point here yet): …`, not the job's; the copy used to stay on the default certificate), `active`, the crontab (a failure is a warning), `<staging domain> ready`. Canceled before it ran: the staging record goes; interrupted: a copy still `provisioning` goes to `error`.
+- `Recreate(prod)` — `POST /staging/recreate` (manage): no copy → 404 `this site has no staging copy to recreate`; the root resolved first (an agent error leaves the old copy untouched). Audited `staging.recreate`; job `staging.recreate` under both locks: the old copy read again (deleted meanwhile → the job fails), `DeleteSite`, its managed files and record go, a checkpoint (a cancel there leaves no copy), then a new record and the clone as for Create. **202** `{task}`.
+- `Credentials(prod)` — `GET /staging/credentials` (manage): no copy → 404 `this site has no staging copy`; a secret-store failure → 500 `secret store: …`; audited `staging.credentials`; 200 `{"url": "https://<staging>/", "user": "staging", "password": …}`.
+- `Diff(prod)` — `GET /staging/diff` (manage): no copy → 404 `this site has no staging copy`; the copy still `provisioning`, or a `staging.create`/`staging.recreate` job of production queued or running → 409 `the staging copy is still being cloned` without asking the agent (mid-clone the tree is partial and the diff listed most of production as removed; the UI says the clone is running); 200 with the agent's `StagingDiff` answer.
+- `Tables(prod)` — `GET /staging/tables` (signed in), and the check before a database push: no copy (or any store error) → 412 `create a staging site first`; the agent's `StagingTables`, which applies its push policy; 200 `{"tables": [...], "staging": <domain>}` (`[]` when empty).
+- `PushDatabase(prod, {tables, confirm})` — `POST /staging/database` (manage), the selected tables of staging's database over production's, in this order of checks: no copy (or any store error) → 412 `create a staging site first`; a malformed body or `confirm` other than production's domain → 400 `type the production domain to confirm database promotion`; no table or more than 50 → 400 `select between 1 and 50 tables`; the agent's `StagingTables` (its error per §1.7), then each table in the order asked: one staging lacks → 400 `staging has no table <name>`, one the policy protects → 400 `selection contains protected live data table <name> (<reason>)` — all before any snapshot (the agent checks again under its locks); the backup settings unreadable → 500, no repository or password → 412 `configure backup_repository and backup_password in settings first`. Audited `staging.database-push` (production, the tables joined by commas); job `staging.database-push` under both sites' locks and the repository's: staging read again (`the staging copy: …` when gone), a verified safety snapshot of production (`pre-database-push`, §5; its failure stops the job before production changes), a checkpoint, `SyncStagingDB` (production, staging, tables), the production page cache purged (a failure ignored), `Selected database tables promoted; safety snapshot <id> retained`. **202** `{task}`; a refused enqueue answers 503 while the panel drains and 500 otherwise (`respondJobErr`).
+
+### 3.8 Problems
+
+| Kind | Status |
+| --- | --- |
+| invalid | 400 |
+| forbidden | 403 |
+| not found | 404 |
+| conflict | 409 |
+| precondition | 412 |
+
+The body is `{"error": <message>}`, plus `"fields"` when the problem names
+fields. An agent error answers per §1.7 (staging's Capabilities without a
+sites' root too: 502 with the fallback message); a queue that refuses a job answers 503 `the panel is restarting; try
+again in a moment` (500 `could not start the job` for any other enqueue
+failure); any other error 500 with its text.
+
+### 3.9 Certificates, purge and managed files
+
+- `POST /certificate` (manage): no ACME e-mail → 412 `set acme_email in settings first`; a malformed body → 400 `malformed request` (an empty one is fine); `wildcard` needs the Cloudflare token (412 `set cloudflare_api_token in settings first (…)`; a secret-store failure → 500); job `certificate.issue` renders the site as stored when it runs, marks that generation applied, records `wildcard_cert` as applied directly (`MutateSiteApplied`) and records the files. 202 `{task}`, audited after the enqueue.
+- `GET /certificate` (signed in): `exists`, `hsts`, and when it exists `not_after` (RFC 3339, UTC), `days_left`, `issuer`, `custom`; `last_renewal_error` when the last renewal failed.
+- `PUT|DELETE /certificate/custom` (manage): PUT needs `fullchain` and `key` (400 `fullchain and key (PEM) are required`); an agent refusal defaults to 400; files recorded; audited `certificate.custom.install|remove`; 200 `{"status": "ok"}` for PUT. DELETE (back to Let's Encrypt) then queues `certificate.issue` for the site's names as they are now (aliases added over the custom certificate got no reissue, so the certificate it goes back to may not cover them), audited `certificate.issue` (`back to Let's Encrypt`): 200 `{"status": "ok", "task"}`; with no ACME e-mail, or a queue that refuses, 200 `{"status": "ok", "warning"}` and nothing queued.
+- `POST /purge` (manage): an empty body purges everything; a malformed one is 400 `malformed request`, never a full purge; 200 with the agent's `{removed}`; audited `cache.purge` (`<n> urls, <m> removed`).
+- A managed file belongs to a site (`siteOwnsPath`) by exact name, never by substring (`cg-site-1` is not `cg-site-10`): `<domain>.conf`, `cloudground-cache-<id>.conf`, `<user>.conf`, `cloudground-php-<user>.service` and the files of its `.service.d` directory, `<domain>.htpasswd`, and anything under `<root>/`. After a full render (`recordRendered`) the files it wrote are recorded and the site's other configuration files are no longer tracked; files under the root (the connector, installed by deploys) are left alone. `pruneOrphanManagedFiles` drops per-site records (`cg-site-` in the name or its directory's, `.htpasswd`, under the sites' root) that belong to no site; it reports the pass complete only when the records were read and the sites' root was known.
+
+### 3.10 Names lock and the public root
+
+No host name is a domain or an alias of two sites. Every write that can add
+one — a create, a staging copy, a patch of aliases (from its check to its
+store write), the apply job's check, a put-back — checks against every other
+site's domain and aliases under one lock for the whole panel
+(`site_aliases.go`), so two writes cannot both take a name.
+
+A site's public root must stay inside its release: nginx is in every site's
+group. The agent refuses one with a link below `current` at the PATCH
+(`CheckDocRoot`) and at every render (`internal/agent/ops/sites` SPEC §1);
+the vhost of a site with a public root checks links from `<root>/current`
+(`disable_symlinks if_not_owner from=<root>/current`), so a folder swapped
+for a link after the PATCH is refused by nginx too.
+
+### 3.11 Tests
+
+`site_service_test.go` (the services without HTTP: create's defaults and
+refusals, the patch's validation and admin-only fields, the apply job and its
+reverts, staging), `sites_patch_test.go` (the route and the deprecated
+wrappers' unchanged answers), `sites_review_test.go` (the review of 63e9447: the agent's public-root verdict, put-back by
+generation, unique names, legacy payloads, the deprecated TTL, refused work
+undone, the PHP budget), `sites_race_test.go`, `sites_rollback_test.go`,
+`capabilities_review_test.go` (staging resolves the root first),
+`site_create_db_test.go` (the chosen database, the toggle, the field
+problems, 409 for a taken name, the summary and that no read answers the
+password), and the contract tests across the package. The e2e section
+`R-4.3 site settings` applies a patch on a box and reads the result from
+nginx and PHP; `F9b site creation` creates sites with chosen databases.
+## 4. Deployments (R-4.3)
+
+A deployment is one release of a site's code and the record of what
+happened to it. It is a **state machine**: the record is stored when the
+request is accepted, every step a job takes moves it, and the store
+(`state.MoveDeployment`) refuses a move the table below does not have, so
+no code path can leave a deployment in a status it cannot reach. Code:
+`deployments.go` (the routes), `deployflow.go` (the jobs),
+`internal/state/deployments.go` (the table and the records).
+
+### 4.1 Release IDs
+
+A new release is named by a **ULID** (`site.NewReleaseID`): 26 characters
+of Crockford base32, upper case, the first ten the creation time in
+milliseconds, the rest 80 random bits; monotonic within the process (two
+IDs of one millisecond, or made after the clock stepped back, still
+increase). IDs are unique across sites, sort by time as text, and need no
+coordination. Releases made before keep their names
+(`YYYYMMDD-HHMMSS.mmm-xxxxxx` and `YYYYMMDD-HHMMSS`): the agent, `rpc`
+validation and the release ordering accept all three forms, and order
+them by the time they carry (`site.ReleaseBefore`), never by their text (a
+ULID would sort before every older name).
+
+### 4.2 Statuses and transitions
+
+| Status | Means | Next |
+| --- | --- | --- |
+| `pending` | accepted; its job has not started | `building` (deploy), `guarding` (safe push), `canceled`, `failed` |
+| `guarding` | Performance Guard is comparing staging with production | `blocked`, `building`, `canceled`, `failed`, `guarding` (a rerun measures again) |
+| `building` | the agent is building `releases/<id>` | `created` (deploy), `promoting` (safe push), `failed` |
+| `created` | built, not live | `promoting` |
+| `promoting` | the agent is making it live | `promoted` (promote), `verifying` (safe push), or back to where it came from when the promote fails (`created`, `superseded`, `rolled_back`, `promoted`) |
+| `verifying` | live; Guard checks production against the baseline it measured | `promoted`, `rolled_back`, `verifying` (a rerun verifies again) |
+| `promoted` | the live release | `promoting` (promoted again), `superseded`, `rolled_back` |
+| `superseded` | was live until another release was promoted | `promoting` |
+| `rolled_back` | was live until a rollback | `promoting` |
+| `blocked` | Guard refused the push; nothing was built | — |
+| `failed` | ended without a release that went live | — |
+| `canceled` | canceled before anything changed on the server | — |
+
+A site has **at most one `promoted` deployment** (a unique index since
+migration 18): becoming `promoted` makes the site's other promoted one
+`superseded`, in the same transaction; a record created live (a
+migration's release) does the same. A rollback makes the live one
+`rolled_back` and the one the agent went back to `promoted`; when that
+release has no record none is promoted. Provisioning's `initial` has one
+(W3): a site's creation records it `promoted`, and a rollback to it or a
+reconcile finding it live first records it `superseded` (sites from
+before) so that it is promoted; it used to have none, so the Releases list
+never showed it and after a rollback to it no row was live. The
+record follows the server, not the reverse: what is live is what `current`
+names. A release can be promoted (by a person, or by a rollback's record)
+only from `created`, `superseded`, `rolled_back` or `promoted`.
+
+### 4.3 Events: who, and what happens
+
+| Event | Route (policy) | Refused with | Job |
+| --- | --- | --- | --- |
+| deploy | `POST /api/sites/{id}/deployments` (`manage`) `{"source_dir"}` | 400 `source_dir required`, `source_dir must be absolute`, `source_dir must be inside the site's directory <root>` | `deploy.create` |
+| promote | `POST /api/deployments/{id}/promote` (`manage`) | **409** when the release is not promotable (never built, or a job is on it) | `deploy.promote` |
+| rollback | `POST /api/sites/{id}/rollback` (`manage`) `{"deployment_id"?}` | 404 for a deployment of another site; **409** when there is no earlier live release, when the one named is the live one, and when the target was never live or was rolled back for a regression | `deploy.rollback` |
+| safe push | `POST /api/sites/{id}/safe-push` (`manage`) `{"paths", "only", "force"}` | 412 without a staging copy, 400 for bad probe paths or a malformed body, 500 when the settings cannot be read | `deploy.safe-push` |
+| cancel | `POST /api/tasks/{id}/cancel` (as every task) | 409 once finished | — |
+
+Deploy and safe push answer `202 {"task", "release_id", "deployment_id"}`
+(the deployment is `pending`); promote and rollback `202 {"task"}`. If the
+job cannot be queued (503 while the panel drains) the pending deployment
+is `failed`. The list (`GET /api/sites/{id}/deployments`, `signedIn`) is the
+newest 50, every status included, each with `rollback_to`, `regressed` and
+`note` (§4.5). (Before R-4.3 a promote of a release that was never built,
+or a rollback with nothing older, was accepted and its job failed at the
+agent; both are now refused up front with 409.)
+
+Every deploy job runs **from its payload** (`deployment_id` and the
+request's fields; never a secret), under the site's lock (a safe push:
+production's and staging's), and reads its site again when it starts.
+
+**Rollback targets.** A rollback always names its release; the agent's own
+choice ("the newest release older than the live one") is never used: it can
+be a release built and never promoted, or one a safe push rolled back for a
+regression. Before every promotion the job asks the agent what is live
+(`CurrentRelease`) and records it as the deployment's `rollback_to`. A
+rollback without `deployment_id` goes to the live deployment's
+`rollback_to`; when that is unknown (a deployment from before R-4.3) or
+cannot be gone back to, to the newest `superseded` deployment. A target may
+be a release with no record (provisioning's `initial`), or a record that
+was live: `superseded`, `promoted`, or `rolled_back` unless `regressed`
+(`state.ErrNeverLive` otherwise, checked at the request, again in the job,
+and in `RecordRollback`).
+
+- **deploy.create**: `pending → building → created`; an agent failure →
+  `failed`. Not rerun: a build a restart cut short may have published its
+  release, whose name cannot be built again (the reconcile removes it,
+  §4.6).
+- **deploy.promote**: the release must still be in the status it had
+  when the promote was asked for (else the job fails, nothing changes);
+  `→ promoting`, `rollback_to` recorded (if the live release cannot be read
+  the job fails and nothing is promoted), the agent's `PromoteRelease` `→
+  promoted`, page cache purged, warmed in the background. A refused promote
+  goes back to the status it came from, and then the records follow what
+  the agent says is live (§4.6: the agent swaps `current` before it reloads
+  PHP, so a promote can fail with its release live). Rerun after a restart
+  (a promote is idempotent).
+- **deploy.rollback**: the agent's `RollbackRelease` to the target, then
+  `RecordRollback`; on an agent error the records follow the server.
+  Never rerun; one a restart cut short flags its site (§4.6).
+- **deploy.safe-push** (the flagship flow): `pending → guarding` (paired
+  measurement of staging against production, uncached,
+  internal/guard/SPEC.md §4). A `block` verdict, or `warn`/`inconclusive`
+  without `force` → `blocked` with the report; the job fails with the
+  verdict and production is untouched. Otherwise `→ building` (the release
+  from staging's live tree, or production's own with `only` overlaid) `→
+  promoting` (`rollback_to` recorded: without it nothing is promoted) `→`
+  the agent promotes `→ verifying` (purge, then Guard's verification
+  against the baseline in the stored report) `→ promoted` with the live
+  report. On a verification error, a `block` verdict, or a baseline that
+  cannot be read, the agent goes back to `rollback_to` `→ rolled_back`,
+  marked `regressed` (never a rollback target), and the job fails saying
+  so. If there is nothing to go back to, or the agent cannot, the release
+  stays `promoted` (it is live) with the condemning report and the note
+  `regressed`. A promote the agent refuses leaves the built release
+  `created`, unless the agent says it went live anyway: then it is
+  `verifying` and verified now.
+
+**Cancellation.** A cancel before a job starts makes a `pending`
+deployment `canceled` (the kind's `Canceled` hook). A running deploy or
+safe push stops at its next step boundary while nothing on the server has
+changed (before the build, during the measurement) and becomes
+`canceled`; once the build is sent it runs to its end, the verification
+included (cut short, it would roll back). A promote and a rollback stop
+only before their agent calls.
+
+**Restart and drain.** A queued deploy job survives a restart and runs. A
+safe push is rerun from the status it reached: `pending`/`guarding`
+measure again, `promoting` promotes again, `verifying` verifies again
+against the stored baseline; one found `building` is `failed` (push
+again). A drain's cancel is not a person's: it never marks a deployment
+`canceled` (`jobs.ShuttingDown`). A job the queue gives up on (not rerun,
+or interrupted three times) is settled by its kind's hook, which never asks
+the agent (hooks do not): `pending`/`guarding` → `failed` (`canceled` if a
+person had canceled it); `building` → `failed`, and the site is flagged;
+`promoting` → left as it is, the site flagged; `verifying` → left as it is,
+the site flagged, **never** recorded `promoted` on the comparison's verdict
+— unless a person canceled the job, when it is `promoted` with the Guard
+result `{"verdict":"unverified","reasons":["verification canceled"]}` and
+the note `unverified` (an alert; the UI shows it unverified). An
+interrupted `deploy.rollback` flags its site.
+
+### 4.4 Tests
+
+`deployments_test.go`: the deploy, promote, supersede, rollback, failed
+build and refused promote of §4.2–4.3, each rollback asserting the release
+the agent was asked to go back to (`TestRollbackIsTargeted`: past a release
+never promoted, to `initial`, refused for a target never live or with
+nothing earlier); a promote that failed after the swap followed by the
+records with a drift alert; a queued deploy pending, 409 on promote,
+canceled; the safe push's pass, block and post-promotion rollback to the
+release live before (not a newer unpromoted one), the regressed release
+refused as a target; a safe push resumed at `verifying`; the reconcile of
+§4.6 (an unverified live release verified, a promote that never went live,
+a failed build's directory removed, a drift, a canceled verification
+recorded unverified with an alert); the store refusing a move.
+`TestConcurrentDeploysGetDistinctReleases` (deploys_test.go). State:
+`internal/state/deployments_test.go`. IDs: `internal/site/release_test.go`;
+the agent: `ops/release` `TestRollbackAcrossULIDsAndOlderNames`,
+`TestCurrentReleaseAndRemoveReleases`. e2e: `R-4.3 deploys and backups`.
+
+### 4.5 What a deployment carries beside its status
+
+`rollback_to` (§4.3), `regressed` (rolled back by a safe push for a
+regression), and `note`: what a person should know, which raises an alert
+(kind `deploy`, warning) for as long as it is set: `drift:<release>` (the
+site serves this release, the records had said `<release>` was live),
+`unverified` (live, its verification canceled), `regressed` (live although
+it regressed: the automatic rollback could not be done). A move of the
+deployment clears its note.
+
+### 4.6 The records follow the server
+
+What a site serves is what the agent's `CurrentRelease` reads from its
+`current` link (through sitefs; `""` when it names no release). The records
+are aligned with it (`state.SyncLive`: the release served is the promoted
+deployment, any other promoted one superseded) after every promote or
+rollback the agent refused, and by **deploy.reconcile** (rerun; site lock;
+deduplicated per site). After a start's recovery, a reconcile is queued for
+every site flagged by a hook and every site with a deployment left
+`promoting` or `verifying`. It:
+
+1. reads the live release;
+2. settles each deployment left `promoting` or `verifying`: one that is not
+   live is `created` (`superseded` if it had been live before); a live one
+   of a plain promote is `promoted`; a live one of a safe push (its report
+   has a baseline) is verified now and promoted, or rolled back to its
+   `rollback_to` when the verification fails or cannot run;
+3. has the agent remove the releases of `failed` deployments that are not
+   live (`RemoveReleases`: a build a restart cut short may have published
+   its directory; the agent's pruning keeps everything newer than the live
+   release, so it would stay forever);
+4. aligns the records with the live release; a difference is a `deploy.drift`:
+   logged, and the note `drift:<recorded>` on the live deployment (or, if
+   it has no record, `drift:<live>` on the one the records had said);
+5. clears the site's flag.
+
+## 5. Backups (R-4.3)
+
+The backup service: a site's snapshots in the configured restic
+repository, each **restore-tested before it counts**, restores, retention,
+and the deletion of one snapshot. Code: `backup_routes.go` (the routes),
+`backup_service.go` (the jobs), `backup_retention.go` (schedule and
+retention), `internal/state/backups.go` (the records). Everything that runs
+restic is a job holding its repository's lock (`repo:<hash>`, jobs SPEC
+§3), so one restic process works on a repository at a time.
+
+### 5.1 Records
+
+A record is one snapshot as the panel knows it: site, snapshot ID (full or
+the short form), repository, size, kind (`full`, or `pre-restore`,
+`pre-database-push` for a safety snapshot), `verify_status`, the restore
+time measured. It is created `pending` whatever the caller says; only a
+restore test moves it to `passed` or `failed`. The list
+(`GET /api/sites/{id}/backups`, `signedIn`) is the newest 50, with
+credentials masked out of the repository URL (operators and read-only
+accounts read it).
+
+### 5.2 Routes
+
+| Route (policy) | Refused with | Then |
+| --- | --- | --- |
+| `POST /api/sites/{id}/backups` (`manage`) | 412 `configure backup_repository and backup_password in settings first`; 500 when the settings cannot be read | `202 {"task"}`, job `backup.run` |
+| `POST /api/backups/{id}/verify` (`manage`) | 412 | `202`, job `backup.verify` (deduplicated per record) |
+| `POST /api/backups/{id}/restore` (`manage`) `{"confirm", "mode"}` | 400 `type the site domain to confirm restoration` (confirm is not the domain), 400 `restore mode must be full, files, or database`; 412 | `202`, job `backup.restore` |
+| `DELETE /api/backups/{id}` (`admin`) | 412; **409** for a record whose restore test has not run, and for the site's newest `passed` record in its repository | `202`, job `backup.forget` (deduplicated per record) |
+| `POST /api/backups/test` (`admin`) | 412 | the agent's `TestBackup` now: `200 {"reachable", "snapshots"}`, or `repository not reachable: …` with the agent error's status |
+| `POST /api/sites/{id}/backups/retention` (`admin`) | 412; 400 `this site has no backup retention window` | `202`, job `backup.retention` |
+| `PUT /api/sites/{id}/backups/policy` (`manage`) | §5.5 | `200` with the policy |
+
+### 5.5 The policy
+
+A site's policy is `config.backups`: `enabled`, `schedule` (`hourly`,
+`daily`, `weekly`; empty reads as `daily`) and `retention_days` (0 keeps
+every snapshot). The backup sweep queues `backup.scheduled` for an active
+production site whose policy is on, when its schedule is due; the retention
+sweep applies a window above 0 once a day (`backup_retention.go`).
+
+`PUT /api/sites/{id}/backups/policy` (`backup_policy.go`, R-8.2) takes any
+of the three fields; a field left out keeps its value. Refusals, in order:
+a staging site → 400 `a staging site has no backup schedule of its own`; a
+body naming none → 400; a `retention_days` other than the stored one from
+anyone but an administrator → 403 `only an administrator can change how
+long a site's backups are kept` (a shorter window deletes snapshots, as
+`DELETE /api/backups/{id}` does); an unknown schedule or a window outside
+0–3650 → 400 with `fields`. The write renders nothing, so it is stored with
+`MutateSiteApplied` (a site that was applied stays applied) and queues no
+job; the store's `site.changed` event tells the pages. Audited
+`backup.policy` with the stored values. Answer: `200` and the policy.
+
+### 5.3 Jobs
+
+- **backup.run / backup.scheduled** (rerun, 15 min delay after a
+  restart): the site is read again (gone, or not active for a scheduled
+  one: skipped, success); the repository read again (unset: fails; changed
+  since the job was queued: requeued under the new lock). The agent takes a
+  `full` snapshot; it is recorded (a snapshot that cannot be recorded fails
+  the job: never tested, never offered); its restore test runs in the same
+  job **whatever happens to the job's context**. A failed scheduled backup
+  **keeps** its schedule key: it is tried again at the site's next slot
+  (hourly, daily, weekly), not at the next sweep. Clearing it, as before,
+  retried every five minutes, and a backup that could never pass made a new
+  snapshot and a new alert every five minutes for ever (found on the box).
+  Its failures are one alert per site (§11.1). A canceled one clears it
+  (it never ran). **A reverse-proxy site is never backed up**: it keeps no
+  content of its own (its upstream does) and has no database, so its
+  restore test could only find an empty tree; the sweep skips it, `POST
+  /backups` answers **409** `a reverse-proxy site has nothing to back up`,
+  and a new proxy site's policy is off. A site with no database backs up
+  its files alone; a site's databases are each dumped and restore-tested
+  (ops/backup SPEC §4, §6). A restore may name `databases` (only these of
+  the backup's; each must be a database of the site, else 400; a `files`
+  restore with `databases` is 400).
+- **backup.verify** (rerun; **cannot be canceled**, queued or running):
+  the agent's `VerifyBackup` restores the snapshot aside and checks it. A
+  passing test records `passed` and the restore time; a failing one
+  `failed`; one that cannot run at all also `failed`, never `pending`. A
+  record gone meanwhile: skipped. At every start, after recovery, each
+  `pending` record gets its test queued: **verification is never
+  skipped**.
+- **backup.restore** (not resumable): a **safety snapshot** first, taken
+  and restore-tested before anything changes (one that fails its test stops
+  the restore: production was not changed); a cancel before the snapshot
+  stops it; once recorded, its test runs whatever happens; then a
+  checkpoint ("Stopped before the restore …"), the agent's
+  `RestoreSnapshot` in the mode asked for, a purge. The staging database
+  push takes the same safety snapshot.
+- **backup.retention** (rerun): the site's window (`retention_days`); the
+  newest `passed` record and **every `pending` one** are protected (sent as
+  `Protect`): retention never forgets a snapshot whose restore test has not
+  run, nor the restore point known to work. The records of the snapshots
+  the agent forgot are deleted. Scheduled daily per site
+  (`backup_retention.go`, jobs SPEC §9).
+- **backup.forget** (rerun, 15 min delay; under the lock of the record's
+  repository): the refusals of §5.2 are checked again under the lock (the
+  newest verified snapshot may have changed while the job waited: the job
+  then fails and nothing is forgotten); a checkpoint; then the agent's
+  `ForgetSnapshot` (ops/backup SPEC §9: the snapshot and its database half,
+  `forget` **without** `--prune`: a prune rewrites packs and can take hours,
+  and would hold the repository's exclusive lock that long), run to its end
+  once sent. The repository is flagged for the prune. The record goes, and
+  any other record of a snapshot forgotten.
+- **backup.prune** (daily schedule, quiet, rerun; under the configured
+  repository's lock): when the repository is flagged, the agent's
+  `PruneRepository` (`restic prune`), then the flag is cleared. A
+  retention run that pruned (its `forget --prune` removed something) clears
+  the flag too. A snapshot the repository no longer
+  has (`missing`) only loses its record. An agent failure (wrong password,
+  locked repository, …) fails the job and keeps the record. Audited
+  `backup.delete` (the request) and `backup.forget` (the outcome).
+
+### 5.4 Tests
+
+`backup_delete_test.go` (the deletion: 412, the two 409s, queued behind the
+repository lock, the agent's parameters, the record gone, the prune left to
+the daily job and run once, a missing snapshot, the refusal checked again at run time, a refused forget keeping
+the record), `backup_retention_test.go`, `jobcancel_test.go` (restore
+cancel, verify not cancelable, retention protecting pending snapshots),
+`api_test.go` (`TestEveryBackupIsVerified`, the safety snapshots),
+`backup_policy_test.go` (§5.5). e2e: `wordpress backups`, `R-4.3 deploys
+and backups`, `R-4.3 site settings` (the policy, R-8.2).
+## 6. Site proxies (R-4.3)
+
+Files, WordPress, the database console and Quarry are thin proxies: the
+agent does the work and holds the boundaries (paths beneath the site's root,
+a database account granted on the site's database only, read-only accounts
+for a read-only caller). The panel adds who may ask (the route's policy and
+loader, §1), the audit trail, and the job a long operation runs as.
+
+Every handler of this section is the same three steps: decode the request
+(a malformed body or an unknown field → **400** `malformed request`), call
+a method of the domain service (plain Go, testable without HTTP: it takes
+the site the loader found and returns the agent's typed result or an
+error), answer. A failed agent call answers through `errorReply` (§1.7):
+the agent's code picks the status (502 when it names none) and only its
+message reaches the browser. An operation that runs as a job answers
+**202** `{"task": <task>}`; one that cannot be enqueued answers 503 while
+the panel drains and 500 otherwise (`respondJobErr`). A job reads its site
+again at its start (internal/jobs), so its work uses the site as stored then.
+
+Audit rows name the action, the site's domain and a detail; they are written
+after the agent accepted the change, except where a row says "before", which
+is a write that must be on record even when its answer is lost.
+
+### 6.1 Files
+
+| Route | Service | Answer | Audit |
+| --- | --- | --- | --- |
+| `GET files?path=` | `ListFiles{Site, RelPath}` | 200, the agent's listing | — |
+| `GET files/read?path=` | `ReadFile` | 200, the agent's result (text, 2 MB cap in the agent) | — |
+| `POST files/write {path, content}` | `WriteFile` | 200, the agent's map | `file.write`, path |
+| `GET files/download?path=` | `TransferFile{Upload: false}` | 200 `application/octet-stream`, `Content-Disposition: attachment; filename="<base name>"`, `Content-Length` | — |
+| `POST files/upload?path=` (raw body, 16 MiB) | `TransferFile{Data, Upload: true}` | 201, the agent's result; a body past the limit (or unreadable) → **413** `upload exceeds 16 MB; use SFTP for larger files` | `file.upload`, path |
+| `POST files/manage {operation, path, dest}` | `ManageFile` | 200, the agent's map | `file.<operation>`, path (the agent refuses an unknown operation, so only a real one is recorded) |
+
+### 6.2 WordPress and the page cache
+
+A site is WordPress when its type is `wordpress` or `woocommerce`. The
+magic login, the plugin list, the update and the object cache answer **400**
+`not a WordPress site` for any other type, before anything else.
+
+| Route | Work | Answer | Audit |
+| --- | --- | --- | --- |
+| `POST wp/login` | `WPMagicLogin` | 200 `{url}` | `wp.magic_login` |
+| `GET wp/plugins` | `WPPlugins` | 200 | — |
+| `POST wp/update {what}` | job `wp.update`, site lock: progress 30 `Updating <what> on <domain>`, `WPUpdate{What}`, then `PurgeCache` of the whole site (best effort: new code changes output), 100 `Update complete` | 202 | `wp.update`, what |
+| `GET cache-stats` | `CacheStats` | 200 | — |
+| `POST warm` | job `cache.warm`, no lock: 30 `Warming <domain> from sitemap`, `WarmCache`, 100 `Warmed <n> pages (<m> now cached)` | 202 | `cache.warm` |
+
+After a promote, a rollback or a migration the page cache is warmed again
+in the background (`warmInBackground`): a quiet job `cache.rewarm`
+(maintenance: listed to nobody but an admin; one at a time under the lock
+`cache:rewarm`, so it takes at most one of the two maintenance slots;
+deduplicated per site; payload `{site_id}`; rerun after a restart; it reads
+the site at its start and does nothing for one gone or not active), never a
+goroutine (it was one before R-4.3).
+
+### 6.3 Database console
+
+Every route below acts on **one of the site's databases**: the request's
+`database` (a body field, or `?database=` on `GET database`), which must be
+one the store records for the site → else **404** `this site has no database
+"<name>"`; empty is the primary (`config.database`, local and managed →
+else **412** `this site has no local managed database`). Quarry's routes
+name the database in their path (§6.4); its WordPress tools work on the
+primary only. The agent checks the name again against its own record
+(ops/db SPEC §2).
+
+| Route | Work | Answer | Audit |
+| --- | --- | --- | --- |
+| `GET database` | `DBTables` | 200 `{database, user, tables, list}`: `tables` is the console's grid (`columns` `Table`, `Rows`, `Data MB` with two decimals, `rows`, `truncated`, and `message` `The database has no tables yet.` when there are none), `list` the agent's tables | — |
+| `POST database/query {sql, allow_writes}` | blank `sql` → **400** `type a statement to run`; `DBQuery{Database, SQL, ReadOnly: !allow_writes}` | 200, the agent's result | with `allow_writes`, `database.write` and the redacted statement (first word, word count, a fingerprint), **before** the call |
+| `POST database/export` | job `database.export`, no lock: 30 `Exporting <db>`, `DBExport`, 100 `Exported to shared/exports/<file> (browse it in Files)` | 202 | `database.export` |
+| `POST database/import {path, confirm}` | `confirm` ≠ domain → **400** `type the site domain to confirm database replacement`; blank path → **400** `SQL file path is required`; job `database.import`, site lock: 15 `Saving a rollback point, then importing <path>`, `DBImport`, 100 `Database imported from <path>` | 202 | `database.import`, path |
+
+### 6.5 Databases and database users (Fase 9b, `site_databases.go`)
+
+A site has zero or more databases and zero or more database users; a user
+is granted `all` or `read` (`SELECT, SHOW VIEW`) on some of the site's
+databases. The store records them (state SPEC "Site databases"); the agent
+makes them and refuses any name its own record does not give the site.
+
+| Route | Policy | Work | Answer | Audit |
+| --- | --- | --- | --- | --- |
+| `GET databases` | signed in | the store's rows; sizes and table counts from `ListDatabases` (when the agent fails: `-1` and `stats_error`) | 200 `{databases: [{name, primary, size_bytes, tables, created_at}], users: [{name, primary, grants: [{database, level}], created_at}], stats_error}` | — |
+| `POST databases {name}` | manage | name checked (`internal/site.ClaimableBy`: `^[a-z][a-z0-9_]{2,47}$`, never reserved — `mysql`, `sys`, `performance_schema`, `information_schema`, `root`, `test`, `debian_sys_maint`, `mariadb_sys`, …, the prefixes `cg?_`, `mysql_`, `sys_`, `test_`, `mariadb_` —, never another site's `site_<n>`) → **400**; recorded first (a name any site has → **409**), then job `database.create`: `CreateDatabase`; an agent failure takes the row back | 202 task | `database.create` |
+| `DELETE databases/{name}?confirm=<name>` | manage | `confirm` ≠ name → **400**; not the site's → 404; the primary → **409**; job `database.drop` under the site's lock: `DropDatabase`, then the row (and every grant on it) goes. Its backups stay: retention removes them | 202 task | `database.delete` |
+| `POST database-users {name, password, grants}` | manage | name as above; `password` empty is generated (24 random bytes, URL base64), else it follows the passwords' rule below → 400; each grant `all`/`read` on a database of the site, once → 400; recorded with the password sealed (`site.<id>.db_user.<name>`) and the grants (a name any site has → 409), then `CreateDatabaseUser`; an agent failure takes the row back | **201** `{user, password}` — `password` only when generated, shown once; a chosen one is never echoed | `database.user.create` |
+| `DELETE database-users/{name}?confirm=<name>` | manage | confirm; not the site's → 404; the primary user → **409**; `DropDatabaseUser`, then the row and its secret | 200 `{deleted}` | `database.user.delete` |
+| `POST database-users/{name}/password {password}` | manage | as for a new user; `SetDatabaseUserPassword` (the primary user of a WordPress site gets it in `wp-config.php` too, ops/db SPEC §7), then the secret | 200 `{password}` (generated only) | `database.user.password` |
+| `PUT database-users/{name}/grants {grants}` | manage | as for a new user; the primary user must keep `all` on the primary database → 400; `SetDatabaseUserGrants`, then the rows | 200 `{user}` | `database.user.grants` |
+
+The passwords' rule (`dbPasswordProblem`, also a new site's
+`database_password`, §3.2): 12–256 characters, no control characters, none
+of `'` `"` `\`, no space at either end. The three characters, because
+wp-cli writes the primary account's password into `wp-config.php` and
+quotes none of them right (measured, wp-cli 2.x: `config create` writes `"`
+as `\"`, `config set` writes `\'` as `\\'`, which ends the PHP string and
+runs the rest as code); the agent refuses them too (ops/db SPEC). The
+spaces, because a copied password easily loses them (wp-cli itself keeps
+them).
+
+Every write publishes `databases.changed` for the site (events SPEC §2); a
+finished `database.create` publishes it again. Deleting the site drops all
+of its databases and users (the agent's `DeleteSite`, by its record) and the
+rows go with the site. Staging copies only the primary (§3.7). Tests:
+`site_databases_test.go`; e2e `F9b site databases`.
+
+### 6.4 Quarry (Fase 9b: a service of its own)
+
+Quarry is served at `/quarry` from the same build of the interface
+(its own route group and layout, `ui/app/pages/quarry`), and its API is
+the `/api/quarry/…` rows of the `Quarry` table in docs/api.md, over the
+agent's `DBStudio*` methods (internal/agent/ops/dbstudio/SPEC.md). nginx's
+panel server (the `:8443` bootstrap server and the panel's own domain)
+proxies every path to the API, so nothing in it changes. A Quarry session
+is **its own**: a panel session or an API token reaches none of its routes,
+and it reaches none of the panel's.
+
+**The session** (`studio_session.go`) lives in the API's memory only: a
+restart ends every Quarry session (and the agent forgets the passwords
+with its own restart, ops/dbstudio §11). A random 32-byte token in the
+cookie `__Host-cg-quarry` (with insecure cookies, plain-HTTP development:
+`cg-quarry`), `Path=/`, `HttpOnly`, `Secure`, `SameSite=Strict`, `Max-Age`
+its life; the API keeps its SHA-256. `__Host-` makes a browser take the
+cookie only with `Secure`, `Path=/` and no `Domain`, so a site hosted on a
+sibling subdomain can neither set one (fixing a person to a session of its
+choosing) nor replace it; that prefix requires `Path=/`, so the cookie also
+travels with the panel's requests, which never read it (a `Path=/quarry`
+cookie, the other choice, would have needed `__Secure-`, which a sibling
+subdomain can toss with `Domain`). It ends after **30 minutes unused** (a
+request with `X-CG-Background: 1` is not a use, §2.2), **12 hours** after it
+began, on `POST /api/quarry/logout`, and when what it stands on goes (the
+site, the panel session it came from, the password). At most 64 sessions per
+site and 1024 in all; past either, the one unused the longest ends. CSRF:
+the rules of §1.5 apply to every Quarry row as to the panel's.
+
+**Way in 1: a database user's own name and password** (`POST
+/api/quarry/login {user, password, database?}`), without a panel account:
+1. a missing user or password, a user over 80 or a password over 256 bytes,
+   a database of the wrong shape → **400**, before anything is counted;
+2. limits: 20 attempts a minute per client network (§2.7), 80 per IPv6 /48,
+   6 per network and user → **429** `too many attempts — wait a minute and
+   try again`; counted in that order, a request one refuses not counting
+   for the next;
+3. the user's delay, then one check at a time, as the panel's sign-in does
+   (§2.3 step 3, the same `throttle.Delays` schedules): the user's refusals
+   of the last 15 minutes are counted per user and client network (and
+   /48) and per user from anywhere; from the fifth an attempt waits 1 s,
+   then 2 s, 4 s …, up to 60 s for its own network's refusals and at most
+   2 s for those from anywhere, the longer of the two, counting the
+   attempts in flight on the same key, the network's spaced (an attempt's
+   delay runs from the start of the one before it from that network or
+   /48; one that would wait over 60 s → **429** `too many attempts for
+   this database user at once — wait a moment and try again`, counting
+   nothing). The wait comes first and holds no place in the user's queue; then the user's password is checked one
+   attempt at a time (`throttle.Lanes`), with at most 4 queued per network
+   (one more from that network → **429** `too many attempts for this
+   database user at once — wait a moment and try again`; another network
+   is never refused for that backlog). **A delay, never a lock**: someone
+   failing a user's name (`site_<id>` is guessable) from one network slows
+   their own guesses, and cannot keep a site's own user, or the site using
+   it, out: from another network it waits at most 2 s plus the checks
+   queued ahead. MariaDB's own `max_password_errors` (which would lock it)
+   is left at the server's default, off;
+4. the user must be one the store records for a site (`DBUserSite`; names
+   are unique on the server) and of a site's shape; then the agent signs it
+   in on that site (`DBStudioOpen`): only an account its own record gives
+   the site, connecting as that user with that password, `CURRENT_USER()`
+   exactly the user — never root or a scoped account (ops/dbstudio §11);
+5. any refusal — an unknown user, another site's, a wrong password — is the
+   same **401** `invalid credentials`, takes at least 300 ms (so the time
+   does not tell a user that exists from one that does not; the rest of
+   the 300 ms is waited after leaving the user's queue, holding nobody
+   up), counts one refusal for the user and is audited
+   `quarry.login_failed` (actor the
+   name typed, with control characters as `?`, `(database user)`; subject
+   `dbstudio`; detail the address);
+6. success clears the user's refusals from anywhere and those of this
+   network (and /48), not another network's, starts the session (`mode: login`,
+   the agent's handle; the password is not kept here) on `database` or the
+   site's primary or the first the user sees, audits `quarry.login`
+   (actor `<user> (database user)`, subject the domain) → **200** the
+   session's view with `databases`.
+
+**Way in 2: from the panel.** `POST /api/sites/{id}/quarry/handoff
+{database?}` (signed in, session only: an API token cannot open Quarry;
+the site loader checks the reach) mints a one-time token (32 random bytes;
+the API keeps its SHA-256 with the site, the account, the SHA-256 of the
+panel session and the database; at most 1024 waiting) valid **60 seconds**
+→ **201** `{token, expires_in, url}`; audit `quarry.handoff`. The panel
+opens `/quarry/handoff#<token>` (the fragment never reaches a server or a
+`Referer`), whose page sends `POST /api/quarry/handoff {token}`: the
+token is spent at the first try whatever follows; it must not have expired,
+the request must carry **the panel session it was minted for**, that
+session's account must still reach the site and not be held by the 2FA
+requirement → a session (`mode: panel`) → **200** the view; anything else
+**401** `this link to Quarry has expired or was used: open Quarry
+again from the panel`. Audit `quarry.open`. On every later request the
+panel session must still be there and be that one (it counts as a use of
+it), and its account must still reach the site; otherwise the Quarry
+session ends → **401** `the panel session that opened Quarry has ended:
+open it again from the panel`. Such a session works through a scoped
+account on one of the site's databases, read-only for a read-only account
+(SR-T4: the `studioData` rows refuse it, so it lists the tables and reads
+their structure only).
+
+`GET /api/quarry/session` answers the view or `{"session": null}`, never
+401. The view: `mode`, `user` (the database user or the account's e-mail),
+`site {id, domain}`, `database`, `read_only`, `can_write`, `idle_seconds`,
+`expires_at`.
+
+**The data routes** name the database in the path (`/api/quarry/db/{db}/…`,
+`^[A-Za-z0-9_]{1,64}$`): for a panel session it must be one of the site's
+(§6.3: else **404**); for a signed-in user any name of that shape goes to
+the server, which lets the user open it or not (the agent answers `invalid`
+with the server's word). A signed-in user's agent session that is gone, or
+whose password the server no longer takes (`unauthorized` from the agent),
+ends the Quarry session → **401** with the agent's message.
+
+- `tables` (with routines), `tables/{table}` (structure): `studio`.
+- `rows {page, page_size, sort, filters, search}`, `edit`, `alter {kind:
+  add_column | add_index | truncate | drop, …, confirm}`, `query`, `search
+  {term, tables}`: `studioData`, and the `Statements` limit (2 at once per
+  account — a database user counts as its own account, `db:<user>` — and 4
+  per site, **429** beyond, SR-T5). Writes are audited before the call, one
+  row per change (`quarry.insert|update|delete|change`, detail `db=<db>
+  table=<t> key=<pk…>` cut to 200, never row contents), `quarry.alter`
+  (`add_column=` / `add_index=`), `quarry.truncate`, `quarry.drop`; a dry
+  run is not audited. The SQL editor: from the panel read-only unless
+  `allow_writes` (a read-only account → **403**; with writes the statement is
+  audited `database.write`, redacted); a signed-in user's statement runs as
+  the user, and one that does not begin with `SELECT SHOW DESCRIBE DESC
+  EXPLAIN WITH VALUES TABLE` is audited `database.write`, redacted. The
+  answer carries `read_only`.
+- `simulate {sql}`: `studioData` and the `Statements` limit. Blank `sql` →
+  **400** `type a statement to simulate`; from the panel a read-only account
+  → **403**, any other runs it **without** `allow_writes` (nothing stays: the
+  agent rolls it back, ops/dbstudio SPEC §12), a signed-in user as itself.
+  Audited `database.simulate`, redacted, before the call → **200** the
+  agent's `{kind, affected, preview, preview_sql, refused, message,
+  rolled_back}` (a refusal or the server's error is a 200 with `refused` or
+  `message`).
+- `export {format: sql | csv, tables}`: as §6.3 checks it; job
+  `dbstudio.export`, no lock (20 `Exporting <db>`, 100 `Exported <name>
+  (<size> bytes)`), as the signed-in user when there is one; audit
+  `quarry.export` (the job kinds keep their stored names `dbstudio.export` and `dbstudio.import`; the interface calls them Quarry export and import).
+- **Files** (`files`, `exports/{name}`, `files/{dir}/{name}`,
+  `import/upload?name=&offset=`): the site's `shared/exports` and
+  `shared/imports`. A panel session sees them all. **A signed-in user sees,
+  downloads, deletes and imports only the files it made in this session**
+  (its exports, its uploads): the folders are the site's, and another
+  user's export may hold what this one may not read. Its upload may not
+  start on a name already there (**409** `a file of that name is already
+  there: rename yours`) nor continue one it did not start (**404**). The
+  name is claimed in one step against every other signed-in session of the
+  site: two users starting the same name at once get it once (the other
+  **409**), so none can replace an upload another imports with its own
+  grants. An export is its maker's alone once the agent has created it,
+  even if another session listed that name for a file since removed. The
+  name rule, the 4 MiB streamed download (`Content-Disposition` attachment,
+  `Cache-Control: no-store`, audited after the first chunk), the 8 MiB
+  chunk (**413** beyond) and the audits (`quarry.download`,
+  `quarry.delete_file`, `quarry.upload` at offset 0) are as before.
+- `import {name, format, table, confirm}`: the name must match the rule, end
+  in `.<format>` and be one the session may see; `sql` needs `confirm` =
+  **the database's name** and runs, from the panel, `DBImport` of
+  `shared/imports/<name>` (the rollback point), as a signed-in user
+  `DBStudioImportSQL` (as that user, no rollback point, ops/dbstudio §11);
+  `csv` needs `table` and runs `DBStudioImportCSV`. Audit `quarry.import`
+  before the job; job `dbstudio.import` under the site's lock, with the
+  job's context and site.
+- `tasks/{id}`: one of the tasks the session started (else **404**), as
+  `GET /api/tasks/{id}` shows it.
+
+The table list, structure, edits, alters, exports and imports of the
+panel's own routes `/api/sites/{id}/dbstudio/…` (DB Studio's, as Quarry was called then) are gone (R-8.2: a client
+still calling them gets 404 `no such API route`); the Database tab opens
+Quarry instead. The WordPress tools stay panel routes, on the primary
+database, because they run wp-cli as the site: `wp/autoload` (signed in),
+`wp/search-replace {from, to, dry_run}` (manage; audit
+`quarry.search_replace` with the two lengths unless a dry run),
+`wp/transients {dry_run}` (manage; audit `quarry.transients` unless a dry
+run).
+
+Tests: `dbstudio_test.go` (the handoff and its bindings, the roles, the
+sign-in and its refusals, delays and windows, a signed-in user's files,
+transfers, the cookie, the lifetimes), `studio_auth_test.go` (an
+attacker's parallel attempts from one network sleep outside the queue,
+spaced, no faster than sequential ones, while the user signs in from
+another, never refused, its delay capped),
+`studio_routes_test.go`, `statement_limit_test.go`; e2e `F9b Quarry
+service` (four wrong passwords in flight from one address do not keep the
+user, from another, out; and `F4b DB Studio`, through a handoff).
+
+## 7. Server routes (R-4.3)
+
+| Route | Work | Answer |
+| --- | --- | --- |
+| `GET /healthz` | `Ping` | 200 `{"status":"ok","agent":true}`, or **503** `{"status":"degraded","agent":false}` |
+| `GET /api/system/status` | `SystemStatus` | 200, the agent's result; a failure's message is prefixed `agent unavailable: ` |
+| `GET /api/system/metrics` | the store's samples | 200, at most the newest 288, oldest first (`[]` when none); 500 `could not read the metrics` |
+| `GET /api/system/drift` | a drift scan (§7.1) | 200, the open events newest first (`[]`); an agent failure through `errorReply`; 500 `could not scan for drift` |
+| `POST /api/system/drift/{id}/resolve {action}` | §7.1 | |
+| `GET /api/audit` | the newest 200 audit rows | 200 (`[]`); 500 `could not read the audit log` |
+| `GET /api/services` | `ServiceStatus` | 200, the services array |
+| `POST /api/services/{name}/restart` | the agent's Capabilities must list the service as listed and restartable (→ **400** `unknown service`); `RestartService` | 200, the agent's map; audit `service.restart`; publishes `service.changed {names: [name]}` |
+| `GET /api/logs?source=&site=&lines=` | `TailLog{Source, Site, Lines}`; `lines` not a positive number → 200 | 200 |
+| `GET /api/sites/{id}/logs?source=` | `source` is `access`, `error` or `php` (→ 400 `source must be access, error or php`); `TailLog{Source: "site:<domain>:<kind>", Site: domain}` | 200 |
+| `GET /api/firewall` | `FirewallStatus` | 200 |
+| `POST /api/firewall/rule` | the body is `rpc.FirewallRuleParams` (unknown fields → 400); `FirewallRule` | 200, the agent's map; audit `firewall.rule`, subject `<rule>[ from <from>]` |
+| `POST /api/panel/certificate {domain, email}` | an empty email takes the settings' ACME e-mail; either still empty → 400 `panel domain and acme email are required`; both are saved in the settings (the renewal sweep uses them); job `panel.certificate`, panel lock: 30 `Requesting certificate for <domain>`, `PanelCert`, 100 `Panel certificate installed — the panel will restart` | 202; audit `panel.certificate` |
+| `POST /api/panel/update {version}` | nothing but the version is accepted (another field → 400): origin and signing key are compiled into the agent. Audit `panel.update` **before** the call, subject the version asked for or `latest` when none (it was empty for the UI's `{}` before R-4.3); `SelfUpdate` with the `update_channel` setting as its channel (R-6.3; 500 `could not read the settings` when it cannot be read). **R-6.5:** while a job of a kind `jobs.BlocksPanelChange` names is `running` (a backup or restore, or a job that cannot resume), 409 `task <id> (<kind>) is running: update once it has finished`, before the audit and without asking the agent | 200, the agent's result; the capabilities cache then expects the agent's restart |
+| `GET /api/system/update[?refresh=1]` | §7.2 | 200 |
+
+The agent calls of these routes run with the request's context (the log
+tail too, which used none before R-4.3), so a client that goes away stops
+waiting.
+
+### 7.1 Drift
+
+A **scan** reads every managed file's recorded hash, asks `CheckDrift`
+(skipped when there are none), forgets the files the agent reports as not
+managed, and reconciles the open events: an event about a file no longer
+tracked is resolved `accepted`, one about a file that matches again is
+resolved `restored`, and a drifted file with no open event for its current
+hash gets a new one. It returns the open set, newest first. The store
+publishes `drift.changed` only when it opens or resolves an event. The
+`drift.scan` job runs one every five minutes.
+
+**Resolve** (`POST /api/system/drift/{id}/resolve`): a bad id → 400
+`invalid id`; malformed body → 400; an id that is not an open event → 404
+`drift event not found or already resolved` (checked before the action).
+An API token asking to `accept` → **403** `an API token cannot accept
+drift: accepting a changed file needs a signed-in session (a token may
+restore it)`, before the event is looked up (§1.2.1); `restore` it may.
+- `accept`: a file that is gone stops being tracked, otherwise its current
+  hash becomes the expected one; the event is resolved `accepted`; audit
+  `drift.accept`; 200 `{"resolved":"accepted"}`.
+- `restore`: the first site that owns the path (`siteOwnsPath`) is rendered
+  again as stored now, under its lock (`ApplySiteConfig`, then `MarkApplied`
+  and the rendered files recorded); the event is resolved `restored`; audit
+  `drift.restore`; 200 `{"resolved":"restored"}`. No site owns it → **422**
+  `no site owns this file; accept the change or remove the file manually`;
+  an agent failure through `errorReply`.
+- anything else → 400 `action must be restore or accept`.
+
+### 7.2 Release check
+
+`GET /api/system/update` answers `{current, latest, update_available,
+notes_url, checked_at, check_enabled, channel, error}`; `channel` is the
+`update_channel` setting (R-6.3). With `update_check` off:
+`check_enabled: false` and nothing is fetched. A build without an update
+origin or key: `check_enabled: false`, `error` `this build has no update
+origin compiled in` (or `… no release signing key compiled in`). Otherwise
+the newest release of the channel comes from the release feed and its signed
+manifest (`version.Feed`, internal/version SPEC §4: signature checked, so a
+spoofed feed cannot advertise an update, and a beta is never announced on
+stable; 15 s timeout; 1 MiB cap), through a cache that is dropped when the
+channel changes (an answer fetched for the old channel is not kept): a good
+answer is kept 6 h, a failure 10 min; `?refresh=1` from an admin forces a
+check at most once a minute (from anyone else it is ignored); while one
+check runs every caller gets the cached answer, and the lock is never held
+across the fetch. Errors are fixed strings: `could not reach the release
+feed`, `the release feed has no signature`, `the published release is not
+validly signed`. `notes_url` is the changelog with the heading anchor
+GitHub renders (`v0.2.10` → `#v0210`). The check never installs anything.
+
+## 8. Connector purge (R-4.3)
+
+`POST /api/connector/purge` (also on the loopback listener) is called by a
+site's WordPress connector with `Authorization: Bearer <site token>`.
+
+1. The token is looked up by its SHA-256 in the secret store's index
+   (`Store.SiteForConnectorToken`): one indexed read whatever the number of
+   sites (it decrypted every site's token before R-4.3), and the stored
+   token is then compared in constant time.
+2. No token (`""` after `Bearer `) → **401** `missing token`; an unknown one
+   → **401** `invalid token`. A valid token is never limited: before R-4.3
+   a limited address was refused before its token was looked at, and since
+   every site purges from 127.0.0.1, one site's PHP sending wrong tokens
+   stopped every other site's purges.
+   - Per address (`clientIP`), past 20 wrong tokens in a minute the answer
+     to a wrong token is **429** `too many invalid tokens`. This changes the
+     answer only: the lookup is one indexed read, so a wrong token costs no
+     more than a right one, and with 192-bit tokens the limit is not what
+     stops guessing.
+   - What reports guessing is a counter of wrong tokens from every address
+     together: 100 inside 10 minutes begin a burst, which is the alert
+     `connector.token_guessing` (§11.1) until an hour passes without the
+     threshold being met again.
+3. The body `{urls, all}` is decoded only then (malformed → 400).
+4. `all` purges the whole site. Otherwise only the URLs whose host is the
+   site's domain or one of its aliases are kept (others are dropped without
+   an error); none left → 200 `{"removed":0}` without calling the agent.
+   `PurgeCache` → 200, the agent's result.
+
+## 9. Tasks (R-4.3)
+
+Tasks are the jobs of the queue as the UI sees them (internal/jobs/SPEC.md
+§11). Who may see a job: nobody without a role; a quiet (maintenance) job only
+an admin; an operator only jobs of a site it can access; admins and
+read-only accounts every other job.
+
+- `GET /api/tasks`: the newest 100 non-quiet jobs the caller may see, each
+  with its error in the reader's language when it carries a key
+  (localize.go). 500 `could not list the tasks`.
+- `GET /api/tasks/{id}`: bad id → 400 `invalid id`; missing or not visible
+  → 404 `task not found`; store failure 500 `could not read the task`.
+- `POST /api/tasks/{id}/cancel` (manage): the same lookup; a server-wide job
+  (no site) is an admin's to cancel (→ **403** `only an administrator can
+  cancel a server-wide task`); already finished → **409** `the task has
+  already finished`; a kind that cannot be canceled → **409** with its
+  message; other failures 500 `could not cancel the task`. 200, the task as
+  it is now; audit `task.cancel`, `<kind> #<id>`, the new status.
+
+## 10. Migration import (R-4.3)
+
+`POST /api/sites/{id}/migration {archive, sql, database, old_domain, confirm,
+max_ratio}`. `database` is the site's database the dump goes into (Fase 9b;
+empty: the primary). Refusals, in this order: `confirm` ≠ domain → 400 `type the
+destination domain to confirm migration`; blank archive → 400 `site archive
+path is required`; `sql` given without `database` and without a local
+managed database → **412** `SQL import requires a local managed database`;
+a WordPress site's `database` other than its primary → 400 `a WordPress
+site's dump goes into its primary database` (its URLs and table prefix are
+set there); `max_ratio` ≠ 0 from anyone
+but an admin → **403** `only an administrator can change the expansion
+limit`; `max_ratio` < 0 or above `rpc.MaxMigrationRatio` → 400 `the expansion
+limit must be between 1 and <max>`; a `database` that is not the site's →
+404. The release ID is minted at the request
+(`site.NewReleaseID`); audit `migration.import` with the archive; job
+`migration.import`, site lock: 10 `Validating and extracting migration
+archive`, `ImportMigration` (an agent refusal is returned as is, so the task
+keeps its translation key), 85 `Recording immutable migration release`, a
+promoted deployment at `<root>/releases/<release>`, a purge of the whole page
+cache (best effort), the background re-warm (§6.2), 100 `Migration imported
+and activated (<n> files)[; <k> unsafe or special entries skipped]`. Answer
+202 `{task, release_id}`.
+
+## 11. Alerts (R-4.3)
+
+Alerts are rows of the `alerts` table (internal/state/SPEC.md, Alerts), one
+per condition. Until R-4.3 they were computed on every `GET`, with a
+synchronous `ServiceStatus` call to the agent, and dismissals were a
+separate table of hashes.
+
+### 11.1 Conditions
+
+The **evaluator** (`evaluateAlerts`) derives the current conditions and hands
+each kind's set to the store (`SyncAlerts(kind, set)`), which raises the new
+ones, refreshes the ones still there and clears the ones gone. A
+condition's **key** is its kind and subject, unique; its **fingerprint** is
+what makes it a different occurrence of the same key. The alert's public
+`id` is a short hash of key and fingerprint: stable while the condition
+lasts (across days, across a changing detail line), new when it changes.
+
+| Kind | Key | Fingerprint | Level | Message (English, stored) | Condition |
+| --- | --- | --- | --- | --- | --- |
+| `certificate` | `certificate.renewal:site:<id>` | the error's first line | error | `certificate renewal failed: <first line>` | an active site whose last renewal failed |
+| `certificate` | `certificate.expiry:site:<id>` | the expiry (RFC 3339) and the level | warning; error under 3 days | `certificate expires in <days> days` (refreshed at each evaluation) | an active site whose certificate expires within 14 days; `at` is the expiry |
+| `task` | `task:backup.scheduled:site:<id>` | the error's first line | error | as below | the newest failed scheduled backup of a site: the schedule repeats it, and one alert per run was a new alert every slot (and, before the back-off of §5.3, every five minutes) |
+| `task` | `task:<job id>` | — | error | `<kind with dots as spaces> failed: <error's first line>` | a non-quiet job that failed in the last 24 hours; `at` is its creation. A job of a site that no longer exists (a creation that failed and was rolled back) is a server-wide alert whose `site` is the domain the job recorded (`startJob` stores `{site_id, domain}` as the payload of a function job), or `site #<id>`: admins must see a failed creation |
+| `service` | `service:<name>` | the state | error | `<name> is <state>: <detail>` | a service the agent reports `failed` or `stopped` |
+| `service` | `connector.token_guessing` | the burst's start | error | `<n> invalid connector tokens since <time>: something may be guessing the sites' tokens` | a burst of wrong connector tokens (§8); `at` is its start |
+| `drift` | `drift` | the newest open event's id | warning | `<n> managed file(s) changed outside the panel` | open drift events |
+| `deploy` | `deploy:<deployment id>` | the deployment's note | warning | `deploy.drift: the site serves a release the panel had not recorded as live (release <r>, recorded <live or none>)`; `release <r> is live without its post-promotion verification (it was canceled)`; `release <r> regressed after its promotion and could not be rolled back automatically` | a deployment with a note (§4.5); the note's code picks the message |
+
+The service set needs the agent: when `ServiceStatus` fails the service
+alerts are left as they are (neither raised nor cleared; token guessing is
+still raised). The others come from the store alone.
+
+**One evaluation at a time**: the watcher's and the job's share a lock, so
+an evaluation that read older state cannot clear what a newer one raised.
+
+**Flapping.** A condition that clears and comes back (a service that stops,
+starts, stops) is a new alert each time: shown again, its dismissal gone,
+notified again (at most once per occurrence; occurrences are not throttled
+together).
+
+**The upgrade.** An upgraded panel (migration 19 on a database with
+accounts) has no rows yet; its first evaluation re-raises what the old panel
+had computed, and those rows count as already notified, so the first notify
+does not resend them all. Old dismissals do not carry over: a condition
+dismissed before the upgrade shows once more.
+
+The evaluator runs: in the `alerts.notify` job, every five minutes (the
+time-based conditions: a certificate entering its window, a task leaving
+the 24 hours); and in the **alert watcher**, at most once a second, after a
+`task.finished`, `site.changed`, `site.deleted`, `cert.changed`,
+`drift.changed` or `service.changed` event, when a token-guessing burst
+begins, and once when it starts.
+
+### 11.2 Reading and dismissing
+
+`GET /api/system/alerts` (every signed-in account) reads the table, never
+the agent: the undismissed alerts the caller may see, errors first, newest
+first within a level. An operator sees the alerts of sites it can access and
+no server-wide one (no site); everyone else sees all. Each alert is
+`{id, level, kind, site_id, site, message, text, at}` as before: `message`
+stays English, `text` is it in the
+reader's language (`readerLanguage`; a task's error in its own translation
+when it carries a key). A task alert also carries `task_kind` (the job's
+kind, `backup.run`, which the interface names) and `detail` (its error, in
+the reader's language when it carries a key): the dashboard used to parse
+both out of the English `message`, so the error read in English in every
+language. 500 `could not read the alerts`.
+
+`POST /api/system/alerts/{id}/dismiss` (manage): an id that is not an
+undismissed alert the caller can see → **404** `alert not found`; otherwise
+the row is marked dismissed for everyone, `alert.cleared` is published,
+audit `alert.dismiss` (subject the site's domain, detail `<kind>: <first
+line>`), 200 `{"dismissed": id}`. A dismissal lasts as long as the
+occurrence: a new fingerprint (a different renewal error, an expiry
+escalating to error, a service failing in another way, new drift) is a new
+id, shown again; a condition that clears and comes back is new too. A
+site's alerts go with the site.
+
+### 11.3 Events and the webhook
+
+The store publishes `alert.raised` `{id, level, kind, site, message}` when
+an occurrence is raised (a new key, or a new fingerprint) and
+`alert.cleared` `{id}` when one is cleared, replaced or dismissed, each with
+the alert's site as the event's site (events/SPEC.md §2).
+
+The `alerts.notify` job, after evaluating, sends every undismissed alert not
+notified in the last six hours to the `notify_webhook` secret (when set):
+`POST` JSON `{"text": t, "content": t}` (Slack, Discord, Mattermost), 10 s
+timeout, in the admins' language (the first enabled admin with a supported
+locale, else the default): `CloudGround <LEVEL>[ on <site>]: <text>`.
+
+- Posts run four at a time inside the job, which waits for them; each
+  alert's `notified_at` is set as soon as its own post got a 2xx, so a
+  hanging endpoint costs one 10 s timeout per round of four and a failed
+  post is tried again at the next run (every five minutes).
+- The client follows no redirect (a 3xx is a failure) and its dialer
+  refuses, on the address actually dialled, loopback, private, link-local
+  (169.254/16, fe80::/10), shared (100.64/10), multicast and unspecified
+  addresses and the server's own: the URL cannot reach what only the server
+  can.
+- The URL is a credential and the panel's journal is readable by read-only
+  accounts (`GET /api/logs`): a failure is logged with its status or cause,
+  never the URL. The agent's errors are logged with every URL password
+  replaced by `***` (`agentrpc.RedactCredentials`, applied to every
+  error's detail), since restic's output can name the repository.
+
+## 12. Settings (R-4.3)
+
+`/api/settings` is a flat map of string keys (the settings page and cgctl
+use it). Each key is a field of `state.PanelSettings` or a secret.
+
+- Fields: `acme_email`, `backup_repository` (a password in the URL's
+  userinfo is shown as `••••••••`), `probe_target`, `backup_s3_access_key`,
+  `backup_s3_region`, `require_2fa_admin` (`"1"` on, `""` off; accepts
+  `1`/`true`/`""`/`0`/`false`, else 400 `require_2fa_admin: must be 1 or
+  empty`), `update_check` (`""` on, `"0"` off; accepts `""`/`1`/`true`/`0`/
+  `false`, else 400 `update_check: must be 0 or empty`), `update_channel`
+  (`stable` or `beta`, `""` meaning stable; else 400 `update_channel: must be
+  stable or beta`; the release check and `POST /api/panel/update` follow
+  it), and the read-only
+  `panel_domain`.
+- Secrets: `backup_password`, `backup_s3_secret_key`, `cloudflare_api_token`
+  show `••••••••` when set and `""` when not; `notify_webhook` is shown in
+  full to an admin and as `<scheme>://<host>/••••••••` to anyone else.
+- `GET` (global): the map. 500 `could not read the settings`.
+- `PUT` (admin), a partial map. With an API token (§1.2.1), first: a key
+  other than `acme_email` and `probe_target` whose value differs from what
+  `GET` shows an admin (a masked secret or repository sent back as shown is
+  no change) → **403** `an API token cannot change <key>: the panel's own
+  settings need a signed-in session (a token may change acme_email and
+  probe_target)`, the first such key in key order, and nothing changes.
+  Then, for everyone: an unknown key → 400 `unknown setting <key>`; a secret sent back as `••••••••`, and the repository sent back in
+  its masked form, mean unchanged; `""` clears a secret; a read-only key
+  sent back unchanged is ignored, changed → 400 `panel_domain is set by the
+  operation that owns it, not here`; `notify_webhook` must be an `https` URL
+  with a host (→ 400 `notify_webhook must be an https URL`) whose host, a literal address or any address the name resolves to (3 s; a name that does not resolve is accepted, the dialer still checks), is not one the send-time dialer refuses (→ 400 `notify_webhook must reach a public address: <host> is <ip> …`; it used to be saved and every alert silently dropped); `probe_target`
+  must be `https://127.0.0.1`, `::1` or `localhost`, optionally with a port
+  and `/` (→ 400 `probe_target must be https://127.0.0.1 (optionally with a
+  port)`). When the repository or the password changes and both end up set,
+  the pairing is tested with `TestBackup` first (→ 400 `this
+  repository/password pairing does not work, refusing to save (existing
+  backups would become unreachable): <agent message>`): a restic repository
+  is keyed by the password it was created with. Then the secrets are
+  written, then only the fields the request names, on the settings as stored
+  now (one transaction). Audit `settings.update` with the sorted keys; the
+  answer is the `GET` map. A store failure is 500 `could not save the
+  settings` (the store's error text reached the browser before R-4.3).
+
+## 13. The server (R-4.3)
+
+`Server` holds the store, the agent, the logger, the embedded UI, the job
+queue and scheduler, the event bus, the rate limiters (sign-in per address
+and account 8/min, per address 30/min, failures per account 10/15 min,
+wrong connector tokens per address 20/min), the per-site locks, the
+release-check cache and the capabilities cache. `Init` creates the bus and
+the limiters and starts the job queue once; it is idempotent. `Routes` and
+`ConnectorRoutes` (§1) call it.
+
+Helpers every handler shares: `respond(w, status, v)` writes JSON (the
+status goes first, so a failed write has nobody left to tell); `respondErr` writes `{"error": msg}`; `audit`
+writes a row and logs a failed write rather than dropping it;
+`redactForAudit` keeps a command's first word, its word count and 4 bytes of
+its SHA-256; `randomToken(n)` is n random bytes, URL-safe base64;
+`lockSite(id)` / `freshSite(id)` serialise read → agent call → write on one
+site; `revertField` puts back a value only if nobody changed it since. A
+domain service returns a `declined` error (status and message, made by
+`refuse`) for a request it turns down, a `queueError` for a job it could not
+enqueue, a store failure marked with `stored` (or one of the store's
+sentinels), or the agent call's error. `fail` answers them: the refusal as
+it says, `respondJobErr`, **500** `the panel could not complete the request`
+(the text only in the journal), and `errorReply` for the agent's, which
+never trusts the text of an error that is not the agent's own type.

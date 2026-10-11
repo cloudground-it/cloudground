@@ -1,0 +1,187 @@
+package state
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"time"
+)
+
+// SiteType names the recipe a site is provisioned with.
+type SiteType string
+
+// The site types.
+const (
+	SiteWordPress   SiteType = "wordpress"
+	SiteWooCommerce SiteType = "woocommerce"
+	SiteStatic      SiteType = "static"
+	SitePHP         SiteType = "php"
+	SiteLaravel     SiteType = "laravel"
+	SiteProxy       SiteType = "proxy"
+)
+
+// Profile is a Velocity Engine policy: how a site is cached and tuned.
+type Profile string
+
+// The profiles.
+const (
+	ProfileBalanced Profile = "balanced"
+	ProfileCommerce Profile = "commerce"
+	ProfileMaximum  Profile = "maximum"
+)
+
+// Engine is the web-serving stack a site is rendered for.
+type Engine string
+
+// EngineNginx, nginx in front of PHP-FPM, is the only engine and the default.
+const EngineNginx Engine = "nginx"
+
+// SiteStatus is where a site is in its life.
+type SiteStatus string
+
+// The site statuses.
+const (
+	SiteProvisioning SiteStatus = "provisioning"
+	SiteActive       SiteStatus = "active"
+	SiteError        SiteStatus = "error"
+	SiteDeleting     SiteStatus = "deleting"
+)
+
+// SiteConfig is a site's declarative description, kept as JSON in the
+// sites row (its config column).
+type SiteConfig struct {
+	CacheEnabled bool `json:"cache_enabled"`
+	// CacheTTLSec is the page cache lifetime; 0 takes the profile's.
+	CacheTTLSec int `json:"cache_ttl_sec"`
+	// ObjectCache gives the site its own Redis namespace.
+	ObjectCache bool           `json:"object_cache"`
+	Database    DatabaseConfig `json:"database"`
+	Resources   Resources      `json:"resources"`
+	Backups     BackupPolicy   `json:"backups"`
+	PHP         PHPSettings    `json:"php"`
+	SFTPEnabled bool           `json:"sftp_enabled"`
+	// ShellEnabled lets the site's SSH keys of kind "shell" open a shell
+	// in the site (R-4.5, ops/sftp SPEC §5). Only an administrator sets it.
+	ShellEnabled bool `json:"shell_enabled"`
+	// ProxyUpstream is where a proxy site forwards to.
+	ProxyUpstream string `json:"proxy_upstream,omitempty"`
+	// PublicRoot is the document root inside a release ("public" for
+	// Laravel); empty is the release itself.
+	PublicRoot string `json:"public_root,omitempty"`
+	// HSTS asks for Strict-Transport-Security, sent only once the site
+	// has a real certificate: on the self-signed fallback it would lock
+	// browsers out.
+	HSTS bool `json:"hsts,omitempty"`
+	// StagingAuthHash is, on a staging site, the bcrypt hash of the
+	// password nginx asks for: a staging copy is never public.
+	StagingAuthHash string `json:"staging_auth_hash,omitempty"`
+	// WildcardCert extends the certificate to *.<domain>, issued over
+	// Cloudflare DNS.
+	WildcardCert bool `json:"wildcard_cert,omitempty"`
+	// Routing is the administrator's own block of nginx locations
+	// (internal/engine SPEC §7); empty is the site type's default.
+	Routing string `json:"routing,omitempty"`
+	// BypassCookies are cookie names that skip the page cache beyond the
+	// site type's own set (internal/velocity SPEC §1.4): an application's
+	// session cookie the type does not know.
+	BypassCookies []string `json:"bypass_cookies,omitempty"`
+}
+
+// DatabaseConfig is the database a site uses. It may be external (managed
+// or on another host), so a site can outgrow the server without being
+// created again.
+type DatabaseConfig struct {
+	Enabled  bool   `json:"enabled"`
+	External bool   `json:"external"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Name     string `json:"name"`
+	User     string `json:"user"`
+	TLS      bool   `json:"tls"`
+}
+
+// Resources size a site. Both fields do something today: MemoryHighMB
+// feeds the estimate of PHP-FPM's pm.max_children (a heuristic, not a
+// memory limit), and PHPWorkers, when set, is that worker count. No CPU,
+// memory or connection quota is offered on purpose: nothing enforces one
+// per site (no cgroup or slice limit is set from here), and a field that
+// promises a guarantee the system does not give is worse than none.
+type Resources struct {
+	MemoryHighMB int `json:"memory_high_mb"`
+	// PHPWorkers of 0 sizes the pool automatically.
+	PHPWorkers int `json:"php_workers"`
+}
+
+// BackupPolicy is a site's restic schedule. A "repository" key that old
+// releases wrote and nothing read is ignored when a config is decoded.
+type BackupPolicy struct {
+	Enabled bool `json:"enabled"`
+	// Schedule is hourly, daily or weekly.
+	Schedule      string `json:"schedule"`
+	RetentionDays int    `json:"retention_days"`
+}
+
+// PHPSettings are the php.ini values a site may override; 0 leaves the
+// pool renderer's own choice.
+type PHPSettings struct {
+	MemoryLimitMB       int `json:"memory_limit_mb"`
+	UploadMaxMB         int `json:"upload_max_mb"`
+	MaxExecutionSeconds int `json:"max_execution_seconds"`
+}
+
+// RequestTimeoutSeconds bounds one PHP request in wall-clock time, for both
+// FPM (request_terminate_timeout) and nginx (fastcgi_read_timeout): ten
+// seconds past MaxExecutionSeconds, so neither cuts a raised limit short,
+// and never under 120.
+func (p PHPSettings) RequestTimeoutSeconds() int {
+	return max(p.MaxExecutionSeconds+10, 120)
+}
+
+// Site is one managed website; a staging copy names its production site in
+// StagingOf.
+type Site struct {
+	ID         int64      `json:"id"`
+	Domain     string     `json:"domain"`
+	Aliases    []string   `json:"aliases"`
+	Type       SiteType   `json:"type"`
+	Profile    Profile    `json:"profile"`
+	Engine     Engine     `json:"engine"`
+	PHPVersion string     `json:"php_version"`
+	SystemUser string     `json:"system_user"`
+	RootPath   string     `json:"root_path"`
+	Status     SiteStatus `json:"status"`
+	StagingOf  int64      `json:"staging_of,omitempty"`
+	Config     SiteConfig `json:"config"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+	// The generations (SPEC.md invariant 5), all three the store's:
+	// DesiredGeneration counts changes to the desired configuration
+	// (MutateSite), AppliedGeneration is the newest the agent is known to
+	// have rendered and LastApplyError why the last attempt failed
+	// (MarkApplied).
+	DesiredGeneration int64  `json:"desired_generation"`
+	AppliedGeneration int64  `json:"applied_generation"`
+	LastApplyError    string `json:"last_apply_error"`
+}
+
+// InternalKey is what the panel and the agent send in the
+// X-CloudGround-Internal header to reach a password-protected staging site
+// without its password (Performance Guard, cache flushes, the warmer).
+// It derives from the staging password's hash, which only the panel, the
+// agent and the root-only vhost hold; a site without that protection has
+// none ("").
+func (s Site) InternalKey() string {
+	if s.Config.StagingAuthHash == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte("cloudground-staging-internal\x00" + s.Config.StagingAuthHash))
+	// Half the digest: a longer key overflows nginx's default
+	// map_hash_bucket_size of 64 and nginx -t refuses the vhost (measured).
+	return hex.EncodeToString(sum[:16])
+}
+
+// Public is the site as panel users see it through the API: without the
+// staging password hash, from which InternalKey derives.
+func (s Site) Public() Site {
+	s.Config.StagingAuthHash = ""
+	return s
+}

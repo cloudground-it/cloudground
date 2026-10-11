@@ -1,0 +1,57 @@
+{
+  "params": {
+    "full": {},
+    "zero": {}
+  },
+  "result": {
+    "full": {
+      "agent_version": "AgentVersion",
+      "started_at": "2026-01-02T03:04:05Z",
+      "php_versions": [
+        "PHPVersions"
+      ],
+      "services": [
+        {
+          "name": "Name",
+          "unit": "Unit",
+          "listed": true,
+          "restartable": true
+        }
+      ],
+      "protected_tables": [
+        {
+          "match": "Match",
+          "pattern": "Pattern",
+          "reason": "Reason",
+          "stores_only": true
+        }
+      ],
+      "paths": {
+        "sites_root": "SitesRoot",
+        "log_root": "LogRoot",
+        "mysql_socket": "MySQLSocket"
+      },
+      "features": {
+        "http3": true
+      },
+      "restic_version": "ResticVersion",
+      "restic_supported": true
+    },
+    "zero": {
+      "agent_version": "",
+      "started_at": "0001-01-01T00:00:00Z",
+      "php_versions": null,
+      "services": null,
+      "protected_tables": null,
+      "paths": {
+        "sites_root": "",
+        "log_root": ""
+      },
+      "features": {
+        "http3": false
+      },
+      "restic_version": "",
+      "restic_supported": false
+    }
+  }
+}

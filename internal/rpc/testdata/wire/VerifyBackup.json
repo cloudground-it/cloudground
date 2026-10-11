@@ -1,0 +1,34 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "repository": "Repository",
+      "password": "Password",
+      "snapshot_id": "SnapshotID",
+      "mode": "Mode",
+      "env": {
+        "key": "Env"
+      },
+      "databases": [
+        "Databases"
+      ]
+    },
+    "zero": {
+      "site": "@state.Site",
+      "repository": "",
+      "password": "",
+      "snapshot_id": ""
+    }
+  },
+  "result": {
+    "full": {
+      "passed": true,
+      "restore_millis": 7,
+      "detail": "Detail"
+    },
+    "zero": {
+      "passed": false,
+      "restore_millis": 0
+    }
+  }
+}

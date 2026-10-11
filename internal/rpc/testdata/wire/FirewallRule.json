@@ -1,0 +1,21 @@
+{
+  "params": {
+    "full": {
+      "action": "Action",
+      "port": 7,
+      "proto": "Proto",
+      "from": "From"
+    },
+    "zero": {
+      "action": "",
+      "port": 0,
+      "proto": ""
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

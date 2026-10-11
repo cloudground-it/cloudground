@@ -1,0 +1,10 @@
+# No blank issues: the forms ask for the version, the system and the logs,
+# which a free-text report usually leaves out.
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/cloudground-it/cloudground/security/advisories/new
+    about: Reported privately, as SECURITY.md describes. Never as a public issue.
+  - name: Questions and ideas
+    url: https://github.com/cloudground-it/cloudground/discussions
+    about: How something works, whether it should work that way, what could come next.

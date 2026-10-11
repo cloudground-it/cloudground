@@ -1,0 +1,33 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "login": "Login",
+      "sql": "SQL",
+      "read_only": true
+    },
+    "zero": {
+      "site": "@state.Site",
+      "sql": ""
+    }
+  },
+  "result": {
+    "full": {
+      "columns": [
+        "Columns"
+      ],
+      "rows": [
+        [
+          "Rows"
+        ]
+      ],
+      "message": "Message",
+      "truncated": true
+    },
+    "zero": {
+      "columns": null,
+      "rows": null
+    }
+  }
+}

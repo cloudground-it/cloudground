@@ -1,0 +1,29 @@
+The PHP in this directory (php/cloudground-connector.php, php/object-cache.php,
+php/tests/ and test/flush/) is licensed under the GNU General Public License, version 2
+or (at your option) any later version:
+
+    SPDX-License-Identifier: GPL-2.0-or-later
+
+    Copyright (C) 2026 CloudGround contributors
+
+    This program is free software; you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by the
+    Free Software Foundation; either version 2 of the License, or (at your
+    option) any later version.
+
+    This program is distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+    Public License for more details.
+
+The full text of version 2 is at
+https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+
+Why a licence of its own: the mu-plugin and the object-cache drop-in run
+inside WordPress, on its hooks and in place of its object cache, and the
+WordPress Foundation regards such code as a derivative of WordPress, which is
+GPL-2.0-or-later. They are installed into every WordPress site CloudGround
+hosts, so they carry WordPress's licence whatever licence the rest of
+CloudGround has. The Go code in this directory (connector.go,
+connector_test.go) only embeds these files and is under the repository's
+licence.

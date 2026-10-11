@@ -1,0 +1,29 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "login": "Login",
+      "name": "Name"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "database": "",
+      "login": "",
+      "name": ""
+    }
+  },
+  "result": {
+    "full": {
+      "imported": "Imported",
+      "size_bytes": 7,
+      "warnings": [
+        "Warnings"
+      ]
+    },
+    "zero": {
+      "imported": "",
+      "size_bytes": 0
+    }
+  }
+}

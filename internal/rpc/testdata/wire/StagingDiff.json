@@ -1,0 +1,37 @@
+{
+  "params": {
+    "full": {
+      "production": "@state.Site",
+      "staging": "@state.Site",
+      "db_password": "DBPassword",
+      "connector_token": "ConnectorToken"
+    },
+    "zero": {
+      "production": "@state.Site",
+      "staging": "@state.Site",
+      "db_password": "",
+      "connector_token": ""
+    }
+  },
+  "result": {
+    "full": {
+      "added": [
+        "Added"
+      ],
+      "removed": [
+        "Removed"
+      ],
+      "modified": [
+        "Modified"
+      ],
+      "scanned": 7,
+      "truncated": true
+    },
+    "zero": {
+      "added": null,
+      "removed": null,
+      "modified": null,
+      "scanned": 0
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "rel_path": "RelPath"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "rel_path": ""
+    }
+  },
+  "result": {
+    "full": {
+      "rel_path": "RelPath",
+      "entries": [
+        {
+          "name": "Name",
+          "is_dir": true,
+          "size": 7,
+          "mode": "Mode",
+          "mod_time": "ModTime"
+        }
+      ]
+    },
+    "zero": {
+      "rel_path": "",
+      "entries": null
+    }
+  }
+}

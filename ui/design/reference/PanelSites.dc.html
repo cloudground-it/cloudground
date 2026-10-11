@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>CloudGround — Siti</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&amp;family=Instrument+Serif:ital@0;1&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.t-light{--bg:#F2F1EC;--bg2:#E9E7E0;--bg3:#E2E0D8;--line:#D6D4CC;--ink:#0F0F12;--text:#1B1B20;--muted:#55555D;--faint:#6B6B73;--inv-bg:#0F0F12;--inv-fg:#F2F1EC;--panel:#0F0F12;--panel-line:#2A2A30;--panel-text:#B7B6AE;--blue:#2F5BFF;--orange:#C2501F;--ok:#1E7A46;--ok-bg:#DCEBDF;--warn:#A8411A;--warn-bg:#F6E0D3;--err:#B3261E;--err-bg:#F4DAD7}
+.t-dark{--bg:#0F0F12;--bg2:#15151A;--bg3:#1C1C22;--line:#2A2A30;--ink:#F2F1EC;--text:#E7E6DF;--muted:#A3A29A;--faint:#8A8A92;--inv-bg:#F2F1EC;--inv-fg:#0F0F12;--panel:#08080A;--panel-line:#24242A;--panel-text:#A3A29A;--blue:#7C9BFF;--orange:#FF8A55;--ok:#5CC98A;--ok-bg:#15281D;--warn:#FF9A66;--warn-bg:#2C1A10;--err:#FF7B72;--err-bg:#2D1412}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+.hud{font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:500}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.disp{font-family:Archivo,system-ui,sans-serif;font-stretch:118%;font-weight:560;letter-spacing:-.04em}
+.ser{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400;letter-spacing:-.02em;font-stretch:100%}
+.nav{display:flex;align-items:center;gap:12px;padding:9px 14px;margin:0 8px;color:var(--text);text-decoration:none;font-size:14px;transition:background-color .12s linear,color .12s linear}
+.nav:hover{background:var(--bg3);text-decoration:none}
+.nav-on{display:flex;align-items:center;gap:12px;padding:9px 14px;margin:0 8px;background:var(--inv-bg);color:var(--inv-fg);text-decoration:none;font-size:14px;font-weight:600}
+.row{transition:background-color .12s linear}.row:hover{background:var(--bg2)}
+.cell-inv{transition:background-color .14s linear,color .14s linear}.cell-inv:hover{background:var(--inv-bg);color:var(--inv-fg)}
+.btn{background:var(--inv-bg);color:var(--inv-fg);border:0;cursor:pointer;transition:background-color .14s linear}.btn:hover{background:var(--blue);color:#fff}
+.btn-line{background:transparent;color:var(--ink);border:1px solid var(--ink);cursor:pointer}.btn-line:hover{background:var(--inv-bg);color:var(--inv-fg)}
+@keyframes cgWave{from{transform:translateX(0)}to{transform:translateX(-600px)}}
+@keyframes cgPulse{0%,100%{opacity:1}50%{opacity:.3}}
+.wave{animation:cgWave 14s linear infinite}
+.led{animation:cgPulse 1.8s ease-in-out infinite}
+.motion-off *{animation:none !important}
+@media (prefers-reduced-motion: reduce){*{animation:none !important}}
+</style>
+</helmet>
+<div class="{{rootClass}}" style="background: var(--bg); color: var(--text); font-family: Archivo, system-ui, sans-serif; min-height: 100vh; display: flex; flex-wrap: wrap">
+
+<aside aria-label="Navigazione" style="flex: 1 1 232px; max-width: 248px; background: var(--bg2); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 100vh">
+<a href="#top" style="display: flex; gap: 10px; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink)">
+<svg viewBox="0 0 48 48" width="28" height="28" aria-hidden="true"><rect width="48" height="48" rx="11" fill="#0F0F12"></rect><g transform="translate(4 3) scale(.84)"><path fill="#F2F1EC" d="M14 26A8 8 0 1 1 15.843 10.215A10 10 0 0 1 33.87 14.391A6 6 0 1 1 36 26Z"></path><rect x="14" y="30" width="28" height="4.6" rx="1" fill="#2F5BFF"></rect><rect x="6" y="38" width="28" height="4.6" rx="1" fill="#E0612B"></rect></g></svg>
+<span class="disp" style="font-size: 18px">cloudground</span>
+</a>
+<div style="padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px">
+<span class="hud" style="color: var(--faint)">Server</span>
+<span class="mono" style="font-size: 13px; color: var(--ink)">[NOME SERVER]</span>
+<span class="mono" style="font-size: 12px; color: var(--muted)">Ubuntu 26.04 · v[VERSIONE]</span>
+</div>
+<nav style="display: flex; flex-direction: column; gap: 2px; padding: 16px 0">
+<span class="hud" style="color: var(--faint); padding: 0 22px 8px">Siti</span>
+<a href="PanelDashboard.dc.html" class="nav"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>Dashboard</a>
+<a href="PanelSites.dc.html" class="nav-on" aria-current="page"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"></path></svg>Siti<span class="mono" style="margin-left: auto; font-size: 12px; color: var(--muted)">5</span></a>
+<a href="#top" class="nav"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"></path><path d="M9 9h6M9 13h6M9 17h4"></path></svg>Log</a>
+<span class="hud" style="color: var(--faint); padding: 18px 22px 8px">Server</span>
+<a href="#top" class="nav"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="6"></rect><rect x="3" y="14" width="18" height="6"></rect></svg>Servizi</a>
+<a href="#top" class="nav"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"></path></svg>Firewall</a>
+<a href="#top" class="nav"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M2 21c1-4 4-6 7-6s6 2 7 6M17 11a3 3 0 1 0 0-6M22 21c-.5-3-2-4.5-4-5"></path></svg>Utenti</a>
+<a href="#top" class="nav"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5M12 7v5l3 3"></path></svg>Registro attività</a>
+<a href="#top" class="nav"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"></path></svg>Impostazioni</a>
+</nav>
+<div style="margin-top: auto; border-top: 1px solid var(--line); padding: 14px 20px; display: flex; gap: 12px; align-items: center">
+<span class="mono" style="width: 32px; height: 32px; display: grid; place-items: center; background: var(--inv-bg); color: var(--inv-fg); font-size: 13px">ER</span>
+<span style="display: flex; flex-direction: column; min-width: 0"><span style="font-size: 14px; font-weight: 600; color: var(--ink)">[NOME COGNOME]</span><span class="hud" style="color: var(--faint)">Amministratore</span></span>
+</div>
+</aside>
+
+<div style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column">
+<header style="display: flex; flex-wrap: wrap; align-items: stretch; border-bottom: 1px solid var(--line); min-height: 56px; position: sticky; top: 0; background: var(--bg); z-index: 5">
+<div class="hud" style="display: flex; align-items: center; gap: 10px; padding: 0 24px; color: var(--muted); border-right: 1px solid var(--line)">Siti<span style="color: var(--faint)">/</span><span style="color: var(--ink)">Tutti i siti</span></div>
+<div style="flex: 1 1 260px; display: flex; align-items: center; gap: 10px; padding: 0 18px">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--muted)" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<label for="q" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Cerca</label>
+<input id="q" type="search" placeholder="Cerca un sito, un servizio, un'azione" style="flex: 1; min-width: 0; background: transparent; border: 0; color: var(--ink); font: 400 15px Archivo, sans-serif; padding: 16px 0; outline: none">
+<span class="hud" style="border: 1px solid var(--line); padding: 3px 6px; color: var(--muted)">⌘K</span>
+</div>
+<button type="button" onClick="{{toggleTheme}}" aria-label="{{themeLabel}}" style="width: 56px; background: transparent; border: 0; border-left: 1px solid var(--line); color: var(--ink); cursor: pointer; min-height: 44px"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"></path></svg></button>
+<button type="button" aria-label="Avvisi: 2" style="position: relative; width: 56px; background: transparent; border: 0; border-left: 1px solid var(--line); color: var(--ink); cursor: pointer; min-height: 44px"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 6 3 7 3 7H3s3-1 3-7M10 20a2 2 0 0 0 4 0"></path></svg><span class="mono" style="position: absolute; top: 9px; right: 11px; background: var(--orange); color: #fff; font-size: 10px; padding: 1px 4px">2</span></button>
+<button type="button" class="btn hud" style="padding: 0 22px; min-height: 44px">+ Nuovo sito</button>
+</header>
+
+<main id="top" style="padding: 32px clamp(16px, 3vw, 40px) 56px; display: flex; flex-direction: column; gap: 24px">
+<div style="display: flex; flex-wrap: wrap; gap: 16px 40px; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span class="hud" style="color: var(--muted)">Siti · {{count}} su questo server</span>
+<h1 class="disp" style="margin: 0; font-size: clamp(36px, 4vw, 56px); line-height: .95; color: var(--ink)">Siti, <span class="ser" style="color: var(--blue)">uno per uno.</span></h1>
+</div>
+<button type="button" class="btn hud" style="padding: 14px 20px; min-height: 44px">+ Nuovo sito</button>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: stretch; border: 1px solid var(--line)">
+<div role="tablist" aria-label="Filtra per tipo" style="display: flex; flex-wrap: wrap; align-items: stretch">
+<sc-for list="{{filters}}" as="f" hint-placeholder-count="4">
+<button type="button" role="tab" aria-selected="{{f.selected}}" onClick="{{f.pick}}" class="hud" style="{{f.style}}">{{f.label}} <span class="mono" style="letter-spacing: 0; margin-left: 6px; opacity: .7">{{f.n}}</span></button>
+</sc-for>
+</div>
+<div style="flex: 1 1 240px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-left: 1px solid var(--line)">
+<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--muted)" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<label for="sq" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Filtra i siti</label>
+<input id="sq" type="search" placeholder="Filtra per dominio" style="flex: 1; min-width: 0; background: transparent; border: 0; color: var(--ink); font: 400 15px Archivo, sans-serif; padding: 12px 0; outline: none">
+</div>
+</div>
+
+<div style="overflow-x: auto; border-top: 1px solid var(--ink)">
+<table style="width: 100%; min-width: 980px; border-collapse: collapse; font-size: 14px">
+<thead><tr>
+<th class="hud" style="text-align: left; padding: 10px 4px; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line)">Sito</th>
+<th class="hud" style="text-align: left; padding: 10px; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line)">Stato</th>
+<th class="hud" style="text-align: left; padding: 10px; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line)">Tipo</th>
+<th class="hud" style="text-align: left; padding: 10px; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line)">PHP</th>
+<th class="hud" style="text-align: left; padding: 10px; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line)">Profilo cache</th>
+<th class="hud" style="text-align: right; padding: 10px; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line)">Cache HIT</th>
+<th class="hud" style="text-align: left; padding: 10px; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line)">Ultimo backup</th>
+<th class="hud" style="text-align: right; padding: 10px 4px; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line)"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Azioni</span></th>
+</tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="s" hint-placeholder-count="5">
+<tr class="row">
+<td style="padding: 16px 4px; border-bottom: 1px solid var(--line)"><span style="display: flex; flex-direction: column; gap: 3px"><a href="PanelSite.dc.html" style="color: var(--ink); font-weight: 600; font-size: 15px">{{s.domain}}</a><span class="mono" style="font-size: 12px; color: var(--faint)">{{s.sub}}</span></span></td>
+<td style="padding: 16px 10px; border-bottom: 1px solid var(--line)"><span class="hud" style="padding: 3px 7px; background: {{s.bg}}; color: {{s.fg}}">{{s.status}}</span></td>
+<td style="padding: 16px 10px; border-bottom: 1px solid var(--line); color: var(--text)">{{s.type}}</td>
+<td class="mono" style="padding: 16px 10px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px">{{s.php}}</td>
+<td class="mono" style="padding: 16px 10px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px">{{s.profile}}</td>
+<td style="padding: 16px 10px; border-bottom: 1px solid var(--line); text-align: right"><span class="mono" style="color: var(--ink)">{{s.hit}}</span><span style="display: block; height: 3px; margin-top: 6px; background: var(--bg3)"><span style="display: block; height: 3px; width: {{s.hitBar}}; background: var(--blue); margin-left: auto"></span></span></td>
+<td class="mono" style="padding: 16px 10px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px">{{s.backup}}</td>
+<td style="padding: 16px 4px; border-bottom: 1px solid var(--line); text-align: right"><button type="button" aria-label="Azioni per {{s.domain}}" style="width: 36px; height: 36px; background: transparent; border: 1px solid var(--line); color: var(--ink); cursor: pointer">⋯</button></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+<span class="hud" style="color: var(--faint)">Dati d'esempio per il design</span>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"motion":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { dark: null, filter: 'all', tab: 'overview', purged: false }; }
+  renderVals() {
+    const dark = this.state.dark ?? (this.props.dark ?? false);
+    const motion = this.props.motion ?? true;
+    const ok = { bg: 'var(--ok-bg)', fg: 'var(--ok)' }, warn = { bg: 'var(--warn-bg)', fg: 'var(--warn)' }, err = { bg: 'var(--err-bg)', fg: 'var(--err)' }, neutral = { bg: 'var(--bg3)', fg: 'var(--muted)' };
+    const base = {
+      rootClass: (dark ? 't-dark' : 't-light') + (motion ? ' motion-on' : ' motion-off'),
+      themeLabel: dark ? 'Passa al tema chiaro' : 'Passa al tema scuro',
+      toggleTheme: () => this.setState({ dark: !dark })
+    };
+    const all = [
+      { domain: 'esempio.it', sub: 'alias www.esempio.it', status: 'attivo', ...ok, type: 'WordPress', kind: 'wp', php: '8.5', profile: 'bilanciato', hit: '97%', hitBar: '97%', backup: 'oggi 03:12 · verificato' },
+      { domain: 'negozio.esempio.it', sub: 'staging collegato', status: 'attivo', ...ok, type: 'WooCommerce', kind: 'woo', php: '8.5', profile: 'commercio', hit: '81%', hitBar: '81%', backup: 'oggi 03:40 · verificato' },
+      { domain: 'staging.negozio.esempio.it', sub: 'copia di negozio.esempio.it', status: 'staging', ...neutral, type: 'Staging', kind: 'woo', php: '8.5', profile: 'commercio', hit: '—', hitBar: '0%', backup: '—' },
+      { domain: 'blog.esempio.it', sub: 'certificato tra 12 giorni', status: 'attenzione', ...warn, type: 'WordPress', kind: 'wp', php: '8.4', profile: 'massimo', hit: '99%', hitBar: '99%', backup: 'ieri 03:05 · verificato' },
+      { domain: 'api.esempio.it', sub: 'upstream 127.0.0.1:3000 non risponde', status: 'errore', ...err, type: 'Proxy', kind: 'other', php: '—', profile: '—', hit: '—', hitBar: '0%', backup: 'non configurato' }
+    ];
+    const f = this.state.filter;
+    const on = 'background: var(--inv-bg); color: var(--inv-fg); border: 0; border-right: 1px solid var(--line); padding: 0 16px; cursor: pointer; min-height: 44px';
+    const off = 'background: transparent; color: var(--muted); border: 0; border-right: 1px solid var(--line); padding: 0 16px; cursor: pointer; min-height: 44px';
+    const defs = [['all', 'Tutti'], ['wp', 'WordPress'], ['woo', 'WooCommerce'], ['other', 'Altri']];
+    return {
+      ...base,
+      count: all.length,
+      rows: all.filter((s) => f === 'all' || s.kind === f),
+      filters: defs.map(([id, label]) => ({ label, n: all.filter((s) => id === 'all' || s.kind === id).length, selected: f === id ? 'true' : 'false', style: f === id ? on : off, pick: () => this.setState({ filter: id }) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

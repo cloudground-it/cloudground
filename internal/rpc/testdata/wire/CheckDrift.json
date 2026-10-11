@@ -1,0 +1,29 @@
+{
+  "params": {
+    "full": {
+      "expected": {
+        "key": "Expected"
+      }
+    },
+    "zero": {
+      "expected": null
+    }
+  },
+  "result": {
+    "full": {
+      "drifted": [
+        {
+          "path": "Path",
+          "expected_hash": "ExpectedHash",
+          "actual_hash": "ActualHash"
+        }
+      ],
+      "not_managed": [
+        "NotManaged"
+      ]
+    },
+    "zero": {
+      "drifted": null
+    }
+  }
+}

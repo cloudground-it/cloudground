@@ -1,0 +1,24 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "dry_run": true,
+      "read_only": true
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "expired": 7,
+      "deleted": 7,
+      "executed": true
+    },
+    "zero": {
+      "expired": 0,
+      "deleted": 0,
+      "executed": false
+    }
+  }
+}

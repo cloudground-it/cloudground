@@ -1,0 +1,18 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "release_id": "ReleaseID"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "release_id": ""
+    }
+  },
+  "result": {
+    "full": {
+      "key": ""
+    },
+    "zero": null
+  }
+}

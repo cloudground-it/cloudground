@@ -1,0 +1,70 @@
+## /etc/nginx/sites-enabled/c52.example.test.conf
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+# Site: c52.example.test (id 52, type static, profile commerce)
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name c52.example.test;
+
+    location /.well-known/acme-challenge/ {
+        root /srv/cgt/acme;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name c52.example.test;
+    server_tokens off;
+
+    # Send small responses at once. With Ubuntu's tcp_nopush and no
+    # tcp_nodelay, the last packet of a kept-alive reply waits for the peer's
+    # delayed ACK (40 ms); measured, that cut cached req/s by about ten times.
+    tcp_nodelay on;
+    tcp_nopush off;
+
+    ssl_certificate /srv/cgt/fallback/cert.pem;
+    ssl_certificate_key /srv/cgt/fallback/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:cg_ssl:10m;
+
+    # Log lines go out in 64 KiB batches, at least once a second.
+    access_log /srv/cgt/log/c52.example.test/access.log cloudground buffer=64k flush=1s;
+    error_log /srv/cgt/log/c52.example.test/error.log warn;
+
+    client_max_body_size 128m;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    root /srv/cgt/sites/c52.example.test/current;
+    index index.php index.html index.htm;
+    disable_symlinks if_not_owner from=$document_root;
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+
+    location ~* \.(css|js|mjs|jpg|jpeg|png|gif|webp|avif|svg|ico|woff|woff2|ttf|eot|otf|mp4|webm|pdf)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+        access_log off;
+        # A deploy writes .gz copies; send those rather than gzip each time.
+        gzip_static on;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html =404;
+    }
+}

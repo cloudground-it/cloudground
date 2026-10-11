@@ -1,0 +1,27 @@
+{
+  "params": {
+    "full": {
+      "names": [
+        "Names"
+      ]
+    },
+    "zero": {
+      "names": null
+    }
+  },
+  "result": {
+    "full": {
+      "certs": {
+        "key": {
+          "exists": true,
+          "not_after": "2026-01-02T03:04:05Z",
+          "issuer": "Issuer",
+          "custom": true
+        }
+      }
+    },
+    "zero": {
+      "certs": null
+    }
+  }
+}

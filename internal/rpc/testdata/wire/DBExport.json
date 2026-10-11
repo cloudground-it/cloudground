@@ -1,0 +1,22 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "database": ""
+    }
+  },
+  "result": {
+    "full": {
+      "path": "Path",
+      "size_bytes": 7
+    },
+    "zero": {
+      "path": "",
+      "size_bytes": 0
+    }
+  }
+}

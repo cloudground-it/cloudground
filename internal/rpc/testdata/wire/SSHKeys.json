@@ -1,0 +1,33 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "action": "Action",
+      "public_key": "PublicKey",
+      "fingerprint": "Fingerprint",
+      "access": "Access"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "action": ""
+    }
+  },
+  "result": {
+    "full": {
+      "keys": [
+        {
+          "type": "Type",
+          "fingerprint": "Fingerprint",
+          "label": "Label",
+          "access": "Access"
+        }
+      ],
+      "port": 7,
+      "shell_user": "ShellUser"
+    },
+    "zero": {
+      "keys": null,
+      "port": 0
+    }
+  }
+}

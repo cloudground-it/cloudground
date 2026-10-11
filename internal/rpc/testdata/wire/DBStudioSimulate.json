@@ -1,0 +1,41 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "login": "Login",
+      "sql": "SQL",
+      "read_only": true
+    },
+    "zero": {
+      "site": "@state.Site",
+      "sql": ""
+    }
+  },
+  "result": {
+    "full": {
+      "kind": "Kind",
+      "affected": 7,
+      "preview": {
+        "columns": [
+          "Columns"
+        ],
+        "rows": [
+          [
+            "Rows"
+          ]
+        ],
+        "message": "Message",
+        "truncated": true
+      },
+      "preview_sql": "PreviewSQL",
+      "refused": "Refused",
+      "message": "Message",
+      "rolled_back": true
+    },
+    "zero": {
+      "affected": 0,
+      "rolled_back": false
+    }
+  }
+}

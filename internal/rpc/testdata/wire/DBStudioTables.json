@@ -1,0 +1,46 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "login": "Login",
+      "columns": true
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "database": "Database",
+      "tables": [
+        {
+          "name": "Name",
+          "type": "Type",
+          "engine": "Engine",
+          "collation": "Collation",
+          "rows": 7,
+          "data_bytes": 7,
+          "index_bytes": 7,
+          "auto_increment": 7,
+          "comment": "Comment"
+        }
+      ],
+      "routines": [
+        {
+          "name": "Name",
+          "type": "Type"
+        }
+      ],
+      "columns": {
+        "key": [
+          "Columns"
+        ]
+      }
+    },
+    "zero": {
+      "database": "",
+      "tables": null
+    }
+  }
+}

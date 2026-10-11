@@ -1,0 +1,36 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "repository": "Repository",
+      "password": "Password",
+      "keep_within_days": 7,
+      "protect": [
+        "Protect"
+      ],
+      "env": {
+        "key": "Env"
+      }
+    },
+    "zero": {
+      "site": "@state.Site",
+      "repository": "",
+      "password": "",
+      "keep_within_days": 0
+    }
+  },
+  "result": {
+    "full": {
+      "forgotten": [
+        "Forgotten"
+      ],
+      "kept": [
+        "Kept"
+      ]
+    },
+    "zero": {
+      "forgotten": null,
+      "kept": null
+    }
+  }
+}

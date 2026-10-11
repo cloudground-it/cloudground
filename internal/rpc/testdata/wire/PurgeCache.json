@@ -1,0 +1,22 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "urls": [
+        "URLs"
+      ]
+    },
+    "zero": {
+      "site": "@state.Site",
+      "urls": null
+    }
+  },
+  "result": {
+    "full": {
+      "removed": 7
+    },
+    "zero": {
+      "removed": 0
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "user": "User",
+      "password": "Password"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "user": "",
+      "password": ""
+    }
+  },
+  "result": {
+    "full": {
+      "login": "Login",
+      "refused": true,
+      "databases": [
+        "Databases"
+      ]
+    },
+    "zero": {}
+  }
+}

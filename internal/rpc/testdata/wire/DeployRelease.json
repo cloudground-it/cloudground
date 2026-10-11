@@ -1,0 +1,36 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "source_dir": "SourceDir",
+      "release_id": "ReleaseID",
+      "source_site": "@state.Site",
+      "overlay": [
+        "Overlay"
+      ]
+    },
+    "zero": {
+      "site": "@state.Site",
+      "source_dir": "",
+      "release_id": ""
+    }
+  },
+  "result": {
+    "full": {
+      "release_id": "ReleaseID",
+      "path": "Path",
+      "checksum": "Checksum",
+      "managed": [
+        {
+          "path": "Path",
+          "sha256": "SHA256"
+        }
+      ]
+    },
+    "zero": {
+      "release_id": "",
+      "path": "",
+      "checksum": ""
+    }
+  }
+}

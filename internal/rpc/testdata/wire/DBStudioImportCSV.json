@@ -1,0 +1,25 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "database": "Database",
+      "login": "Login",
+      "table": "Table",
+      "name": "Name",
+      "read_only": true
+    },
+    "zero": {
+      "site": "@state.Site",
+      "table": "",
+      "name": ""
+    }
+  },
+  "result": {
+    "full": {
+      "rows": 7
+    },
+    "zero": {
+      "rows": 0
+    }
+  }
+}

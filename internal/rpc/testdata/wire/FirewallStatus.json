@@ -1,0 +1,18 @@
+{
+  "params": {
+    "full": {},
+    "zero": {}
+  },
+  "result": {
+    "full": {
+      "enabled": true,
+      "rules": [
+        "Rules"
+      ]
+    },
+    "zero": {
+      "enabled": false,
+      "rules": null
+    }
+  }
+}

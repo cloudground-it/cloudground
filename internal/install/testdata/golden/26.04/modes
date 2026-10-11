@@ -1,0 +1,7 @@
+644 root:root /etc/sysctl.d/60-cloudground.conf
+644 root:root /etc/nginx/nginx.conf
+644 root:root /etc/nginx/sites-enabled/cloudground-panel-bootstrap.conf
+644 root:root /etc/ssh/sshd_config.d/10-cloudground-sftp.conf
+644 root:root /etc/logrotate.d/cloudground
+755 root:root /etc/letsencrypt/renewal-hooks/deploy/cloudground-reload-nginx.sh
+755 root:root /etc/letsencrypt/renewal-hooks/deploy

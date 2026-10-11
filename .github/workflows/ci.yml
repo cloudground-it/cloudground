@@ -1,0 +1,140 @@
+# Every push to main and every pull request: the gates `make docker-test`,
+# `make docker-nginx-test`, `make docker-install-test` and the UI build run
+# locally, plus a release dry run that proves `make release` refuses what is
+# not signed.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  go:
+    name: gofmt, vet and tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: |
+          bad=$(gofmt -l internal cmd e2e scripts)
+          if [ -n "$bad" ]; then echo "::error::gofmt: these files need formatting"; echo "$bad"; exit 1; fi
+      - name: go vet
+        run: go vet ./... && go vet -tags e2e ./e2e/...
+      # The e2e index, the section table and docs/api.md are checked by unit
+      # tests in this run; they are named here so a stale one is obvious.
+      - name: e2e section index and map
+        run: go test -count=1 -run 'TestSections' ./e2e
+      - name: go test
+        run: go test -race -timeout 30m ./...
+
+  ui:
+    name: UI build and locales
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.23.3'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Build
+        run: cd ui && npm ci --no-audit --no-fund && npm run build
+      # Every locale has en.json's keys and placeholders, and compiles.
+      - name: Locales
+        run: cd ui && npm test
+      # ui/dist is committed for go:embed; the build is reproducible, so the
+      # committed copy must be exactly what this commit builds.
+      - name: The committed ui/dist is current
+        run: |
+          if [ -n "$(git status --porcelain -- ui/dist)" ]; then
+            echo "::error::ui/dist is not what this commit builds: run make docker-dist and commit ui/dist"
+            git status --short -- ui/dist
+            exit 1
+          fi
+
+  nginx:
+    name: nginx render matrix
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: nginx -t on Ubuntu 24.04 and 26.04
+        run: make docker-nginx-test
+
+  install:
+    name: cgctl install in containers
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: install --plan, install and doctor on Ubuntu 24.04 and 26.04
+        run: make docker-install-test
+
+  release-dry-run:
+    name: release dry run
+    runs-on: ubuntu-24.04
+    env:
+      CG_RELEASE_TEST: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.23.3'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Without a key, make release refuses to start
+        run: |
+          if make release RELEASE_TAG=v0.0.0; then echo "::error::make release ran without a signing key"; exit 1; fi
+      - name: A throwaway key, trusted by this build only
+        run: |
+          go run ./scripts/release-sign keygen "$RUNNER_TEMP/test.key" > "$RUNNER_TEMP/test.pub"
+          go run ./scripts/release-sign keygen "$RUNNER_TEMP/other.key" > /dev/null
+      - name: Build, sign and verify
+        run: make release RELEASE_TAG=v0.0.0 SIGNING_KEY="$RUNNER_TEMP/test.key" UPDATE_PUBKEY="$(cat "$RUNNER_TEMP/test.pub")"
+      - name: A release signed by another key does not verify
+        run: |
+          go run ./scripts/release-sign sign "$RUNNER_TEMP/other.key" v0.0.0 dist/release/v0.0.0
+          if make release-verify RELEASE_TAG=v0.0.0 UPDATE_PUBKEY="$(cat "$RUNNER_TEMP/test.pub")"; then
+            echo "::error::a release signed by an untrusted key verified"; exit 1
+          fi
+      - name: An unsigned release does not verify
+        run: |
+          rm dist/release/v0.0.0/SHA256SUMS.sig
+          if make release-verify RELEASE_TAG=v0.0.0 UPDATE_PUBKEY="$(cat "$RUNNER_TEMP/test.pub")"; then
+            echo "::error::an unsigned release verified"; exit 1
+          fi
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The runner image ships ShellCheck; apt only if a future image drops it.
+      - name: Installer and scripts
+        run: |
+          command -v shellcheck >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck; }
+          shellcheck --severity=error installer/*.sh scripts/*.sh bench/*.sh

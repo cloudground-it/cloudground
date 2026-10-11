@@ -1,0 +1,70 @@
+===== buffer_pool=512M log=128M conns=100 flush=2 err=<nil>
+# Managed by CloudGround — calculated for this machine, do not edit.
+# An edit is reported as drift: change the tuning in the panel.
+
+[mysqld]
+# InnoDB
+innodb_buffer_pool_size = 512M
+innodb_log_file_size = 128M
+innodb_flush_log_at_trx_commit = 2
+innodb_flush_method = O_DIRECT
+innodb_io_capacity = 1000
+innodb_file_per_table = 1
+
+# Clients and the threads that serve them
+max_connections = 100
+thread_cache_size = 16
+
+# In-memory temporary tables
+tmp_table_size = 64M
+max_heap_table_size = 64M
+
+# Caches. The definition cache defaults to 400 tables: a few WooCommerce
+# schemas (about 60 tables each) exceed it and every query then reloads table
+# definitions from disk.
+table_open_cache = 4000
+table_definition_cache = 2000
+
+# Slow queries are logged for the panel's tuning advice
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time = 1
+
+# Security: the same on every machine, not tuning.
+local_infile = 0
+skip-symbolic-links
+===== buffer_pool=11468M log=2048M conns=500 flush=1 err=<nil>
+# Managed by CloudGround — calculated for this machine, do not edit.
+# An edit is reported as drift: change the tuning in the panel.
+
+[mysqld]
+# InnoDB
+innodb_buffer_pool_size = 11468M
+innodb_log_file_size = 2048M
+innodb_flush_log_at_trx_commit = 1
+innodb_flush_method = O_DIRECT
+innodb_io_capacity = 1000
+innodb_file_per_table = 1
+
+# Clients and the threads that serve them
+max_connections = 500
+thread_cache_size = 64
+
+# In-memory temporary tables
+tmp_table_size = 256M
+max_heap_table_size = 256M
+
+# Caches. The definition cache defaults to 400 tables: a few WooCommerce
+# schemas (about 60 tables each) exceed it and every query then reloads table
+# definitions from disk.
+table_open_cache = 4000
+table_definition_cache = 2000
+
+# Slow queries are logged for the panel's tuning advice
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time = 1
+
+# Security: the same on every machine, not tuning.
+local_infile = 0
+skip-symbolic-links

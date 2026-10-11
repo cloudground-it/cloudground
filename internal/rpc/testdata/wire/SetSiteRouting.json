@@ -1,0 +1,27 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "routing": "Routing"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "routing": ""
+    }
+  },
+  "result": {
+    "full": {
+      "routing": "Routing",
+      "files": [
+        {
+          "path": "Path",
+          "sha256": "SHA256"
+        }
+      ]
+    },
+    "zero": {
+      "routing": "",
+      "files": null
+    }
+  }
+}

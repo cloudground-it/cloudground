@@ -1,0 +1,89 @@
+{
+  "ux": {
+    "common": {
+      "moreFor": "Más acciones para {name}"
+    },
+    "pages": {
+      "sites": "Todavía no hay sitios en este servidor. | Un sitio en este servidor. | {n} sitios en este servidor.",
+      "firewall": "Qué puertos de este servidor están abiertos, y para quién. SSH, HTTP y HTTPS siempre siguen abiertos.",
+      "audit": "Quién cambió qué en este panel, del más reciente al más antiguo.",
+      "users": "Las personas que inician sesión en este panel y lo que cada una puede hacer.",
+      "settings": "Adónde van las copias de seguridad, certificados, notificaciones y actualizaciones, para todo el servidor.",
+      "security": "Tu perfil, tu contraseña, la verificación en dos pasos y tus sesiones ({email})."
+    },
+    "audit": {
+      "count": "Ningún evento | Un evento | {n} eventos"
+    },
+    "dbs": {
+      "access": "Acceso",
+      "addDatabase": "Añadir base de datos",
+      "addUser": "Añadir usuario",
+      "levelOn": "Privilegios sobre {name}",
+      "noUsersOn": "Ningún usuario tiene acceso"
+    },
+    "backup": {
+      "keepDays": "Conservar {n} día | Conservar {n} días",
+      "keepAll": "Conservar todos los snapshots",
+      "retentionHelp": "Los snapshots más antiguos se eliminan una vez al día; el más reciente que superó su prueba de restauración siempre se queda.",
+      "destination": "Destino de las copias de seguridad",
+      "dest": {
+        "local": "Este servidor (una carpeta local)",
+        "aws": "Amazon S3",
+        "r2": "Cloudflare R2",
+        "b2": "Backblaze B2",
+        "wasabi": "Wasabi",
+        "hetzner": "Hetzner Object Storage",
+        "ovh": "OVHcloud Object Storage",
+        "other": "MinIO u otro servicio compatible con S3",
+        "advanced": "Otro repositorio de restic (avanzado)"
+      },
+      "destHelp": {
+        "local": "Los snapshots se guardan en una carpeta de este servidor.",
+        "aws": "Los snapshots van a un bucket de S3 en la región que elijas.",
+        "r2": "Los snapshots van a un bucket de R2 de tu cuenta de Cloudflare.",
+        "b2": "Los snapshots van a un bucket de B2 a través de su API compatible con S3.",
+        "wasabi": "Los snapshots van a un bucket de Wasabi en la región que elijas.",
+        "hetzner": "Los snapshots van a un bucket de Hetzner en la ubicación que elijas.",
+        "ovh": "Los snapshots van a un bucket S3 de OVHcloud en la región que elijas.",
+        "other": "Cualquier servicio que hable la API de S3, en la dirección que indiques.",
+        "advanced": "El repositorio de restic escrito completo: SFTP, servidor REST o cualquier otro tipo que restic admita."
+      },
+      "localWarning": "Una carpeta en este servidor no sobrevive a la pérdida del servidor. Para copias de seguridad realmente fuera del servidor, elige un almacenamiento de objetos.",
+      "folder": "Carpeta",
+      "folderHelp": "Una ruta absoluta, como /var/backups/cloudground.",
+      "advancedHelp": "Como lo escribe restic: sftp:usuario{'@'}host:/ruta, rest:https://host/, s3:https://endpoint/bucket…",
+      "account": "ID de cuenta",
+      "accountHelp": "En la página de R2 del panel de Cloudflare, en Detalles de la cuenta.",
+      "regionHelp": "Como la escribe el proveedor, por ejemplo {example}.",
+      "regionOther": "Solo si el servicio la pide.",
+      "endpoint": "Endpoint",
+      "endpointHelp": "La dirección del servicio, por ejemplo https://minio.example.com.",
+      "bucket": "Bucket",
+      "bucketHelp": "Créalo antes en el proveedor; puede seguir siendo privado.",
+      "prefix": "Carpeta en el bucket",
+      "prefixHelp": "Para compartir el bucket con otros datos, por ejemplo cloudground.",
+      "accessKey": "Clave de acceso",
+      "secretKey": "Clave secreta",
+      "keysHelp": "Una clave con lectura y escritura solo en este bucket.",
+      "generate": "Generar",
+      "passwordSet": "Establecida. Cámbiala solo para un repositorio nuevo y vacío: los snapshots que ya hay solo se abren con la anterior.",
+      "keepTitle": "Guarda esta contraseña en un lugar seguro",
+      "keepPassword": "Cifra cada snapshot: sin ella no se puede restaurar ninguna copia, ni siquiera desde el panel. Cópiala o descárgala ahora; una vez guardada no se vuelve a mostrar.",
+      "download": "Descargar",
+      "result": "Repositorio",
+      "resultHelp": "Lo que se guarda, tal como lo lee restic.",
+      "saveFirst": "Guarda primero: la prueba lee los ajustes guardados.",
+      "testHelp": "Se conecta con los ajustes guardados y cuenta los snapshots."
+    },
+    "settings": {
+      "secureShort": "Proteger el panel",
+      "moveShort": "Mover el panel"
+    },
+    "toc": {
+      "label": "En esta página"
+    },
+    "studio": {
+      "result": "Resultado"
+    }
+  }
+}
