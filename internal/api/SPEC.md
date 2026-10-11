@@ -1194,7 +1194,7 @@ restic is a job holding its repository's lock (`repo:<hash>`, jobs SPEC
 
 A record is one snapshot as the panel knows it: site, snapshot ID (full or
 the short form), repository, size, kind (`full`, or `pre-restore`,
-`pre-database-push` for a safety snapshot), `verify_status`, the restore
+`pre-database-push`, `pre-migration` for a safety snapshot), `verify_status`, the restore
 time measured. It is created `pending` whatever the caller says; only a
 restore test moves it to `passed` or `failed`. The list
 (`GET /api/sites/{id}/backups`, `signedIn`) is the newest 50, with
@@ -1735,12 +1735,22 @@ limit`; `max_ratio` < 0 or above `rpc.MaxMigrationRatio` → 400 `the expansion
 limit must be between 1 and <max>`; a `database` that is not the site's →
 404. The release ID is minted at the request
 (`site.NewReleaseID`); audit `migration.import` with the archive; job
-`migration.import`, site lock: 10 `Validating and extracting migration
-archive`, `ImportMigration` (an agent refusal is returned as is, so the task
-keeps its translation key), 85 `Recording immutable migration release`, a
+`migration.import`, site lock, and the repository's when backups are
+configured (repository and password read at the request): a
+restore-tested safety snapshot (`pre-migration`, §5; an import replaces
+the uploads and the tables, and a stale or wrong archive still succeeds;
+its failure stops the job before the site changes) and a checkpoint, or,
+with no repository, 5 `No backup repository is configured: no safety
+snapshot is taken, and this import cannot be undone`; 45 `Validating and
+extracting migration archive`, `ImportMigration` (an agent refusal is
+returned as is, so the task keeps its translation key; with a snapshot the
+log first says `The import failed; the safety snapshot <id> is kept …`: the
+agent rolls a failed import back itself, the snapshot covers what its
+rollback could not), 85 `Recording immutable migration release`, a
 promoted deployment at `<root>/releases/<release>`, a purge of the whole page
 cache (best effort), the background re-warm (§6.2), 100 `Migration imported
-and activated (<n> files)[; <k> unsafe or special entries skipped]`. Answer
+and activated (<n> files)[; <k> unsafe or special entries skipped][; safety
+snapshot <id> retained]`. Answer
 202 `{task, release_id}`.
 
 ## 11. Alerts (R-4.3)

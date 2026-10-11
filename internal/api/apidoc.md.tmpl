@@ -156,7 +156,9 @@ To bring a site in, `POST /api/sites/{id}/migration` gets `archive`, `sql`, `old
 `confirm`. The archive and the SQL dump must already be in the receiving site's folder (send them
 over SFTP), and both paths are relative to it. Every occurrence of `old_domain` in the imported
 database is replaced with the site's domain, and the request is refused unless `confirm` repeats
-that domain.
+that domain. With a backup repository configured, the job first takes a `pre-migration` safety
+snapshot of the site and restore-tests it, and names it in the task: restoring it puts back the
+site as it was before the import. Without one, the task says that the import cannot be undone.
 An administrator may add `"max_ratio": <1–1000>` to raise the archive's expansion limit (200 times
 its compressed size by default); anyone else sending it gets 403. A refused archive's task error
 says the limit and how to raise it. A task error that carries a translation key (`error_key`,
