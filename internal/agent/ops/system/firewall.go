@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
+	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
@@ -20,7 +22,68 @@ func (o *Ops) FirewallStatus(ctx context.Context) (rpc.FirewallStatusResult, err
 	if err != nil {
 		return rpc.FirewallStatusResult{}, err
 	}
-	return rpc.FirewallStatusResult{Enabled: st.Active, Rules: st.Rules}, nil
+	res := rpc.FirewallStatusResult{Enabled: st.Active, Rules: st.Rules}
+	if !st.Active {
+		res.Plan = o.FirewallPlan(ctx)
+	}
+	return res, nil
+}
+
+// FirewallPlan is what FirewallEnable allows before it turns ufw on, so that
+// SSH, the sites and the panel stay reachable: every port sshd really
+// listens on (`sshd -T`, else its files, else 22), 80/tcp, 443/tcp,
+// 443/udp (HTTP/3) and the panel's port. The installer prints the same list
+// for the operator (internal/install, FirewallOffRules).
+func (o *Ops) FirewallPlan(ctx context.Context) []rpc.FirewallPlanRule {
+	ssh := SSHPorts(ctx, o.Exec, o.Paths.SSHDConfig)
+	if len(ssh) == 0 {
+		ssh = []int{22}
+	}
+	var plan []rpc.FirewallPlanRule
+	for _, p := range ssh {
+		plan = append(plan, rpc.FirewallPlanRule{Port: p, Proto: "tcp", Service: "ssh"})
+	}
+	return append(plan,
+		rpc.FirewallPlanRule{Port: 80, Proto: "tcp", Service: "http"},
+		rpc.FirewallPlanRule{Port: 443, Proto: "tcp", Service: "https"},
+		rpc.FirewallPlanRule{Port: 443, Proto: "udp", Service: "http3"},
+		rpc.FirewallPlanRule{Port: PanelPort, Proto: "tcp", Service: "panel"},
+	)
+}
+
+// FirewallEnable turns ufw on without locking anyone out: it recomputes the
+// plan, refuses when it is not the one the operator was shown (p.Expect),
+// allows each of its rules, and only then runs `ufw --force enable`. A rule
+// that fails stops it before ufw is enabled. ufw already on is no error:
+// the answer is its status.
+func (o *Ops) FirewallEnable(ctx context.Context, p rpc.FirewallEnableParams) (rpc.FirewallStatusResult, error) {
+	st, err := o.Firewall.Status(ctx)
+	if errors.Is(err, host.ErrUnavailable) {
+		return rpc.FirewallStatusResult{}, agentrpc.Invalid("ufw is not installed on this server")
+	}
+	if err != nil {
+		return rpc.FirewallStatusResult{}, err
+	}
+	if st.Active {
+		return rpc.FirewallStatusResult{Enabled: true, Rules: st.Rules}, nil
+	}
+	plan := o.FirewallPlan(ctx)
+	want := make([]string, len(plan))
+	for i, r := range plan {
+		want[i] = r.String()
+	}
+	if !slices.Equal(want, p.Expect) {
+		return rpc.FirewallStatusResult{}, agentrpc.Conflict("the rules to allow have changed since they were shown (now %s): read them again before turning the firewall on", strings.Join(want, ", "))
+	}
+	for _, r := range plan {
+		if err := o.Firewall.Allow(ctx, host.FirewallRule{Port: r.Port, Proto: r.Proto}); err != nil {
+			return rpc.FirewallStatusResult{}, fmt.Errorf("allow %s: %w", r, err)
+		}
+	}
+	if err := o.Firewall.Enable(ctx); err != nil {
+		return rpc.FirewallStatusResult{}, err
+	}
+	return o.FirewallStatus(ctx)
 }
 
 // EssentialPorts are the ports whose closing takes the server off the air:

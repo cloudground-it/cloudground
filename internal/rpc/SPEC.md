@@ -50,6 +50,7 @@ handler.
 | type | rule | message |
 | --- | --- | --- |
 | `FirewallRuleParams` | `Action` is `allow`, `deny` or `delete` | `invalid action "<a>"` |
+| `FirewallEnableParams` | `Expect` is not empty | `expect is required: the rules shown before enabling` |
 | | `Port` is 1..65535 | `invalid port <n>` |
 | | `From`, when set, is an IP address or a CIDR | `invalid source address "<f>"` |
 | `ManageFileParams` | `Operation` is `mkdir`, `rename` or `delete` | `unsupported file operation "<o>"` |

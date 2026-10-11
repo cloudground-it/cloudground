@@ -125,7 +125,23 @@ and applies them once enabled, so the rules are those of `ufw show added`
 without the leading `ufw ` (`allow 22/tcp`), with `enabled: false`; the UI
 says they are stored and not enforced.
 ufw not installed → `{enabled: false, rules: ["ufw is not available"]}`, not
-an error. Any other failure is an error.
+an error. Any other failure is an error. While ufw is installed and
+inactive the status also carries `plan`: the rules `FirewallEnable` allows
+before turning it on, `{port, proto, service}` in this order: every port sshd
+listens on (§5; 22 when none can be read) as `ssh`, `80/tcp` `http`,
+`443/tcp` `https`, `443/udp` `http3`, `8443/tcp` `panel` (the installer's
+list, internal/install SPEC §3 step 31).
+
+`FirewallEnable {expect}` turns ufw on from the panel (#14). The installer
+never does (it is the operator's decision), and most operators never ran
+the commands it printed. The agent computes the plan again and compares it
+with `expect`, the plan the operator was shown (`"22/tcp"`, …): any
+difference (sshd moved) is `conflict` and ufw is not run. Otherwise it runs
+`ufw allow <port>/<proto>` for every rule, in order, and only then `ufw
+--force enable` (`--force`: ufw otherwise asks on a terminal); a rule that
+fails stops it with ufw still off. ufw already active is no error: the
+answer is the status. The answer is the status after enabling. ufw not
+installed → `invalid`.
 
 `FirewallRule {action, port, proto, from}`:
 

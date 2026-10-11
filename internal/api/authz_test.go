@@ -122,6 +122,7 @@ var routePolicy = map[string]string{
 	"GET /api/logs":                     "global",
 	"GET /api/firewall":                 "global",
 	"POST /api/firewall/rule":           "admin",
+	"POST /api/firewall/enable":         "admin",
 	"POST /api/panel/certificate":       "admin",
 	"POST /api/panel/update":            "admin",
 

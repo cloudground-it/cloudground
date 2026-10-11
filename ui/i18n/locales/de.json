@@ -724,6 +724,11 @@
     "applied": "Regel angewendet",
     "delete": "Regel löschen",
     "deny": "Port sperren",
+    "enable": "Firewall einschalten",
+    "enableConfirm": "Das Panel erlaubt {rules} und schaltet dann die Firewall ein. Alle anderen eingehenden Ports werden geschlossen.",
+    "enableHint": "Die Firewall ist aus, daher sind alle Ports dieses Servers offen. Beim Einschalten werden zuerst diese Regeln erlaubt, damit SSH, die Websites und das Panel erreichbar bleiben, danach wird jede andere eingehende Verbindung blockiert.",
+    "enableTitle": "Firewall einschalten",
+    "enabled": "Firewall eingeschaltet",
     "from": "Nur von dieser IP",
     "inactive": "inaktiv",
     "inactiveRules": "Die Firewall ist inaktiv: Diese Regeln sind gespeichert und gelten erst, wenn sie aktiviert wird.",
@@ -731,6 +736,13 @@
     "port": "Port",
     "rule": "Regel hinzufügen oder entfernen",
     "ruleHint": "SSH, die Ports 80 und 443 und der Panel-Port 8443 bleiben immer für alle offen. Für mehr Sicherheit beschränke SSH und das Panel auf deine IPs.",
+    "service": {
+      "ssh": "SSH, der Port, auf dem sshd lauscht",
+      "http": "Websites über HTTP",
+      "https": "Websites über HTTPS",
+      "http3": "Websites über HTTP/3",
+      "panel": "Dieses Panel"
+    },
     "status": "Status"
   },
   "users": {

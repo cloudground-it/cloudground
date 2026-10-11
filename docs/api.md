@@ -441,6 +441,7 @@ session (an API token gets 403); an operator adds `"sftp"` keys to its sites.
 | `GET` | `/api/logs` | global | the last lines of a server log |
 | `GET` | `/api/firewall` | global | the firewall's rules |
 | `POST` | `/api/firewall/rule` | admin, session only | add a firewall rule or take one away |
+| `POST` | `/api/firewall/enable` | admin, session only | turn ufw on: allow the rules `GET /api/firewall` listed as `plan` (`{"expect": ["22/tcp", …]}`), then enable |
 | `GET` | `/api/audit` | global | the audit log: actor, action, address |
 | `GET` | `/api/settings` | global | the panel's settings |
 | `PUT` | `/api/settings` | admin | change the panel's settings (an API token may change only `acme_email` and `probe_target`) |

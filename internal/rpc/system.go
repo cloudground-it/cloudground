@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -75,9 +76,39 @@ type TailLogResult struct {
 }
 
 // FirewallStatusResult is ufw's state and its rules, as ufw prints them.
+// While ufw is installed and off, Plan is what turning it on from the panel
+// allows first (FirewallEnable), for the operator to read before.
 type FirewallStatusResult struct {
-	Enabled bool     `json:"enabled"`
-	Rules   []string `json:"rules"`
+	Enabled bool               `json:"enabled"`
+	Rules   []string           `json:"rules"`
+	Plan    []FirewallPlanRule `json:"plan,omitempty"`
+}
+
+// FirewallPlanRule is one rule FirewallEnable allows before `ufw enable`:
+// the port, its protocol and what it carries (ssh, http, https, http3 or
+// panel).
+type FirewallPlanRule struct {
+	Port    int    `json:"port"`
+	Proto   string `json:"proto"`
+	Service string `json:"service"`
+}
+
+// String is the rule as ufw writes it, "22/tcp".
+func (r FirewallPlanRule) String() string { return fmt.Sprintf("%d/%s", r.Port, r.Proto) }
+
+// FirewallEnableParams turns ufw on. Expect is the plan the operator was
+// shown ("22/tcp", …): the agent refuses when its own plan has changed since
+// (sshd moved to another port), so what is applied is what was read.
+type FirewallEnableParams struct {
+	Expect []string `json:"expect"`
+}
+
+// Validate requires the plan that was shown.
+func (p *FirewallEnableParams) Validate() error {
+	if len(p.Expect) == 0 {
+		return errors.New("expect is required: the rules shown before enabling")
+	}
+	return nil
 }
 
 // FirewallRuleParams allows, denies or deletes a port, from anywhere or

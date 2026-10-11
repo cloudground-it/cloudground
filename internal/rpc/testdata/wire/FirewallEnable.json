@@ -1,0 +1,31 @@
+{
+  "params": {
+    "full": {
+      "expect": [
+        "Expect"
+      ]
+    },
+    "zero": {
+      "expect": null
+    }
+  },
+  "result": {
+    "full": {
+      "enabled": true,
+      "rules": [
+        "Rules"
+      ],
+      "plan": [
+        {
+          "port": 7,
+          "proto": "Proto",
+          "service": "Service"
+        }
+      ]
+    },
+    "zero": {
+      "enabled": false,
+      "rules": null
+    }
+  }
+}

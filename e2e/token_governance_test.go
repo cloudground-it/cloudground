@@ -39,7 +39,7 @@ func (f *feat) tokenGovernance(t *testing.T, token string) {
 	c, _ = h.api.do("PUT", "/api/settings", map[string]string{"acme_email": jsonField(before, "acme_email")}, bearer)
 	h.check(t, "R-4.3 review: a token may still set acme_email", fmt.Sprint(c), "200")
 
-	for _, p := range []string{"/api/firewall/rule", "/api/panel/certificate", "/api/panel/update"} {
+	for _, p := range []string{"/api/firewall/rule", "/api/firewall/enable", "/api/panel/certificate", "/api/panel/update"} {
 		c, _ = h.api.do("POST", p, map[string]any{"cg_e2e_probe": true}, bearer)
 		h.check(t, "R-4.3 review: a token is refused "+p, fmt.Sprint(c), "403")
 	}

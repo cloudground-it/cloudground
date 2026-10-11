@@ -24,6 +24,17 @@ func ufwCalls(f *fixture) []string {
 	return out
 }
 
+// ufwCallsSince is ufwCalls from the mark-th call of the fixture on.
+func ufwCallsSince(f *fixture, mark int) []string {
+	var out []string
+	for _, c := range f.exec.Calls()[mark:] {
+		if c.Name == "ufw" {
+			out = append(out, c.Line())
+		}
+	}
+	return out
+}
+
 func TestSSHDPorts(t *testing.T) {
 	for _, c := range []struct {
 		text string
@@ -232,5 +243,102 @@ func TestFirewallStatus(t *testing.T) {
 	f.respond(map[string]host.FakeReply{"ufw": {Err: errors.New("ufw: context deadline exceeded")}})
 	if _, err := f.FirewallStatus(context.Background()); err == nil {
 		t.Fatal("a failed ufw read as inactive")
+	}
+}
+
+// Turning ufw on from the panel (#14): the status of an inactive ufw carries
+// the plan, SSH on the port sshd really listens on; enabling refuses a plan
+// that is not the one shown, and otherwise allows every rule of it before
+// `ufw --force enable`, never after.
+func TestFirewallEnableAllowsThePlanFirst(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	active := false
+	f.exec.Respond = func(c host.FakeCall) host.FakeReply {
+		switch {
+		case c.Name == "sshd":
+			return host.FakeReply{Stdout: "port 2222\nlistenaddress 0.0.0.0:2222\n"}
+		case c.Name == "ufw" && c.Args[0] == "status" && active:
+			return host.FakeReply{Stdout: "Status: active\n\nTo                         Action      From\n--                         ------      ----\n2222/tcp                   ALLOW       Anywhere\n"}
+		case c.Name == "ufw" && c.Args[0] == "status":
+			return host.FakeReply{Stdout: "Status: inactive\n"}
+		case c.Name == "ufw" && c.Args[0] == "show":
+			return host.FakeReply{Stdout: "Added user rules (see 'ufw status' for running firewall):\n(None)\n"}
+		case c.Name == "ufw" && c.Args[0] == "--force":
+			active = true
+		}
+		return host.FakeReply{}
+	}
+	st, err := f.FirewallStatus(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var plan []string
+	for _, r := range st.Plan {
+		plan = append(plan, r.String())
+	}
+	want := []string{"2222/tcp", "80/tcp", "443/tcp", "443/udp", "8443/tcp"}
+	if st.Enabled || !reflect.DeepEqual(plan, want) || st.Plan[0].Service != "ssh" {
+		t.Fatalf("status = %+v, plan %v, want %v", st, plan, want)
+	}
+
+	// A plan other than the agent's (sshd moved since it was shown).
+	_, err = f.FirewallEnable(ctx, rpc.FirewallEnableParams{Expect: []string{"22/tcp", "80/tcp", "443/tcp", "443/udp", "8443/tcp"}})
+	if codeOf(err) != agentrpc.CodeConflict {
+		t.Fatalf("stale plan: err = %v, want conflict", err)
+	}
+	for _, c := range ufwCalls(f) {
+		if strings.Contains(c, "allow") || strings.Contains(c, "enable") {
+			t.Fatalf("a refused enable ran %q", c)
+		}
+	}
+
+	mark := len(f.exec.Calls())
+	res, err := f.FirewallEnable(ctx, rpc.FirewallEnableParams{Expect: want})
+	if err != nil || !res.Enabled || res.Plan != nil {
+		t.Fatalf("enable = %+v, %v", res, err)
+	}
+	var changes []string
+	for _, c := range ufwCallsSince(f, mark) {
+		if !strings.HasPrefix(c, "ufw status") && !strings.HasPrefix(c, "ufw show") {
+			changes = append(changes, c)
+		}
+	}
+	if w := []string{"ufw allow 2222/tcp", "ufw allow 80/tcp", "ufw allow 443/tcp", "ufw allow 443/udp", "ufw allow 8443/tcp", "ufw --force enable"}; !reflect.DeepEqual(changes, w) {
+		t.Fatalf("ufw ran %v, want %v", changes, w)
+	}
+
+	// Already on: nothing to do, the status back.
+	mark = len(f.exec.Calls())
+	if res, err := f.FirewallEnable(ctx, rpc.FirewallEnableParams{Expect: want}); err != nil || !res.Enabled {
+		t.Fatalf("enable again = %+v, %v", res, err)
+	}
+	if calls := ufwCallsSince(f, mark); len(calls) != 1 || calls[0] != "ufw status" {
+		t.Fatalf("enable of an active ufw ran %v", calls)
+	}
+}
+
+// A rule ufw refuses stops the enable before ufw is on.
+func TestFirewallEnableStopsOnAFailedRule(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	f.exec.Respond = func(c host.FakeCall) host.FakeReply {
+		switch {
+		case c.Name == "sshd":
+			return host.FakeReply{Stdout: "port 22\n"}
+		case c.Name == "ufw" && c.Args[0] == "status":
+			return host.FakeReply{Stdout: "Status: inactive\n"}
+		case c.Name == "ufw" && c.Args[0] == "allow" && c.Args[1] == "443/udp":
+			return host.FakeReply{Code: 1, Stderr: "ERROR: boom"}
+		}
+		return host.FakeReply{}
+	}
+	if _, err := f.FirewallEnable(ctx, rpc.FirewallEnableParams{Expect: []string{"22/tcp", "80/tcp", "443/tcp", "443/udp", "8443/tcp"}}); err == nil {
+		t.Fatal("a failed rule must fail the enable")
+	}
+	for _, c := range ufwCalls(f) {
+		if strings.Contains(c, "enable") || strings.Contains(c, "8443") {
+			t.Fatalf("ran %q after a failed rule", c)
+		}
 	}
 }

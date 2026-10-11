@@ -499,7 +499,9 @@ Interface `Nginx`: `Test`, `Reload`, `BuildInfo`.
   `ErrUnavailable`. ufw exits 1 for every failure, so other errors are the
   `*ExitError`. `Delete` runs `delete deny` and `delete allow` and reports
   either failure: deleting a rule that does not exist exits 0 (measured,
-  Ubuntu 24.04).
+  Ubuntu 24.04). `Enable` runs `ufw --force enable` (without `--force` ufw
+  asks on its terminal); allowing what must stay reachable first is the
+  caller's (system SPEC §4).
 - `Certbot`: `CertOnly(ctx, CertRequest)` (webroot or Cloudflare DNS, staging)
   and `Delete(ctx, name)`. A lineage name is a domain or a single label (the
   panel's `cloudground-panel`): lowercase letters, digits and inner hyphens,

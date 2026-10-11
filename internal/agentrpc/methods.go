@@ -160,6 +160,7 @@ var (
 	CronRuns        = define[rpc.CronRunsParams, rpc.CronRunsResult](Spec{Name: "CronRuns", Timeout: 1 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the cron jobs' last runs"})
 	FirewallStatus  = define[None, rpc.FirewallStatusResult](Spec{Name: "FirewallStatus", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the firewall status"})
 	FirewallRule    = define[rpc.FirewallRuleParams, map[string]string](Spec{Name: "FirewallRule", Timeout: 2 * mins, Fail: "Could not change the firewall"})
+	FirewallEnable  = define[rpc.FirewallEnableParams, rpc.FirewallStatusResult](Spec{Name: "FirewallEnable", Timeout: 2 * mins, Fail: "Could not turn the firewall on"})
 	DBQuery         = define[rpc.DBQueryParams, rpc.DBQueryResult](Spec{Name: "DBQuery", Timeout: 3 * mins, Sites: true, Fail: "The query failed"})
 	DBExport        = define[rpc.DBExportParams, rpc.DBExportResult](Spec{Name: "DBExport", Timeout: 2 * hrs, Sites: true, Fail: "Could not export the database"})
 	DBTables        = define[rpc.DBTablesParams, rpc.DBTablesResult](Spec{Name: "DBTables", Timeout: 2 * mins, Sites: true, ReadOnly: true, Fail: "Could not list the database's tables"})

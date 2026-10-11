@@ -69,8 +69,8 @@ For every request, in this order; the first step that refuses answers.
    `DELETE /api/users/{id}`, `POST /api/users/{id}/password`, the three
    `/api/tokens` routes, `POST /api/sites/{id}/ssh-shell` (R-4.5), `GET` and
    `PUT /api/sites/{id}/routing` (R-5.4), and the panel's own governance:
-   `POST /api/firewall/rule`, `POST /api/panel/certificate` and `POST
-   /api/panel/update`. So a leaked token cannot mint another, create an
+   `POST /api/firewall/rule`, `POST /api/firewall/enable`, `POST
+   /api/panel/certificate` and `POST /api/panel/update`. So a leaked token cannot mint another, create an
    admin, reset a password, open a site's shell, open the firewall or
    replace the panel's binary. `PUT /api/settings` is an `admin` row a token
    reaches, and its handler refuses a token any change but to `acme_email`
@@ -122,6 +122,7 @@ panel itself (§1.2 step 6):
 | `cloudflare_api_token` | it is the DNS credential of the panel's certificates |
 | `update_channel`, `update_check`, `POST /api/panel/update` | it would choose what the panel runs |
 | `POST /api/firewall/rule` | it would open the server's ports |
+| `POST /api/firewall/enable` | it would change what reaches the server |
 | `POST /api/panel/certificate` | it would choose the certificate admins trust |
 | drift `accept` (`POST /api/system/drift/{id}/resolve`) | it would make a managed file it changed itself the expected one, so drift stops reporting it |
 
@@ -1614,6 +1615,7 @@ user, from another, out; and `F4b DB Studio`, through a handoff).
 | `GET /api/sites/{id}/logs?source=` | `source` is `access`, `error` or `php` (→ 400 `source must be access, error or php`); `TailLog{Source: "site:<domain>:<kind>", Site: domain}` | 200 |
 | `GET /api/firewall` | `FirewallStatus` | 200 |
 | `POST /api/firewall/rule` | the body is `rpc.FirewallRuleParams` (unknown fields → 400); `FirewallRule` | 200, the agent's map; audit `firewall.rule`, subject `<rule>[ from <from>]` |
+| `POST /api/firewall/enable` | the body is `rpc.FirewallEnableParams`, `{"expect": [...]}`: the `plan` of `GET /api/firewall` the operator was shown (empty → 400); `FirewallEnable` (system SPEC §4: allow every rule of the plan, then `ufw --force enable`; a plan that changed since → 409) | 200, the firewall's status; audit `firewall.enable`, subject `ufw`, detail `allowed <rules>` |
 | `POST /api/panel/certificate {domain, email}` | an empty email takes the settings' ACME e-mail; either still empty → 400 `panel domain and acme email are required`; both are saved in the settings (the renewal sweep uses them); job `panel.certificate`, panel lock: 30 `Requesting certificate for <domain>`, `PanelCert`, 100 `Panel certificate installed — the panel will restart` | 202; audit `panel.certificate` |
 | `POST /api/panel/update {version}` | nothing but the version is accepted (another field → 400): origin and signing key are compiled into the agent. Audit `panel.update` **before** the call, subject the version asked for or `latest` when none (it was empty for the UI's `{}` before R-4.3); `SelfUpdate` with the `update_channel` setting as its channel (R-6.3; 500 `could not read the settings` when it cannot be read). **R-6.5:** while a job of a kind `jobs.BlocksPanelChange` names is `running` (a backup or restore, or a job that cannot resume), 409 `task <id> (<kind>) is running: update once it has finished`, before the audit and without asking the agent | 200, the agent's result; the capabilities cache then expects the agent's restart |
 | `GET /api/system/update[?refresh=1]` | §7.2 | 200 |

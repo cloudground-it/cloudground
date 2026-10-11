@@ -119,6 +119,7 @@ func (h *harness) wordpressBackups(t *testing.T) {
 func (h *harness) firewall(t *testing.T) {
 	h.firewallRules(t)
 	h.firewallGuards(t)
+	h.firewallEnable(t)
 }
 
 // wordpressTeardown deletes the feature site, and with it its staging copy.

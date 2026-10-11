@@ -8,6 +8,13 @@
       "enabled": true,
       "rules": [
         "Rules"
+      ],
+      "plan": [
+        {
+          "port": 7,
+          "proto": "Proto",
+          "service": "Service"
+        }
       ]
     },
     "zero": {
