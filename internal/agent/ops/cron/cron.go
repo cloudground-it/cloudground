@@ -271,13 +271,12 @@ func (o *Ops) Run(ctx context.Context, p rpc.RunCronParams) (rpc.RunCronResult, 
 	// systemd-run's "Finished with result" line tells a timeout from an
 	// exit status: drop --quiet.
 	args = dropArg(args, "--quiet")
-	res, err := o.Exec.Run(ctx, host.Cmd{Name: "systemd-run", Args: args, Timeout: limit + time.Minute,
+	// Only the tail is kept as the output arrives: a job may print without
+	// end, and none of it may pile up in the agent.
+	out := host.NewTailBuffer(outputLimit)
+	res, err := o.Exec.Run(ctx, host.Cmd{Name: "systemd-run", Args: args, Timeout: limit + time.Minute, Stdout: out,
 		Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C.UTF-8"}})
-	out := res.Stdout
-	if len(out) > outputLimit {
-		out = out[len(out)-outputLimit:]
-	}
-	r := rpc.RunCronResult{Output: string(out), ExitCode: -1}
+	r := rpc.RunCronResult{Output: string(out.Bytes()), ExitCode: -1}
 	result := ""
 	if m := resultRe.FindAllStringSubmatch(string(res.Stderr), -1); len(m) > 0 {
 		result = m[len(m)-1][1]

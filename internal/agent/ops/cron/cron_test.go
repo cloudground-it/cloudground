@@ -355,3 +355,20 @@ func (liveLocker) LockSite(string) func() { return func() {} }
 func (liveLocker) LockLiveSite(state.Site) (func(), error) {
 	return func() {}, nil
 }
+
+// A run that prints more than the agent would ever capture keeps only the
+// tail, as the output arrives, and is not failed for its size.
+func TestRunKeepsOnlyTheTail(t *testing.T) {
+	o, ex, _ := newOps(t)
+	ex.Respond = func(c host.FakeCall) host.FakeReply {
+		return host.FakeReply{Stdout: strings.Repeat("a", host.StdoutLimit+1) + "tail",
+			Stderr: "Running as unit: x\nFinished with result: success\n"}
+	}
+	res, err := o.Run(context.Background(), rpc.RunCronParams{Site: wpSite(), Job: cronjob.Job{ID: 7, Command: "yes"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != "succeeded" || len(res.Output) != outputLimit || !strings.HasSuffix(res.Output, "tail") {
+		t.Fatalf("status %q, %d bytes", res.Status, len(res.Output))
+	}
+}

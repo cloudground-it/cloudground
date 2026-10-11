@@ -168,6 +168,46 @@ file_put_contents(%q, 'sites=' . implode(',', $s) . ', nnp=' . $m[1]); }`, cliSe
 	h.assert(t, "R-3.11: a job past its time limit is reported as timeout", err == nil && code == 200 && jsonField(b, "status") == "timeout" && took < 20*time.Second,
 		"R-3.11: RunCron with max_seconds=3 = %d %s (%v) after %s", code, head(b, 300), err, took)
 	h.check(t, "R-3.11: a job past its time limit leaves no process behind", strconv.Itoa(procsMatching("sleep "+slow)), "0")
+
+	f.outputBound(t)
+}
+
+// outputBound (#42): what the agent captures of a command's output is
+// bounded. A run now that prints far past the limit returns its tail and
+// succeeds; site code that prints without end under wp-cli fails that call
+// while the agent keeps answering, with the same process and no wp-cli run
+// left behind.
+func (f *feat) outputBound(t *testing.T) {
+	h := f.h
+	agentPID := func() string {
+		return h.run("systemctl", "show", "-p", "MainPID", "--value", "cloudground-agent").Trim()
+	}
+	before := agentPID()
+
+	c, b := h.api.post(f.api("/cron"), map[string]string{"schedule": "0 5 * * *",
+		"command": "yes x | head -c 100000000; echo; echo cg-e2e-end"})
+	if id, _ := strconv.ParseInt(jsonField(b, "id"), 10, 64); c == 201 && id != 0 {
+		h.undo("delete cron job", func() { h.api.del(fmt.Sprintf("/api/cron/%d", id)) })
+		c, b = h.api.post(fmt.Sprintf("/api/cron/%d/run", id), map[string]string{})
+		out := jsonField(b, "output")
+		h.assert(t, "#42: run now of a job printing 100 MB returns only the tail", c == 200 && jsonField(b, "status") == "succeeded" &&
+			len(out) <= 64<<10 && strings.HasSuffix(strings.TrimSpace(out), "cg-e2e-end"),
+			"#42: run now = %d, %d bytes of output, %s", c, len(out), head(b, 200))
+	}
+
+	flood := f.fp + "/wp-content/mu-plugins/cg-e2e-flood.php"
+	h.mustWriteAs(t, flood, `<?php if (PHP_SAPI === 'cli') { while (true) { echo str_repeat('x', 1 << 20); } }`, f.fsu)
+	h.undo("remove the flooding mu-plugin", func() { _ = os.Remove(flood) })
+	start := time.Now()
+	c, b = h.api.get(f.api("/wp/plugins")) // the agent runs wp-cli for it
+	took := time.Since(start)
+	_ = os.Remove(flood)
+	h.assert(t, "#42: wp-cli printing without end fails the call, quickly", c >= 400 && took < 2*time.Minute,
+		"#42: GET wp/plugins = %d after %s: %s", c, took, head(b, 200))
+	c, _ = h.api.get(f.api("/wp/plugins"))
+	h.check(t, "#42: the agent keeps answering after the flood", strconv.Itoa(c), "200")
+	h.check(t, "#42: the agent was not restarted by the flood (MainPID)", agentPID(), before)
+	h.check(t, "#42: no wp-cli run is left behind", h.run("systemctl", "list-units", "--no-legend", "cg-wp-"+f.fsu+"-*").Trim(), "")
 }
 
 // procsMatching counts the processes whose command line contains s.

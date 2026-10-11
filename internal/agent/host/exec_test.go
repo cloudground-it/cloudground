@@ -244,7 +244,7 @@ func exitCodeOf(err error) int {
 }
 
 func TestTailBufferKeepsTheEnd(t *testing.T) {
-	tb := &tailBuffer{limit: 4}
+	tb := NewTailBuffer(4)
 	tb.Write([]byte("abc"))
 	tb.Write([]byte("defg"))
 	if got := string(tb.Bytes()); got != "defg" {
@@ -269,5 +269,67 @@ func TestFakeExecRecordsAndAnswers(t *testing.T) {
 	}
 	if !f.Ran("good a") || len(f.Calls()) != 2 {
 		t.Fatalf("calls %+v", f.Calls())
+	}
+}
+
+// A child that writes past the captured stdout's limit is stopped at once,
+// its whole group with it, and fails with ErrStdoutTooLarge and a result
+// of exactly the limit (SPEC: exec, stdout limit).
+func TestOSExecStdoutPastLimitFailsBounded(t *testing.T) {
+	start := time.Now()
+	res, err := OSExec{}.Run(context.Background(), Cmd{Name: "sh", Args: []string{"-c", "yes & yes"}, Timeout: time.Minute})
+	if !errors.Is(err, ErrStdoutTooLarge) {
+		t.Fatalf("err = %v, want ErrStdoutTooLarge", err)
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v: an overflow is not the context's", err)
+	}
+	if len(res.Stdout) != StdoutLimit {
+		t.Fatalf("kept %d bytes, want %d", len(res.Stdout), StdoutLimit)
+	}
+	if d := time.Since(start); d > 20*time.Second {
+		t.Fatalf("took %s: the command was not stopped at the limit", d)
+	}
+}
+
+func TestOSExecStdoutAtLimitSucceeds(t *testing.T) {
+	res, err := OSExec{}.run(context.Background(), Cmd{Name: "head", Args: []string{"-c", "4096", "/dev/zero"}}, 4096)
+	if err != nil || len(res.Stdout) != 4096 {
+		t.Fatalf("err = %v, %d bytes", err, len(res.Stdout))
+	}
+	res, err = OSExec{}.run(context.Background(), Cmd{Name: "head", Args: []string{"-c", "4097", "/dev/zero"}}, 4096)
+	if !errors.Is(err, ErrStdoutTooLarge) || len(res.Stdout) != 4096 {
+		t.Fatalf("err = %v, %d bytes", err, len(res.Stdout))
+	}
+}
+
+// An overflow stops an Interrupt command the way a cancellation does:
+// SIGINT first, then the group.
+func TestOSExecStdoutPastLimitInterrupts(t *testing.T) {
+	_, err := OSExec{}.run(context.Background(), Cmd{Name: "sh", Args: []string{"-c", "trap 'exit 3' INT; while :; do echo xxxxxxxx; done"},
+		Interrupt: 5 * time.Second, Timeout: time.Minute}, 1<<16)
+	if !errors.Is(err, ErrStdoutTooLarge) {
+		t.Fatalf("err = %v, want ErrStdoutTooLarge", err)
+	}
+}
+
+// A streamed stdout is not the agent's memory: it has no limit.
+func TestOSExecStreamedStdoutHasNoLimit(t *testing.T) {
+	var n countWriter
+	_, err := OSExec{}.run(context.Background(), Cmd{Name: "head", Args: []string{"-c", "100000", "/dev/zero"}, Stdout: &n}, 10)
+	if err != nil || n != 100000 {
+		t.Fatalf("err = %v, %d bytes", err, n)
+	}
+}
+
+type countWriter int
+
+func (c *countWriter) Write(p []byte) (int, error) { *c += countWriter(len(p)); return len(p), nil }
+
+func TestFakeExecStdoutPastLimit(t *testing.T) {
+	f := &FakeExec{Respond: func(FakeCall) FakeReply { return FakeReply{Stdout: strings.Repeat("x", StdoutLimit+1)} }}
+	res, err := f.Run(context.Background(), Cmd{Name: "wp"})
+	if !errors.Is(err, ErrStdoutTooLarge) || len(res.Stdout) != StdoutLimit {
+		t.Fatalf("err = %v, %d bytes", err, len(res.Stdout))
 	}
 }

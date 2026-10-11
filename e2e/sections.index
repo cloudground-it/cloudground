@@ -56,6 +56,7 @@ e2e/cgctl_test.go	feat.cgctlTokens	R-4.6 cgctl tokens
 e2e/cgctl_test.go	feat.taskAlertCarriesKind	R-4.6 cgctl tokens
 e2e/cgctl_test.go	harness.cgctlTokens	R-4.6 cgctl tokens
 e2e/cron_test.go	feat.cronJobs	wordpress cron
+e2e/cron_test.go	feat.outputBound	wordpress cron
 e2e/cron_test.go	procsMatching	wordpress cron|R-3.7 site lifecycle
 e2e/databases_test.go	dbFx.agentRefusesForeign	F9b site databases
 e2e/databases_test.go	dbFx.as	woocommerce|wordpress cache|wordpress staging|wordpress cron|wordpress safe push|wordpress releases|wordpress backups|R-4.3 proxies and alerts|F9b site databases|migration import|security|woocommerce security|R-5.4 routing|R-4.3 site settings|SR tenant data
