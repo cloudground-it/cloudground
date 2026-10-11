@@ -426,7 +426,10 @@
     "contentsFiles": "file",
     "everySnapshot": "su ogni snapshot, in una cartella separata",
     "changeDestination": "Cambia destinazione",
-    "snapshots": "Snapshot"
+    "snapshots": "Snapshot",
+    "hour": "Orario",
+    "hourAny": "Qualsiasi ora",
+    "hourHelp": "Ora del server ({zone}). Qualsiasi ora: un giorno o una settimana dopo il backup precedente."
   },
   "ssl": {
     "current": "Certificato attuale",
@@ -611,7 +614,15 @@
     "budgetServer": "la memoria del server",
     "timeout": "Timeout richiesta",
     "overBudget": "Applica oltre il budget",
-    "budgetRefused": "{workers} worker × {mb} MB fanno {total} MB, più del budget di memoria ({budget} MB): abbassa uno dei due."
+    "budgetRefused": "{workers} worker × {mb} MB fanno {total} MB, più del budget di memoria ({budget} MB): abbassa uno dei due.",
+    "extTitle": "Estensioni di PHP {version}",
+    "extHint": "Le estensioni sono del server: tutti i siti su questa versione di PHP le condividono. Installarne una riavvia il PHP di quei siti.",
+    "extInstall": "Installa",
+    "extInstallTitle": "Installare {name} per PHP {version}?",
+    "extInstallHint": "Il pacchetto viene installato sul server, poi ogni sito su PHP {version} riavvia il suo PHP per caricarlo, con una breve pausa.",
+    "extStarted": "Installazione di {name} avviata",
+    "extMissing": "non installata",
+    "extModules": "Tutti i moduli caricati ({n})"
   },
   "sftp": {
     "addKey": "Aggiungi chiave",

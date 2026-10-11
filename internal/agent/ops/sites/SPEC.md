@@ -22,6 +22,8 @@ rewrite).
 | `ApplySiteConfig` | `SiteRef{Site, ReloadOnlyIfChanged}` → `ApplyResult{Files}` | Sites, `LockLiveSite`, 15 min |
 | `CheckDocRoot` | `SiteRef{Site}` → none | Sites, read-only, 30 s |
 | `ReloadWebServer` | none → none | 2 min |
+| `PHPExtensions` | `PHPExtensionsParams{Version}` → `PHPExtensionsResult{Version, Modules, Extensions}` | read-only, 1 min (§9) |
+| `PHPExtensionInstall` | `PHPExtensionInstallParams{Version, Extension}` → `PHPExtensionsResult` | 15 min (§9) |
 
 `CheckDocRoot` (R-4.3) answers `invalid` when a component of the site's
 public root beneath the live release (`current`) is a symbolic link or not a
@@ -270,3 +272,29 @@ changed: <nginx's first error>", its vhost line given as the block's line
 when it falls in the block. The result is what to store and the files
 written. Every later render (Apply, certificates, staging) renders the
 stored block again.
+
+## 9. PHP extensions (#29)
+
+A PHP version's extensions are server-wide: the sites of a version share
+its packages and its `conf.d`. Both methods refuse (`invalid`) a version
+whose FPM binary is not on the machine (the installed-version rule above),
+and the parameters refuse a version that is not `8.x` or an extension
+outside `rpc.PHPExtensions`.
+
+- `PHPExtensions` runs `php-fpm<v> -m`, the binary the masters run, so the
+  list is what they load (the CLI's own `conf.d` may differ). `modules` is
+  every name it prints, lowercase, sorted, without the section headers;
+  `extensions` is each common extension with `installed` when any of its
+  module names is loaded (`mysql` is `mysqli` or `pdo_mysql`).
+- `PHPExtensionInstall` installs only from that list, so a name can never
+  choose another package: `apt-get -o DPkg::Lock::Timeout=120 install -y
+  -qq --no-install-recommends php<v>-<ext>` with `DEBIAN_FRONTEND=
+  noninteractive` (a lock held by unattended-upgrades is waited for, not a
+  failure). A master loads its extensions when it starts, so every site master
+  running that version is then restarted: the agent reads its own unit
+  files (`cloudground-php-cg-site-*.service` in the systemd directory) and
+  takes those whose `ExecStart` starts `php-fpm<v>`, so it needs no site
+  list from the API and restarts exactly the masters on that binary. An
+  install that worked with a restart that failed is an error naming the
+  units. The answer is the version's
+  extensions afterwards.

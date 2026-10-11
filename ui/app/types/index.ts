@@ -41,7 +41,7 @@ export interface Site {
     proxy_upstream?: string
     public_root?: string
     database: { enabled: boolean, name: string, user: string }
-    backups: { enabled: boolean, schedule: string, retention_days: number }
+    backups: { enabled: boolean, schedule: string, retention_days: number, hour?: number | null }
     resources?: { memory_high_mb: number, php_workers: number }
     php: { memory_limit_mb: number, upload_max_mb: number, max_execution_seconds: number }
   }
@@ -207,6 +207,8 @@ export interface Capabilities {
   services: { name: string, unit: string, listed: boolean, restartable: boolean }[]
   sites_root: string
   http3: boolean
+  /** The panel's time zone, the one a backup's hour is in. */
+  time_zone?: string
 }
 
 export interface PanelUser {

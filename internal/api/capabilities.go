@@ -213,6 +213,19 @@ type capabilitiesView struct {
 	Services    []rpc.ServiceCapability `json:"services"`
 	SitesRoot   string                  `json:"sites_root"`
 	HTTP3       bool                    `json:"http3"`
+	// TimeZone is the panel's own zone ("UTC", "CEST"), the one a backup
+	// policy's hour is in.
+	TimeZone string `json:"time_zone"`
+}
+
+// timeZoneName is now's zone abbreviation, or its offset when the zone has
+// none ("+0530").
+func timeZoneName(now time.Time) string {
+	name, _ := now.Zone()
+	if name == "" || name[0] == '+' || name[0] == '-' {
+		return now.Format("-0700")
+	}
+	return name
 }
 
 func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
@@ -237,5 +250,6 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 		Services:    services,
 		SitesRoot:   c.Paths.SitesRoot,
 		HTTP3:       c.Features.HTTP3,
+		TimeZone:    timeZoneName(time.Now()),
 	})
 }

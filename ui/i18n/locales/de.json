@@ -426,7 +426,10 @@
     "contentsFiles": "Dateien",
     "everySnapshot": "bei jedem Snapshot, in einem eigenen Ordner",
     "changeDestination": "Ziel ändern",
-    "snapshots": "Snapshots"
+    "snapshots": "Snapshots",
+    "hour": "Uhrzeit",
+    "hourAny": "Beliebige Uhrzeit",
+    "hourHelp": "Serverzeit ({zone}). Beliebige Uhrzeit: einen Tag oder eine Woche nach dem vorigen Backup."
   },
   "ssl": {
     "current": "Aktuelles Zertifikat",
@@ -611,7 +614,15 @@
     "budgetServer": "der Arbeitsspeicher des Servers",
     "timeout": "Anfrage-Timeout",
     "overBudget": "Über das Budget hinaus anwenden",
-    "budgetRefused": "{workers} Worker × {mb} MB sind {total} MB, mehr als das Speicherbudget ({budget} MB): Senke einen der beiden Werte."
+    "budgetRefused": "{workers} Worker × {mb} MB sind {total} MB, mehr als das Speicherbudget ({budget} MB): Senke einen der beiden Werte.",
+    "extTitle": "Erweiterungen von PHP {version}",
+    "extHint": "Erweiterungen gehören dem Server: alle Websites mit dieser PHP-Version teilen sie. Eine zu installieren startet das PHP dieser Websites neu.",
+    "extInstall": "Installieren",
+    "extInstallTitle": "{name} für PHP {version} installieren?",
+    "extInstallHint": "Das Paket wird auf dem Server installiert, danach startet jede Website mit PHP {version} ihr PHP neu, um es zu laden, mit einer kurzen Pause.",
+    "extStarted": "{name} wird installiert",
+    "extMissing": "nicht installiert",
+    "extModules": "Alle geladenen Module ({n})"
   },
   "sftp": {
     "addKey": "Schlüssel hinzufügen",

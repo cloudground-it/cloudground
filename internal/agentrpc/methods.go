@@ -159,6 +159,8 @@ var (
 	RunCron         = define[rpc.RunCronParams, rpc.RunCronResult](Spec{Name: "RunCron", Timeout: 7 * mins, Sites: true, Fail: "Could not run the cron job"})
 	CronRuns        = define[rpc.CronRunsParams, rpc.CronRunsResult](Spec{Name: "CronRuns", Timeout: 1 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the cron jobs' last runs"})
 	FirewallStatus  = define[None, rpc.FirewallStatusResult](Spec{Name: "FirewallStatus", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the firewall status"})
+	PHPExtensions   = define[rpc.PHPExtensionsParams, rpc.PHPExtensionsResult](Spec{Name: "PHPExtensions", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not list the PHP extensions"})
+	PHPExtInstall   = define[rpc.PHPExtensionInstallParams, rpc.PHPExtensionsResult](Spec{Name: "PHPExtensionInstall", Timeout: 15 * mins, Fail: "Could not install the PHP extension"})
 	FirewallRule    = define[rpc.FirewallRuleParams, map[string]string](Spec{Name: "FirewallRule", Timeout: 2 * mins, Fail: "Could not change the firewall"})
 	FirewallEnable  = define[rpc.FirewallEnableParams, rpc.FirewallStatusResult](Spec{Name: "FirewallEnable", Timeout: 2 * mins, Fail: "Could not turn the firewall on"})
 	DBQuery         = define[rpc.DBQueryParams, rpc.DBQueryResult](Spec{Name: "DBQuery", Timeout: 3 * mins, Sites: true, Fail: "The query failed"})
