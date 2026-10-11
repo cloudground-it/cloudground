@@ -633,7 +633,7 @@
     "on": "on",
     "off": "off",
     "command": "Command",
-    "offHint": "Choose a password to turn it on. SSH keys only work while access is on.",
+    "offHint": "Choose how to sign in to turn it on. SSH keys only work while access is on.",
     "connection": "Connection details",
     "folder": "Folder",
     "publicKey": "Public key",
@@ -664,7 +664,18 @@
     "confirmShellOff": "Turn off the SSH shell? Open sessions end now.",
     "confirmShellKeys": "These keys will open a shell: {keys}.",
     "confirmShellNoKeys": "No key has the type “shell” yet: add one after turning the shell on.",
-    "shellKeyAdminOnly": "Only an administrator can add a “shell” key."
+    "shellKeyAdminOnly": "Only an administrator can add a “shell” key.",
+    "signIn": "How to sign in",
+    "modeKeys": "SSH keys only",
+    "modeKeysHint": "Recommended. There is no password to guess: the server does not even ask for one.",
+    "modePassword": "Password or SSH key",
+    "modePasswordHint": "The password is guessable from anywhere: against repeated attempts only the SSH server’s own limits apply for now.",
+    "firstKeyHint": "The site has no SSH key yet: paste the one that will sign in.",
+    "enableKeys": "Enable with keys only",
+    "switchKeys": "Switch to keys only",
+    "switchPassword": "Switch to a password",
+    "onKeys": "on · keys only",
+    "keysOnlyOn": "SFTP set to keys only"
   },
   "migration": {
     "archive": "Site archive",

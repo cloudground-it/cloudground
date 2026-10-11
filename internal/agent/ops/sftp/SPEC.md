@@ -42,8 +42,8 @@ wording); no `passwd` is run.
 
 ## 3. SetSFTP
 
-Params `{site, password, enable}`; result `{"sftp": "enabled", "user": <system
-user>}` or `{"sftp": "disabled"}`.
+Params `{site, password, enable, keys_only}`; result `{"sftp": "enabled",
+"user": <system user>, "auth": "password" | "keys"}` or `{"sftp": "disabled"}`.
 
 - **Disable**: deny group first, then `Accounts.LockUser` (the password stops
   working too, should the group ever be dropped from sshd's configuration).
@@ -51,8 +51,42 @@ user>}` or `{"sftp": "disabled"}`.
   short"; a password with a newline, CR or NUL → `invalid` (chpasswd reads
   `user:password` lines). `Accounts.SetPassword` (chpasswd, the value on stdin,
   never in argv; a new hash also clears the lock), then out of the deny group.
-  The password is set before access is opened.
-- The API stores `sftp_enabled` after the agent answers.
+  The password is set before access is opened. The user leaves the keys-only
+  group (§3.1).
+- **Enable with `keys_only`** (#47): a password given → `invalid` "a keys-only
+  SFTP login takes no password". The keys-only drop-in is ensured (§3.1),
+  `Accounts.LockUser`, the user joins `cg-sftp-keys`, then leaves the deny
+  group. Whether a key is there yet is the caller's business: the API adds
+  the one it is given first.
+- The API stores `sftp_enabled`, and on enable `sftp_keys_only`, after the
+  agent answers.
+
+### 3.1 Keys only
+
+The SFTP logins share one `Match User cg-site-*` block that allows passwords
+(§1), and sshd chooses settings per user or group, never per key. A login
+set to keys only is a member of **`cg-sftp-keys`** (ensured with the deny
+group), and the agent owns `/etc/ssh/sshd_config.d/09-cloudground-sftp-keys.conf`:
+
+```
+Match Group cg-sftp-keys
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+```
+
+Its name sorts before `10-cloudground-sftp.conf`, and sshd keeps the first
+value it reads for a setting, so for a member these win over the
+`Match User` block's. The file is written like the shell's (§5.3: compared,
+replaced, `sshd -t`, the old file put back on a refusal, sshd reloaded) the
+first time a login is set to keys only; uninstall removes it. A self-updated
+server gets it then, as the installer's drop-in is not rewritten by an
+update.
+
+The password is also locked (`!`): with PAM, a locked password refuses every
+password (and does not stop a key, measured), so a keys-only login refuses
+passwords even without the drop-in, and the drop-in makes sshd stop offering
+the method at all. Password logins, where kept, rely on sshd's own limits
+(`MaxAuthTries`, `MaxStartups`) until the brute-force protection of #21.
 
 ## 4. SSHKeys
 

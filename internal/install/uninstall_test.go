@@ -36,6 +36,7 @@ func installed(t *testing.T) *machine {
 	m.acct.groups["cg-site-1"] = 1001
 	m.acct.users["cg-shell-1"] = [2]int{1001, 1001}
 	m.acct.groups["cg-shell"] = 990
+	m.acct.groups["cg-sftp-keys"] = 991
 	m.write("/etc/passwd", "root:x:0:0::/root:/bin/bash\ncloudground:x:901:901::/:/usr/sbin/nologin\n"+
 		"cg-site-1:x:1001:1001::/srv/sites/a.test:/usr/sbin/nologin\ncg-shell-1:x:1001:1001::/srv/sites/a.test:/usr/local/bin/cg-site-shell\n", 0o644)
 	m.write("/var/lib/cloudground-agent/sites.json", `{"version":1,"sites":{"1":"a.test"}}`, 0o600)
@@ -57,6 +58,7 @@ func installed(t *testing.T) *machine {
 	m.write("/etc/letsencrypt/renewal/cloudground-panel.conf", "x\n", 0o644)
 	m.write("/etc/letsencrypt/renewal/a.test.conf", "x\n", 0o644)
 	m.write("/etc/ssh/sshd_config.d/11-cloudground-shell.conf", "Match User cg-shell-*\n", 0o644)
+	m.write("/etc/ssh/sshd_config.d/09-cloudground-sftp-keys.conf", "Match Group cg-sftp-keys\n", 0o644)
 	m.write(mariadbTuning, "[mysqld]\nlocal_infile = 0\n", 0o644)
 	m.write("/usr/local/bin/panel-agent.bak", "old\n", 0o755)
 	m.write("/var/cache/cloudground/a.test/x", "cached\n", 0o644)
@@ -119,6 +121,7 @@ var removedByDefault = []string{
 	"/etc/systemd/system/multi-user.target.wants/cloudground-agent.service",
 	"/etc/systemd/system/user@1001.service",
 	managed.Sysctl, managed.Vhost, managed.SSHD, "/etc/ssh/sshd_config.d/11-cloudground-shell.conf",
+	"/etc/ssh/sshd_config.d/09-cloudground-sftp-keys.conf",
 	managed.Logrotate, managed.RenewHook, nginxPre,
 	"/etc/nginx/sites-enabled/a.test.conf", "/etc/nginx/sites-enabled/cloudground-panel.conf",
 	"/etc/nginx/conf.d/cloudground-cache-1.conf", "/etc/nginx/conf.d/cloudground-global.conf",
@@ -164,7 +167,7 @@ func TestUninstallKeepsTheSites(t *testing.T) {
 			t.Errorf("user %s is still there", u)
 		}
 	}
-	for _, g := range []string{"cloudground", "cg-sftp-off", "cg-shell"} {
+	for _, g := range []string{"cloudground", "cg-sftp-off", "cg-sftp-keys", "cg-shell"} {
 		if _, ok := m.acct.Group(g); ok {
 			t.Errorf("group %s is still there", g)
 		}

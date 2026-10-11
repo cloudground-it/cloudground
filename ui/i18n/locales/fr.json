@@ -633,7 +633,7 @@
     "on": "activé",
     "off": "désactivé",
     "command": "Commande",
-    "offHint": "Choisissez un mot de passe pour l’activer. Les clés SSH ne fonctionnent que lorsque l’accès est activé.",
+    "offHint": "Choisissez le mode de connexion pour l’activer. Les clés SSH ne fonctionnent que lorsque l’accès est activé.",
     "connection": "Informations de connexion",
     "folder": "Dossier",
     "publicKey": "Clé publique",
@@ -664,7 +664,18 @@
     "confirmShellOff": "Désactiver le shell SSH ? Les sessions ouvertes se terminent immédiatement.",
     "confirmShellKeys": "Ces clés ouvriront un shell : {keys}.",
     "confirmShellNoKeys": "Aucune clé de type « shell » pour l’instant : ajoutez-en une après avoir activé le shell.",
-    "shellKeyAdminOnly": "Seul un administrateur peut ajouter une clé « shell »."
+    "shellKeyAdminOnly": "Seul un administrateur peut ajouter une clé « shell ».",
+    "signIn": "Mode de connexion",
+    "modeKeys": "Clés SSH uniquement",
+    "modeKeysHint": "Recommandé. Aucun mot de passe à deviner : le serveur n’en demande même pas.",
+    "modePassword": "Mot de passe ou clé SSH",
+    "modePasswordHint": "Le mot de passe peut être tenté depuis n’importe où : contre les tentatives répétées, seules les limites du serveur SSH s’appliquent pour l’instant.",
+    "firstKeyHint": "Le site n’a pas encore de clé SSH : collez celle qui servira à se connecter.",
+    "enableKeys": "Activer avec clés uniquement",
+    "switchKeys": "Passer aux clés uniquement",
+    "switchPassword": "Passer à un mot de passe",
+    "onKeys": "activé · clés uniquement",
+    "keysOnlyOn": "SFTP réglé sur clés uniquement"
   },
   "migration": {
     "archive": "Archive du site",

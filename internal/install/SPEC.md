@@ -644,8 +644,8 @@ In order:
    site (`/etc/cloudground/certs/custom`) are moved to `<kept>/custom-certs`. **Nothing serves the
    sites any more**: their vhosts and PHP masters are gone.
 5. **The panel's certificate**: `certbot delete --cert-name cloudground-panel`.
-6. **The installer's files** (§7) and the agent's global ones: the two sshd drop-ins
-   (`10-cloudground-sftp.conf`, `11-cloudground-shell.conf`), then `sshd -t` and `reload ssh` (a
+6. **The installer's files** (§7) and the agent's global ones: the three sshd drop-ins
+   (`10-cloudground-sftp.conf`, `11-cloudground-shell.conf`, `09-cloudground-sftp-keys.conf`), then `sshd -t` and `reload ssh` (a
    failing `sshd -t` fails the action: an sshd that would not restart is the operator's to see);
    `60-cloudground.conf` (the live kernel values stay until a reboot or `sysctl --system`);
    `logrotate.d/cloudground`; the renewal hook and `cloudground-cloudflare.ini`; the bootstrap
@@ -657,7 +657,7 @@ In order:
 7. **The state**: `/etc/cloudground`, `/etc/cloudground-php`, `/var/lib/cloudground`,
    `/var/lib/cloudground-agent` (update snapshots included), `/var/cache/cloudground`,
    `/var/log/cloudground`, `/run/cloudground`, `/var/www/cloudground-acme`, the install logs; the
-   user `cloudground`, the groups `cloudground` and `cg-sftp-off`; the recorded `dirs` where empty;
+   user `cloudground`, the groups `cloudground`, `cg-sftp-off` and `cg-sftp-keys`; the recorded `dirs` where empty;
    `/srv/sites` if empty.
 
 Every removal is `os.RemoveAll` of an absolute path named here (never `/`), which removes a link

@@ -420,7 +420,7 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 	}
 
 	// 4. The installer's files, the agent's global ones.
-	rm("ssh.config", managed.SSHD, "/etc/ssh/sshd_config.d/11-cloudground-shell.conf")
+	rm("ssh.config", managed.SSHD, "/etc/ssh/sshd_config.d/11-cloudground-shell.conf", "/etc/ssh/sshd_config.d/09-cloudground-sftp-keys.conf")
 	if e.Cmd.LookPath("sshd") {
 		follow("ssh.reload", "sshd -t, then reload ssh", func(ctx context.Context) error {
 			if out, err := e.Cmd.Run(ctx, "sshd", "-t"); err != nil {
@@ -486,8 +486,10 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 		if _, ok := e.Acct.Group("cloudground"); ok {
 			add("group.cloudground", "remove the group cloudground", e.cmdWarn("groupdel", "cloudground"))
 		}
-		if _, ok := e.Acct.Group("cg-sftp-off"); ok {
-			add("group.cg-sftp-off", "remove the group cg-sftp-off", e.cmdWarn("groupdel", "cg-sftp-off"))
+		for _, g := range []string{"cg-sftp-off", "cg-sftp-keys"} {
+			if _, ok := e.Acct.Group(g); ok {
+				add("group."+g, "remove the group "+g, e.cmdWarn("groupdel", g))
+			}
 		}
 	}
 

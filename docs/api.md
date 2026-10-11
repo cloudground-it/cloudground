@@ -398,11 +398,21 @@ audited redacted.
 
 | Method | Path | Access | What it does |
 | :-- | :-- | :-- | :-- |
-| `POST` | `/api/sites/{id}/sftp` | manage | turn SFTP on with a new password |
+| `POST` | `/api/sites/{id}/sftp` | manage | turn SFTP on (`keys_only` and an optional `public_key`, or a new `password`) or off (`enable`) |
 | `GET` | `/api/sites/{id}/ssh-keys` | auth | the site's SSH keys |
 | `POST` | `/api/sites/{id}/ssh-keys` | manage | add a key (`public_key`, `access`: `sftp` or `shell`; a `shell` key only from an admin's session) |
 | `DELETE` | `/api/sites/{id}/ssh-keys/{fingerprint}` | manage | remove that key |
 | `POST` | `/api/sites/{id}/ssh-shell` | admin, session only | turn the site's SSH shell on or off (`{"enable": bool}`) |
+
+`POST /sftp` with `{"enable": true, "password": "..."}` turns the login on with a password (12
+characters at least); with `{"enable": true, "keys_only": true}` it takes keys only: no password,
+the one it had locked, and sshd does not offer the site user a password at all. `keys_only` left
+out is `true` when the body has a `public_key`, which is added (as an `"sftp"` key) before the
+login is turned on: `{"enable": true, "public_key": "ssh-ed25519 ..."}` is a keys-only login with
+that key. A keys-only request with a password is refused (400). The site's `config.sftp_keys_only`
+says which it is. Keys only is the safer choice: a password login's only defence against guessing
+is the password and sshd's own limits on attempts per connection, as CloudGround does not yet
+block addresses that keep failing.
 
 A fingerprint is `SHA256:` and the standard base64 `ssh-keygen -l` prints; percent-encode it in the
 path (it can contain `/` and `+`). Keys sign in only while SFTP is on.

@@ -633,7 +633,7 @@
     "on": "an",
     "off": "aus",
     "command": "Befehl",
-    "offHint": "Wähle ein Passwort, um ihn einzuschalten. SSH-Schlüssel funktionieren nur, solange der Zugang an ist.",
+    "offHint": "Wähle die Anmeldung, um ihn einzuschalten. SSH-Schlüssel funktionieren nur, solange der Zugang an ist.",
     "connection": "Verbindungsdaten",
     "folder": "Ordner",
     "publicKey": "Öffentlicher Schlüssel",
@@ -664,7 +664,18 @@
     "confirmShellOff": "SSH-Shell ausschalten? Offene Sitzungen enden sofort.",
     "confirmShellKeys": "Diese Schlüssel öffnen eine Shell: {keys}.",
     "confirmShellNoKeys": "Noch kein Schlüssel vom Typ „Shell“: Füge einen hinzu, nachdem du die Shell eingeschaltet hast.",
-    "shellKeyAdminOnly": "Nur ein Administrator kann einen „Shell“-Schlüssel hinzufügen."
+    "shellKeyAdminOnly": "Nur ein Administrator kann einen „Shell“-Schlüssel hinzufügen.",
+    "signIn": "Anmeldung",
+    "modeKeys": "Nur SSH-Schlüssel",
+    "modeKeysHint": "Empfohlen. Es gibt kein Passwort zum Erraten: Der Server fragt gar nicht danach.",
+    "modePassword": "Passwort oder SSH-Schlüssel",
+    "modePasswordHint": "Das Passwort kann von überall ausprobiert werden: Gegen wiederholte Versuche gelten vorerst nur die Grenzen des SSH-Servers.",
+    "firstKeyHint": "Die Website hat noch keinen SSH-Schlüssel: Füge den ein, mit dem du dich anmeldest.",
+    "enableKeys": "Nur mit Schlüsseln aktivieren",
+    "switchKeys": "Zu nur Schlüsseln wechseln",
+    "switchPassword": "Zu einem Passwort wechseln",
+    "onKeys": "an · nur Schlüssel",
+    "keysOnlyOn": "SFTP auf nur Schlüssel gestellt"
   },
   "migration": {
     "archive": "Website-Archiv",

@@ -30,18 +30,34 @@ const minSFTPPassword = 12
 // session.
 const msgShellKeySession = "only an administrator, signed in with a session, can add a shell key"
 
-// handleSetSFTP turns the SFTP login on with a password, or off.
-// Body {"enable": bool, "password": string}.
+// handleSetSFTP turns the SFTP login on, with a password or for keys only,
+// or off (#47). Body {"enable": bool, "password": string, "keys_only": bool,
+// "public_key": string}. keys_only left out is true when a public_key is
+// given: a login that comes with a key takes keys only unless asked. The
+// key is added (as an SFTP key) before the login is turned on, and one
+// already there is fine.
 func (s *Server) handleSetSFTP(w http.ResponseWriter, r *http.Request, c *call) {
 	var req struct {
-		Enable   bool   `json:"enable"`
-		Password string `json:"password"`
+		Enable    bool   `json:"enable"`
+		Password  string `json:"password"`
+		KeysOnly  *bool  `json:"keys_only"`
+		PublicKey string `json:"public_key"`
 	}
 	if err := decode(r, &req); err != nil {
 		respondErr(w, http.StatusBadRequest, "malformed request")
 		return
 	}
-	if req.Enable && len(req.Password) < minSFTPPassword {
+	keysOnly := req.PublicKey != ""
+	if req.KeysOnly != nil {
+		keysOnly = *req.KeysOnly
+	}
+	switch {
+	case !req.Enable:
+		keysOnly = false
+	case keysOnly && req.Password != "":
+		respondErr(w, http.StatusBadRequest, "a keys-only SFTP login takes no password")
+		return
+	case !keysOnly && len(req.Password) < minSFTPPassword:
 		respondErr(w, http.StatusBadRequest, "SFTP password must be at least 12 characters")
 		return
 	}
@@ -53,19 +69,37 @@ func (s *Server) handleSetSFTP(w http.ResponseWriter, r *http.Request, c *call) 
 		internalError(w, "GetSite", err, "could not read the site")
 		return
 	}
+	if req.Enable && req.PublicKey != "" {
+		var keys rpc.SSHKeysResult
+		err := agentrpc.Into(r.Context(), s.Agent, agentrpc.SSHKeys, rpc.SSHKeyParams{Site: cur, Action: "add", PublicKey: req.PublicKey, Access: "sftp"}, &keys)
+		if err != nil && agentrpc.CodeOf(err) != agentrpc.CodeConflict {
+			respondAgentErr(w, 0, "", err)
+			return
+		}
+		if err == nil && len(keys.Keys) > 0 {
+			s.audit(c.Actor(), "sftp.key.add", c.Site.Domain, keys.Keys[len(keys.Keys)-1].Fingerprint+" sftp")
+		}
+	}
 	var out map[string]string
-	if err := agentrpc.Into(r.Context(), s.Agent, agentrpc.SetSFTP, rpc.SFTPParams{Site: cur, Password: req.Password, Enable: req.Enable}, &out); err != nil {
+	if err := agentrpc.Into(r.Context(), s.Agent, agentrpc.SetSFTP, rpc.SFTPParams{Site: cur, Password: req.Password, Enable: req.Enable, KeysOnly: keysOnly}, &out); err != nil {
 		respondAgentErr(w, 0, "", err)
 		return
 	}
 	_, err = s.Store.MutateSiteApplied(c.Site.ID, func(st *state.Site) error {
 		st.Config.SFTPEnabled = req.Enable
+		if req.Enable {
+			st.Config.SFTPKeysOnly = keysOnly
+		}
 		return nil
 	})
 	s.logIfErr(err, "MutateSite")
-	s.audit(c.Actor(), "sftp.set", c.Site.Domain, onOff(req.Enable))
+	detail := onOff(req.Enable)
+	if keysOnly {
+		detail += ", keys only"
+	}
+	s.audit(c.Actor(), "sftp.set", c.Site.Domain, detail)
 	respond(w, http.StatusOK, map[string]any{
-		"sftp": out, "host": r.Host, "username": c.Site.SystemUser, "port": 22,
+		"sftp": out, "host": r.Host, "username": c.Site.SystemUser, "port": 22, "keys_only": keysOnly,
 	})
 }
 

@@ -58,6 +58,8 @@ PHP itself runs with `disable_functions = exec,passthru,shell_exec,system,proc_o
 its temporary files, uploads and sessions in the site's own `tmp/`.
 
 SFTP logins are chrooted to the site root, which is owned by root so the tenant cannot replace it.
+A login can take SSH keys only: its password is locked and sshd does not offer it one
+(ops/sftp SPEC §3.1); turning SFTP on with a key and no password does that by default.
 The optional site shell is a second login, `cg-shell-<id>`, with the same uid; its session runs as a
 transient unit inside the same sandbox (internal/agent/ops/sftp/SPEC.md). Only an administrator,
 signed in with a session, can add a shell key.
@@ -119,6 +121,9 @@ Kept because a list of what was wrong says more about a codebase than a list of 
   password-check queue, not per account. Long, random passwords and 2FA
   are the defence against that. An attacker behind the owner's own address (a shared NAT, the same
   IPv6 /48) shares that network's delay with the owner.
+- SFTP logins are named `cg-site-<id>`, so they are easy to guess. A login kept on a password is
+  protected only by the password and sshd's own limits (`MaxAuthTries`, `MaxStartups`): nothing yet
+  blocks an address that keeps failing (issue #21). Keys only is the defence until then.
 - Drift detection covers the files the panel rendered. It is not a file-integrity monitor.
 - The sandbox limits what a compromised site can reach. It does not make vulnerable application code
   safe. A way out of the sandbox is a vulnerability: report it as `SECURITY.md` says.
