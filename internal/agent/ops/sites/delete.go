@@ -59,6 +59,11 @@ func (o *Ops) Teardown(ctx context.Context, s state.Site) error {
 	// they are removed.
 	keep(o.deleteUser(ctx, s.SystemUser))
 	keep(o.removeSiteDirs(s))
+	if o.Paths.Quarantine != "" {
+		if err := os.RemoveAll(filepath.Join(o.Paths.Quarantine, strconv.FormatInt(s.ID, 10))); err != nil {
+			keep(fmt.Errorf("remove the site's quarantined files: %w", err))
+		}
+	}
 	if err := os.RemoveAll(s.RootPath); err != nil {
 		keep(fmt.Errorf("remove the site files: %w", err))
 	}

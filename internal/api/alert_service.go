@@ -30,7 +30,7 @@ import (
 type Alert struct {
 	ID      string `json:"id"`
 	Level   string `json:"level"` // warning | error
-	Kind    string `json:"kind"`  // certificate | task | service | drift | deploy | uptime | usage | vulnerability
+	Kind    string `json:"kind"`  // certificate | task | service | drift | deploy | uptime | usage | vulnerability | malware
 	SiteID  int64  `json:"site_id,omitempty"`
 	Site    string `json:"site,omitempty"`
 	Message string `json:"message"`
@@ -140,7 +140,7 @@ func taskConditions(list []state.Job, exists map[int64]bool, now time.Time) []st
 
 // recurring are the job kinds a schedule queues again and again: their
 // failures are one alert per site, not one per run.
-var recurring = map[string]bool{"backup.scheduled": true, "wp.vulncheck": true}
+var recurring = map[string]bool{"backup.scheduled": true, "wp.vulncheck": true, "site.malwarescan": true}
 
 // jobDomain is the domain of the site a job was about, as its payload
 // recorded it (startJob), or "site #<id>" when it recorded none.
@@ -229,6 +229,10 @@ func (s *Server) evaluateAlertsAt(ctx context.Context, now time.Time) error {
 	if sitesErr == nil {
 		if reports, err := s.Store.VulnReports(); keep(err, "alerts: VulnReports") {
 			keep(s.Store.SyncAlerts("vulnerability", vulnConditions(sites, reports)), "SyncAlerts vulnerability")
+		}
+		// Malware (malware.go): the open findings of each site.
+		if open, err := s.Store.OpenMalwareFindings(); keep(err, "alerts: OpenMalwareFindings") {
+			keep(s.Store.SyncAlerts("malware", malwareConditions(sites, open)), "SyncAlerts malware")
 		}
 	}
 	guessing, guessed := s.guesses.condition(now)

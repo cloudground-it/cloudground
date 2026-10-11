@@ -17,6 +17,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent"
 	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/cron"
+	"github.com/cloudground-it/cloudground/internal/agent/ops/malware"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/panel"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/config"
@@ -43,6 +44,11 @@ Configuration: /etc/cloudground/panel.env, then the environment
       Run by the agent itself, as the transient unit
       cloudground-update-guard.service, after a self-update: restarts both
       services on the new release and rolls back if they do not come up.
+
+  panel-agent malware-signatures
+      Run by the agent itself, as a transient unit, before a malware scan:
+      updates ClamAV's databases (freshclam) and rebuilds the reduced set
+      the scan reads in /var/lib/cloudground-signatures.
 
   panel-agent adopt-databases [--state <state.db>] [--dry-run]
       Run by root on the box, with the agent stopped, when the agent's
@@ -90,6 +96,11 @@ func run(args []string) int {
 	}
 	if len(args) > 0 && args[0] == "update-guard" {
 		return panel.GuardMain(args[1:], log)
+	}
+	if len(args) > 0 && args[0] == malware.RefreshName {
+		// The malware scan's signature update, in the transient unit the
+		// agent starts for it (ops/malware SPEC §2).
+		return malware.RefreshMain(args[1:], os.Stdout, os.Stderr)
 	}
 	if len(args) > 0 && args[0] == adoptName {
 		return adoptMain(args[1:], os.Stdout)

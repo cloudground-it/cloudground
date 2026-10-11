@@ -123,3 +123,34 @@ var stepVulnerabilities = schemaStep{version: 25, stmts: []string{
 	)`,
 	`ALTER TABLE panel_settings ADD COLUMN vulnerability_check INTEGER NOT NULL DEFAULT 1`,
 }}
+
+// stepMalware keeps each site's last malware scan and what it found (#76,
+// site_malware.go): one row per site for the scan, one per finding (a file
+// and the signature that matched it), and the panel's switch of the
+// scheduled scans (off by default: turning it on installs ClamAV).
+var stepMalware = schemaStep{version: 26, stmts: []string{
+	`CREATE TABLE site_malware_scans (
+		site_id      INTEGER PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
+		scanned_at   TEXT NOT NULL DEFAULT '',
+		attempted_at TEXT NOT NULL,
+		error        TEXT NOT NULL DEFAULT '',
+		files        INTEGER NOT NULL DEFAULT 0,
+		signatures   INTEGER NOT NULL DEFAULT 0,
+		duration_ms  INTEGER NOT NULL DEFAULT 0,
+		engine       TEXT NOT NULL DEFAULT '',
+		database     TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE TABLE site_malware_findings (
+		id             INTEGER PRIMARY KEY AUTOINCREMENT,
+		site_id        INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+		path           TEXT NOT NULL,
+		signature      TEXT NOT NULL,
+		status         TEXT NOT NULL CHECK (status IN ('open', 'quarantined', 'gone')),
+		first_seen     TEXT NOT NULL,
+		last_seen      TEXT NOT NULL,
+		quarantined_at TEXT NOT NULL DEFAULT '',
+		quarantine_id  TEXT NOT NULL DEFAULT '',
+		UNIQUE (site_id, path, signature)
+	)`,
+	`ALTER TABLE panel_settings ADD COLUMN malware_scan INTEGER NOT NULL DEFAULT 0`,
+}}

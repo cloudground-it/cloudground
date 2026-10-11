@@ -61,7 +61,8 @@ const links = computed(() => {
     { label: t('tabs.cache'), icon: 'i-cg-cache', to: `${base.value}/cache` }
   ]
   if (isWordPress(s)) items.push({ label: 'WordPress', icon: 'i-cg-plug', to: `${base.value}/wordpress` })
-  if (isWordPress(s)) items.push({ label: t('tabs.security'), icon: 'i-cg-shield-check', to: `${base.value}/security` })
+  // The malware scan covers every site with files; the vulnerability check WordPress.
+  if (s.type !== 'proxy') items.push({ label: t('tabs.security'), icon: 'i-cg-shield-check', to: `${base.value}/security` })
   if (!s.staging_of) items.push({ label: 'Staging', icon: 'i-cg-staging', to: `${base.value}/staging` })
   items.push(
     { label: t('tabs.deployments'), icon: 'i-cg-release', to: `${base.value}/deployments` },

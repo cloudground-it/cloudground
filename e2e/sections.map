@@ -70,6 +70,9 @@ internal/api/protected_paths.go        protected paths
 internal/api/uptime.go                 uptime
 internal/api/vulnerabilities.go        wordpress vulnerabilities
 internal/api/vulndb.go                 wordpress vulnerabilities
+internal/api/malware.go                malware scan
+internal/agent/ops/malware/**          malware scan
+internal/agent/ops_malware.go          malware scan
 internal/api/backup_policy.go          R-4.3 site settings, PHP extensions and backup hour
 internal/api/php_extensions.go         PHP extensions and backup hour
 internal/api/site_settings.go          site resources, R-4.3 site settings, wordpress slow request, R-4.7 capabilities, R-4.2 job queue, wordpress cache, wordpress sftp

@@ -94,7 +94,8 @@
       "deploy": "Release",
       "uptime": "Disponibilité",
       "usage": "Ressources",
-      "vulnerability": "Vulnérabilité"
+      "vulnerability": "Vulnérabilité",
+      "malware": "Logiciel malveillant"
     },
     "more": "et {n} de plus dans le panneau Alertes (cloche, en haut à droite)",
     "dismiss": "Archiver",
@@ -910,7 +911,9 @@
     "webhook": "Webhook",
     "webhookHint": "Une URL https de Slack, Discord, Mattermost ou similaire (champ text).",
     "vulnCheck": "Rechercher les vulnérabilités connues des sites WordPress",
-    "vulnCheckHint": "Une fois par jour, les versions du cœur, des extensions et des thèmes de chaque site WordPress sont recherchées dans la base publique WPVulnerability. Seuls les noms et les versions sont envoyés, jamais le site."
+    "vulnCheckHint": "Une fois par jour, les versions du cœur, des extensions et des thèmes de chaque site WordPress sont recherchées dans la base publique WPVulnerability. Seuls les noms et les versions sont envoyés, jamais le site.",
+    "malwareScan": "Analyser chaque semaine les fichiers des sites à la recherche de logiciels malveillants",
+    "malwareScanHint": "Chaque site à une heure qui lui est propre, avec ClamAV lancé seulement pour l’analyse, dans le bac à sable du site. La première analyse installe ClamAV et ses signatures (environ 300 Mo de disque)."
   },
   "editor": {
     "close": "Fermer",
@@ -1420,5 +1423,34 @@
       "plugin": "Extension",
       "theme": "Thème"
     }
+  },
+  "malware": {
+    "title": "Analyse antimalware",
+    "hint": "Les fichiers du site comparés aux signatures de logiciels malveillants connus (ClamAV, avec les règles PHP de Linux Malware Detect). L’analyseur ne tourne que pendant l’analyse, dans le bac à sable du site. Un fichier trouvé peut être mis en quarantaine, hors du site.",
+    "off": "désactivée",
+    "pending": "première analyse à l’heure prévue",
+    "clean": "rien trouvé",
+    "found": "{n} infectés",
+    "offHint": "L’analyse antimalware est désactivée dans les paramètres.",
+    "failed": "La dernière analyse, {when}, n’a pas abouti. La liste est celle de l’analyse précédente.",
+    "lastScan": "Dernière analyse",
+    "files": "Fichiers analysés",
+    "duration": "Durée",
+    "signatures": "Signatures",
+    "nextScan": "Prochaine analyse prévue",
+    "file": "Fichier",
+    "signature": "Signature",
+    "status": "État",
+    "state": {
+      "open": "dans le site",
+      "quarantined": "en quarantaine",
+      "gone": "disparu"
+    },
+    "scanNow": "Analyser maintenant",
+    "started": "Analyse antimalware lancée",
+    "quarantine": "Quarantaine",
+    "quarantineTitle": "Mettre {path} en quarantaine ?",
+    "quarantineHint": "Le fichier est retiré du site et conservé sur le serveur, lisible seulement par root. Si le site l’utilise, il cessera de fonctionner là où il en a besoin.",
+    "quarantined": "{path} mis en quarantaine"
   }
 }

@@ -94,7 +94,8 @@
       "deploy": "Rilascio",
       "uptime": "Disponibilità",
       "usage": "Risorse",
-      "vulnerability": "Vulnerabilità"
+      "vulnerability": "Vulnerabilità",
+      "malware": "Malware"
     },
     "more": "e altri {n} nel pannello Avvisi (campanella in alto)",
     "dismiss": "Archivia",
@@ -910,7 +911,9 @@
     "webhook": "Webhook",
     "webhookHint": "URL https di Slack, Discord, Mattermost o simili (campo text).",
     "vulnCheck": "Controlla i siti WordPress per vulnerabilità note",
-    "vulnCheckHint": "Una volta al giorno le versioni di core, plugin e temi di ogni sito WordPress vengono cercate nel database pubblico WPVulnerability. Si inviano solo nomi e versioni, mai il sito."
+    "vulnCheckHint": "Una volta al giorno le versioni di core, plugin e temi di ogni sito WordPress vengono cercate nel database pubblico WPVulnerability. Si inviano solo nomi e versioni, mai il sito.",
+    "malwareScan": "Scansiona ogni settimana i file dei siti alla ricerca di malware",
+    "malwareScanHint": "Ogni sito a un’ora tutta sua, con ClamAV avviato solo per la scansione, nella sandbox del sito. La prima scansione installa ClamAV e le sue firme (circa 300 MB di disco)."
   },
   "editor": {
     "close": "Chiudi",
@@ -1420,5 +1423,34 @@
       "plugin": "Plugin",
       "theme": "Tema"
     }
+  },
+  "malware": {
+    "title": "Scansione malware",
+    "hint": "I file del sito confrontati con le firme di malware noto (ClamAV, con le regole PHP di Linux Malware Detect). Lo scanner gira solo durante la scansione, nella sandbox del sito. Un file trovato si può mettere in quarantena, fuori dal sito.",
+    "off": "disattivata",
+    "pending": "prima scansione all’ora prevista",
+    "clean": "nessun malware",
+    "found": "{n} infetti",
+    "offHint": "La scansione malware è disattivata nelle impostazioni.",
+    "failed": "L’ultima scansione, {when}, non è stata completata. L’elenco è quello della scansione precedente.",
+    "lastScan": "Ultima scansione",
+    "files": "File scansionati",
+    "duration": "Durata",
+    "signatures": "Firme",
+    "nextScan": "Prossima scansione prevista",
+    "file": "File",
+    "signature": "Firma",
+    "status": "Stato",
+    "state": {
+      "open": "nel sito",
+      "quarantined": "in quarantena",
+      "gone": "rimosso"
+    },
+    "scanNow": "Scansiona ora",
+    "started": "Scansione malware avviata",
+    "quarantine": "Quarantena",
+    "quarantineTitle": "Mettere {path} in quarantena?",
+    "quarantineHint": "Il file viene tolto dal sito e conservato sul server, leggibile solo da root. Se il sito lo usa, smetterà di funzionare dove serve.",
+    "quarantined": "{path} messo in quarantena"
   }
 }
