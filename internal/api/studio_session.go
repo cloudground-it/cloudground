@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -41,7 +42,10 @@ const (
 	// handoffTTL is how long a handoff from the panel can be exchanged.
 	handoffTTL = 60 * time.Second
 	// At most this many sessions (and per site); past it the one unused
-	// the longest ends.
+	// the longest ends. Signed-in database users' sessions, which the
+	// agent also holds, have bounds of their own, below these
+	// (rpc.DBStudioMaxLogins, rpc.DBStudioMaxSiteLogins): past them a
+	// sign-in is refused (reserveLogin).
 	maxStudioSessions     = 1024
 	maxStudioSiteSessions = 64
 	// maxHandoffs waiting to be exchanged.
@@ -173,6 +177,9 @@ type studioSessions struct {
 	mu       sync.Mutex
 	byKey    map[string]*studioSession
 	handoffs map[string]handoff
+	// signingIn counts, per site, the sign-ins that have room reserved
+	// and are not yet kept.
+	signingIn map[int64]int
 	// now is the clock (tests).
 	now func() time.Time
 }
@@ -204,6 +211,61 @@ func (m *studioSessions) add(st *studioSession) []*studioSession {
 	ended = append(ended, m.evict(func(*studioSession) bool { return true }, maxStudioSessions-1)...)
 	m.byKey[st.key] = st
 	return ended
+}
+
+// Why a sign-in is refused when Quarry has no room for its session.
+var (
+	msgStudioSiteFull = fmt.Sprintf("Quarry already has %d signed-in sessions on this site: sign out of one, or wait until one has gone %d minutes unused", rpc.DBStudioMaxSiteLogins, int(studioIdle/time.Minute))
+	msgStudioFull     = fmt.Sprintf("Quarry already has %d signed-in sessions: sign out of one, or wait until one has gone %d minutes unused", rpc.DBStudioMaxLogins, int(studioIdle/time.Minute))
+)
+
+// reserveLogin keeps room for one more signed-in session of site: the live
+// signed-in sessions and the sign-ins under way count against the bounds
+// the agent's pool has too, so the agent never has to end a session the
+// API still holds to make room. Without room it returns why; with room,
+// release, to call once the session is kept or the sign-in has failed.
+// The dead sessions it forgets are returned (the caller ends their agent
+// side).
+func (m *studioSessions) reserveLogin(siteID int64) (release func(), full string, ended []*studioSession) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	at := m.clock()
+	site, all := m.signingIn[siteID], 0
+	for _, n := range m.signingIn {
+		all += n
+	}
+	for k, x := range m.byKey {
+		switch {
+		case x.dead(at):
+			delete(m.byKey, k)
+			ended = append(ended, x)
+		case x.mode == studioLogin:
+			all++
+			if x.siteID == siteID {
+				site++
+			}
+		}
+	}
+	switch {
+	case site >= rpc.DBStudioMaxSiteLogins:
+		return nil, msgStudioSiteFull, ended
+	case all >= rpc.DBStudioMaxLogins:
+		return nil, msgStudioFull, ended
+	}
+	if m.signingIn == nil {
+		m.signingIn = map[int64]int{}
+	}
+	m.signingIn[siteID]++
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			m.mu.Lock()
+			defer m.mu.Unlock()
+			if m.signingIn[siteID]--; m.signingIn[siteID] <= 0 {
+				delete(m.signingIn, siteID)
+			}
+		})
+	}, "", ended
 }
 
 // evict ends the least recently used sessions that match until keep are

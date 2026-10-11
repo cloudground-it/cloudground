@@ -274,8 +274,11 @@ panel account, and sees and changes exactly what MariaDB grants that user.
   (the API keeps only the handle, §6.4 of its SPEC). A session ends after
   35 minutes unused (the API's own idle time is 30), 12 h 5 min after it
   began, on `DBStudioClose`, when the agent restarts, and when the server
-  stops taking the password. At most 32 per site and 256 in all; past
-  either, the one unused the longest ends.
+  stops taking the password. At most 32 per site and 256 in all
+  (`rpc.DBStudioMaxSiteLogins`, `rpc.DBStudioMaxLogins`, the bounds the API
+  refuses a sign-in at); past either, the one unused the longest ends,
+  which is then a session the API no longer holds. `CheckOnly` (the API has
+  no room) checks the name and password the same way and keeps nothing.
 - **Every statement as the user**: `Tables`, `Structure`, `Rows`, `Edit`,
   `Alter`, `Query`, `Search`, `Export` (CSV through the session, SQL as
   `mariadb-dump` signed in as the user, host `DumpAs`) and `ImportCSV`

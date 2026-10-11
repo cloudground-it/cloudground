@@ -333,7 +333,9 @@ to Quarry`), and a Quarry session none of the panel's. There are two ways in:
   (429): one network is no faster in parallel. The wait comes first and holds nothing; then the user's password is checked one attempt at a time, with at most
   4 queued per network. A delay, never a lock: someone failing from one network slows their own
   guesses, not the user signing in from another. A refusal is `401 invalid credentials` whatever
-  the reason, and takes at least 300 ms.
+  the reason, and takes at least 300 ms. At most 32 signed-in sessions per site and 256 in all:
+  past either, a correct name and password get `429` saying so (sign out of one, or wait until
+  one has gone 30 minutes unused).
 - **From the panel**: `POST /api/sites/{id}/quarry/handoff` (a signed-in session, never a token)
   returns a one-time `token` valid 60 seconds, which `POST /api/quarry/handoff` exchanges, with
   the same panel session, for a Quarry session on that site. It works through a throwaway account

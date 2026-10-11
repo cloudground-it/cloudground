@@ -32,10 +32,12 @@ const (
 	// loginLife ends any session this long after it started.
 	loginLife = 12*time.Hour + 5*time.Minute
 	// maxLogins is how many sessions the agent keeps; a new one past it
-	// ends the one unused the longest.
-	maxLogins = 256
+	// ends the one unused the longest. The API, which refuses a sign-in
+	// past the same bound, holds no more: what ends here is a session it
+	// no longer has.
+	maxLogins = rpc.DBStudioMaxLogins
 	// maxSiteLogins is the same per site.
-	maxSiteLogins = 32
+	maxSiteLogins = rpc.DBStudioMaxSiteLogins
 )
 
 // errLoginGone is a session the agent no longer has (ended, expired, or
@@ -186,7 +188,8 @@ func (l *logins) count() int {
 
 // SignIn signs one of the site's database users in: the user must be one the
 // record gives the site, and the server must take its password (SPEC §11).
-// A refusal says nothing more than that, whatever the reason.
+// A refusal says nothing more than that, whatever the reason. CheckOnly
+// stops there and keeps no session.
 func (o *Ops) SignIn(ctx context.Context, p rpc.DBStudioOpenParams) (rpc.DBStudioOpenResult, error) {
 	refused := rpc.DBStudioOpenResult{Refused: true}
 	if err := o.DB.SiteUser(ctx, p.Site, p.User); err != nil {
@@ -207,6 +210,9 @@ func (o *Ops) SignIn(ctx context.Context, p rpc.DBStudioOpenParams) (rpc.DBStudi
 	s.Close()
 	if err != nil {
 		return rpc.DBStudioOpenResult{}, err
+	}
+	if p.CheckOnly {
+		return rpc.DBStudioOpenResult{Databases: dbs}, nil
 	}
 	handle, err := o.logins.add(p.Site.ID, p.User, p.Password, o.now())
 	if err != nil {
