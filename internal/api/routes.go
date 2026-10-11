@@ -353,6 +353,8 @@ func (s *Server) routeTable() []route {
 		// sites in the handler; so is the event stream, per event.
 		{Method: get, Path: "/api/tasks", Policy: policySignedIn, Handle: s.handleListTasks,
 			Section: secTasks, Doc: "the latest tasks"},
+		{Method: get, Path: "/api/tasks/names", Policy: policySignedIn, Handle: s.handleTaskNames,
+			Section: secTasks, Doc: "every task kind in words, in the reader's language (`{\"backup.run\": \"Backup\"}`)"},
 		{Method: get, Path: "/api/tasks/{id}", Policy: policySignedIn, Handle: s.handleGetTask,
 			Section: secTasks, Doc: "a task and its log"},
 		// The task's site is checked in the handler, as for the reads; a

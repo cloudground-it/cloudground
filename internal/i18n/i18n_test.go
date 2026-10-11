@@ -62,3 +62,33 @@ func TestFromAcceptLanguage(t *testing.T) {
 		}
 	}
 }
+
+// Every language names every kind English names, and nothing else.
+func TestTaskNamesComplete(t *testing.T) {
+	for _, lang := range []string{"it", "en", "fr", "es", "de"} {
+		names := taskNames[lang]
+		if len(names) != len(taskNames["en"]) {
+			t.Errorf("%s names %d kinds, en %d", lang, len(names), len(taskNames["en"]))
+		}
+		for kind := range taskNames["en"] {
+			if names[kind] == "" {
+				t.Errorf("%s: no name for %s", lang, kind)
+			}
+		}
+	}
+}
+
+func TestTaskName(t *testing.T) {
+	if got := TaskName("it", "backup.verify"); got != "Ripristino di prova" {
+		t.Errorf("it backup.verify = %q", got)
+	}
+	if got := TaskName("xx", "backup.run"); got != TaskName(Default, "backup.run") {
+		t.Errorf("unknown language = %q", got)
+	}
+	if got := TaskName("en", "no.such.kind"); got != "no.such.kind" {
+		t.Errorf("unknown kind = %q", got)
+	}
+	if got := TaskNames("de"); got["backup.restore"] != TaskName("de", "backup.restore") || len(got) != len(taskNames["en"]) {
+		t.Errorf("TaskNames(de) = %v", got)
+	}
+}

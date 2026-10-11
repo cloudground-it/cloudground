@@ -25,9 +25,10 @@ func readerLanguage(r *http.Request, c *call) string {
 	return i18n.Default
 }
 
-// localizeTask writes t's error in lang when it has a key this build knows;
-// otherwise the stored English stays.
+// localizeTask names t's kind in lang and writes its error in lang when it
+// has a key this build knows; otherwise the stored English stays.
 func localizeTask(t *jobs.Task, lang string) {
+	t.Name = i18n.TaskName(lang, t.Kind)
 	if msg, ok := localized(lang, t.ErrorKey, t.ErrorArgs); ok {
 		t.Error = msg
 	}

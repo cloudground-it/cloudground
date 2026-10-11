@@ -252,7 +252,7 @@ func TestTaskAlerts(t *testing.T) {
 		{ID: 7, Kind: "site.create", SiteID: 8, Status: state.JobFailed, Error: "no", CreatedAt: now, Payload: `{}`},
 	}
 	got := taskConditions(list, map[int64]bool{3: true}, now)
-	if len(got) != 4 || got[0].Key != "task:1" || got[0].Message != "wp update failed: disk full" || got[0].SiteID != 3 || got[1].Key != "task:5" {
+	if len(got) != 4 || got[0].Key != "task:1" || got[0].Message != "WordPress update failed: disk full" || got[0].SiteID != 3 || got[1].Key != "task:5" {
 		t.Fatalf("conditions = %+v", got)
 	}
 	if g := got[2]; g.SiteID != 0 || g.Subject != "lost.example.com" {

@@ -465,6 +465,7 @@ releases must be signed with are compiled into the agent. See [Update CloudGroun
 | Method | Path | Access | What it does |
 | :-- | :-- | :-- | :-- |
 | `GET` | `/api/tasks` | auth | the latest tasks |
+| `GET` | `/api/tasks/names` | auth | every task kind in words, in the reader's language (`{"backup.run": "Backup"}`) |
 | `GET` | `/api/tasks/{id}` | auth | a task and its log |
 | `POST` | `/api/tasks/{id}/cancel` | manage | cancel a queued task, or ask a running one to stop |
 | `GET` | `/api/events` | auth | server-sent events stream for live updates, filtered per user |

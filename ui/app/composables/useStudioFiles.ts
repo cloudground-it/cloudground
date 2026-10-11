@@ -4,6 +4,8 @@ import type { DBStudioFiles } from '~/types/dbstudio'
 export interface StudioTask {
   id: number
   kind: string
+  /** kind in words, in the reader's language (the server's catalogue). */
+  name?: string
   status: string
   progress?: number
   message?: string

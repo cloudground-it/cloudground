@@ -1,0 +1,249 @@
+package i18n
+
+// Task names: every job kind in words, in the five languages (issue #13).
+// The panel's task list, its toasts and its alerts and the alert webhook all
+// read them from here (TaskName, TaskNames), so a person reads the same name
+// everywhere and nobody reads "site.backup.verify". The raw kind stays in
+// the API's "kind" fields and the webhook's "task_kind" for machines.
+// TestTaskNamesComplete holds every language to the English set.
+var taskNames = map[string]map[string]string{
+	"it": {
+		"backup.forget":         "Eliminazione backup",
+		"backup.prune":          "Pulizia del repository dei backup",
+		"backup.restore":        "Ripristino",
+		"backup.retention":      "Conservazione dei backup",
+		"backup.run":            "Backup",
+		"backup.scheduled":      "Backup programmato",
+		"backup.sweep":          "Controllo dei backup pianificati",
+		"backup.verify":         "Ripristino di prova",
+		"cache.rewarm":          "Nuovo riscaldamento cache",
+		"cache.warm":            "Riscaldamento cache",
+		"certificate.issue":     "Certificato",
+		"certificate.renew":     "Rinnovo del certificato",
+		"certificate.sweep":     "Controllo dei certificati",
+		"database.create":       "Creazione database",
+		"database.drop":         "Eliminazione database",
+		"database.export":       "Esportazione database",
+		"database.import":       "Importazione database",
+		"dbstudio.export":       "Esportazione Quarry",
+		"dbstudio.import":       "Importazione Quarry",
+		"deploy.create":         "Rilascio",
+		"deploy.promote":        "Attivazione rilascio",
+		"deploy.reconcile":      "Controllo dei rilasci",
+		"deploy.rollback":       "Rollback",
+		"deploy.safe-push":      "Safe Push",
+		"maintenance.reconcile": "Controllo della configurazione",
+		"metrics.sample":        "Campione delle metriche",
+		"migration.import":      "Migrazione",
+		"panel.certificate":     "Certificato del pannello",
+		"retention.sweep":       "Controllo della conservazione dei backup",
+		"site.apply-config":     "Configurazione sito",
+		"site.create":           "Creazione sito",
+		"site.delete":           "Eliminazione sito",
+		"site.php":              "Impostazioni PHP",
+		"site.update":           "Impostazioni sito",
+		"staging.create":        "Creazione staging",
+		"staging.database-push": "Pubblicazione tabelle",
+		"staging.recreate":      "Ricreazione staging",
+		"wp.object_cache":       "Object cache",
+		"wp.update":             "Aggiornamento WordPress",
+	},
+	"en": {
+		"backup.forget":         "Backup deletion",
+		"backup.prune":          "Backup repository cleanup",
+		"backup.restore":        "Restore",
+		"backup.retention":      "Backup retention",
+		"backup.run":            "Backup",
+		"backup.scheduled":      "Scheduled backup",
+		"backup.sweep":          "Scheduled backups check",
+		"backup.verify":         "Restore test",
+		"cache.rewarm":          "Cache rewarming",
+		"cache.warm":            "Cache warming",
+		"certificate.issue":     "Certificate",
+		"certificate.renew":     "Certificate renewal",
+		"certificate.sweep":     "Certificate check",
+		"database.create":       "Database creation",
+		"database.drop":         "Database deletion",
+		"database.export":       "Database export",
+		"database.import":       "Database import",
+		"dbstudio.export":       "Quarry export",
+		"dbstudio.import":       "Quarry import",
+		"deploy.create":         "Release",
+		"deploy.promote":        "Release activation",
+		"deploy.reconcile":      "Release check",
+		"deploy.rollback":       "Rollback",
+		"deploy.safe-push":      "Safe Push",
+		"maintenance.reconcile": "Configuration check",
+		"metrics.sample":        "Metrics sample",
+		"migration.import":      "Migration",
+		"panel.certificate":     "Panel certificate",
+		"retention.sweep":       "Backup retention check",
+		"site.apply-config":     "Site configuration",
+		"site.create":           "Site creation",
+		"site.delete":           "Site deletion",
+		"site.php":              "PHP settings",
+		"site.update":           "Site settings",
+		"staging.create":        "Staging creation",
+		"staging.database-push": "Table promotion",
+		"staging.recreate":      "Staging recreation",
+		"wp.object_cache":       "Object cache",
+		"wp.update":             "WordPress update",
+	},
+	"fr": {
+		"backup.forget":         "Suppression de sauvegarde",
+		"backup.prune":          "Nettoyage du dépôt de sauvegardes",
+		"backup.restore":        "Restauration",
+		"backup.retention":      "Conservation des sauvegardes",
+		"backup.run":            "Sauvegarde",
+		"backup.scheduled":      "Sauvegarde planifiée",
+		"backup.sweep":          "Vérification des sauvegardes planifiées",
+		"backup.verify":         "Test de restauration",
+		"cache.rewarm":          "Nouveau préchauffage du cache",
+		"cache.warm":            "Préchauffage du cache",
+		"certificate.issue":     "Certificat",
+		"certificate.renew":     "Renouvellement du certificat",
+		"certificate.sweep":     "Vérification des certificats",
+		"database.create":       "Création de base de données",
+		"database.drop":         "Suppression de base de données",
+		"database.export":       "Export de la base de données",
+		"database.import":       "Import de la base de données",
+		"dbstudio.export":       "Export Quarry",
+		"dbstudio.import":       "Import Quarry",
+		"deploy.create":         "Release",
+		"deploy.promote":        "Activation de la release",
+		"deploy.reconcile":      "Vérification des releases",
+		"deploy.rollback":       "Rollback",
+		"deploy.safe-push":      "Safe Push",
+		"maintenance.reconcile": "Vérification de la configuration",
+		"metrics.sample":        "Relevé des métriques",
+		"migration.import":      "Migration",
+		"panel.certificate":     "Certificat du panneau",
+		"retention.sweep":       "Vérification de la conservation des sauvegardes",
+		"site.apply-config":     "Configuration du site",
+		"site.create":           "Création du site",
+		"site.delete":           "Suppression du site",
+		"site.php":              "Paramètres PHP",
+		"site.update":           "Paramètres du site",
+		"staging.create":        "Création du staging",
+		"staging.database-push": "Publication des tables",
+		"staging.recreate":      "Recréation du staging",
+		"wp.object_cache":       "Cache d’objets",
+		"wp.update":             "Mise à jour WordPress",
+	},
+	"es": {
+		"backup.forget":         "Eliminación de copia de seguridad",
+		"backup.prune":          "Limpieza del repositorio de copias",
+		"backup.restore":        "Restauración",
+		"backup.retention":      "Retención de copias de seguridad",
+		"backup.run":            "Copia de seguridad",
+		"backup.scheduled":      "Copia de seguridad programada",
+		"backup.sweep":          "Comprobación de copias programadas",
+		"backup.verify":         "Prueba de restauración",
+		"cache.rewarm":          "Nueva precarga de la caché",
+		"cache.warm":            "Precarga de la caché",
+		"certificate.issue":     "Certificado",
+		"certificate.renew":     "Renovación del certificado",
+		"certificate.sweep":     "Comprobación de certificados",
+		"database.create":       "Creación de base de datos",
+		"database.drop":         "Eliminación de base de datos",
+		"database.export":       "Exportación de la base de datos",
+		"database.import":       "Importación de la base de datos",
+		"dbstudio.export":       "Exportación de Quarry",
+		"dbstudio.import":       "Importación de Quarry",
+		"deploy.create":         "Release",
+		"deploy.promote":        "Activación de la release",
+		"deploy.reconcile":      "Comprobación de releases",
+		"deploy.rollback":       "Rollback",
+		"deploy.safe-push":      "Safe Push",
+		"maintenance.reconcile": "Comprobación de la configuración",
+		"metrics.sample":        "Muestra de métricas",
+		"migration.import":      "Migración",
+		"panel.certificate":     "Certificado del panel",
+		"retention.sweep":       "Comprobación de la retención de copias",
+		"site.apply-config":     "Configuración del sitio",
+		"site.create":           "Creación del sitio",
+		"site.delete":           "Eliminación del sitio",
+		"site.php":              "Ajustes de PHP",
+		"site.update":           "Ajustes del sitio",
+		"staging.create":        "Creación del staging",
+		"staging.database-push": "Publicación de tablas",
+		"staging.recreate":      "Recreación del staging",
+		"wp.object_cache":       "Caché de objetos",
+		"wp.update":             "Actualización de WordPress",
+	},
+	"de": {
+		"backup.forget":         "Backup-Löschung",
+		"backup.prune":          "Bereinigung des Backup-Repositorys",
+		"backup.restore":        "Wiederherstellung",
+		"backup.retention":      "Backup-Aufbewahrung",
+		"backup.run":            "Backup",
+		"backup.scheduled":      "Geplantes Backup",
+		"backup.sweep":          "Prüfung geplanter Backups",
+		"backup.verify":         "Wiederherstellungstest",
+		"cache.rewarm":          "Erneutes Cache-Vorwärmen",
+		"cache.warm":            "Cache-Vorwärmen",
+		"certificate.issue":     "Zertifikat",
+		"certificate.renew":     "Zertifikatserneuerung",
+		"certificate.sweep":     "Zertifikatsprüfung",
+		"database.create":       "Datenbank anlegen",
+		"database.drop":         "Datenbank löschen",
+		"database.export":       "Datenbank-Export",
+		"database.import":       "Datenbank-Import",
+		"dbstudio.export":       "Quarry-Export",
+		"dbstudio.import":       "Quarry-Import",
+		"deploy.create":         "Release",
+		"deploy.promote":        "Release-Aktivierung",
+		"deploy.reconcile":      "Release-Prüfung",
+		"deploy.rollback":       "Rollback",
+		"deploy.safe-push":      "Safe Push",
+		"maintenance.reconcile": "Konfigurationsprüfung",
+		"metrics.sample":        "Metrik-Messung",
+		"migration.import":      "Migration",
+		"panel.certificate":     "Panel-Zertifikat",
+		"retention.sweep":       "Prüfung der Backup-Aufbewahrung",
+		"site.apply-config":     "Website-Konfiguration",
+		"site.create":           "Website anlegen",
+		"site.delete":           "Website löschen",
+		"site.php":              "PHP-Einstellungen",
+		"site.update":           "Website-Einstellungen",
+		"staging.create":        "Staging anlegen",
+		"staging.database-push": "Tabellen veröffentlichen",
+		"staging.recreate":      "Staging neu anlegen",
+		"wp.object_cache":       "Objekt-Cache",
+		"wp.update":             "WordPress-Update",
+	},
+}
+
+// TaskName is kind in words in lang (in the default language when lang has
+// no catalogue, in English when lang lacks the kind), or kind itself when
+// no language names it: a kind newer than the catalogue still reads as
+// something.
+func TaskName(lang, kind string) string {
+	names, ok := taskNames[lang]
+	if !ok {
+		names = taskNames[Default]
+	}
+	if n, ok := names[kind]; ok {
+		return n
+	}
+	if n, ok := taskNames["en"][kind]; ok {
+		return n
+	}
+	return kind
+}
+
+// TaskNames is every kind's name in lang, for the interface to name the
+// kinds it meets in live events.
+func TaskNames(lang string) map[string]string {
+	out := make(map[string]string, len(taskNames["en"]))
+	for kind := range taskNames["en"] {
+		out[kind] = TaskName(lang, kind)
+	}
+	return out
+}
+
+// HasTaskName reports whether the catalogue names kind.
+func HasTaskName(kind string) bool {
+	_, ok := taskNames["en"][kind]
+	return ok
+}

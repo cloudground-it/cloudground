@@ -11,8 +11,12 @@ import (
 // (SPEC.md §7): the fields the UI has always read, with the status in the
 // task vocabulary, plus the job's own status.
 type Task struct {
-	ID       int64  `json:"id"`
-	Kind     string `json:"kind"`
+	ID   int64  `json:"id"`
+	Kind string `json:"kind"`
+	// Name is Kind in words in the reader's language (i18n.TaskName),
+	// written by the API per reader; events carry none, and the interface
+	// names their kind from GET /api/tasks/names.
+	Name     string `json:"name,omitempty"`
 	SiteID   int64  `json:"site_id,omitempty"`
 	Status   string `json:"status"`
 	Progress int    `json:"progress"`

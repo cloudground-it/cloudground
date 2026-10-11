@@ -1,5 +1,7 @@
 // Package i18n holds the few strings the panel writes for people outside the
-// web interface (alert webhooks), and the agent's messages that carry a key
+// web interface (alert webhooks), the names of the task kinds (tasks.go,
+// shared by the interface, the alerts and the webhook), and the agent's
+// messages that carry a key
 // (agentrpc.Error.Key, shown translated in a task's error), in the five
 // interface languages. The web
 // interface has its own catalogue in ui/i18n/locales; terms follow the same
@@ -26,7 +28,7 @@ var catalogue = map[string]map[string]string{
 		"alert.certRenewal":       "rinnovo del certificato non riuscito: %s",
 		"alert.certExpiresOne":    "il certificato scade tra %d giorno",
 		"alert.certExpires":       "il certificato scade tra %d giorni",
-		"alert.taskFailed":        "operazione %s non riuscita: %s",
+		"alert.taskFailed":        "operazione non riuscita (%s): %s",
 		"alert.serviceFailed":     "%s è in errore: %s",
 		"alert.serviceStopped":    "%s è fermo: %s",
 		"alert.driftOne":          "%d file gestito è stato modificato fuori dal pannello",
@@ -68,7 +70,7 @@ var catalogue = map[string]map[string]string{
 		"alert.certRenewal":       "échec du renouvellement du certificat\u00a0: %s",
 		"alert.certExpiresOne":    "le certificat expire dans %d jour",
 		"alert.certExpires":       "le certificat expire dans %d jours",
-		"alert.taskFailed":        "échec de l’opération %s\u00a0: %s",
+		"alert.taskFailed":        "échec de l’opération (%s)\u00a0: %s",
 		"alert.serviceFailed":     "%s est en échec\u00a0: %s",
 		"alert.serviceStopped":    "%s est arrêté\u00a0: %s",
 		"alert.driftOne":          "%d fichier géré a été modifié en dehors du panneau",
@@ -89,7 +91,7 @@ var catalogue = map[string]map[string]string{
 		"alert.certRenewal":       "no se pudo renovar el certificado: %s",
 		"alert.certExpiresOne":    "el certificado caduca en %d día",
 		"alert.certExpires":       "el certificado caduca en %d días",
-		"alert.taskFailed":        "la operación %s ha fallado: %s",
+		"alert.taskFailed":        "la operación ha fallado (%s): %s",
 		"alert.serviceFailed":     "%s ha fallado: %s",
 		"alert.serviceStopped":    "%s está detenido: %s",
 		"alert.driftOne":          "%d archivo gestionado se ha modificado fuera del panel",
@@ -110,7 +112,7 @@ var catalogue = map[string]map[string]string{
 		"alert.certRenewal":       "Zertifikatserneuerung fehlgeschlagen: %s",
 		"alert.certExpiresOne":    "Zertifikat läuft in %d Tag ab",
 		"alert.certExpires":       "Zertifikat läuft in %d Tagen ab",
-		"alert.taskFailed":        "Vorgang %s fehlgeschlagen: %s",
+		"alert.taskFailed":        "Vorgang fehlgeschlagen (%s): %s",
 		"alert.serviceFailed":     "%s ist fehlgeschlagen: %s",
 		"alert.serviceStopped":    "%s ist gestoppt: %s",
 		"alert.driftOne":          "%d verwaltete Datei wurde außerhalb des Panels geändert",
