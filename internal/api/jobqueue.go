@@ -293,6 +293,8 @@ func (s *Server) registerJobKinds() {
 	q.Register(jobs.Kind{Name: "backup.prune", Run: s.runPrune, Rerun: true, Quiet: true,
 		ResolveLocks: s.repoLocks, RerunDelay: repoRerunDelay})
 	s.registerDeployKinds(q)
+	// A check is a read and a lookup: run again after a restart.
+	q.Register(jobs.Kind{Name: "wp.vulncheck", Run: s.runVulnCheck, Rerun: true})
 
 	// Maintenance (quiet).
 	for name, run := range map[string]jobs.Func{
@@ -307,6 +309,7 @@ func (s *Server) registerJobKinds() {
 		"alerts.notify":         s.runAlertsNotify,
 		"cache.rewarm":          s.runRewarm,
 		"jobs.prune":            s.runPruneJobs,
+		"security.sweep":        s.runVulnSweep,
 	} {
 		q.Register(jobs.Kind{Name: name, Quiet: true, Run: run, Rerun: true})
 	}
@@ -333,6 +336,7 @@ func (s *Server) schedules() []jobs.Schedule {
 		every("sites.usage", 5*time.Minute, jobs.InTick),
 		every("backup.sweep", 5*time.Minute, jobs.InTick),
 		every("retention.sweep", 5*time.Minute, jobs.InTick),
+		every("security.sweep", 5*time.Minute, jobs.InTick),
 		cert,
 		every("drift.scan", 5*time.Minute, jobs.InTick, jobs.RenderLock),
 		every("alerts.notify", 5*time.Minute, jobs.AfterTick),

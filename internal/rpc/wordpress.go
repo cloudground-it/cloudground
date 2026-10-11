@@ -19,10 +19,12 @@ type WPLoginResult struct {
 	URL string `json:"url"`
 }
 
-// WPPluginsResult is the installed plugins and themes.
+// WPPluginsResult is the installed plugins and themes, and the version of
+// WordPress itself (Core).
 type WPPluginsResult struct {
 	Plugins []WPPlugin `json:"plugins"`
 	Themes  []WPPlugin `json:"themes"`
+	Core    string     `json:"core,omitempty"`
 }
 
 // WPPlugin is one plugin or theme, as wp-cli lists it; Update says whether

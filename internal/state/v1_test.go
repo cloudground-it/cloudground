@@ -115,7 +115,7 @@ func TestPanelSettingsDefaultsAndUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ps != (PanelSettings{UpdateCheck: true, UpdateChannel: "stable"}) {
+	if ps != (PanelSettings{UpdateCheck: true, UpdateChannel: "stable", VulnerabilityCheck: true}) {
 		t.Fatalf("defaults = %+v", ps)
 	}
 	if ps.EffectiveProbeTarget() != DefaultProbeTarget {

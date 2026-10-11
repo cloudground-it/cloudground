@@ -93,7 +93,8 @@
       "drift": "Configuración",
       "deploy": "Release",
       "uptime": "Disponibilidad",
-      "usage": "Recursos"
+      "usage": "Recursos",
+      "vulnerability": "Vulnerabilidad"
     },
     "more": "y {n} más en el panel de alertas (campana, arriba a la derecha)",
     "dismiss": "Archivar",
@@ -210,7 +211,8 @@
     "sftp": "SFTP / SSH",
     "vhost": "Vhost",
     "protection": "Rutas protegidas",
-    "resources": "Recursos"
+    "resources": "Recursos",
+    "security": "Seguridad"
   },
   "overview": {
     "certificate": "Certificado",
@@ -906,7 +908,9 @@
     "updatesHint": "Las actualizaciones están firmadas: el panel solo instala binarios verificados.",
     "updateTitle": "¿Actualizar CloudGround?",
     "webhook": "Webhook",
-    "webhookHint": "Una URL https de Slack, Discord, Mattermost o similar (campo text)."
+    "webhookHint": "Una URL https de Slack, Discord, Mattermost o similar (campo text).",
+    "vulnCheck": "Buscar vulnerabilidades conocidas en los sitios WordPress",
+    "vulnCheckHint": "Una vez al día, las versiones del núcleo, los plugins y los temas de cada sitio WordPress se buscan en la base de datos pública WPVulnerability. Solo se envían nombres y versiones, nunca el sitio."
   },
   "editor": {
     "close": "Cerrar",
@@ -1382,5 +1386,39 @@
     "alertPctHelp": "0: el predeterminado, 90 %.",
     "alertDisk": "Disco",
     "alertDiskHelp": "0: sin alerta de disco."
+  },
+  "vulns": {
+    "title": "Vulnerabilidades conocidas",
+    "hint": "Una vez al día, las versiones de WordPress, sus plugins y temas se buscan en la base de datos pública de {source}. Lo que afecta a las versiones instaladas aparece aquí y genera una alerta.",
+    "off": "desactivado",
+    "pending": "primera comprobación en breve",
+    "none": "ninguna conocida",
+    "found": "{n} encontradas",
+    "offHint": "La comprobación de vulnerabilidades está desactivada en los ajustes.",
+    "offLink": "Ajustes",
+    "failed": "La última comprobación, {when}, no terminó. La lista es la de la comprobación anterior.",
+    "lastCheck": "Última comprobación",
+    "components": "Componentes comprobados",
+    "severity": "Gravedad",
+    "component": "Instalado",
+    "vulnerability": "Vulnerabilidad",
+    "fix": "Corrección",
+    "fixedIn": "Actualizar a {v}",
+    "unfixed": "Aún sin corrección",
+    "fixUnknown": "Consulta el aviso",
+    "checkNow": "Comprobar ahora",
+    "started": "Comprobación de vulnerabilidades iniciada",
+    "sourceNote": "Datos de vulnerabilidades de",
+    "level": {
+      "critical": "Crítica",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Baja"
+    },
+    "kind": {
+      "core": "WordPress",
+      "plugin": "Plugin",
+      "theme": "Tema"
+    }
   }
 }

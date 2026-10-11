@@ -146,7 +146,7 @@ func TestImportFromLegacySettings(t *testing.T) {
 	want := PanelSettings{
 		ACMEEmail: "ops@example.com", PanelDomain: "panel.example.com", ProbeTarget: "https://127.0.0.1:8443",
 		BackupRepository: "s3:https://s3.example.com/bucket", BackupS3AccessKey: "AKIAEXAMPLE", BackupS3Region: "eu-west-1",
-		Require2FAAdmin: true, UpdateCheck: false, UpdateChannel: "stable",
+		Require2FAAdmin: true, UpdateCheck: false, UpdateChannel: "stable", VulnerabilityCheck: true,
 	}
 	if ps != want {
 		t.Errorf("panel settings = %+v\nwant %+v", ps, want)

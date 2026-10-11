@@ -93,7 +93,8 @@
       "drift": "Configuration",
       "deploy": "Release",
       "uptime": "Uptime",
-      "usage": "Resources"
+      "usage": "Resources",
+      "vulnerability": "Vulnerability"
     },
     "more": "and {n} more in the Alerts panel (bell, top right)",
     "dismiss": "Dismiss",
@@ -210,7 +211,8 @@
     "sftp": "SFTP / SSH",
     "vhost": "Vhost",
     "protection": "Protected paths",
-    "resources": "Resources"
+    "resources": "Resources",
+    "security": "Security"
   },
   "overview": {
     "certificate": "Certificate",
@@ -906,7 +908,9 @@
     "updatesHint": "Updates are signed: the panel installs only verified binaries.",
     "updateTitle": "Update CloudGround?",
     "webhook": "Webhook",
-    "webhookHint": "An https URL from Slack, Discord, Mattermost or similar (text field)."
+    "webhookHint": "An https URL from Slack, Discord, Mattermost or similar (text field).",
+    "vulnCheck": "Check WordPress sites for known vulnerabilities",
+    "vulnCheckHint": "Once a day, the versions of each WordPress site’s core, plugins and themes are looked up in the public WPVulnerability database. Only names and versions are sent, never the site."
   },
   "editor": {
     "close": "Close",
@@ -1382,5 +1386,39 @@
     "alertPctHelp": "0: the default, 90 %.",
     "alertDisk": "Disk",
     "alertDiskHelp": "0: no disk alert."
+  },
+  "vulns": {
+    "title": "Known vulnerabilities",
+    "hint": "Once a day the versions of WordPress, its plugins and themes are looked up in {source}’s public database. What affects the installed versions is listed here and raised as an alert.",
+    "off": "off",
+    "pending": "first check soon",
+    "none": "none known",
+    "found": "{n} found",
+    "offHint": "The vulnerability check is turned off in the settings.",
+    "offLink": "Settings",
+    "failed": "The last check, {when}, did not complete. The list is from the check before.",
+    "lastCheck": "Last check",
+    "components": "Components checked",
+    "severity": "Severity",
+    "component": "Installed",
+    "vulnerability": "Vulnerability",
+    "fix": "Fix",
+    "fixedIn": "Update to {v}",
+    "unfixed": "No fix yet",
+    "fixUnknown": "Check the advisory",
+    "checkNow": "Check now",
+    "started": "Vulnerability check started",
+    "sourceNote": "Vulnerability data from",
+    "level": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "kind": {
+      "core": "WordPress",
+      "plugin": "Plugin",
+      "theme": "Theme"
+    }
   }
 }

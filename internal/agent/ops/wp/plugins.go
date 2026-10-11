@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
@@ -13,10 +14,17 @@ import (
 	"github.com/cloudground-it/cloudground/internal/state"
 )
 
-// Plugins lists the installed plugins and themes with their update state
-// (SPEC §3).
+// Plugins lists the installed plugins and themes with their update state,
+// and the version of WordPress (SPEC §3).
 func (o *Ops) Plugins(ctx context.Context, p rpc.WPParams) (rpc.WPPluginsResult, error) {
 	var res rpc.WPPluginsResult
+	out, err := o.Run(ctx, p.Site, "core", "version")
+	if err != nil {
+		return rpc.WPPluginsResult{}, fmt.Errorf("wp core version: %w", err)
+	}
+	if res.Core, err = coreVersion(out); err != nil {
+		return rpc.WPPluginsResult{}, fmt.Errorf("wp core version: %w", err)
+	}
 	for _, kind := range []string{"plugin", "theme"} {
 		out, err := o.Run(ctx, p.Site, kind, "list", "--format=json", "--fields=name,status,version,update")
 		if err != nil {
@@ -33,6 +41,21 @@ func (o *Ops) Plugins(ctx context.Context, p rpc.WPParams) (rpc.WPPluginsResult,
 		}
 	}
 	return res, nil
+}
+
+// coreVersionRe is a WordPress version as `wp core version` prints it
+// ("6.8.3", "6.9-RC1", "7.0-beta2-61234").
+var coreVersionRe = regexp.MustCompile(`^[0-9]+\.[0-9]+[0-9A-Za-z.+-]{0,40}$`)
+
+// coreVersion is the version in wp-cli's output: its last line, since a
+// plugin may print a notice before it.
+func coreVersion(out []byte) (string, error) {
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	v := strings.TrimSpace(lines[len(lines)-1])
+	if !coreVersionRe.MatchString(v) {
+		return "", errors.New("no version in the output")
+	}
+	return v, nil
 }
 
 // parseList decodes wp-cli's JSON list. Anything a plugin printed before

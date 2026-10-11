@@ -496,6 +496,9 @@ func TestMagicLogin(t *testing.T) {
 
 func TestPluginsFailLoudly(t *testing.T) {
 	w := &fakeWP{respond: func(args []string) (string, error) {
+		if args[0] == "core" {
+			return "Notice: something\n6.8.3\n", nil
+		}
 		return "Notice: something\n[{\"name\":\"akismet\",\"status\":\"inactive\",\"version\":\"5.3\",\"update\":\"available\"}]", nil
 	}}
 	ops := newOps(t, w, &fakePHP{})
@@ -503,12 +506,15 @@ func TestPluginsFailLoudly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Plugins) != 1 || res.Plugins[0] != (rpc.WPPlugin{Name: "akismet", Status: "inactive", Version: "5.3", Update: "available"}) || len(res.Themes) != 1 {
+	if len(res.Plugins) != 1 || res.Plugins[0] != (rpc.WPPlugin{Name: "akismet", Status: "inactive", Version: "5.3", Update: "available"}) || len(res.Themes) != 1 || res.Core != "6.8.3" {
 		t.Errorf("result %+v", res)
 	}
 	w.respond = func(args []string) (string, error) {
-		if args[0] == "theme" {
+		switch args[0] {
+		case "theme":
 			return "", errors.New("exit 255")
+		case "core":
+			return "6.8.3", nil
 		}
 		return "[]", nil
 	}
@@ -518,6 +524,17 @@ func TestPluginsFailLoudly(t *testing.T) {
 	w.respond = func([]string) (string, error) { return "PHP Fatal error", nil }
 	if _, err := ops.Plugins(context.Background(), rpc.WPParams{Site: wpSite("/srv/sites/x")}); err == nil {
 		t.Error("output that is not JSON was reported as an empty list")
+	}
+	// A version wp-cli did not print is an error, not an empty one: the
+	// vulnerability check would read it as "nothing to look up".
+	w.respond = func(args []string) (string, error) {
+		if args[0] == "core" {
+			return "Error: This does not seem to be a WordPress installation.", nil
+		}
+		return "[]", nil
+	}
+	if _, err := ops.Plugins(context.Background(), rpc.WPParams{Site: wpSite("/srv/sites/x")}); err == nil {
+		t.Error("a missing core version was not an error")
 	}
 }
 
