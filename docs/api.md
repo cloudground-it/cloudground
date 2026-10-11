@@ -417,7 +417,7 @@ session (an API token gets 403); an operator adds `"sftp"` keys to its sites.
 
 | Method | Path | Access | What it does |
 | :-- | :-- | :-- | :-- |
-| `GET` | `/api/sites/{id}/cron` | auth | this site's jobs; `last_run` and `last_status` are the latest run, scheduled or on demand |
+| `GET` | `/api/sites/{id}/cron` | auth | this site's jobs; `last_run` and `last_status` are the latest run, scheduled or on demand; for a read-only account `command` is redacted as in the audit log (first word, word count, fingerprint) |
 | `POST` | `/api/sites/{id}/cron` | manage | create one (`schedule`, `command`, `description`, `enabled`) |
 | `PATCH` | `/api/cron/{id}` | manage | change any of those fields; a disabled job leaves the schedule |
 | `DELETE` | `/api/cron/{id}` | manage | remove the job |

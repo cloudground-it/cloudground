@@ -169,6 +169,29 @@ file_put_contents(%q, 'sites=' . implode(',', $s) . ', nnp=' . $m[1]); }`, cliSe
 		"R-3.11: RunCron with max_seconds=3 = %d %s (%v) after %s", code, head(b, 300), err, took)
 	h.check(t, "R-3.11: a job past its time limit leaves no process behind", strconv.Itoa(procsMatching("sleep "+slow)), "0")
 
+	// #45: a read-only account sees a job's schedule, never its command
+	// line, which can hold a secret; the audit log shows it the same way.
+	secret := fmt.Sprintf("cg-e2e-cron-secret-%d", h.pid)
+	if _, sid := add("0 5 * * *", "echo "+secret); sid != 0 {
+		email, pw := fmt.Sprintf("e2e-cron-ro-%d@example.com", h.pid), fmt.Sprintf("e2e-cron-ro-password-%d", h.pid)
+		_, ub := h.api.post("/api/users", map[string]any{"email": email, "password": pw, "role": "readonly"})
+		if uid := jsonField(ub, "id"); uid != "" {
+			h.undo("delete the cron read-only account", func() { h.api.del("/api/users/" + uid) })
+			ro := newAPIClient(h, email, pw)
+			ok := ro.login()
+			h.assert(t, "control: the cron read-only account signs in", ok, "sign-in refused")
+			if ok {
+				c, rb := ro.get(f.api("/cron"))
+				h.assert(t, "#45: a read-only account lists the jobs without their commands", c == 200 && contains(rb, `"schedule":"0 5 * * *"`) && !contains(rb, secret),
+					"#45: GET cron as read-only = %d %s", c, head(rb, 300))
+				_, ab := h.api.get(f.api("/cron"))
+				h.assert(t, "#45 control: an administrator sees the command", contains(ab, secret), "#45: GET cron as admin: %s", head(ab, 300))
+			}
+		} else {
+			h.fail(t, "control: the cron read-only account is created", "create: %s", head(ub, 200))
+		}
+	}
+
 	f.outputBound(t)
 }
 

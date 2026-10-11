@@ -1931,7 +1931,8 @@ Helpers every handler shares: `respond(w, status, v)` writes JSON (the
 status goes first, so a failed write has nobody left to tell); `respondErr` writes `{"error": msg}`; `audit`
 writes a row and logs a failed write rather than dropping it;
 `redactForAudit` keeps a command's first word, its word count and 4 bytes of
-its SHA-256; `randomToken(n)` is n random bytes, URL-safe base64;
+its SHA-256 (also what `GET /api/sites/{id}/cron` shows a read-only account
+of each job's command, which can hold a token or a password); `randomToken(n)` is n random bytes, URL-safe base64;
 `lockSite(id)` / `freshSite(id)` serialise read → agent call → write on one
 site; `revertField` puts back a value only if nobody changed it since. A
 domain service returns a `declined` error (status and message, made by

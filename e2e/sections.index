@@ -103,7 +103,7 @@ e2e/deploys_backups_test.go	feat.safePushRegressionRollback	R-4.3 deploys and ba
 e2e/deploys_backups_test.go	feat.snapshotDelete	R-4.3 deploys and backups
 e2e/deploys_backups_test.go	harness.deploysAndBackups	R-4.3 deploys and backups
 e2e/e2e_test.go	TestE2E	ALL
-e2e/e2e_test.go	contains	wordpress staging|wordpress status and drift|wordpress slow request|wordpress safe push|wordpress backups|firewall|F9b Quarry service|migration import|security|woocommerce security|F4b Quarry|R-5.2 reload drain|R-2.4 services|R-4.3 accounts|R-10.5 root boundary
+e2e/e2e_test.go	contains	wordpress staging|wordpress status and drift|wordpress slow request|wordpress cron|wordpress safe push|wordpress backups|firewall|F9b Quarry service|migration import|security|woocommerce security|F4b Quarry|R-5.2 reload drain|R-2.4 services|R-4.3 accounts|R-10.5 root boundary
 e2e/e2e_test.go	harness.dbStudioSection	F4b Quarry
 e2e/e2e_test.go	harness.distFPMInactive	site types
 e2e/e2e_test.go	harness.dom	site types|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|migration safety snapshot|F9b site creation|F9b Quarry service|wordpress teardown|migration import|security|woocommerce security|F4b Quarry|R-0.7 reconcile|R-5.2 reload drain|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-4.2 job queue|F8 events|R-4.7 capabilities|R-5.4 routing|R-4.3 site settings|SR tenant data|R-10.5 root boundary|woocommerce teardown|R-6.5 upgrade
