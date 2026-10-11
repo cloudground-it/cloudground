@@ -19,11 +19,15 @@
   "result": {
     "full": {
       "snapshot_id": "SnapshotID",
-      "size_bytes": 7
+      "size_bytes": 7,
+      "databases": [
+        "Databases"
+      ]
     },
     "zero": {
       "snapshot_id": "",
-      "size_bytes": 0
+      "size_bytes": 0,
+      "databases": null
     }
   }
 }

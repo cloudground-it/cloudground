@@ -53,4 +53,8 @@ type Backup struct {
 	VerifiedAt   *time.Time   `json:"verified_at,omitempty"`
 	RestoreEstMS int64        `json:"restore_estimate_ms,omitempty"`
 	CreatedAt    time.Time    `json:"created_at"`
+	// Databases are the names of the databases the snapshot holds, which
+	// a restore may choose among; nil (null) for a record from before they
+	// were kept, empty for a snapshot with none.
+	Databases []string `json:"databases"`
 }

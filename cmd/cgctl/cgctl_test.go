@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -171,8 +172,34 @@ func TestPasswordFallbackAndTokenCreate(t *testing.T) {
 
 func TestParseArgs(t *testing.T) {
 	inv, err := parseArgs([]string{"backup", "restore", "3", "example.com", "--wait", "files"})
-	if err != nil || !inv.wait || inv.req.path != "/api/backups/3/restore" || inv.req.body.(map[string]string)["mode"] != "files" {
+	if err != nil || !inv.wait || inv.req.path != "/api/backups/3/restore" || inv.req.body.(map[string]any)["mode"] != "files" {
 		t.Fatalf("%+v %v", inv, err)
+	}
+	if _, ok := inv.req.body.(map[string]any)["databases"]; ok {
+		t.Fatalf("a restore without --database names databases: %+v", inv.req.body)
+	}
+	// #15: --database, repeatable, anywhere after the command, in either
+	// spelling, restores only those databases.
+	inv, err = parseArgs([]string{"backup", "restore", "--database", "site_1", "3", "example.com", "database", "--database=site_1_logs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := inv.req.body.(map[string]any)
+	if inv.req.path != "/api/backups/3/restore" || body["confirm"] != "example.com" || body["mode"] != "database" ||
+		!slices.Equal(body["databases"].([]string), []string{"site_1", "site_1_logs"}) {
+		t.Fatalf("restore with --database: %s %+v", inv.req.path, body)
+	}
+	for _, bad := range [][]string{
+		{"backup", "restore", "3", "example.com", "--database"},
+		{"backup", "restore", "3", "example.com", "--database="},
+		{"backup", "restore", "3", "example.com", "--databases", "x"},
+		{"backup", "restore", "3", "--database", "x"},
+		{"backup", "restore", "3", "example.com", "full", "extra"},
+		{"backup", "restore", "../3", "example.com"},
+	} {
+		if _, err := parseArgs(bad); err == nil {
+			t.Errorf("%v was accepted", bad)
+		}
 	}
 	inv, err = parseArgs([]string{"purge", "4", "https://example.com/a/", "https://example.com/b/"})
 	if err != nil || inv.req.path != "/api/sites/4/purge" || len(inv.req.body.(map[string]any)["urls"].([]string)) != 2 {

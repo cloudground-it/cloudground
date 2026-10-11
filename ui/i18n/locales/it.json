@@ -431,7 +431,10 @@
     "snapshots": "Snapshot",
     "hour": "Orario",
     "hourAny": "Qualsiasi ora",
-    "hourHelp": "Ora del server ({zone}). Qualsiasi ora: un giorno o una settimana dopo il backup precedente."
+    "hourHelp": "Ora del server ({zone}). Qualsiasi ora: un giorno o una settimana dopo il backup precedente.",
+    "databases": "Database da ripristinare",
+    "databasesHint": "Vengono sostituiti solo i database selezionati; gli altri restano come sono ora.",
+    "databasesNone": "Scegli almeno un database, oppure ripristina solo i file."
   },
   "ssl": {
     "current": "Certificato attuale",

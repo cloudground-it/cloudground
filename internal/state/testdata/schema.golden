@@ -79,7 +79,7 @@ table api_tokens on api_tokens
 table audit_events on audit_events
   create table audit_events(id integer primary key autoincrement,actor text not null,action text not null,subject text not null,detail text not null default '',created_at text not null)
 table backups on backups
-  create table backups(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,snapshot_id text not null,repository text not null,size_bytes integer not null default 0,kind text not null,verify_status text not null default 'pending',verified_at text,restore_est_ms integer not null default 0,created_at text not null)
+  create table backups(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,snapshot_id text not null,repository text not null,size_bytes integer not null default 0,kind text not null,verify_status text not null default 'pending',verified_at text,restore_est_ms integer not null default 0,created_at text not null,databases text)
 table cron_jobs on cron_jobs
   create table cron_jobs(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,schedule text not null,command text not null,description text not null default '',enabled integer not null default 1,last_run text,last_status text not null default '',created_at text not null)
 table deployments on deployments
@@ -185,6 +185,7 @@ columns of backups
   7 | verified_at | TEXT | 0 | - | 0
   8 | restore_est_ms | INTEGER | 1 | 0 | 0
   9 | created_at | TEXT | 1 | - | 0
+  10 | databases | TEXT | 0 | - | 0
   fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
   index idx_backups_site unique=0 origin=c partial=0 on 0:1:site_id
 

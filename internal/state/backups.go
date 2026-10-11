@@ -13,20 +13,21 @@ import (
 // restore test found. It is created pending; only a restore test moves it
 // to passed or failed.
 
-const backupCols = `id, site_id, snapshot_id, repository, size_bytes, kind, verify_status, verified_at, restore_est_ms, created_at`
+const backupCols = `id, site_id, snapshot_id, repository, size_bytes, kind, verify_status, verified_at, restore_est_ms, created_at, databases`
 
 func scanBackupRow(row scanner) (Backup, error) {
 	var b Backup
 	var verify, created string
-	var verified sql.NullString
+	var verified, databases sql.NullString
 	if err := row.Scan(&b.ID, &b.SiteID, &b.SnapshotID, &b.Repository, &b.SizeBytes, &b.Kind,
-		&verify, &verified, &b.RestoreEstMS, &created); err != nil {
+		&verify, &verified, &b.RestoreEstMS, &created, &databases); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Backup{}, ErrNotFound
 		}
 		return Backup{}, err
 	}
 	b.VerifyStatus, b.VerifiedAt, b.CreatedAt = BackupVerify(verify), parseTimePtr(verified), parseTime(created)
+	b.Databases = splitDatabases(databases)
 	return b, nil
 }
 
@@ -78,9 +79,13 @@ func (s *Store) CreateBackup(b Backup) (Backup, error) {
 	if err != nil {
 		return Backup{}, err
 	}
-	res, err := s.db.Exec(`INSERT INTO backups (site_id, snapshot_id, repository, size_bytes, kind, verify_status, restore_est_ms, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		b.SiteID, b.SnapshotID, repo, b.SizeBytes, b.Kind, string(VerifyPending), b.RestoreEstMS, ts)
+	var databases any // NULL: not known
+	if b.Databases != nil {
+		databases = strings.Join(b.Databases, ",")
+	}
+	res, err := s.db.Exec(`INSERT INTO backups (site_id, snapshot_id, repository, size_bytes, kind, verify_status, restore_est_ms, created_at, databases)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		b.SiteID, b.SnapshotID, repo, b.SizeBytes, b.Kind, string(VerifyPending), b.RestoreEstMS, ts, databases)
 	if err != nil {
 		return Backup{}, err
 	}
@@ -236,4 +241,16 @@ func SnapshotMatches(snapshot string, ids []string) bool {
 		}
 	}
 	return false
+}
+
+// splitDatabases reads the databases column: NULL is not known (nil), ""
+// none. A database name has no comma (letters, digits and _).
+func splitDatabases(v sql.NullString) []string {
+	switch {
+	case !v.Valid:
+		return nil
+	case v.String == "":
+		return []string{}
+	}
+	return strings.Split(v.String, ",")
 }

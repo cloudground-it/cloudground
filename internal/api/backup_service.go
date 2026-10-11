@@ -112,7 +112,7 @@ func (s *Server) snapshot(ctx context.Context, site state.Site, repo, password, 
 		return state.Backup{}, err
 	}
 	b, err := s.Store.CreateBackup(state.Backup{SiteID: site.ID, SnapshotID: res.SnapshotID, Repository: repo,
-		SizeBytes: res.SizeBytes, Kind: kind})
+		SizeBytes: res.SizeBytes, Kind: kind, Databases: res.Databases})
 	if err != nil {
 		return state.Backup{}, fmt.Errorf("snapshot %s was stored but could not be recorded: %w", res.SnapshotID, err)
 	}

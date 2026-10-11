@@ -63,3 +63,10 @@ var stepSiteDatabases = schemaStep{version: 22, stmts: []string{
 		JOIN site_databases d ON d.site_id = s.id AND d.name = json_extract(s.config, '$.database.name')
 		JOIN site_db_users u ON u.site_id = s.id AND u.name = json_extract(s.config, '$.database.user')`,
 }}
+
+// Version 23: a backup record keeps the names of the databases its
+// snapshot holds, so a restore can offer to choose among them (#15).
+// NULL is a record from before, which does not know them.
+var stepBackupDatabases = schemaStep{version: 23, stmts: []string{
+	`ALTER TABLE backups ADD COLUMN databases TEXT`,
+}}

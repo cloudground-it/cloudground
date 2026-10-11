@@ -37,6 +37,9 @@ func (p *BackupParams) Validate() error {
 type BackupResult struct {
 	SnapshotID string `json:"snapshot_id"`
 	SizeBytes  int64  `json:"size_bytes"`
+	// Databases are the names of the databases the snapshot holds, which
+	// a restore may choose among (RestoreParams.Databases).
+	Databases []string `json:"databases"`
 }
 
 // RestoreParams names a snapshot of a site. RestoreSnapshot puts it back

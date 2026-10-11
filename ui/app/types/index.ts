@@ -92,6 +92,8 @@ export interface Backup {
   verified_at?: string
   restore_estimate_ms?: number
   created_at: string
+  // the databases the snapshot holds; null for a backup from before they were recorded
+  databases?: string[] | null
 }
 
 export interface SystemStatus {

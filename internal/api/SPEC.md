@@ -1238,7 +1238,9 @@ restic is a job holding its repository's lock (`repo:<hash>`, jobs SPEC
 A record is one snapshot as the panel knows it: site, snapshot ID (full or
 the short form), repository, size, kind (`full`, or `pre-restore`,
 `pre-database-push`, `pre-migration` for a safety snapshot), `verify_status`, the restore
-time measured. It is created `pending` whatever the caller says; only a
+time measured, and `databases`: the names of the databases its snapshot
+holds, from the agent's `RunBackup` (`[]` for none; `null` for a record
+from before they were kept). It is created `pending` whatever the caller says; only a
 restore test moves it to `passed` or `failed`. The list
 (`GET /api/sites/{id}/backups`, `signedIn`) is the newest 50, with
 credentials masked out of the repository URL (operators and read-only
@@ -1250,7 +1252,7 @@ accounts read it).
 | --- | --- | --- |
 | `POST /api/sites/{id}/backups` (`manage`) | 412 `configure backup_repository and backup_password in settings first`; 500 when the settings cannot be read | `202 {"task"}`, job `backup.run` |
 | `POST /api/backups/{id}/verify` (`manage`) | 412 | `202`, job `backup.verify` (deduplicated per record) |
-| `POST /api/backups/{id}/restore` (`manage`) `{"confirm", "mode"}` | 400 `type the site domain to confirm restoration` (confirm is not the domain), 400 `restore mode must be full, files, or database`; 412 | `202`, job `backup.restore` |
+| `POST /api/backups/{id}/restore` (`manage`) `{"confirm", "mode", "databases"?}` | 400 `type the site domain to confirm restoration` (confirm is not the domain), 400 `restore mode must be full, files, or database`, 400 `a files restore puts back no database`, 400 `this site has no database "<name>"`, 400 `snapshot <id> holds no database "<name>"` (when the record knows its databases; else the agent checks); 412 | `202`, job `backup.restore` |
 | `DELETE /api/backups/{id}` (`admin`) | 412; **409** for a record whose restore test has not run, and for the site's newest `passed` record in its repository | `202`, job `backup.forget` (deduplicated per record) |
 | `POST /api/backups/test` (`admin`) | 412 | the agent's `TestBackup` now: `200 {"reachable", "snapshots"}`, or `repository not reachable: …` with the agent error's status |
 | `POST /api/sites/{id}/backups/retention` (`admin`) | 412; 400 `this site has no backup retention window` | `202`, job `backup.retention` |

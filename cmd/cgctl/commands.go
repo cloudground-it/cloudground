@@ -87,13 +87,7 @@ var commands = []command{
 	{words: []string{"rollback"}, args: "<site-id>", min: 1, max: 1, build: call("POST", "/api/sites/%s/rollback", nil)},
 	{words: []string{"backup", "run"}, args: "<site-id>", min: 1, max: 1, build: call("POST", "/api/sites/%s/backups", nil)},
 	{words: []string{"backup", "verify"}, args: "<backup-id>", min: 1, max: 1, build: call("POST", "/api/backups/%s/verify", nil)},
-	{words: []string{"backup", "restore"}, args: "<backup-id> <domain> [full|files|database]", min: 2, max: 3, build: call("POST", "/api/backups/%s/restore", func(a []string) (any, error) {
-		mode := "full"
-		if len(a) == 3 {
-			mode = a[2]
-		}
-		return map[string]string{"confirm": a[1], "mode": mode}, nil
-	})},
+	{words: []string{"backup", "restore"}, args: "<backup-id> <domain> [full|files|database] [--database <name> ...]", min: 2, max: -1, build: buildRestore},
 	{words: []string{"database", "import"}, args: "<site-id> <domain> <site-relative.sql> [database]", min: 3, max: 4, build: call("POST", "/api/sites/%s/database/import", func(a []string) (any, error) {
 		body := map[string]string{"confirm": a[1], "path": a[2]}
 		if len(a) == 4 {
@@ -281,4 +275,45 @@ func readPublicKey(path string) (string, error) {
 		return "", fmt.Errorf("%s: no public key", path)
 	}
 	return key, nil
+}
+
+// buildRestore is backup restore: the backup, the domain typed to confirm,
+// the mode (full when left out), and any number of --database <name> (also
+// --database=<name>), which restore only these of the snapshot's
+// databases instead of every one.
+func buildRestore(a []string) (request, error) {
+	var pos, databases []string
+	for i := 0; i < len(a); i++ {
+		name, val, hasVal := strings.Cut(a[i], "=")
+		switch {
+		case name == "--database" && hasVal:
+			databases = append(databases, val)
+		case name == "--database":
+			if i+1 >= len(a) {
+				return request{}, errors.New("--database needs a value")
+			}
+			i++
+			databases = append(databases, a[i])
+		case strings.HasPrefix(a[i], "-"):
+			return request{}, fmt.Errorf("unknown flag %s", name)
+		default:
+			pos = append(pos, a[i])
+		}
+	}
+	if len(pos) < 2 || len(pos) > 3 {
+		return request{}, errors.New("usage: cgctl backup restore <backup-id> <domain> [full|files|database] [--database <name> ...]")
+	}
+	body := map[string]any{"confirm": pos[1], "mode": "full"}
+	if len(pos) == 3 {
+		body["mode"] = pos[2]
+	}
+	for _, d := range databases {
+		if d == "" {
+			return request{}, errors.New("--database needs a name")
+		}
+	}
+	if len(databases) > 0 {
+		body["databases"] = databases
+	}
+	return call("POST", "/api/backups/%s/restore", func([]string) (any, error) { return body, nil })(pos)
 }

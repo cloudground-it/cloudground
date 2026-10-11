@@ -109,6 +109,16 @@ refused: a usage error, exit 2), so it never shows in `ps` nor in the shell's hi
 `protect remove` is `DELETE` of the same route with `{"path"}`. The path goes in the body, never
 in the URL; the answer is the site's protected paths, printed as §3.
 
+## 6.2 backup restore (#15)
+
+    cgctl backup restore <backup-id> <domain> [full|files|database] [--database <name> ...]
+
+`<domain>` is typed to confirm, as in the panel; the mode is `full` when left out. Each
+`--database <name>` (also `--database=<name>`, anywhere after the command words) restores only
+the databases named, out of those the snapshot holds; without one, every database. The request is
+`POST /api/backups/<id>/restore {confirm, mode, databases?}`. An unknown flag, `--database`
+without a name, or a wrong number of the other arguments is a usage error (exit 2).
+
 ## 7. update and uninstall (R-6.4, R-6.5)
 
 `cgctl update` and `cgctl uninstall`, like `install` and `doctor`, run as root on the server and
