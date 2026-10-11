@@ -109,10 +109,7 @@ func (o *Ops) InstallPHPExtension(ctx context.Context, p rpc.PHPExtensionInstall
 		return rpc.PHPExtensionsResult{}, err
 	}
 	pkg := "php" + p.Version + "-" + p.Extension
-	// apt waits for a lock another apt holds (unattended-upgrades) instead
-	// of failing at once.
-	if _, err := o.Exec.Run(ctx, host.Cmd{Name: "apt-get", Env: aptEnv, Timeout: 12 * time.Minute,
-		Args: []string{"-o", "DPkg::Lock::Timeout=120", "install", "-y", "-qq", "--no-install-recommends", pkg}}); err != nil {
+	if _, err := o.Exec.Run(ctx, host.Cmd{Name: "systemd-run", Args: aptInstallArgs(pkg), Env: aptEnv[:2], Timeout: 13 * time.Minute}); err != nil {
 		return rpc.PHPExtensionsResult{}, fmt.Errorf("apt-get install %s: %w", pkg, err)
 	}
 	var failed []error
@@ -125,6 +122,23 @@ func (o *Ops) InstallPHPExtension(ctx context.Context, p rpc.PHPExtensionInstall
 		return rpc.PHPExtensionsResult{}, fmt.Errorf("%s is installed, but PHP did not restart for: %w", pkg, err)
 	}
 	return o.PHPExtensions(ctx, rpc.PHPExtensionsParams{Version: p.Version})
+}
+
+// aptInstallArgs is the systemd-run argv (after the binary) that installs
+// pkg (SPEC §9). apt cannot run in the agent's own sandbox: /usr, dpkg's
+// database and apt's cache are read-only there (ProtectSystem=strict), so
+// apt-get runs as a transient root service, which systemd starts outside
+// it. It waits for its end and passes apt's output and exit status back.
+// RuntimeMaxSec bounds the run even when the agent stops waiting first: a
+// dpkg run is not interrupted by the caller going away. apt waits for a
+// lock another apt holds (unattended-upgrades) instead of failing at once.
+func aptInstallArgs(pkg string) []string {
+	a := []string{"--quiet", "--collect", "--wait", "--pipe", "--service-type=exec",
+		"--description=CloudGround: install " + pkg, "-p", "RuntimeMaxSec=720"}
+	for _, kv := range aptEnv {
+		a = append(a, "--setenv="+kv)
+	}
+	return append(a, "--", "apt-get", "-o", "DPkg::Lock::Timeout=120", "install", "-y", "-qq", "--no-install-recommends", pkg)
 }
 
 // versionMasters are the units of the site masters that run version: the

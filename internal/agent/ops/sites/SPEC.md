@@ -329,7 +329,11 @@ outside `rpc.PHPExtensions`.
   choose another package: `apt-get -o DPkg::Lock::Timeout=120 install -y
   -qq --no-install-recommends php<v>-<ext>` with `DEBIAN_FRONTEND=
   noninteractive` (a lock held by unattended-upgrades is waited for, not a
-  failure). A master loads its extensions when it starts, so every site master
+  failure). apt cannot work inside the agent's sandbox (`/usr`, dpkg's
+  database and apt's cache are read-only under `ProtectSystem=strict`), so
+  it runs as a transient root service, `systemd-run --wait --pipe
+  --collect` with `RuntimeMaxSec=720`, which systemd starts outside that
+  sandbox; its output and exit status come back through systemd-run. A master loads its extensions when it starts, so every site master
   running that version is then restarted: the agent reads its own unit
   files (`cloudground-php-cg-site-*.service` in the systemd directory) and
   takes those whose `ExecStart` starts `php-fpm<v>`, so it needs no site
