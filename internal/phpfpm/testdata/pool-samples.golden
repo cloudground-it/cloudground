@@ -65,9 +65,8 @@ php_admin_flag[apc.enable_cli] = off
 php_admin_flag[opcache.enable] = on
 php_admin_value[opcache.validate_timestamps] = 1
 php_admin_value[opcache.revalidate_freq] = 60
-; Tracing JIT, which PHP 8 ships disabled. It speeds up heavy page renders
-; such as shop pages; a cache hit never reaches PHP, so it costs nothing there.
-php_admin_value[opcache.jit] = tracing
+; The tracing JIT is turned on on the master's command line: PHP reads
+; the JIT mode only when the master starts.
 php_admin_flag[opcache.enable_cli] = off
 
 ; PHP compresses its own output: the page cache stores the compressed body
@@ -141,9 +140,8 @@ php_admin_flag[apc.enable_cli] = off
 php_admin_flag[opcache.enable] = on
 php_admin_value[opcache.validate_timestamps] = 1
 php_admin_value[opcache.revalidate_freq] = 60
-; Tracing JIT, which PHP 8 ships disabled. It speeds up heavy page renders
-; such as shop pages; a cache hit never reaches PHP, so it costs nothing there.
-php_admin_value[opcache.jit] = tracing
+; The tracing JIT is turned on on the master's command line: PHP reads
+; the JIT mode only when the master starts.
 php_admin_flag[opcache.enable_cli] = off
 
 ; PHP compresses its own output: the page cache stores the compressed body
@@ -217,9 +215,8 @@ php_admin_flag[apc.enable_cli] = off
 php_admin_flag[opcache.enable] = on
 php_admin_value[opcache.validate_timestamps] = 1
 php_admin_value[opcache.revalidate_freq] = 60
-; Tracing JIT, which PHP 8 ships disabled. It speeds up heavy page renders
-; such as shop pages; a cache hit never reaches PHP, so it costs nothing there.
-php_admin_value[opcache.jit] = tracing
+; The tracing JIT is turned on on the master's command line: PHP reads
+; the JIT mode only when the master starts.
 php_admin_flag[opcache.enable_cli] = off
 
 ; PHP compresses its own output: the page cache stores the compressed body
@@ -294,9 +291,8 @@ php_admin_flag[apc.enable_cli] = off
 php_admin_flag[opcache.enable] = on
 php_admin_value[opcache.validate_timestamps] = 1
 php_admin_value[opcache.revalidate_freq] = 60
-; Tracing JIT, which PHP 8 ships disabled. It speeds up heavy page renders
-; such as shop pages; a cache hit never reaches PHP, so it costs nothing there.
-php_admin_value[opcache.jit] = tracing
+; The tracing JIT is turned on on the master's command line: PHP reads
+; the JIT mode only when the master starts.
 php_admin_flag[opcache.enable_cli] = off
 
 ; PHP compresses its own output: the page cache stores the compressed body

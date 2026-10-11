@@ -241,9 +241,8 @@ php_admin_flag[apc.enable_cli] = off
 php_admin_flag[opcache.enable] = on
 php_admin_value[opcache.validate_timestamps] = 1
 php_admin_value[opcache.revalidate_freq] = 60
-; Tracing JIT, which PHP 8 ships disabled. It speeds up heavy page renders
-; such as shop pages; a cache hit never reaches PHP, so it costs nothing there.
-php_admin_value[opcache.jit] = tracing
+; The tracing JIT is turned on on the master's command line: PHP reads
+; the JIT mode only when the master starts.
 php_admin_flag[opcache.enable_cli] = off
 
 ; PHP compresses its own output: the page cache stores the compressed body
@@ -263,7 +262,7 @@ User=cg-site-3
 Group=cg-site-3
 RuntimeDirectory=cloudground/php/cg-site-3
 RuntimeDirectoryMode=0750
-ExecStart=php-fpm8.3 --nodaemonize --fpm-config /etc/cloudground-php/cg-site-3.conf -d opcache.memory_consumption=64 -d opcache.interned_strings_buffer=8 -d opcache.max_accelerated_files=10000 -d opcache.jit_buffer_size=32M -d apc.shm_size=32M
+ExecStart=php-fpm8.3 --nodaemonize --fpm-config /etc/cloudground-php/cg-site-3.conf -d opcache.memory_consumption=64 -d opcache.interned_strings_buffer=8 -d opcache.max_accelerated_files=10000 -d opcache.jit=tracing -d opcache.jit_buffer_size=32M -d apc.shm_size=32M
 ExecReload=/bin/kill -USR2 $MAINPID
 Restart=on-failure
 RestartSec=2
@@ -271,7 +270,8 @@ LimitNOFILE=65536
 
 # The site sees its own tree and nothing of any other site: /srv/sites is an
 # empty tmpfs with only this site bound into it, and the same for its logs.
-# This, not open_basedir, is the tenant boundary.
+# This, not open_basedir, is the tenant boundary. Its SysV shared memory,
+# semaphores and POSIX queues are its own too (PrivateIPC).
 ProtectSystem=strict
 TemporaryFileSystem=/srv/sites:ro /var/log/cloudground:ro
 TemporaryFileSystem=/dev/shm:size=64M,mode=1777,nosuid,nodev,noexec
@@ -294,6 +294,7 @@ RestrictRealtime=yes
 LockPersonality=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 CapabilityBoundingSet=
+PrivateIPC=yes
 
 [Install]
 WantedBy=multi-user.target

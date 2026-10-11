@@ -155,10 +155,9 @@ func RenderPool(site state.Site, budgetMB int) (path, content string, err error)
 	admin("value", "opcache.validate_timestamps", "1")
 	admin("value", "opcache.revalidate_freq", "60")
 	f.addAll(
-		"; Tracing JIT, which PHP 8 ships disabled. It speeds up heavy page renders",
-		"; such as shop pages; a cache hit never reaches PHP, so it costs nothing there.",
+		"; The tracing JIT is turned on on the master's command line: PHP reads",
+		"; the JIT mode only when the master starts.",
 	)
-	admin("value", "opcache.jit", "tracing")
 	admin("flag", "opcache.enable_cli", "off")
 	f.add("")
 

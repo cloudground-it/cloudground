@@ -301,6 +301,16 @@ func (h *harness) woocommerce(t *testing.T) {
 	cc, _ := h.serves(woo, "/cart/")
 	h.check(t, "woocommerce /cart resolves", cc, "200")
 
+	// Issue #10: the site's PHP runs with the tracing JIT. The mode set in the
+	// pool was ignored (PHP reads it once, at the master's start), so every
+	// site ran without it while its configuration said otherwise. Asked of
+	// the site's own PHP-FPM, not of the configuration.
+	h.mustWriteAs(t, p+"/cg-e2e-jit.php",
+		`<?php $j = opcache_get_status(false)['jit'] ?? []; echo 'jit=', !empty($j['on']) ? 'on' : 'off', ' mode=', ini_get('opcache.jit');`, u)
+	jit := strings.TrimSpace(string(h.get(woo, fmt.Sprintf("/cg-e2e-jit.php?x=%d", time.Now().UnixNano())).Body))
+	h.check(t, "issue #10: the site's PHP-FPM runs the tracing JIT", jit, "jit=on mode=tracing")
+	h.remove(p + "/cg-e2e-jit.php")
+
 	// R-3.8: the warmer covers WooCommerce products (it used to list only
 	// posts and pages). The product is test data; WooCommerce is the
 	// provisioner's.

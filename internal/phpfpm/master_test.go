@@ -123,3 +123,52 @@ func TestRefusesIncompleteSites(t *testing.T) {
 		t.Error("a unit without a root was rendered")
 	}
 }
+
+// SPEC §4: PHP reads the JIT mode only when the master starts, so it is on
+// the master's command line for every site type; in the pool it was
+// ignored and the JIT stayed off (issue #10).
+func TestJITOnMasterCommandLine(t *testing.T) {
+	for _, ty := range []state.SiteType{state.SiteWordPress, state.SiteWooCommerce, state.SitePHP} {
+		s := site(ty, state.ProfileCommerce)
+		_, unit, err := RenderUnit(s, "/usr/sbin")
+		if err != nil {
+			t.Fatal(err)
+		}
+		exec := ""
+		for l := range strings.Lines(unit) {
+			if strings.HasPrefix(l, "ExecStart=") {
+				exec = l
+			}
+		}
+		if !strings.Contains(exec, " -d opcache.jit=tracing ") || !strings.Contains(exec, " -d opcache.jit_buffer_size=") {
+			t.Errorf("%s: the JIT mode and buffer must be on the master's command line: %q", ty, exec)
+		}
+		_, pool, err := RenderPool(s, 1024)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(pool, "[opcache.jit]") {
+			t.Errorf("%s: the pool sets opcache.jit, which PHP ignores after startup", ty)
+		}
+	}
+}
+
+// SPEC §4.1: the master has an IPC namespace of its own, on top of the
+// whole Sandbox, and not the run-only hardening that is not measured there.
+func TestMasterHasPrivateIPC(t *testing.T) {
+	s := site(state.SiteWooCommerce, state.ProfileCommerce)
+	_, unit, err := RenderUnit(s, "/usr/sbin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range append(Sandbox(s), "PrivateIPC=yes") {
+		if !strings.Contains(unit, "\n"+l+"\n") {
+			t.Errorf("the master's unit lacks %q", l)
+		}
+	}
+	for _, l := range []string{"SystemCallFilter=", "RestrictSUIDSGID="} {
+		if strings.Contains(unit, l) {
+			t.Errorf("the master's unit has %q, which is not measured on the request path", l)
+		}
+	}
+}

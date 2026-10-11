@@ -78,10 +78,17 @@ Refused (error, nothing rendered) without a system user, a PHP version or a root
 - `Type=notify`, `User=`/`Group=` the site user, `RuntimeDirectory=cloudground/php/<user>` mode 0750.
 - `ExecStart=<phpBinDir>/php-fpm<version> --nodaemonize --fpm-config <conf>` followed by the §3.2
   sizes as `-d opcache.memory_consumption=<MB>`, `-d opcache.interned_strings_buffer=<MB>`,
-  `-d opcache.max_accelerated_files=<n>`, `-d opcache.jit_buffer_size=<MB>M`, `-d apc.shm_size=<MB>M`.
+  `-d opcache.max_accelerated_files=<n>`, `-d opcache.jit=tracing`,
+  `-d opcache.jit_buffer_size=<MB>M`, `-d apc.shm_size=<MB>M`.
+- **The JIT mode is on the command line, never in the pool.** PHP reads `opcache.jit` once, when
+  the master starts; a pool's `php_admin_value[opcache.jit]`, where it was until v0.2.0, is
+  ignored, and `opcache_get_status()` reported the JIT off on every site. Measured on the 2 vCPU
+  test box, uncached WooCommerce shop page, four alternated rounds of 60 s: 8.00 req/s without the
+  JIT, 8.26 with it (+3.2 %, ahead in three rounds of four; `bench/uncached-php.md`).
 - `ExecReload=/bin/kill -USR2 $MAINPID` (a graceful reload: §5.2), `Restart=on-failure`,
   `RestartSec=2`, `LimitNOFILE=65536`.
-- The sandbox: every line of `Sandbox(site)` (§4.1), under a comment that names the boundary.
+- The sandbox: every line of `Sandbox(site)` (§4.1), under a comment that names the boundary,
+  then `MasterHardening` (§4.1).
 - `WantedBy=multi-user.target`.
 
 ### 4.1 `Sandbox(site)`
@@ -106,9 +113,13 @@ get separate instances.
 warmer's and the object cache's). `RemoveIPC` is not set: it would remove the IPC objects of the
 uid, which is also the PHP master's.
 
-TODO: PrivateIPC/RestrictSUIDSGID for the master pending an A/B. The master keeps `Sandbox` alone:
-it is the request path, and the seccomp filter and the IPC namespace are measured before they
-ship there (AGENTS.md rules 5 and 6).
+The master's unit takes `Sandbox` plus `MasterHardening`: `PrivateIPC=yes`, an IPC namespace of
+its own, so no other site's PHP can attach to its SysV shared memory, semaphores or POSIX message
+queues (it shared the host's until v0.2.0). Measured on the 2 vCPU box, uncached WooCommerce shop
+page, three alternated rounds of 60 s: 8.15 req/s without, 8.22 with (+0.8 %, inside the spread);
+APCu, OPcache and the JIT work unchanged, since they map anonymous memory
+(`bench/uncached-php.md`). `RestrictSUIDSGID` and the system-call filter stay off the master
+until they are measured there (AGENTS.md rules 5 and 6).
 
 ## 5. The pool — `RenderPool(site, budgetMB) (path, content, error)`
 
@@ -161,7 +172,8 @@ path changes.
   `display_errors` off; `disable_functions = exec,passthru,shell_exec,system,proc_open,popen`.
 - The limits of §3.3.
 - APCu on (`apc.enabled`), sized on the command line (§4). OPcache on, `validate_timestamps = 1`,
-  `revalidate_freq = 60`, JIT `tracing`. `apc.enable_cli` and `opcache.enable_cli` off.
+  `revalidate_freq = 60` (the JIT mode is on the command line, §4). `apc.enable_cli` and
+  `opcache.enable_cli` off.
 - `zlib.output_compression` on at level 5: PHP compresses its own output, so the page cache stores
   a compressed body and serves hits without compressing again.
 - **Not enabled, on purpose:** OPcache preload (measured on a config-cached Laravel app: a gain of

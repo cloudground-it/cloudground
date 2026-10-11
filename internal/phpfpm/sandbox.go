@@ -27,8 +27,8 @@ import (
 // shell, its cron jobs, wp-cli) add to Sandbox: no setuid or setgid file can
 // be made, an IPC namespace of their own, the system-service syscall set
 // (anything else fails with EPERM; Sandbox already locks the personality). The PHP
-// master does not take them yet: it is the request path, and a change there
-// needs an A/B benchmark first (SPEC §4.1). RemoveIPC is left out: it
+// master takes only MasterHardening: it is the request path, and each of
+// the others needs an A/B benchmark there first (SPEC §4.1). RemoveIPC is left out: it
 // removes every IPC object of the uid when the unit stops, and the uid is
 // also the site's PHP-FPM's; with PrivateIPC and PrivateDevices a run's IPC
 // is its own anyway.
@@ -37,6 +37,13 @@ var RunHardening = []string{
 	"PrivateIPC=yes",
 	"SystemCallFilter=@system-service",
 	"SystemCallErrorNumber=EPERM",
+}
+
+// MasterHardening is what the PHP master adds to Sandbox: an IPC namespace
+// of its own, measured at no cost on the request path (SPEC §4.1). APCu and
+// OPcache map anonymous memory, which the namespace does not touch.
+var MasterHardening = []string{
+	"PrivateIPC=yes",
 }
 
 // RunSandbox is a site's run's confinement: Sandbox plus RunHardening.

@@ -399,6 +399,12 @@ editor produces one of them.
 > cost more than the copy it avoids. Left off, with the numbers, so nobody
 > "optimises" it back in without re-measuring.
 
+> PHP-FPM's process manager, measured for issue #10 on the 2 vCPU box (uncached WooCommerce shop
+> page, three alternated rounds of 30 s, `bench/uncached-php.md`): `pm = static` with the same 6
+> children read 8.04 req/s and `pm.max_children = 4` read 7.99, against 7.83 for the shipped
+> `dynamic` with 6, whose own runs spread 3.9 %. Inside the noise, and static keeps every worker of
+> every site resident, so both stay out.
+
 ## 5. A downloaded release
 
 `--release <dir>` holds `SHA256SUMS`, `SHA256SUMS.sig`, `panel-api`, `panel-agent`, `cgctl` (and, from R-10.5, `cg-site-shell`, which the bootstrap also downloads). Before
