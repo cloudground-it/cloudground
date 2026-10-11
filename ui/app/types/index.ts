@@ -50,6 +50,8 @@ export interface Site {
 export interface Task {
   id: number
   kind: string
+  /** kind in words in the reader's language; absent on live events. */
+  name?: string
   site_id: number
   status: 'pending' | 'running' | 'succeeded' | 'failed'
   progress: number
@@ -243,6 +245,8 @@ export interface Alert {
   at?: string
   /** A task alert's job kind (named by the interface) and its error, in the interface's language when the panel has it. */
   task_kind?: string
+  /** task_kind in words, in the reader's language. */
+  task_name?: string
   detail?: string
 }
 

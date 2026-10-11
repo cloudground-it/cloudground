@@ -7,25 +7,27 @@ const { t, locale } = useI18n()
 const api = useApi()
 const toast = useToast()
 const { canManage } = useAuth()
+const { label } = useTaskNames()
 const open = ref<Set<string>>(new Set())
 const shown = computed(() => props.limit ? props.alerts.slice(0, props.limit) : props.alerts)
 
 
 // A task alert shows the failed job, named in the interface's language, as
 // the title and its error, which can be long and technical, folded. The
-// panel sends both (task_kind, detail); an older one only the English
-// "<kind words> failed: <error>", parsed as a fallback.
+// panel sends the job's name (task_name, from the catalogue the task list
+// and the webhook share) and its error (detail); an older one only the
+// English "<kind words> failed: <error>", parsed as a fallback.
 function parts(a: Alert): { title: string, summary: string, detail: string } {
   let title = t(`alerts.kind.${a.kind}`, a.kind)
   let detail = a.text || a.message
   if (a.kind === 'task' && a.task_kind) {
-    title = t('alerts.failed', { kind: taskKindLabel(t, a.task_kind) })
+    title = t('alerts.failed', { kind: a.task_name || label(a.task_kind) })
     detail = (a.detail ?? '').replace(/^agent: /, '')
   } else if (a.kind === 'task') {
     const m = a.message.match(/^(.+?) failed: ([\s\S]*)$/)
     if (m) {
       const kind = m[1]!.trim().replace(/ /g, '.')
-      title = t('alerts.failed', { kind: taskKindLabel(t, kind) })
+      title = t('alerts.failed', { kind: label(kind) })
       detail = m[2]!.replace(/^agent: /, '')
     }
   }

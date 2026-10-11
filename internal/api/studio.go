@@ -358,14 +358,17 @@ func (s *Server) handleStudioSearch(w http.ResponseWriter, r *http.Request, c *c
 	respond(w, http.StatusOK, res)
 }
 
-// studioJob starts a Quarry task and lets the session follow it.
-func (s *Server) studioJob(w http.ResponseWriter, c *call, req jobReq, fn jobWork) {
+// studioJob starts a Quarry task and lets the session follow it. The task
+// comes back named in the reader's language: a Quarry session has no panel
+// account to read GET /api/tasks/names with.
+func (s *Server) studioJob(w http.ResponseWriter, r *http.Request, c *call, req jobReq, fn jobWork) {
 	task, err := s.startJob(req, fn)
 	if err != nil {
 		respondJobErr(w, err)
 		return
 	}
 	c.Studio.addTask(task.ID)
+	localizeTask(&task, readerLanguage(r, c))
 	respond(w, http.StatusAccepted, map[string]any{"task": task})
 }
 
@@ -391,7 +394,7 @@ func (s *Server) handleStudioExport(w http.ResponseWriter, r *http.Request, c *c
 	}
 	st, login := c.Studio, c.login()
 	s.audit(c.Actor(), "quarry.export", c.Site.Domain, studioDetail(database, fmt.Sprintf("format=%s tables=%s", req.Format, strings.Join(req.Tables, ","))))
-	s.studioJob(w, c, jobReq{kind: "dbstudio.export", siteID: c.Site.ID}, func(ctx context.Context, site state.Site, progress func(int, string)) error {
+	s.studioJob(w, r, c, jobReq{kind: "dbstudio.export", siteID: c.Site.ID}, func(ctx context.Context, site state.Site, progress func(int, string)) error {
 		progress(20, "Exporting "+database)
 		var res rpc.DBStudioExportResult
 		if err := agentrpc.Into(ctx, s.Agent, agentrpc.DBStudioExport, rpc.DBStudioExportParams{
@@ -640,7 +643,7 @@ func (s *Server) handleStudioImport(w http.ResponseWriter, r *http.Request, c *c
 		detail += " table=" + req.Table
 	}
 	s.audit(c.Actor(), "quarry.import", c.Site.Domain, studioDetail(database, detail))
-	s.studioJob(w, c, jobReq{kind: "dbstudio.import", siteID: c.Site.ID, locks: siteLocks(c.Site.ID)}, func(ctx context.Context, site state.Site, progress func(int, string)) error {
+	s.studioJob(w, r, c, jobReq{kind: "dbstudio.import", siteID: c.Site.ID, locks: siteLocks(c.Site.ID)}, func(ctx context.Context, site state.Site, progress func(int, string)) error {
 		progress(15, "Importing "+req.Name)
 		warned, err := run(ctx, site)
 		if err != nil {

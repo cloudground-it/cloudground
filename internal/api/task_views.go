@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/cloudground-it/cloudground/internal/i18n"
 	"github.com/cloudground-it/cloudground/internal/jobs"
 	"github.com/cloudground-it/cloudground/internal/state"
 )
@@ -108,4 +109,11 @@ func (s *Server) handleCancelTask(w http.ResponseWriter, r *http.Request, c *cal
 	}
 	s.audit(c.Actor(), "task.cancel", fmt.Sprintf("%s #%d", j.Kind, j.ID), string(j.Status))
 	respond(w, http.StatusOK, s.taskView(j, readerLanguage(r, c)))
+}
+
+// handleTaskNames is every task kind in words in the reader's language: the
+// names the task list, the alerts and the webhook use, for the interface to
+// name the kinds of live events, which carry no language.
+func (s *Server) handleTaskNames(w http.ResponseWriter, r *http.Request, c *call) {
+	respond(w, http.StatusOK, i18n.TaskNames(readerLanguage(r, c)))
 }

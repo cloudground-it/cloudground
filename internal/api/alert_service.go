@@ -37,12 +37,14 @@ type Alert struct {
 	// Text is Message in the reader's language.
 	Text string `json:"text,omitempty"`
 	At   string `json:"at,omitempty"`
-	// TaskKind and Detail, on a task alert: the failed job's kind
-	// ("backup.run"), which the interface names in its own language, and
-	// its error, in the reader's language when the catalogue has it. The
-	// interface parsed both out of the English Message, so a task alert
-	// read half in English whatever the language.
+	// TaskKind, TaskName and Detail, on a task alert: the failed job's
+	// kind ("backup.run") for machines, its name in the reader's language
+	// (i18n.TaskName, the names the task list uses), and its error, in the
+	// reader's language when the catalogue has it. The interface parsed
+	// these out of the English Message, so a task alert read half in
+	// English whatever the language.
 	TaskKind string `json:"task_kind,omitempty"`
+	TaskName string `json:"task_name,omitempty"`
 	Detail   string `json:"detail,omitempty"`
 }
 
@@ -113,7 +115,7 @@ func taskConditions(list []state.Job, exists map[int64]bool, now time.Time) []st
 		if j.Status != state.JobFailed || j.Quiet || j.CreatedAt.Before(since) {
 			continue
 		}
-		kind, why := strings.ReplaceAll(j.Kind, ".", " "), firstLine(j.Error)
+		why := firstLine(j.Error)
 		site, subject := j.SiteID, ""
 		if site != 0 && !exists[site] {
 			site, subject = 0, jobDomain(j)
@@ -130,8 +132,8 @@ func taskConditions(list []state.Job, exists map[int64]bool, now time.Time) []st
 			out = slices.DeleteFunc(out, func(a state.Alert) bool { return a.Key == key })
 		}
 		out = append(out, state.Alert{Key: key, SiteID: site, Subject: subject, Level: "error", Fingerprint: fingerprint,
-			Message: kind + " failed: " + why, At: j.CreatedAt.UTC().Format(time.RFC3339),
-			Text: state.AlertText{Key: "alert.taskFailed", Args: []string{kind, why}, DetailKey: j.ErrorKey, DetailArgs: j.ErrorArgs}})
+			Message: i18n.TaskName("en", j.Kind) + " failed: " + why, At: j.CreatedAt.UTC().Format(time.RFC3339),
+			Text: state.AlertText{Key: "alert.taskFailed", Args: []string{j.Kind, why}, DetailKey: j.ErrorKey, DetailArgs: j.ErrorArgs}})
 	}
 	return out
 }
@@ -325,18 +327,32 @@ func alertMessage(a state.Alert, lang string) string {
 			args[n-1] = firstLine(msg)
 		}
 	}
+	if kind := alertTaskKind(a); kind != "" {
+		args[0] = i18n.TaskName(lang, kind)
+	}
 	if t.Counted {
 		return i18n.N(lang, t.Key, t.Count, args...)
 	}
 	return i18n.T(lang, t.Key, args...)
 }
 
+// alertTaskKind is the failed job's kind of a task alert, "" for any other.
+// An alert raised before task names (#13) stored the kind with its dots as
+// spaces ("backup scheduled"); no kind has a space, so both read back.
+func alertTaskKind(a state.Alert) string {
+	if t := a.Text; t.Key == "alert.taskFailed" && len(t.Args) == 2 {
+		return strings.ReplaceAll(t.Args[0], " ", ".")
+	}
+	return ""
+}
+
 // alertView is a as the dashboard gets it, written for lang.
 func alertView(a state.Alert, lang string) Alert {
 	v := Alert{ID: a.ID, Level: a.Level, Kind: a.Kind, SiteID: a.SiteID, Site: a.Site,
 		Message: a.Message, Text: alertMessage(a, lang), At: a.At}
-	if t := a.Text; t.Key == "alert.taskFailed" && len(t.Args) == 2 {
-		v.TaskKind = strings.ReplaceAll(t.Args[0], " ", ".")
+	if kind := alertTaskKind(a); kind != "" {
+		t := a.Text
+		v.TaskKind, v.TaskName = kind, i18n.TaskName(lang, kind)
 		v.Detail = t.Args[1]
 		if msg, ok := localized(lang, t.DetailKey, t.DetailArgs); ok {
 			v.Detail = firstLine(msg)
@@ -425,7 +441,7 @@ func (s *Server) notifyAlerts(ctx context.Context) {
 		slots <- struct{}{}
 		go func(a state.Alert) {
 			defer func() { <-slots; wg.Done() }()
-			if err := postWebhook(ctx, client, hook, alertText(a, lang)); err != nil {
+			if err := postWebhook(ctx, client, hook, webhookBody(a, lang)); err != nil {
 				// err never carries the URL: it is a credential, and the
 				// panel's journal is readable by read-only accounts.
 				if s.Log != nil {
@@ -448,6 +464,25 @@ func alertText(a state.Alert, lang string) string {
 	return i18n.T(lang, "alert.headerSite", level, a.Site, msg)
 }
 
+// webhookAlert is the part of a webhook's body for machines: the alert's
+// raw fields, in no language, beside the chat tools' "text" and "content".
+// Nested, so no field can clash with one a chat tool reads.
+type webhookAlert struct {
+	ID       string `json:"id"`
+	Level    string `json:"level"`
+	Kind     string `json:"kind"`
+	Site     string `json:"site,omitempty"`
+	TaskKind string `json:"task_kind,omitempty"`
+	At       string `json:"at,omitempty"`
+}
+
+// webhookBody is the JSON the webhook gets for a, written for lang.
+func webhookBody(a state.Alert, lang string) map[string]any {
+	text := alertText(a, lang)
+	return map[string]any{"text": text, "content": text, "cloudground": webhookAlert{
+		ID: a.ID, Level: a.Level, Kind: a.Kind, Site: a.Site, TaskKind: alertTaskKind(a), At: a.At}}
+}
+
 // notifyLocale is the webhook's language. The webhook is one channel for
 // the whole panel, read by its admins: it speaks the language of the first
 // enabled admin (by creation, normally the account made at setup) who chose
@@ -463,10 +498,13 @@ func (s *Server) notifyLocale() string {
 	return i18n.Default
 }
 
-// postWebhook posts one line to the webhook, within 10 s. Its error never
+// postWebhook posts one body to the webhook, within 10 s. Its error never
 // names the URL (an *url.Error would): only the status or the cause.
-func postWebhook(ctx context.Context, client *http.Client, target, text string) error {
-	body, _ := json.Marshal(map[string]string{"text": text, "content": text})
+func postWebhook(ctx context.Context, client *http.Client, target string, payload any) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(body))

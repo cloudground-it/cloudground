@@ -1,7 +1,8 @@
-/** A task kind in words ("backup.scheduled" → "Backup programmato"). */
-export function taskKindLabel(t: (key: string) => string, kind: string): string {
-  // vue-i18n reads dots as nesting, so the keys use underscores.
-  const key = `tasks.kind.${kind.replace(/\./g, '_')}`
-  const label = t(key)
-  return label === key ? kind : label
+/**
+ * A task kind in words ("backup.scheduled" → "Backup programmato"), from the
+ * server's catalogue (GET /api/tasks/names, useTaskNames): the alerts and
+ * the webhook use the same names. The kind itself until the names arrive.
+ */
+export function taskKindLabel(names: Record<string, string> | null | undefined, kind: string): string {
+  return names?.[kind] || kind
 }

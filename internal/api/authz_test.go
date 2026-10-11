@@ -161,6 +161,7 @@ var routePolicy = map[string]string{
 	// Task lists are filtered to an operator's own sites in the handler; so
 	// is the event stream, per event (stream_test.go).
 	"GET /api/tasks":              "auth",
+	"GET /api/tasks/names":        "auth",
 	"GET /api/tasks/{id}":         "auth",
 	"POST /api/tasks/{id}/cancel": "manage",
 	"GET /api/events":             "auth",

@@ -1708,8 +1708,17 @@ an admin; an operator only jobs of a site it can access; admins and
 read-only accounts every other job.
 
 - `GET /api/tasks`: the newest 100 non-quiet jobs the caller may see, each
-  with its error in the reader's language when it carries a key
-  (localize.go). 500 `could not list the tasks`.
+  with its `name` (its kind in words, below) and its error in the reader's
+  language when it carries a key (localize.go). 500 `could not list the
+  tasks`.
+- `GET /api/tasks/names` (signed in): every task kind in words in the
+  reader's language, `{"backup.run": "Backup", …}`. **One catalogue**
+  (internal/i18n, `TaskName`) names tasks everywhere: the task list, the
+  live toasts (events carry only the kind, so the interface names it from
+  here), the alerts and the webhook; the interface keeps no names of its
+  own (#13). `kind` stays the raw kind for machines; a kind the catalogue
+  lacks reads as itself. A Quarry task comes back named from its start,
+  since a Quarry session may have no panel account.
 - `GET /api/tasks/{id}`: bad id → 400 `invalid id`; missing or not visible
   → 404 `task not found`; store failure 500 `could not read the task`.
 - `POST /api/tasks/{id}/cancel` (manage): the same lookup; a server-wide job
@@ -1775,7 +1784,7 @@ lasts (across days, across a changing detail line), new when it changes.
 | `certificate` | `certificate.renewal:site:<id>` | the error's first line | error | `certificate renewal failed: <first line>` | an active site whose last renewal failed |
 | `certificate` | `certificate.expiry:site:<id>` | the expiry (RFC 3339) and the level | warning; error under 3 days | `certificate expires in <days> days` (refreshed at each evaluation) | an active site whose certificate expires within 14 days; `at` is the expiry |
 | `task` | `task:backup.scheduled:site:<id>` | the error's first line | error | as below | the newest failed scheduled backup of a site: the schedule repeats it, and one alert per run was a new alert every slot (and, before the back-off of §5.3, every five minutes) |
-| `task` | `task:<job id>` | — | error | `<kind with dots as spaces> failed: <error's first line>` | a non-quiet job that failed in the last 24 hours; `at` is its creation. A job of a site that no longer exists (a creation that failed and was rolled back) is a server-wide alert whose `site` is the domain the job recorded (`startJob` stores `{site_id, domain}` as the payload of a function job), or `site #<id>`: admins must see a failed creation |
+| `task` | `task:<job id>` | — | error | `<the kind's English name> failed: <error's first line>` (the text's first argument is the raw kind, named in the reader's language when read; an alert stored before #13 has the kind with dots as spaces, read the same) | a non-quiet job that failed in the last 24 hours; `at` is its creation. A job of a site that no longer exists (a creation that failed and was rolled back) is a server-wide alert whose `site` is the domain the job recorded (`startJob` stores `{site_id, domain}` as the payload of a function job), or `site #<id>`: admins must see a failed creation |
 | `service` | `service:<name>` | the state | error | `<name> is <state>: <detail>` | a service the agent reports `failed` or `stopped` |
 | `service` | `connector.token_guessing` | the burst's start | error | `<n> invalid connector tokens since <time>: something may be guessing the sites' tokens` | a burst of wrong connector tokens (§8); `at` is its start |
 | `drift` | `drift` | the newest open event's id | warning | `<n> managed file(s) changed outside the panel` | open drift events |
@@ -1816,7 +1825,8 @@ no server-wide one (no site); everyone else sees all. Each alert is
 stays English, `text` is it in the
 reader's language (`readerLanguage`; a task's error in its own translation
 when it carries a key). A task alert also carries `task_kind` (the job's
-kind, `backup.run`, which the interface names) and `detail` (its error, in
+kind, `backup.run`, for machines), `task_name` (it in words in the reader's
+language, from the task catalogue of §9) and `detail` (its error, in
 the reader's language when it carries a key): the dashboard used to parse
 both out of the English `message`, so the error read in English in every
 language. 500 `could not read the alerts`.
@@ -1840,9 +1850,13 @@ the alert's site as the event's site (events/SPEC.md §2).
 
 The `alerts.notify` job, after evaluating, sends every undismissed alert not
 notified in the last six hours to the `notify_webhook` secret (when set):
-`POST` JSON `{"text": t, "content": t}` (Slack, Discord, Mattermost), 10 s
-timeout, in the admins' language (the first enabled admin with a supported
-locale, else the default): `CloudGround <LEVEL>[ on <site>]: <text>`.
+`POST` JSON `{"text": t, "content": t, "cloudground": {id, level, kind,
+site, task_kind, at}}` (Slack, Discord, Mattermost read `text` or
+`content`), 10 s timeout, in the admins' language (the first enabled admin
+with a supported locale, else the default): `CloudGround <LEVEL>[ on
+<site>]: <text>`, a task named in words (§9). `cloudground` is for
+machines: the raw fields in no language, `task_kind` the job's raw kind on
+a task alert; nested, so it clashes with no field a chat tool reads.
 
 - Posts run four at a time inside the job, which waits for them; each
   alert's `notified_at` is set as soon as its own post got a 2xx, so a

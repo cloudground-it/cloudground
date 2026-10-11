@@ -63,10 +63,11 @@ watch(sitesVersion, loadSites)
 
 // A task that ends says so, wherever one is on the panel.
 const toast = useToast()
+const { label: taskLabel } = useTaskNames()
 events.on((ev) => {
   if (ev.type !== 'task.finished') return
   const d = (ev.data ?? {}) as { kind?: string, status?: string, job_status?: string, error?: string }
-  const kind = taskKindLabel(t, d.kind ?? '')
+  const kind = taskLabel(d.kind ?? '')
   const domain = ev.site_id ? sites.value?.find(s => s.id === ev.site_id)?.domain : undefined
   if (d.job_status === 'canceled') {
     // Asked for: neither a failure nor a success.
