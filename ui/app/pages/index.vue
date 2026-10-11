@@ -45,7 +45,7 @@ const { data: update } = useLoad(() => api.get<UpdateStatus>('/api/system/update
 
 const updatedAt = ref(Date.now())
 watch([status, sites], () => { updatedAt.value = Date.now() })
-const now = useNow({ interval: 30000 })
+const now = useNow({ scheduler: cb => useIntervalFn(cb, 30000) })
 const updatedLabel = computed(() => now.value.getTime() - updatedAt.value < 60000 ? t('cg.dashboard.updatedNow') : t('cg.dashboard.updatedAgo', { when: fmtAgo(new Date(updatedAt.value).toISOString(), locale.value) }))
 
 const errors = computed(() => alerts.value.filter(a => a.level === 'error').length)
