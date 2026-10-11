@@ -63,6 +63,7 @@ var sections = []section{
 	{name: "wordpress logs", run: (*harness).wordpressLogs, fixtures: []string{fxFeatureSite}},
 	{name: "wordpress slow request", run: (*harness).wordpressSlowRequest, fixtures: []string{fxFeatureSite}},
 	{name: "wordpress cron", run: (*harness).wordpressCron, fixtures: []string{fxFeatureSite}, lane: "feature"},
+	{name: "wordpress vulnerabilities", run: (*harness).wordpressVulnerabilities, fixtures: []string{fxFeatureSite}, lane: "feature"},
 	{name: "wordpress safe push", run: (*harness).wordpressSafePush, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
 	{name: "wordpress releases", run: (*harness).wordpressReleases, fixtures: []string{fxFeatureSite}, lane: "feature"},
 	{name: "wordpress backups", run: (*harness).wordpressBackups, fixtures: []string{fxFeatureSite, fxFeatureStaging}},

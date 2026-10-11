@@ -113,6 +113,11 @@ type Server struct {
 	uptimeKick   chan struct{}
 	uptimeClient *http.Client
 	uptimeEvery  time.Duration
+
+	// vulnSource is the vulnerability database's client and cache
+	// (vulndb.go), made once by vulnDB (tests set it first).
+	vulnOnce   sync.Once
+	vulnSource *vulnDB
 }
 
 // connectorFailures is how many wrong connector tokens an address may send

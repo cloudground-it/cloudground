@@ -48,6 +48,7 @@ var taskNames = map[string]map[string]string{
 		"staging.recreate":      "Ricreazione staging",
 		"wp.object_cache":       "Object cache",
 		"wp.update":             "Aggiornamento WordPress",
+		"wp.vulncheck":          "Controllo vulnerabilità",
 	},
 	"en": {
 		"backup.forget":         "Backup deletion",
@@ -90,6 +91,7 @@ var taskNames = map[string]map[string]string{
 		"staging.recreate":      "Staging recreation",
 		"wp.object_cache":       "Object cache",
 		"wp.update":             "WordPress update",
+		"wp.vulncheck":          "Vulnerability check",
 	},
 	"fr": {
 		"backup.forget":         "Suppression de sauvegarde",
@@ -132,6 +134,7 @@ var taskNames = map[string]map[string]string{
 		"staging.recreate":      "Recréation du staging",
 		"wp.object_cache":       "Cache d’objets",
 		"wp.update":             "Mise à jour WordPress",
+		"wp.vulncheck":          "Contrôle des vulnérabilités",
 	},
 	"es": {
 		"backup.forget":         "Eliminación de copia de seguridad",
@@ -174,6 +177,7 @@ var taskNames = map[string]map[string]string{
 		"staging.recreate":      "Recreación del staging",
 		"wp.object_cache":       "Caché de objetos",
 		"wp.update":             "Actualización de WordPress",
+		"wp.vulncheck":          "Comprobación de vulnerabilidades",
 	},
 	"de": {
 		"backup.forget":         "Backup-Löschung",
@@ -216,6 +220,7 @@ var taskNames = map[string]map[string]string{
 		"staging.recreate":      "Staging neu anlegen",
 		"wp.object_cache":       "Objekt-Cache",
 		"wp.update":             "WordPress-Update",
+		"wp.vulncheck":          "Prüfung auf Sicherheitslücken",
 	},
 }
 

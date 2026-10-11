@@ -97,7 +97,7 @@ table meta on meta
 table metric_samples on metric_samples
   create table metric_samples(id integer primary key autoincrement,cpu_headroom_pct integer not null,mem_headroom_pct integer not null,disk_headroom_pct integer not null,load1 real not null,sampled_at text not null)
 table panel_settings on panel_settings
-  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')))
+  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')),vulnerability_check integer not null default 1)
 table schedule_state on schedule_state
   create table schedule_state(key text primary key,last_run text not null)
 table schema_migrations on schema_migrations
@@ -122,6 +122,8 @@ table site_usage on site_usage
   create table site_usage(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,sampled_at text not null,cpu_usec integer not null,io_read_bytes integer not null,io_write_bytes integer not null,cpu_cores real not null,mem_bytes integer not null,mem_max_bytes integer not null,io_read_bps real not null,io_write_bps real not null,tasks integer not null,oom_kills integer not null,disk_bytes integer not null,disk_inodes integer not null)
 table site_usage_hourly on site_usage_hourly
   create table site_usage_hourly(site_id integer not null references sites(id)on delete cascade,hour text not null,n integer not null,cpu_cores_sum real not null,cpu_cores_max real not null,mem_bytes_sum real not null,mem_bytes_max integer not null,mem_max_bytes integer not null,io_read_sum real not null,io_write_sum real not null,disk_bytes integer not null,primary key(site_id,hour))
+table site_vulnerabilities on site_vulnerabilities
+  create table site_vulnerabilities(site_id integer primary key references sites(id)on delete cascade,checked_at text not null default '',attempted_at text not null,error text not null default '',report text not null default '{}')
 table sites on sites
   create table sites(id integer primary key autoincrement,domain text not null unique,aliases text not null default '[]',type text not null,profile text not null,engine text not null default 'nginx',php_version text not null default '',system_user text not null,root_path text not null,status text not null,staging_of integer not null default 0,config text not null default '{}',created_at text not null,updated_at text not null,desired_generation integer not null default 1,applied_generation integer not null default 0,last_apply_error text not null default '')
 table sqlite_sequence on sqlite_sequence
@@ -292,6 +294,7 @@ columns of panel_settings
   7 | require_2fa_admin | INTEGER | 1 | 0 | 0
   8 | update_check | INTEGER | 1 | 1 | 0
   9 | update_channel | TEXT | 1 | 'stable' | 0
+  10 | vulnerability_check | INTEGER | 1 | 1 | 0
 
 columns of schedule_state
   0 | key | TEXT | 0 | - | 1
@@ -403,6 +406,14 @@ columns of site_usage_hourly
   10 | disk_bytes | INTEGER | 1 | - | 0
   fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
   index sqlite_autoindex_site_usage_hourly_1 unique=1 origin=pk partial=0 on 0:0:site_id, 1:1:hour
+
+columns of site_vulnerabilities
+  0 | site_id | INTEGER | 0 | - | 1
+  1 | checked_at | TEXT | 1 | '' | 0
+  2 | attempted_at | TEXT | 1 | - | 0
+  3 | error | TEXT | 1 | '' | 0
+  4 | report | TEXT | 1 | '{}' | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
 
 columns of sites
   0 | id | INTEGER | 0 | - | 1

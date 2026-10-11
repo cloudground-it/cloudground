@@ -93,7 +93,8 @@
       "drift": "Configuration",
       "deploy": "Release",
       "uptime": "Disponibilité",
-      "usage": "Ressources"
+      "usage": "Ressources",
+      "vulnerability": "Vulnérabilité"
     },
     "more": "et {n} de plus dans le panneau Alertes (cloche, en haut à droite)",
     "dismiss": "Archiver",
@@ -210,7 +211,8 @@
     "sftp": "SFTP / SSH",
     "vhost": "Vhost",
     "protection": "Chemins protégés",
-    "resources": "Ressources"
+    "resources": "Ressources",
+    "security": "Sécurité"
   },
   "overview": {
     "certificate": "Certificat",
@@ -906,7 +908,9 @@
     "updatesHint": "Les mises à jour sont signées : le panneau n’installe que des binaires vérifiés.",
     "updateTitle": "Mettre à jour CloudGround ?",
     "webhook": "Webhook",
-    "webhookHint": "Une URL https de Slack, Discord, Mattermost ou similaire (champ text)."
+    "webhookHint": "Une URL https de Slack, Discord, Mattermost ou similaire (champ text).",
+    "vulnCheck": "Rechercher les vulnérabilités connues des sites WordPress",
+    "vulnCheckHint": "Une fois par jour, les versions du cœur, des extensions et des thèmes de chaque site WordPress sont recherchées dans la base publique WPVulnerability. Seuls les noms et les versions sont envoyés, jamais le site."
   },
   "editor": {
     "close": "Fermer",
@@ -1382,5 +1386,39 @@
     "alertPctHelp": "0 : la valeur par défaut, 90 %.",
     "alertDisk": "Disque",
     "alertDiskHelp": "0 : pas d'alerte sur le disque."
+  },
+  "vulns": {
+    "title": "Vulnérabilités connues",
+    "hint": "Une fois par jour, les versions de WordPress, de ses extensions et de ses thèmes sont recherchées dans la base publique de {source}. Ce qui concerne les versions installées est listé ici et déclenche une alerte.",
+    "off": "désactivé",
+    "pending": "premier contrôle bientôt",
+    "none": "aucune connue",
+    "found": "{n} trouvées",
+    "offHint": "Le contrôle des vulnérabilités est désactivé dans les paramètres.",
+    "offLink": "Paramètres",
+    "failed": "Le dernier contrôle, {when}, n’a pas abouti. La liste est celle du contrôle précédent.",
+    "lastCheck": "Dernier contrôle",
+    "components": "Composants contrôlés",
+    "severity": "Gravité",
+    "component": "Installé",
+    "vulnerability": "Vulnérabilité",
+    "fix": "Correctif",
+    "fixedIn": "Mettre à jour vers {v}",
+    "unfixed": "Pas encore de correctif",
+    "fixUnknown": "Voir l’avis",
+    "checkNow": "Contrôler maintenant",
+    "started": "Contrôle des vulnérabilités lancé",
+    "sourceNote": "Données sur les vulnérabilités :",
+    "level": {
+      "critical": "Critique",
+      "high": "Élevée",
+      "medium": "Moyenne",
+      "low": "Faible"
+    },
+    "kind": {
+      "core": "WordPress",
+      "plugin": "Extension",
+      "theme": "Thème"
+    }
   }
 }

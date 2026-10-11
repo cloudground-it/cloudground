@@ -79,6 +79,10 @@ var settingFields = map[string]setting{
 		"1", "", []string{"1", "true"}, []string{"", "0", "false"}, "must be 1 or empty"),
 	"update_check": flagSetting(func(p *state.PanelSettings) *bool { return &p.UpdateCheck },
 		"", "0", []string{"", "1", "true"}, []string{"0", "false"}, "must be 0 or empty"),
+	// The daily lookup of the WordPress sites' versions in a public
+	// vulnerability database (§11.6).
+	"vulnerability_check": flagSetting(func(p *state.PanelSettings) *bool { return &p.VulnerabilityCheck },
+		"", "0", []string{"", "1", "true"}, []string{"0", "false"}, "must be 0 or empty"),
 	// The release channel the update check and the self-update follow.
 	"update_channel": {
 		show: func(p state.PanelSettings) string { return p.UpdateChannel },

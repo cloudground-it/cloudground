@@ -108,3 +108,18 @@ var stepSiteUsage = schemaStep{version: 24, stmts: []string{
 		PRIMARY KEY (site_id, hour)
 	)`,
 }}
+
+// stepVulnerabilities keeps each WordPress site's last vulnerability check
+// (#31, site_vulnerabilities.go): one row per site, the findings as JSON,
+// and the panel-wide switch of the check (on by default, like the release
+// check: it sends the installed slugs and versions to a public database).
+var stepVulnerabilities = schemaStep{version: 25, stmts: []string{
+	`CREATE TABLE site_vulnerabilities (
+		site_id      INTEGER PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
+		checked_at   TEXT NOT NULL DEFAULT '',
+		attempted_at TEXT NOT NULL,
+		error        TEXT NOT NULL DEFAULT '',
+		report       TEXT NOT NULL DEFAULT '{}'
+	)`,
+	`ALTER TABLE panel_settings ADD COLUMN vulnerability_check INTEGER NOT NULL DEFAULT 1`,
+}}
