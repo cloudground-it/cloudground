@@ -7,6 +7,35 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.2.0
+
+Security, data safety and per-site resources. What changes for a person running the panel:
+
+- per-site resources: CPU, memory, tasks and disk use with a 24-hour and 30-day history in a new
+  Resources tab; memory, CPU and task limits that an admin sets and that apply without a restart;
+  alerts when a site stays over its threshold or its disk use passes a set size;
+- uptime monitoring per site, off by default: a check every minute from the server, an alert
+  after two failures in a row, cleared when the site answers again;
+- protect any path of a site with a username and password, from the panel or `cgctl protect`;
+- choose the hour of daily and weekly backups; list and install common PHP extensions per PHP
+  version;
+- restore only some of a site's databases, from the restore dialog or with
+  `cgctl backup restore --database`;
+- turn the firewall on from the panel: it shows the rules first (the real SSH port, the web ports
+  and the panel's) and allows them before enabling;
+- SFTP accounts can be set to SSH keys only, the default when a key is given;
+- a migration import takes a safety snapshot first, as restores and Safe Push already did;
+- alerts, webhooks and the task list name operations in words, in the reader's language; webhook
+  bodies keep the raw fields in a `cloudground` object;
+- hardening: tighter bounds on what the agent captures from the commands it runs; each site gets
+  its own `/dev/shm` and IPC namespace; backup, dump and editor leftovers in a site's public folder
+  answer 404; read-only accounts see cron commands shortened; a password inside a backup
+  repository URL is stored sealed, and `cgctl uninstall` no longer prints it;
+- long sign-in waits and long requests (database queries, repository tests, uploads) now finish
+  instead of failing at 30 seconds;
+- faster uncached PHP: the tracing JIT is really on;
+- one copy of @vueuse in the interface.
+
 ## v0.1.0
 
 The first public release. What CloudGround does:
