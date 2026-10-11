@@ -284,15 +284,15 @@ func TestLoginFailureDelay(t *testing.T) {
 	if _, err := f.sv.Login(bg, SignIn{Email: "tfa@example.com", Password: pw, Code: f.code(secret, 1), Address: "z"}); err != nil {
 		t.Fatalf("2FA owner kept out: %v", err)
 	}
-	// A request that goes away while it waits ends there.
+	// A request that goes away while it waits ends there, refused as
+	// throttled (#43: never an internal error).
 	for range 6 {
 		f.sv.Limits.Delays.Fail("plain@example.com", "z")
 	}
 	ctx, cancel := context.WithCancel(bg)
 	cancel()
-	if _, err := f.sv.Login(ctx, SignIn{Email: "plain@example.com", Password: pw, Address: "z"}); !errors.Is(err, context.Canceled) {
-		t.Fatalf("canceled while waiting = %v", err)
-	}
+	_, err := f.sv.Login(ctx, SignIn{Email: "plain@example.com", Password: pw, Address: "z"})
+	wantRefusal(t, err, Throttled, msgTooMany)
 	// The e-mail of a failed sign-in reaches the audit log printable.
 	f.sv.Login(bg, SignIn{Email: "evil\r\nlogin.success@x", Password: "x", Address: "q"})
 	f.mu.Lock()

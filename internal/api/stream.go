@@ -150,11 +150,11 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The panel's http.Server has a 30 s ReadTimeout and a 10 min
-	// WriteTimeout. A read deadline left in place cancels the request's
-	// context once it passes (the connection's background read fails), and
-	// the write deadline would cut the stream: lift the first, and move the
-	// second along before every write.
+	// The panel's http.Server has a 10 min WriteTimeout, which would cut
+	// the stream: move it along before every write. A read deadline left in
+	// place would cancel the request's context once it passed (the
+	// connection's background read fails); the server sets none past the
+	// headers, and this lifts any all the same.
 	rc := http.NewResponseController(w)
 	_ = rc.SetReadDeadline(time.Time{})
 	_ = rc.SetWriteDeadline(time.Now().Add(streamWriteTimeout))

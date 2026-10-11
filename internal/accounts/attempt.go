@@ -49,15 +49,21 @@ func (sv *Service) begin(ctx context.Context, o Origin, email string) (*attempt,
 	if err != nil {
 		return nil, refuse(Throttled, msgAccountBusy)
 	}
+	// A wait cut short (the client went away, or a deadline of the
+	// server's) is the delay's refusal, never an internal error: the
+	// attempt was throttled, and no verdict was given.
 	if err := sv.sleep(ctx, d.Wait()); err != nil {
 		d.End()
-		return nil, err
+		return nil, refuse(Throttled, msgTooMany)
 	}
 	leave, err := sv.turns.Enter(ctx, email, o.network())
 	if err != nil {
 		d.End()
 		if errors.Is(err, throttle.ErrQueueFull) {
 			return nil, refuse(Throttled, msgAccountBusy)
+		}
+		if ctx.Err() != nil {
+			return nil, refuse(Throttled, msgTooMany)
 		}
 		return nil, err
 	}

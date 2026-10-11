@@ -114,9 +114,9 @@ Site-scoped events carry the site's ID; everything else has `site_id` 0.
 - `Last-Event-ID` (header, or `last_event_id` query parameter for a client
   that reconnects with a new `EventSource`) resumes from the ring (§3.2);
   otherwise `resync`.
-- Heartbeat: a `ping` message every 25 s. The handler clears the server's
-  read deadline and extends the write deadline before each write, so the
-  stream outlives `ReadTimeout` (30 s) and `WriteTimeout` (10 min) of the
-  panel's `http.Server`. Behind nginx it relies on `proxy_buffering off`
+- Heartbeat: a `ping` message every 25 s. The handler clears any read
+  deadline (the panel's `http.Server` has no `ReadTimeout`, api SPEC §1.6)
+  and extends the write deadline before each write, so the stream outlives
+  the server's `WriteTimeout` (10 min). Behind nginx it relies on `proxy_buffering off`
   and `proxy_read_timeout 1h` (both panel vhosts) and also sends
   `X-Accel-Buffering: no`.
