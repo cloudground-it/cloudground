@@ -429,7 +429,8 @@ anything is installed:
    (`release <m> is older than <v>, already installed: refusing to downgrade (set
    CLOUDGROUND_ALLOW_DOWNGRADE=1 to force it)`). The same release may be reinstalled;
 3a. **another release over an installed panel is refused** (R-6.5, `CheckSameRelease`): on an
-   upgrade run (§2), when the installed `panel-api --version` is a release and the manifest names
+   upgrade run (§2), when the installed `panel-api --version` is a release tag (`version.ReleaseTag`:
+   a development build, `git describe`'s `vX.Y.Z-N-gHASH` included, is not) and the manifest names
    any other one, newer or older, the install stops before any step with `CloudGround <a> is
    installed here, and this is the installer of <b>: …`, pointing to `cgctl update --to <b>` (which
    snapshots and rolls back, §10) and to the installer of `<a>` for a repair. The installer has no

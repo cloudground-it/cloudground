@@ -166,12 +166,13 @@ func CheckRelease(manifest, requested string, allowDowngrade bool, installed ...
 // version of an installed panel (SPEC §5 step 3a, R-6.5): the installer has
 // no snapshot and no rollback, so moving between releases is `cgctl
 // update`'s. The same release is a repair and goes ahead; so does an install
-// over a build whose version is not a release (a development build).
+// over a build whose version is not a release tag (a development build,
+// whether "dev", a commit or `git describe`'s v0.1.0-29-gbe3432f).
 func CheckSameRelease(upgrade bool, installed, manifest string) error {
 	if !upgrade {
 		return nil
 	}
-	if _, ok := version.Parse(installed); !ok {
+	if _, ok := version.ReleaseTag(installed); !ok {
 		return nil
 	}
 	if manifest == installed {

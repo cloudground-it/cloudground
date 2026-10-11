@@ -190,6 +190,11 @@ func TestCheckSameRelease(t *testing.T) {
 		{true, "", "v0.3.0", true},
 		{true, "dev", "v0.3.0", true},
 		{true, "e9f4780", "v0.3.0", true},
+		// A development build stamped by git describe after a tag is not
+		// that release: the R-6.5 upgrade installs v0.1.0 over it.
+		{true, "v0.1.0-29-gbe3432f", "v0.1.0", true},
+		{true, "v0.1.0-29-gbe3432f-dirty", "v0.2.0", true},
+		{true, "v0.2.0-beta.1", "v0.2.0", false},
 	} {
 		err := CheckSameRelease(c.upgrade, c.installed, c.manifest)
 		if (err == nil) != c.ok {
