@@ -164,6 +164,9 @@ func (h *harness) firewallGuards(t *testing.T) {
 	// refused every delete on 8443, so the deny could not be undone). The
 	// port's own allow rule stays.
 	const blocked = "203.0.113.78"
+	// The installer adds the allow rule only when ufw is active: a fresh box
+	// with ufw off has none, and the deny must not change that either way.
+	hadAllow := strings.Contains(h.run("ufw", "show", "added").Out, "ufw allow 8443/tcp")
 	unblock := h.undo("remove the e2e deny on the panel port", func() {
 		h.run("ufw", "delete", "deny", "from", blocked, "to", "any", "port", "8443", "proto", "tcp")
 	})
@@ -173,7 +176,7 @@ func (h *harness) firewallGuards(t *testing.T) {
 		fmt.Sprint(post(`{"action":"delete","port":8443,"proto":"tcp","from":"`+blocked+`"}`)), "200")
 	shown := h.run("ufw", "show", "added").Out
 	h.assert(t, "W3: deleting the deny removed it", !strings.Contains(shown, blocked), "ufw show added:\n%s", shown)
-	h.assert(t, "W3: the panel port's allow rule stayed", strings.Contains(shown, "ufw allow 8443/tcp"), "ufw show added:\n%s", shown)
+	h.assert(t, "W3: the panel port's allow rule stayed as it was", strings.Contains(shown, "ufw allow 8443/tcp") == hadAllow, "allow rule before: %v; ufw show added:\n%s", hadAllow, shown)
 	unblock()
 
 	const port, src = "65011", "203.0.113.77"
