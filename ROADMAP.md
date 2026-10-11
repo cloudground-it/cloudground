@@ -4,7 +4,7 @@ Where CloudGround is going, what it will not do, and where a hand helps most. It
 purpose, and it has no dates: one person maintains the project, and a date that is guessed is a
 promise that is not kept. Items are listed roughly in order of priority.
 
-Proposals for new features are tracked as GitHub issues; this page holds only the direction.
+Concrete work is tracked as GitHub issues, grouped in [milestones](https://github.com/cloudground-it/cloudground/milestones); this page holds only the direction.
 
 ## On the way to 1.0
 
