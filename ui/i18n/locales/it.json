@@ -206,7 +206,8 @@
     "overview": "Panoramica",
     "more": "Altro",
     "sftp": "SFTP / SSH",
-    "vhost": "Vhost"
+    "vhost": "Vhost",
+    "protection": "Percorsi protetti"
   },
   "overview": {
     "certificate": "Certificato",
@@ -1297,5 +1298,27 @@
       "page": "Numero di pagina",
       "of": "di {n}"
     }
+  },
+  "protect": {
+    "title": "Percorsi protetti",
+    "hint": "Percorsi che chiedono un nome utente e una password prima di mostrare qualsiasi cosa, come /wp-admin o una cartella privata. Ogni percorso ha le sue credenziali e copre tutto ciò che contiene.",
+    "none": "Nessun percorso è protetto.",
+    "add": "Proteggi un percorso",
+    "change": "Cambia",
+    "changeTitle": "Nuove credenziali per {path}",
+    "dialogHint": "Il browser le chiede prima di mostrare il percorso. Salvando la protezione è subito attiva.",
+    "path": "Percorso",
+    "pathHelp": "Inizia con / e copre tutto ciò che contiene: /wp-admin, /private/files.",
+    "pathBad": "Lettere, cifre e . _ ~ - tra le barre; non / da solo.",
+    "username": "Nome utente",
+    "userBad": "Da 1 a 64 lettere, cifre o . _ {'@'} -.",
+    "password": "Password",
+    "passwordRange": "8–72 caratteri",
+    "added": "{path} è protetto",
+    "changed": "Credenziali cambiate",
+    "removed": "{path} non è più protetto",
+    "removeTitle": "Togliere la protezione a {path}?",
+    "removeHint": "Chiunque potrà raggiungerlo di nuovo senza password.",
+    "ajaxNote": "admin-ajax.php resta aperto ai visitatori: temi e plugin lo chiamano dalle pagine pubbliche."
   }
 }

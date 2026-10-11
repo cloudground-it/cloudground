@@ -1,0 +1,74 @@
+## /etc/nginx/sites-enabled/c193.example.test.conf
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+# Site: c193.example.test (id 193, type proxy, profile balanced)
+
+map $uri $cg_auth_realm_193 {
+    default  off;
+    "~^/private~files(?:/|$)"  "Restricted";
+}
+map $uri $cg_auth_file_193 {
+    default  /srv/cgt/auth/c193.example.test.path-c.htpasswd;
+    "~^/private~files(?:/|$)"  /srv/cgt/auth/c193.example.test.path-c.htpasswd;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name c193.example.test;
+
+    location /.well-known/acme-challenge/ {
+        root /srv/cgt/acme;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name c193.example.test;
+    server_tokens off;
+
+    # Protected paths ask for their own username and password. At server
+    # level, so every location inherits it, the PHP one included: a
+    # prefix location of its own would let /path/x.php reach PHP through
+    # the regex location without the password.
+    auth_basic $cg_auth_realm_193;
+    auth_basic_user_file $cg_auth_file_193;
+
+    # Send small responses at once. With Ubuntu's tcp_nopush and no
+    # tcp_nodelay, the last packet of a kept-alive reply waits for the peer's
+    # delayed ACK (40 ms); measured, that cut cached req/s by about ten times.
+    tcp_nodelay on;
+    tcp_nopush off;
+
+    ssl_certificate /srv/cgt/fallback/cert.pem;
+    ssl_certificate_key /srv/cgt/fallback/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:cg_ssl:10m;
+
+    # Log lines go out in 64 KiB batches, at least once a second.
+    access_log /srv/cgt/log/c193.example.test/access.log cloudground buffer=64k flush=1s;
+    error_log /srv/cgt/log/c193.example.test/error.log warn;
+
+    client_max_body_size 128m;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 60s;
+    }
+}

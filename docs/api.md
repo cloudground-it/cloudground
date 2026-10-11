@@ -99,6 +99,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `POST /api/users`: 8 KiB
   - `POST /api/users/{id}/password`: 8 KiB
   - `POST /api/tokens`: 8 KiB
+  - `POST /api/sites/{id}/protected-paths`: 8 KiB
+  - `DELETE /api/sites/{id}/protected-paths`: 8 KiB
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
   - `PUT /api/sites/{id}/backups/policy`: 8 KiB
@@ -176,6 +178,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `GET` | `/api/sites/{id}` | auth | a site and its settings |
 | `DELETE` | `/api/sites/{id}` | admin | delete — returns `202` |
 | `PATCH` | `/api/sites/{id}` | manage | change any of the site's settings in one request (fields below) — returns `202`, the site and one task |
+| `POST` | `/api/sites/{id}/protected-paths` | manage | protect a path with a username and password, or change them (`{"path": "/wp-admin", "username": …, "password": …}`); answers the site's protected paths |
+| `DELETE` | `/api/sites/{id}/protected-paths` | manage | stop protecting a path (`{"path": "/wp-admin"}`); answers the site's protected paths |
 | `GET` | `/api/sites/{id}/routing` | admin, session only | the site's routing block (`routing`, `default`, `custom`, `editable`) and the panel's vhost around it (`before`, `after`) |
 | `PUT` | `/api/sites/{id}/routing` | admin, session only | replace the routing block (`{"routing": "…"}`, `""` restores the default): checked, then live only if `nginx -t` passes |
 | `GET` | `/api/sites/{id}/certificate` | auth | whether the site has a certificate, its issuer and expiry, and the last renewal error |

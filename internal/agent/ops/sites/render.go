@@ -11,6 +11,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -104,6 +105,9 @@ func (o *Ops) input(ctx context.Context, s state.Site) engine.Input {
 	if s.Config.StagingAuthHash != "" {
 		in.BasicAuthFile = staging.AuthFile(o.Paths.NginxAuthDir, s.Domain)
 		in.InternalKey = s.InternalKey()
+	}
+	for _, p := range s.Config.ProtectedPaths {
+		in.ProtectedPaths = append(in.ProtectedPaths, engine.ProtectedPath{Path: p.Path, File: protectedAuthFile(o.Paths.NginxAuthDir, s.Domain, p.Path)})
 	}
 	o.probeBuild(ctx)
 	in.HTTP3, in.HTTP2Directive = o.http3, o.http2On
@@ -232,6 +236,12 @@ func (o *Ops) render(ctx context.Context, s state.Site, onlyIfChanged bool) ([]r
 		}
 		nginxFiles[in.BasicAuthFile] = "staging:" + s.Config.StagingAuthHash + "\n"
 	}
+	for i, p := range s.Config.ProtectedPaths {
+		if !bcryptRe.MatchString(p.PasswordHash) || !site.ValidBasicAuthUser(p.Username) {
+			return nil, fmt.Errorf("invalid credentials for the protected path %s", p.Path)
+		}
+		nginxFiles[in.ProtectedPaths[i].File] = p.Username + ":" + p.PasswordHash + "\n"
+	}
 	if err := o.prepareDirs(s, in); err != nil {
 		return nil, err
 	}
@@ -253,6 +263,10 @@ func (o *Ops) render(ctx context.Context, s state.Site, onlyIfChanged bool) ([]r
 	if err := o.renderNginx(ctx, in, nginxFiles, nginxTx, onlyIfChanged); err != nil {
 		return fail(err)
 	}
+
+	// The password files of paths no longer protected: the vhost that
+	// named them is gone.
+	o.removeStaleAuthFiles(s, in)
 
 	files := append(phpTx.files, nginxTx.files...)
 	if isWordPress(s) {
@@ -288,8 +302,9 @@ func (o *Ops) writeNginx(ctx context.Context, in engine.Input, nginxFiles map[st
 	nginxChanged := false
 	for path, content := range nginxFiles {
 		mode := os.FileMode(0o644)
+		auth := isAuthFile(in, path)
 		switch {
-		case path == in.BasicAuthFile:
+		case auth:
 			mode = 0o640 // the password hash is nginx's business alone
 		case in.InternalKey != "" && strings.Contains(content, in.InternalKey):
 			mode = 0o600 // the key that passes the password: nginx's master only
@@ -299,7 +314,7 @@ func (o *Ops) writeNginx(ctx context.Context, in engine.Input, nginxFiles map[st
 			return err
 		}
 		nginxChanged = nginxChanged || changed
-		if path == in.BasicAuthFile {
+		if auth {
 			if err := shareWithNginx(path); err != nil {
 				return err
 			}
@@ -309,6 +324,37 @@ func (o *Ops) writeNginx(ctx context.Context, in engine.Input, nginxFiles map[st
 		return o.reloadNginx(ctx)
 	}
 	return nil
+}
+
+// protectedAuthFile is the password file of one protected path (SPEC §4.6):
+// named after the path's digest, so a path never becomes a file name.
+func protectedAuthFile(dir, domain, path string) string {
+	sum := sha256.Sum256([]byte(path))
+	return filepath.Join(dir, domain+".path-"+hex.EncodeToString(sum[:6])+".htpasswd")
+}
+
+// isAuthFile reports whether path is one of in's password files.
+func isAuthFile(in engine.Input, path string) bool {
+	if path == in.BasicAuthFile {
+		return true
+	}
+	return slices.ContainsFunc(in.ProtectedPaths, func(p engine.ProtectedPath) bool { return p.File == path })
+}
+
+// removeStaleAuthFiles removes the site's protected-path password files the
+// render did not write (SPEC §4.6).
+func (o *Ops) removeStaleAuthFiles(s state.Site, in engine.Input) {
+	if o.Paths.NginxAuthDir == "" {
+		return
+	}
+	old, _ := filepath.Glob(filepath.Join(o.Paths.NginxAuthDir, s.Domain+".path-*.htpasswd"))
+	for _, f := range old {
+		if !isAuthFile(in, f) {
+			if err := os.Remove(f); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				o.log().Warn("could not remove a stale password file", "file", f, "err", err)
+			}
+		}
+	}
 }
 
 // prepareDirs creates the page-cache and log directories and, for a PHP

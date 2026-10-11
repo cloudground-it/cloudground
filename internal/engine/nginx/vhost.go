@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -85,6 +86,14 @@ func prepare(in engine.Input) (*vhost, error) {
 	}
 	if in.ClientMaxBody == "" {
 		in.ClientMaxBody = "128m"
+	}
+	if len(in.ProtectedPaths) > 0 && in.BasicAuthFile != "" {
+		return nil, fmt.Errorf("a staging copy is protected as a whole: it takes no protected paths")
+	}
+	for _, p := range in.ProtectedPaths {
+		if !site.ValidProtectedPath(p.Path) || !filepath.IsAbs(p.File) || strings.ContainsAny(p.File, " \t\n;{}\"'$") {
+			return nil, fmt.Errorf("invalid protected path %q", p.Path)
+		}
 	}
 	v := &vhost{
 		in:       in,
@@ -210,6 +219,7 @@ func (v *vhost) render() (before, block, after string) {
 	var c conf
 	c.put(0, "# Managed by CloudGround — do not edit. Changes are detected as drift.")
 	c.putf(0, "# Site: %s (id %d, type %s, profile %s)", s.Domain, s.ID, s.Type, s.Profile)
+	v.protectedMaps(&c)
 	if in.BasicAuthFile != "" {
 		c.put(0, "")
 		c.putf(0, "map $http_x_cloudground_internal $cg_staging_realm_%d {", s.ID)
@@ -249,6 +259,15 @@ func (v *vhost) render() (before, block, after string) {
 			"# a file only root reads; 127.0.0.1 gets no pass, since PHP runs here.")
 		c.putf(1, "auth_basic $cg_staging_realm_%d;", s.ID)
 		c.put(1, "auth_basic_user_file "+in.BasicAuthFile+";")
+	}
+	if len(in.ProtectedPaths) > 0 {
+		c.put(1, "",
+			"# Protected paths ask for their own username and password. At server",
+			"# level, so every location inherits it, the PHP one included: a",
+			"# prefix location of its own would let /path/x.php reach PHP through",
+			"# the regex location without the password.")
+		c.putf(1, "auth_basic $cg_auth_realm_%d;", s.ID)
+		c.putf(1, "auth_basic_user_file $cg_auth_file_%d;", s.ID)
 	}
 	c.put(1, "",
 		"# Send small responses at once. With Ubuntu's tcp_nopush and no",
@@ -317,6 +336,40 @@ func (v *vhost) render() (before, block, after string) {
 	}
 	t.put(0, "}")
 	return before, block, t.String()
+}
+
+// protectedMaps writes the two maps of the protected paths (SPEC §4.5):
+// from the request's normalised path ($uri: decoded, dot segments and
+// double slashes resolved, so no spelling of the path slips past) to the
+// realm, off elsewhere, and to the path's password file. The longest path
+// comes first, so a path inside another takes its own credentials. On a
+// WordPress site admin-ajax.php stays open: themes and plugins call it from
+// the public pages.
+func (v *vhost) protectedMaps(c *conf) {
+	in, s := v.in, v.in.Site
+	if len(in.ProtectedPaths) == 0 {
+		return
+	}
+	paths := slices.Clone(in.ProtectedPaths)
+	slices.SortStableFunc(paths, func(a, b engine.ProtectedPath) int { return len(b.Path) - len(a.Path) })
+	wp := s.Type == state.SiteWordPress || s.Type == state.SiteWooCommerce
+	key := func(p string) string { return `"~^` + regexp.QuoteMeta(p) + `(?:/|$)"` }
+	c.put(0, "")
+	c.putf(0, "map $uri $cg_auth_realm_%d {", s.ID)
+	c.put(1, "default  off;")
+	if wp {
+		c.put(1, `"~^/wp-admin/admin-ajax\.php$"  off;`)
+	}
+	for _, p := range paths {
+		c.putf(1, "%s  \"Restricted\";", key(p.Path))
+	}
+	c.put(0, "}")
+	c.putf(0, "map $uri $cg_auth_file_%d {", s.ID)
+	c.putf(1, "default  %s;", paths[0].File)
+	for _, p := range paths {
+		c.putf(1, "%s  %s;", key(p.Path), p.File)
+	}
+	c.put(0, "}")
 }
 
 // leftoverRegex matches, without regard to case, the paths a site never

@@ -109,6 +109,10 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "change any of the site's settings in one request (fields below) — returns `202`, the site and one task"},
 		// The routing block is nginx configuration: an administrator's,
 		// from a session (internal/engine SPEC §7).
+		{Method: post, Path: "/api/sites/{id}/protected-paths", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleSetProtectedPath,
+			Section: secSites, Doc: "protect a path with a username and password, or change them (`{\"path\": \"/wp-admin\", \"username\": …, \"password\": …}`); answers the site's protected paths"},
+		{Method: del, Path: "/api/sites/{id}/protected-paths", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleDeleteProtectedPath,
+			Section: secSites, Doc: "stop protecting a path (`{\"path\": \"/wp-admin\"}`); answers the site's protected paths"},
 		{Method: get, Path: "/api/sites/{id}/routing", Policy: policyAdmin, SessionOnly: true, Load: loadSite, Handle: s.handleGetRouting,
 			Section: secSites, Doc: "the site's routing block (`routing`, `default`, `custom`, `editable`) and the panel's vhost around it (`before`, `after`)"},
 		{Method: put, Path: "/api/sites/{id}/routing", Policy: policyAdmin, SessionOnly: true, MaxBody: routingBody, Load: loadSite, Handle: s.handleSetRouting,

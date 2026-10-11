@@ -29,6 +29,7 @@ in the rendered comments (they are part of the output and stay with it) and
 | `HTTP3` | this nginx has `ngx_http_v3_module` (QUIC on 443/udp) |
 | `HTTP2Directive` | this nginx is ≥ 1.25.1: `http2 on;` instead of `listen … http2` |
 | `BasicAuthFile`, `InternalKey` | staging: the password file, and the header value that passes it |
+| `ProtectedPaths` | the site's protected paths (#26), each `{Path, File}`: the path and its password file (§4.5) |
 
 `Renderer` has `SiteFiles(Input) (path → content)`, `GlobalFiles()` and
 `Routing(Input) (RoutingView)` (§7.5).
@@ -79,18 +80,22 @@ fastcgi_cache_path <CacheDir> levels=1:2 keys_zone=cg_<id>:<ZoneSizeMB>m
 In this order. "Security headers" is the set of §4.3.
 
 1. Header comment: managed, and `# Site: <domain> (id <id>, type <type>, profile <profile>)`.
-2. Staging (`BasicAuthFile` set): a map from `$http_x_cloudground_internal`
+2. Protected paths (§4.5): the two maps `$cg_auth_realm_<id>` and
+   `$cg_auth_file_<id>`.
+3. Staging (`BasicAuthFile` set): a map from `$http_x_cloudground_internal`
    to `$cg_staging_realm_<id>`: the internal key (when there is one) gives
    `off`, anything else `"Staging"`.
-3. Port 80: `listen 80` and `[::]:80`, the server names (domain then
+4. Port 80: `listen 80` and `[::]:80`, the server names (domain then
    aliases), the ACME location (`root <ACMEWebroot>`), and everything else
    `301` to `https://$host$request_uri`.
-4. Port 443:
+5. Port 443:
    - listen: `443 ssl http2` (both families), or with `HTTP2Directive`
      `443 ssl` and `http2 on;`; with `HTTP3` also `443 quic` (no
      `reuseport`: the installer's default server holds the only one);
    - server names, `server_tokens off`;
    - staging: `auth_basic $cg_staging_realm_<id>` and the password file;
+   - protected paths: `auth_basic $cg_auth_realm_<id>` and
+     `auth_basic_user_file $cg_auth_file_<id>` (§4.5);
    - `tcp_nodelay on; tcp_nopush off;` (measured: 850 → 7800 req/s);
    - certificate: the site's when `CertAvailable`, else the fallback;
      TLS 1.2 and 1.3, `ssl_prefer_server_ciphers off`, session timeout 1d,
@@ -176,6 +181,46 @@ before the uploads, static, routing and PHP locations, since the first
 regex that matches wins; a request that matches none of them pays one more
 regex test (a cached page is served from the PHP location, so it pays it
 too: measured with `bench/`).
+
+### 4.5 Protected paths (#26)
+
+A path such as `/wp-admin` or a private folder, with its own username and
+password. Refused before anything is rendered: a path that is not
+`site.ValidProtectedPath` (absolute, segments of letters, digits and
+`. _ ~ -`, no `.` or `..` segment, not `/`), a file name that is not an
+absolute path free of white space, `;`, braces, quotes and `$`, and
+protected paths on a staging copy (`BasicAuthFile` set: the copy asks for
+its own password everywhere already).
+
+At http level, two maps from `$uri` (the normalised path: decoded, with dot
+segments and double slashes resolved, so no other spelling of a path gets
+past them):
+
+```
+map $uri $cg_auth_realm_<id> {
+    default  off;
+    "~^/wp-admin/admin-ajax\.php$"  off;      # WordPress and WooCommerce only
+    "~^<quoted path>(?:/|$)"  "Restricted";    # one per path, longest first
+}
+map $uri $cg_auth_file_<id> {
+    default  <the first path's file>;
+    "~^<quoted path>(?:/|$)"  <its file>;
+}
+```
+
+The path matches itself and everything below it, never a longer name
+(`/private` is not `/privateer`). The longest path comes first, so a path
+inside another takes its own credentials. On a WordPress site
+`/wp-admin/admin-ajax.php` stays open: themes and plugins call it from the
+public pages, and protecting `/wp-admin` must not break them.
+
+The 443 server then says `auth_basic $cg_auth_realm_<id>;
+auth_basic_user_file $cg_auth_file_<id>;` at server level, so every location
+inherits it. A prefix location per path would not do: `/wp-admin/x.php`
+matches the PHP regex location, not the prefix one, and would reach PHP
+without the password. The access phase runs before the page cache is read,
+so a cached page of a protected path is not served without the password.
+Port 80 only redirects.
 
 ## 5. Page-cache policy (`velocity.PolicyFor`)
 

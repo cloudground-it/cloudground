@@ -206,7 +206,8 @@
     "overview": "Overview",
     "more": "More",
     "sftp": "SFTP / SSH",
-    "vhost": "Vhost"
+    "vhost": "Vhost",
+    "protection": "Protected paths"
   },
   "overview": {
     "certificate": "Certificate",
@@ -1297,5 +1298,27 @@
       "page": "Page number",
       "of": "of {n}"
     }
+  },
+  "protect": {
+    "title": "Protected paths",
+    "hint": "Paths that ask for a username and password before anything is served, such as /wp-admin or a private folder. Each path has its own credentials and covers everything below it.",
+    "none": "No path is protected.",
+    "add": "Protect a path",
+    "change": "Change",
+    "changeTitle": "New credentials for {path}",
+    "dialogHint": "The browser asks for these before it shows the path. Saving makes it live at once.",
+    "path": "Path",
+    "pathHelp": "Starts with /, and covers everything below it: /wp-admin, /private/files.",
+    "pathBad": "Letters, digits and . _ ~ - between slashes; not / itself.",
+    "username": "Username",
+    "userBad": "1–64 letters, digits or . _ {'@'} -.",
+    "password": "Password",
+    "passwordRange": "8–72 characters",
+    "added": "{path} is protected",
+    "changed": "Credentials changed",
+    "removed": "{path} is no longer protected",
+    "removeTitle": "Stop protecting {path}?",
+    "removeHint": "Anyone can reach it again without a password.",
+    "ajaxNote": "admin-ajax.php stays open to visitors: themes and plugins call it from the public pages."
   }
 }

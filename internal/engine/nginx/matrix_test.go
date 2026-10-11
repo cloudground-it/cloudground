@@ -242,6 +242,29 @@ func matrixCases() []matrixCase {
 			add(name, b, in)
 		}
 	}
+	// Protected paths (#26, SPEC §4.5), on every build: a WordPress site
+	// with a path inside another (the longer one first, admin-ajax.php
+	// left open) and a proxy site.
+	protected := []option{
+		{"protected-paths", state.SiteWordPress, func(in *engine.Input) {
+			in.ProtectedPaths = []engine.ProtectedPath{
+				{Path: "/wp-admin", File: matrixRoot + "/auth/" + in.Site.Domain + ".path-a.htpasswd"},
+				{Path: "/wp-admin/tools.d", File: matrixRoot + "/auth/" + in.Site.Domain + ".path-b.htpasswd"},
+			}
+		}},
+		{"protected-paths-proxy", state.SiteProxy, func(in *engine.Input) {
+			in.ProtectedPaths = []engine.ProtectedPath{{Path: "/private~files", File: matrixRoot + "/auth/" + in.Site.Domain + ".path-c.htpasswd"}}
+		}},
+	}
+	for _, b := range matrixBuilds {
+		for _, o := range protected {
+			id++
+			name := fmt.Sprintf("%s-opt-%s", b.name, o.name)
+			in := matrixInput(id, o.typ, state.ProfileBalanced, o.typ != state.SiteStatic && o.typ != state.SiteProxy)
+			o.set(&in)
+			add(name, b, in)
+		}
+	}
 	return cases
 }
 

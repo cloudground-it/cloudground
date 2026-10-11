@@ -206,7 +206,8 @@
     "overview": "Resumen",
     "more": "Más",
     "sftp": "SFTP / SSH",
-    "vhost": "Vhost"
+    "vhost": "Vhost",
+    "protection": "Rutas protegidas"
   },
   "overview": {
     "certificate": "Certificado",
@@ -1297,5 +1298,27 @@
       "page": "Número de página",
       "of": "de {n}"
     }
+  },
+  "protect": {
+    "title": "Rutas protegidas",
+    "hint": "Rutas que piden un nombre de usuario y una contraseña antes de servir nada, como /wp-admin o una carpeta privada. Cada ruta tiene sus propias credenciales y cubre todo lo que contiene.",
+    "none": "No hay ninguna ruta protegida.",
+    "add": "Proteger una ruta",
+    "change": "Cambiar",
+    "changeTitle": "Nuevas credenciales para {path}",
+    "dialogHint": "El navegador las pide antes de mostrar la ruta. Al guardar se aplica enseguida.",
+    "path": "Ruta",
+    "pathHelp": "Empieza por / y cubre todo lo que contiene: /wp-admin, /private/files.",
+    "pathBad": "Letras, cifras y . _ ~ - entre barras; no / sola.",
+    "username": "Nombre de usuario",
+    "userBad": "De 1 a 64 letras, cifras o . _ {'@'} -.",
+    "password": "Contraseña",
+    "passwordRange": "8–72 caracteres",
+    "added": "{path} está protegida",
+    "changed": "Credenciales cambiadas",
+    "removed": "{path} ya no está protegida",
+    "removeTitle": "¿Dejar de proteger {path}?",
+    "removeHint": "Cualquiera podrá volver a acceder sin contraseña.",
+    "ajaxNote": "admin-ajax.php sigue abierto a los visitantes: los temas y plugins lo llaman desde las páginas públicas."
   }
 }

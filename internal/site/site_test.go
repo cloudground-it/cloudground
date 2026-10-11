@@ -282,3 +282,22 @@ func FuzzMatchesLegacy(f *testing.F) {
 		sameVerdict(t, s)
 	})
 }
+
+// #26: the paths a site may protect are pasted into nginx's configuration.
+func TestValidProtectedPath(t *testing.T) {
+	for _, p := range []string{"/wp-admin", "/private/files", "/a.b~c_d-e", "/x"} {
+		if !ValidProtectedPath(p) {
+			t.Errorf("%q refused", p)
+		}
+	}
+	for _, p := range []string{"", "/", "wp-admin", "/wp-admin/", "/a//b", "/a/../b", "/./a", "/a b", "/a;b", "/a{1}", `/a"b`, "/a$b", "/a\nb", "/" + strings.Repeat("a", 200)} {
+		if ValidProtectedPath(p) {
+			t.Errorf("%q accepted", p)
+		}
+	}
+	for u, want := range map[string]bool{"admin": true, "a.b@c-d_e": true, "": false, "a:b": false, "a b": false, strings.Repeat("u", 65): false} {
+		if ValidBasicAuthUser(u) != want {
+			t.Errorf("ValidBasicAuthUser(%q) = %v", u, !want)
+		}
+	}
+}

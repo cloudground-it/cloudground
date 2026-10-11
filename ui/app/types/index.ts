@@ -44,6 +44,8 @@ export interface Site {
     backups: { enabled: boolean, schedule: string, retention_days: number, hour?: number | null }
     resources?: { memory_high_mb: number, php_workers: number }
     php: { memory_limit_mb: number, upload_max_mb: number, max_execution_seconds: number }
+    /** Paths behind a username and password (the hash never leaves the panel). */
+    protected_paths?: { path: string, username: string }[]
   }
   created_at: string
 }
