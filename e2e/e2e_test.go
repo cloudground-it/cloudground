@@ -98,6 +98,7 @@ var sections = []section{
 	{name: "SR tenant data", run: (*harness).tenantData, fixtures: []string{fxWooSite}},
 	{name: "R-10.5 root boundary", run: (*harness).boundary, lane: "boundary"},
 	{name: "R-10.5 agent limits", run: (*harness).agentLimits},
+	{name: "PHP extensions and backup hour", run: (*harness).phpExtensions},
 	{name: "woocommerce teardown", run: (*harness).woocommerceTeardown, fixtures: []string{fxWooSite}},
 	{name: "R-6.5 upgrade", run: (*harness).upgrade},
 }

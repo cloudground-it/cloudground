@@ -121,6 +121,10 @@ type BackupPolicy struct {
 	// Schedule is hourly, daily or weekly.
 	Schedule      string `json:"schedule"`
 	RetentionDays int    `json:"retention_days"`
+	// Hour, 0–23 in the server's time zone, is when a daily or weekly
+	// backup runs; nil runs it a day or a week after the last one,
+	// whatever the time. An hourly schedule ignores it.
+	Hour *int `json:"hour,omitempty"`
 }
 
 // PHPSettings are the php.ini values a site may override; 0 leaves the

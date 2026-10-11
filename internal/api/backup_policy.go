@@ -26,12 +26,16 @@ type policyChange struct {
 	Enabled       *bool   `json:"enabled"`
 	Schedule      *string `json:"schedule"`
 	RetentionDays *int    `json:"retention_days"`
+	// Hour is 0–23, or -1 for no fixed hour (a JSON null reads as left
+	// out, so clearing needs a value of its own).
+	Hour *int `json:"hour"`
 }
 
 // Messages of the policy route.
 const (
 	msgPolicyStaging   = "a staging site has no backup schedule of its own"
-	msgPolicyEmpty     = "name at least one of enabled, schedule, retention_days"
+	msgPolicyEmpty     = "name at least one of enabled, schedule, retention_days, hour"
+	msgPolicyHour      = "hour must be 0–23 (the server's time), or -1 for no fixed hour"
 	msgPolicyRetention = "only an administrator can change how long a site's backups are kept"
 )
 
@@ -41,7 +45,7 @@ func (pc policyChange) check(site state.Site, admin bool) (kind problemKind, msg
 	if site.StagingOf != 0 {
 		return probInvalid, msgPolicyStaging, nil
 	}
-	if pc.Enabled == nil && pc.Schedule == nil && pc.RetentionDays == nil {
+	if pc.Enabled == nil && pc.Schedule == nil && pc.RetentionDays == nil && pc.Hour == nil {
 		return probInvalid, msgPolicyEmpty, nil
 	}
 	// A shorter window deletes snapshots, as deleting one does: an
@@ -56,7 +60,10 @@ func (pc policyChange) check(site state.Site, admin bool) (kind problemKind, msg
 	if pc.RetentionDays != nil && (*pc.RetentionDays < 0 || *pc.RetentionDays > maxRetentionDays) {
 		fields["retention_days"] = fmt.Sprintf("retention must be 0–%d days (0 keeps every snapshot)", maxRetentionDays)
 	}
-	for _, name := range []string{"schedule", "retention_days"} {
+	if pc.Hour != nil && (*pc.Hour < -1 || *pc.Hour > 23) {
+		fields["hour"] = msgPolicyHour
+	}
+	for _, name := range []string{"schedule", "retention_days", "hour"} {
 		if m, ok := fields[name]; ok {
 			return probInvalid, m, fields
 		}
@@ -74,6 +81,12 @@ func (pc policyChange) apply(p *state.BackupPolicy) {
 	}
 	if pc.RetentionDays != nil {
 		p.RetentionDays = *pc.RetentionDays
+	}
+	if pc.Hour != nil {
+		p.Hour = nil
+		if h := *pc.Hour; h >= 0 {
+			p.Hour = &h
+		}
 	}
 	if p.Schedule == "" {
 		p.Schedule = "daily" // what the sweep runs for an empty one
@@ -106,7 +119,11 @@ func (s *Server) handleBackupPolicy(w http.ResponseWriter, r *http.Request, c *c
 		return
 	}
 	p := site.Config.Backups
+	hour := "any"
+	if p.Hour != nil {
+		hour = fmt.Sprintf("%02d:00", *p.Hour)
+	}
 	s.audit(c.Actor(), "backup.policy", site.Domain,
-		fmt.Sprintf("enabled=%t schedule=%s retention_days=%d", p.Enabled, p.Schedule, p.RetentionDays))
+		fmt.Sprintf("enabled=%t schedule=%s hour=%s retention_days=%d", p.Enabled, p.Schedule, hour, p.RetentionDays))
 	respond(w, http.StatusOK, p)
 }

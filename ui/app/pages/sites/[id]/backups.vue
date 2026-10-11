@@ -20,23 +20,34 @@ const verifyColor = { pending: 'neutral', passed: 'success', failed: 'error' } a
 // switched off; the schedule it had is kept for when it is switched on.
 type Frequency = 'off' | 'hourly' | 'daily' | 'weekly'
 const stored = computed(() => site.value.config.backups)
-const form = reactive({ frequency: 'off' as Frequency, retention: 0 })
+// hour -1 is no fixed hour: a day or a week after the last backup.
+const form = reactive({ frequency: 'off' as Frequency, retention: 0, hour: -1 })
 function load() {
   const p = stored.value
   form.frequency = p.enabled ? ((p.schedule || 'daily') as Frequency) : 'off'
   form.retention = p.retention_days || 0
+  form.hour = p.hour ?? -1
 }
 load()
 watch(stored, load, { deep: true })
 const frequencyItems = computed(() => (['off', 'hourly', 'daily', 'weekly'] as const).map(v => ({ label: t(`backup.frequency.${v}`), value: v })))
+// The hour of a daily or weekly backup, in the panel's time zone.
+const caps = useCapabilities()
+const hasHour = computed(() => form.frequency === 'daily' || form.frequency === 'weekly')
+const hourItems = computed(() => [
+  { label: t('backup.hourAny'), value: -1 },
+  ...Array.from({ length: 24 }, (_, h) => ({ label: `${String(h).padStart(2, '0')}:00`, value: h }))
+])
 const policyChanged = computed(() => {
   const p = stored.value
   const enabled = form.frequency !== 'off'
-  return enabled !== p.enabled || (enabled && form.frequency !== (p.schedule || 'daily')) || form.retention !== (p.retention_days || 0)
+  return enabled !== p.enabled || (enabled && form.frequency !== (p.schedule || 'daily')) || form.retention !== (p.retention_days || 0) ||
+    (hasHour.value && form.hour !== (p.hour ?? -1))
 })
 async function savePolicy() {
   const body: Record<string, unknown> = { enabled: form.frequency !== 'off' }
   if (form.frequency !== 'off') body.schedule = form.frequency
+  if (hasHour.value && form.hour !== (stored.value.hour ?? -1)) body.hour = form.hour
   // Only an administrator changes the window (a shorter one deletes snapshots).
   if (form.retention !== (stored.value.retention_days || 0)) body.retention_days = form.retention
   if (await run(() => api.put(`/api/sites/${site.value.id}/backups/policy`, body), t('backup.policySaved'))) await refresh()
@@ -171,6 +182,9 @@ async function restore() {
       <div v-if="!site.staging_of" class="grid gap-4 sm:grid-cols-2">
         <UFormField :label="t('backup.frequencyLabel')">
           <USelect v-model="form.frequency" :items="frequencyItems" class="w-full" :disabled="!canManage" />
+        </UFormField>
+        <UFormField v-if="hasHour" :label="t('backup.hour')" :help="t('backup.hourHelp', { zone: caps?.time_zone || 'UTC' })">
+          <USelect v-model="form.hour" :items="hourItems" class="w-full" :disabled="!canManage" />
         </UFormField>
         <UFormField :label="t('backup.retention')" :help="isAdmin ? t('ux.backup.retentionHelp') : t('backup.retentionAdmin')">
           <USelect v-model="form.retention" :items="retentionItems" class="w-full" :disabled="!isAdmin" />

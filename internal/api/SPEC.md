@@ -1236,22 +1236,33 @@ accounts read it).
 ### 5.5 The policy
 
 A site's policy is `config.backups`: `enabled`, `schedule` (`hourly`,
-`daily`, `weekly`; empty reads as `daily`) and `retention_days` (0 keeps
-every snapshot). The backup sweep queues `backup.scheduled` for an active
-production site whose policy is on, when its schedule is due; the retention
+`daily`, `weekly`; empty reads as `daily`), `retention_days` (0 keeps
+every snapshot) and `hour` (#29: 0–23 in the panel's time zone, or absent).
+The backup sweep queues `backup.scheduled` for an active production site
+whose policy is on, when its schedule is due (`backupDue`): without an hour,
+or hourly, when the spacing has passed since the last one was queued; with
+an hour, a daily or weekly backup is due when the newest slot (today at the
+hour, or yesterday's while today's is ahead) has no backup after it and
+comes at least the spacing less 12 hours after the last one, so it runs at
+the first sweep (every five minutes) after the hour, a weekly one keeps its
+weekday, a changed hour never runs a second backup the same day, and a
+slot missed while the panel was down runs at the next sweep. The retention
 sweep applies a window above 0 once a day (`backup_retention.go`).
+`GET /api/system/capabilities` carries `time_zone`, the zone the hour is
+in.
 
 `PUT /api/sites/{id}/backups/policy` (`backup_policy.go`, R-8.2) takes any
-of the three fields; a field left out keeps its value. Refusals, in order:
+of the four fields; a field left out keeps its value, and `hour` -1 clears
+the hour (a JSON null reads as left out). Refusals, in order:
 a staging site → 400 `a staging site has no backup schedule of its own`; a
 body naming none → 400; a `retention_days` other than the stored one from
 anyone but an administrator → 403 `only an administrator can change how
 long a site's backups are kept` (a shorter window deletes snapshots, as
-`DELETE /api/backups/{id}` does); an unknown schedule or a window outside
-0–3650 → 400 with `fields`. The write renders nothing, so it is stored with
+`DELETE /api/backups/{id}` does); an unknown schedule, a window outside
+0–3650 or an hour outside -1–23 → 400 with `fields`. The write renders nothing, so it is stored with
 `MutateSiteApplied` (a site that was applied stays applied) and queues no
 job; the store's `site.changed` event tells the pages. Audited
-`backup.policy` with the stored values. Answer: `200` and the policy.
+`backup.policy` with the stored values (`hour=03:00`, or `hour=any`). Answer: `200` and the policy.
 
 ### 5.3 Jobs
 
@@ -1703,6 +1714,25 @@ across the fetch. Errors are fixed strings: `could not reach the release
 feed`, `the release feed has no signature`, `the published release is not
 validly signed`. `notes_url` is the changelog with the heading anchor
 GitHub renders (`v0.2.10` → `#v0210`). The check never installs anything.
+
+### 7.3 PHP extensions (#29)
+
+A PHP version's extensions are the server's, shared by every site on it
+(`php_extensions.go`; the agent's side is internal/agent/ops/sites SPEC §9).
+
+- `GET /api/php/{version}/extensions` (signed in: the site's PHP page shows
+  its version's): a version that is not `8.x` → 400; otherwise the agent's
+  `PHPExtensions`, `{version, modules, extensions: [{name, installed}]}`,
+  `modules` every module the version's FPM binary loads, `extensions` the
+  common ones (`rpc.PHPExtensions`). A version not installed → 400 from the
+  agent.
+- `POST /api/php/{version}/extensions` (admin) `{"extension": "redis"}`: an
+  extension outside the common list or a bad version → 400 before any job;
+  otherwise the server-wide job `php.extension` (lock `apt`, dedup key
+  `php.extension:<version>:<extension>`), which asks the agent's
+  `PHPExtensionInstall`: apt installs `php<version>-<extension>` and every
+  site master on that version restarts to load it. 202 `{task}`; audit
+  `php.extension`, subject `PHP <version>`, detail the extension.
 
 ## 8. Connector purge (R-4.3)
 

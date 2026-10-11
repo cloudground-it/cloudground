@@ -272,7 +272,7 @@ curl -sk --cookie cookies https://panel.example.com/api/sites \
 | `POST` | `/api/backups/{id}/restore` | manage | restore in place — `mode` is `full`, `files` or `database`; `confirm` is the domain |
 | `DELETE` | `/api/backups/{id}` | admin | delete the snapshot from the repository (queued under its lock); refused for one whose restore test has not run and for the site's newest verified one |
 | `POST` | `/api/backups/test` | admin | try the backup repository's credentials |
-| `PUT` | `/api/sites/{id}/backups/policy` | manage | the site's backup policy: any of `enabled`, `schedule` (`hourly`, `daily`, `weekly`), `retention_days` (0 keeps every snapshot, at most 3650; changing it is an admin's); answers the policy |
+| `PUT` | `/api/sites/{id}/backups/policy` | manage | the site's backup policy: any of `enabled`, `schedule` (`hourly`, `daily`, `weekly`), `hour` (0–23, the panel's time zone, for daily and weekly; -1 for none), `retention_days` (0 keeps every snapshot, at most 3650; changing it is an admin's); answers the policy |
 | `POST` | `/api/sites/{id}/backups/retention` | admin | apply the site's retention window now (it also runs daily) |
 
 ### Files
@@ -448,6 +448,8 @@ session (an API token gets 403); an operator adds `"sftp"` keys to its sites.
 | `GET` | `/api/system/drift` | global | managed files changed outside the panel |
 | `POST` | `/api/system/drift/{id}/resolve` | admin | `{"action":"restore"}` puts the file back, `{"action":"accept"}` keeps it (accept: a signed-in session only, an API token gets 403) |
 | `POST` | `/api/system/maintenance` | admin | run one maintenance tick now and wait for it |
+| `GET` | `/api/php/{version}/extensions` | auth | what a PHP version loads: every module, and the common extensions with `installed` |
+| `POST` | `/api/php/{version}/extensions` | admin | install one of the common extensions (`{"extension": "redis"}`) and restart the PHP of the sites on that version; answers the task |
 | `GET` | `/api/services` | global | whether nginx, PHP-FPM, MariaDB and Redis run |
 | `POST` | `/api/services/{name}/restart` | admin | restart that service |
 | `GET` | `/api/logs` | global | the last lines of a server log |

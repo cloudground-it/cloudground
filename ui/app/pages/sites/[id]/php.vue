@@ -4,6 +4,7 @@ const api = useApi()
 const toast = useToast()
 const { canManage, isAdmin } = useAuth()
 const { busy, run } = useAction()
+const confirm = useConfirm()
 const { site, refresh } = useCurrentSite()
 
 const DEFAULT_MEMORY = computed(() => site.value.type === 'woocommerce' ? 512 : 256)
@@ -76,6 +77,29 @@ async function apply(overBudget = false) {
 const versionItems = computed(() => versions.value.map(v => ({ value: v, label: `PHP ${v}`, description: versionNote(v) })))
 const reapply = () => run(() => api.patch(`/api/sites/${site.value.id}`, { php_version: site.value.php_version }), t('common.applied')).then(refresh)
 
+// The extensions of the site's PHP version: the server's, shared by every
+// site on that version. Installing one is an administrator's, and restarts
+// the PHP of those sites (GET/POST /api/php/{version}/extensions).
+interface PHPExtensions { version: string, modules: string[], extensions: { name: string, installed: boolean }[] }
+const extVersion = computed(() => site.value.php_version)
+const { data: ext, refresh: refreshExt } = useLive(
+  () => extVersion.value ? api.get<PHPExtensions>(`/api/php/${extVersion.value}/extensions`) : Promise.resolve(null),
+  { on: { types: ['task.finished'] } }
+)
+watch(extVersion, () => void refreshExt())
+const installing = ref('')
+async function installExt(name: string) {
+  const ok = await confirm({
+    title: t('php.extInstallTitle', { name, version: extVersion.value }),
+    description: t('php.extInstallHint', { version: extVersion.value }),
+    confirmLabel: t('php.extInstall')
+  })
+  if (!ok) return
+  installing.value = name
+  await run(() => api.post(`/api/php/${extVersion.value}/extensions`, { extension: name }), t('php.extStarted', { name }))
+  installing.value = ''
+}
+
 const budget = computed(() => site.value.config.resources?.memory_high_mb || 0)
 const peak = computed(() => form.php_workers * form.memory_limit_mb)
 </script>
@@ -126,6 +150,36 @@ const peak = computed(() => form.php_workers * form.memory_limit_mb)
     <template v-if="canManage" #footer>
       <UButton :label="t('common.apply')" :loading="busy" :disabled="!changed" @click="apply()" />
       <UButton v-if="budgetError && isAdmin" color="error" variant="outline" :label="t('php.overBudget')" :disabled="busy" @click="apply(true)" />
+    </template>
+  </PanelSection>
+
+  <PanelSection v-if="extVersion" :title="t('php.extTitle', { version: extVersion })" :description="t('php.extHint')" flush>
+    <USkeleton v-if="!ext" class="m-4 h-24" />
+    <template v-else>
+      <ul class="m-0 grid list-none gap-px bg-(--cg-line) p-0 sm:grid-cols-2 lg:grid-cols-3">
+        <li v-for="e in ext.extensions" :key="e.name" class="flex items-center gap-3 bg-default px-4 py-2.5 sm:px-5">
+          <UIcon :name="e.installed ? 'i-cg-check-circle' : 'i-cg-minus'" class="size-4 shrink-0" :class="e.installed ? 'text-cg-ok' : 'text-dimmed'" />
+          <span class="mono min-w-0 flex-1 text-[13px] text-highlighted">{{ e.name }}</span>
+          <UButton
+            v-if="!e.installed && isAdmin"
+            size="xs"
+            color="neutral"
+            variant="outline"
+            icon="i-cg-download"
+            :label="t('php.extInstall')"
+            :loading="installing === e.name"
+            :disabled="!!installing"
+            @click="installExt(e.name)"
+          />
+          <span v-else-if="!e.installed" class="text-xs text-dimmed">{{ t('php.extMissing') }}</span>
+        </li>
+      </ul>
+      <UCollapsible class="border-t border-default">
+        <UButton color="neutral" variant="link" size="sm" trailing-icon="i-cg-chevron-down" class="mx-2 my-1" :label="t('php.extModules', { n: ext.modules.length })" />
+        <template #content>
+          <p class="mono m-0 px-4 pb-4 text-xs leading-relaxed break-words text-muted sm:px-5">{{ ext.modules.join(' · ') }}</p>
+        </template>
+      </UCollapsible>
     </template>
   </PanelSection>
 </template>

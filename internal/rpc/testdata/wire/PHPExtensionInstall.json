@@ -1,0 +1,31 @@
+{
+  "params": {
+    "full": {
+      "version": "Version",
+      "extension": "Extension"
+    },
+    "zero": {
+      "version": "",
+      "extension": ""
+    }
+  },
+  "result": {
+    "full": {
+      "version": "Version",
+      "modules": [
+        "Modules"
+      ],
+      "extensions": [
+        {
+          "name": "Name",
+          "installed": true
+        }
+      ]
+    },
+    "zero": {
+      "version": "",
+      "modules": null,
+      "extensions": null
+    }
+  }
+}

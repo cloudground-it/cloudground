@@ -1,12 +1,19 @@
 package sites
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
+	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
+	"github.com/cloudground-it/cloudground/internal/phpfpm"
+	"github.com/cloudground-it/cloudground/internal/rpc"
 	"github.com/cloudground-it/cloudground/internal/site"
 )
 
@@ -53,4 +60,98 @@ func (o *Ops) checkPHPInstalled(version string) error {
 		return nil
 	}
 	return agentrpc.Invalid("PHP %s is not installed on this server (available: %s)", version, strings.Join(have, ", "))
+}
+
+// aptEnv is apt's environment: no question on a terminal, the C locale.
+var aptEnv = []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL=C", "DEBIAN_FRONTEND=noninteractive"}
+
+// PHPExtensions lists what a PHP version loads (SPEC §9): `php-fpm<v> -m`,
+// the FPM binary the sites' masters run, so the list is what they load, and
+// the common extensions (rpc.PHPExtensions) with whether each is loaded.
+func (o *Ops) PHPExtensions(ctx context.Context, p rpc.PHPExtensionsParams) (rpc.PHPExtensionsResult, error) {
+	if err := o.checkPHPExists(p.Version); err != nil {
+		return rpc.PHPExtensionsResult{}, err
+	}
+	res, err := o.Exec.Run(ctx, host.Cmd{Name: o.fpmBinary(p.Version), Args: []string{"-m"}, Env: aptEnv[:2], Timeout: 30 * time.Second})
+	if err != nil {
+		return rpc.PHPExtensionsResult{}, fmt.Errorf("php-fpm%s -m: %w", p.Version, err)
+	}
+	return phpModules(p.Version, string(res.Stdout)), nil
+}
+
+// phpModules reads `php -m`: one module a line under "[PHP Modules]" and
+// "[Zend Modules]", the Zend ones repeated in both.
+func phpModules(version, out string) rpc.PHPExtensionsResult {
+	seen := map[string]bool{}
+	r := rpc.PHPExtensionsResult{Version: version, Modules: []string{}}
+	for _, line := range strings.Split(out, "\n") {
+		m := strings.ToLower(strings.TrimSpace(line))
+		if m == "" || strings.HasPrefix(m, "[") || seen[m] {
+			continue
+		}
+		seen[m] = true
+		r.Modules = append(r.Modules, m)
+	}
+	slices.Sort(r.Modules)
+	for _, e := range rpc.PHPExtensions {
+		r.Extensions = append(r.Extensions, rpc.PHPExtensionState{Name: e.Name, Installed: slices.ContainsFunc(e.Modules, func(m string) bool { return seen[m] })})
+	}
+	return r
+}
+
+// InstallPHPExtension installs one common extension for a PHP version
+// (SPEC §9): `apt-get install php<v>-<ext>`, then a restart of every site
+// master that runs that version (versionMasters), since a master loads its
+// extensions when it starts. The answer is what the version loads
+// afterwards.
+func (o *Ops) InstallPHPExtension(ctx context.Context, p rpc.PHPExtensionInstallParams) (rpc.PHPExtensionsResult, error) {
+	if err := o.checkPHPExists(p.Version); err != nil {
+		return rpc.PHPExtensionsResult{}, err
+	}
+	pkg := "php" + p.Version + "-" + p.Extension
+	// apt waits for a lock another apt holds (unattended-upgrades) instead
+	// of failing at once.
+	if _, err := o.Exec.Run(ctx, host.Cmd{Name: "apt-get", Env: aptEnv, Timeout: 12 * time.Minute,
+		Args: []string{"-o", "DPkg::Lock::Timeout=120", "install", "-y", "-qq", "--no-install-recommends", pkg}}); err != nil {
+		return rpc.PHPExtensionsResult{}, fmt.Errorf("apt-get install %s: %w", pkg, err)
+	}
+	var failed []error
+	for _, unit := range o.versionMasters(p.Version) {
+		if err := o.Systemd.Restart(ctx, unit); err != nil {
+			failed = append(failed, fmt.Errorf("%s: %w", unit, err))
+		}
+	}
+	if err := errors.Join(failed...); err != nil {
+		return rpc.PHPExtensionsResult{}, fmt.Errorf("%s is installed, but PHP did not restart for: %w", pkg, err)
+	}
+	return o.PHPExtensions(ctx, rpc.PHPExtensionsParams{Version: p.Version})
+}
+
+// versionMasters are the units of the site masters that run version: the
+// agent's own unit files (cloudground-php-cg-site-<id>.service), read
+// rather than asked for, whose ExecStart starts that version's FPM binary.
+func (o *Ops) versionMasters(version string) []string {
+	files, _ := filepath.Glob(filepath.Join(o.Paths.SystemdDir, phpfpm.UnitName("cg-site-*")))
+	bin := o.fpmBinary(version) + " "
+	var out []string
+	for _, f := range files {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			if rest, ok := strings.CutPrefix(line, "ExecStart="); ok && strings.HasPrefix(rest, bin) {
+				out = append(out, filepath.Base(f))
+			}
+		}
+	}
+	return out
+}
+
+// checkPHPExists refuses a version whose FPM binary is not on the machine.
+func (o *Ops) checkPHPExists(version string) error {
+	if !slices.Contains(o.PHPVersions(), version) {
+		return agentrpc.Invalid("PHP %s is not installed on this server", version)
+	}
+	return nil
 }

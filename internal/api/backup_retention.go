@@ -42,6 +42,31 @@ func backupEvery(schedule string) time.Duration {
 	return 24 * time.Hour
 }
 
+// hourSlack is how much earlier than a full day or week after the last
+// backup one at a fixed hour may run: the sweep comes every five minutes,
+// so last week's ran a little after the hour, and this week's slot comes
+// a little less than a week later. Half a day also keeps a changed hour
+// from running a second backup the same day.
+const hourSlack = 12 * time.Hour
+
+// backupDue reports whether a site's scheduled backup is due at now, its
+// last one queued at last. Without an hour (or hourly) it is the spacing
+// since the last; with one, the newest slot (today at the hour, or
+// yesterday's while today's is ahead) must have no backup after it, and
+// must come (nearly) a day or a week after the last one, so a weekly one
+// keeps its weekday. A slot missed while the panel was down runs at the next sweep.
+func backupDue(p state.BackupPolicy, last, now time.Time) bool {
+	every := backupEvery(p.Schedule)
+	if p.Hour == nil || every < 24*time.Hour {
+		return now.Sub(last) >= every
+	}
+	slot := time.Date(now.Year(), now.Month(), now.Day(), *p.Hour, 0, 0, 0, now.Location())
+	if slot.After(now) {
+		slot = slot.AddDate(0, 0, -1)
+	}
+	return last.Before(slot) && slot.Sub(last) >= every-hourSlack
+}
+
 // scheduledBackupSites are the production sites whose backup policy is on.
 func (s *Server) scheduledBackupSites() ([]state.Site, error) {
 	all, err := s.Store.ListSites()
@@ -77,7 +102,7 @@ func (s *Server) runBackupSweep(ctx context.Context, r *jobs.Run) error {
 	for _, site := range sites {
 		key := backupScheduleKey(site.ID)
 		last, _ := s.Store.LastScheduleRun(key)
-		if time.Since(last) < backupEvery(site.Config.Backups.Schedule) {
+		if !backupDue(site.Config.Backups, last, time.Now()) {
 			continue
 		}
 		if _, err := s.Jobs.Enqueue(jobs.Spec{
