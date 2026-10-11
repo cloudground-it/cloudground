@@ -61,19 +61,33 @@ func (s *Server) vulnCheckOn() (bool, error) {
 	return p.VulnerabilityCheck, err
 }
 
-// runVulnSweep is the security.sweep job (every maintenance tick): it
-// queues the check of each WordPress site whose last one is a day old. The
-// key is set when the check is queued, so a site is checked once a day from
-// when it was first seen, not all at the same hour; a check that fails
-// waits for the next day too (its error stays on the site's page and the
-// failed task is an alert).
-func (s *Server) runVulnSweep(ctx context.Context, r *jobs.Run) error {
-	if on, err := s.vulnCheckOn(); err != nil || !on {
-		return err
-	}
+// runSecuritySweep is the security.sweep job (every maintenance tick): it
+// queues the due vulnerability checks and malware scans (malware.go).
+func (s *Server) runSecuritySweep(ctx context.Context, r *jobs.Run) error {
 	sites, err := s.Store.ListSites()
 	if err != nil {
 		return err
+	}
+	checks, err := s.queueVulnChecks(sites)
+	if err != nil {
+		return err
+	}
+	scans, err := s.queueMalwareScans(sites, time.Now())
+	if err != nil {
+		return err
+	}
+	r.Progress(100, fmt.Sprintf("%d vulnerability checks and %d malware scans queued", checks, scans))
+	return nil
+}
+
+// queueVulnChecks queues the check of each WordPress site whose last one is
+// a day old. The key is set when the check is queued, so a site is checked
+// once a day from when it was first seen, not all at the same hour; a
+// check that fails waits for the next day too (its error stays on the
+// site's page and the failed task is an alert).
+func (s *Server) queueVulnChecks(sites []state.Site) (int, error) {
+	if on, err := s.vulnCheckOn(); err != nil || !on {
+		return 0, err
 	}
 	queued := 0
 	for _, st := range sites {
@@ -85,13 +99,12 @@ func (s *Server) runVulnSweep(ctx context.Context, r *jobs.Run) error {
 			continue
 		}
 		if _, err := s.enqueueVulnCheck(st.ID, true); err != nil {
-			return err
+			return queued, err
 		}
 		s.logIfErr(s.Store.MarkScheduleRun(key), "MarkScheduleRun")
 		queued++
 	}
-	r.Progress(100, fmt.Sprintf("%d vulnerability checks queued", queued))
-	return nil
+	return queued, nil
 }
 
 // enqueueVulnCheck queues the check of a site; one already queued or

@@ -36,6 +36,7 @@ func TestTokensCannotGovernThePanel(t *testing.T) {
 		"update_channel":       "beta",
 		"update_check":         "0",
 		"vulnerability_check":  "0",
+		"malware_scan":         "1",
 	} {
 		code, body := bearer(t, ts, tok.Token, "PUT", "/api/settings", map[string]string{key: value})
 		if code != http.StatusForbidden || !strings.Contains(string(body), "cannot change "+key) {

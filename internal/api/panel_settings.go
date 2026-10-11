@@ -83,6 +83,9 @@ var settingFields = map[string]setting{
 	// vulnerability database (§11.6).
 	"vulnerability_check": flagSetting(func(p *state.PanelSettings) *bool { return &p.VulnerabilityCheck },
 		"", "0", []string{"", "1", "true"}, []string{"0", "false"}, "must be 0 or empty"),
+	// The weekly malware scan of every site (§11.7); on installs ClamAV.
+	"malware_scan": flagSetting(func(p *state.PanelSettings) *bool { return &p.MalwareScan },
+		"1", "", []string{"1", "true"}, []string{"", "0", "false"}, "must be 1 or empty"),
 	// The release channel the update check and the self-update follow.
 	"update_channel": {
 		show: func(p state.PanelSettings) string { return p.UpdateChannel },

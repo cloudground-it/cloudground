@@ -272,7 +272,8 @@ gone.
    before its files, so nothing of it runs while they are removed. Then its
    group, if it exists: `groupdel`. `userdel` keeps a user's own group while
    another member is left, and `www-data` is one in every site's group.
-8. Page cache, logs, the tree.
+8. Page cache, logs, the files the malware scan moved to quarantine
+   (`<Quarantine>/<site id>`, ops/malware SPEC §4), the tree.
 
 Every step runs; the errors are joined and returned
 ("site cleanup incomplete").

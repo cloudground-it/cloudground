@@ -66,6 +66,8 @@ index sqlite_autoindex_site_db_grants_1 on site_db_grants
   
 index sqlite_autoindex_site_db_users_1 on site_db_users
   
+index sqlite_autoindex_site_malware_findings_1 on site_malware_findings
+  
 index sqlite_autoindex_site_usage_hourly_1 on site_usage_hourly
   
 index sqlite_autoindex_sites_1 on sites
@@ -97,7 +99,7 @@ table meta on meta
 table metric_samples on metric_samples
   create table metric_samples(id integer primary key autoincrement,cpu_headroom_pct integer not null,mem_headroom_pct integer not null,disk_headroom_pct integer not null,load1 real not null,sampled_at text not null)
 table panel_settings on panel_settings
-  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')),vulnerability_check integer not null default 1)
+  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')),vulnerability_check integer not null default 1,malware_scan integer not null default 0)
 table schedule_state on schedule_state
   create table schedule_state(key text primary key,last_run text not null)
 table schema_migrations on schema_migrations
@@ -116,6 +118,10 @@ table site_db_grants on site_db_grants
   create table site_db_grants(user_id integer not null references site_db_users(id)on delete cascade,database_id integer not null references site_databases(id)on delete cascade,level text not null check(level in('all','read')),primary key(user_id,database_id))
 table site_db_users on site_db_users
   create table site_db_users(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,name text not null unique,secret text not null,created_at text not null)
+table site_malware_findings on site_malware_findings
+  create table site_malware_findings(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,path text not null,signature text not null,status text not null check(status in('open','quarantined','gone')),first_seen text not null,last_seen text not null,quarantined_at text not null default '',quarantine_id text not null default '',unique(site_id,path,signature))
+table site_malware_scans on site_malware_scans
+  create table site_malware_scans(site_id integer primary key references sites(id)on delete cascade,scanned_at text not null default '',attempted_at text not null,error text not null default '',files integer not null default 0,signatures integer not null default 0,duration_ms integer not null default 0,engine text not null default '',database text not null default '')
 table site_status on site_status
   create table site_status(site_id integer primary key references sites(id)on delete cascade,cert_expiry text not null default '',cert_error text not null default '')
 table site_usage on site_usage
@@ -295,6 +301,7 @@ columns of panel_settings
   8 | update_check | INTEGER | 1 | 1 | 0
   9 | update_channel | TEXT | 1 | 'stable' | 0
   10 | vulnerability_check | INTEGER | 1 | 1 | 0
+  11 | malware_scan | INTEGER | 1 | 0 | 0
 
 columns of schedule_state
   0 | key | TEXT | 0 | - | 1
@@ -366,6 +373,31 @@ columns of site_db_users
   fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
   index idx_site_db_users_site unique=0 origin=c partial=0 on 0:1:site_id
   index sqlite_autoindex_site_db_users_1 unique=1 origin=u partial=0 on 0:2:name
+
+columns of site_malware_findings
+  0 | id | INTEGER | 0 | - | 1
+  1 | site_id | INTEGER | 1 | - | 0
+  2 | path | TEXT | 1 | - | 0
+  3 | signature | TEXT | 1 | - | 0
+  4 | status | TEXT | 1 | - | 0
+  5 | first_seen | TEXT | 1 | - | 0
+  6 | last_seen | TEXT | 1 | - | 0
+  7 | quarantined_at | TEXT | 1 | '' | 0
+  8 | quarantine_id | TEXT | 1 | '' | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index sqlite_autoindex_site_malware_findings_1 unique=1 origin=u partial=0 on 0:1:site_id, 1:2:path, 2:3:signature
+
+columns of site_malware_scans
+  0 | site_id | INTEGER | 0 | - | 1
+  1 | scanned_at | TEXT | 1 | '' | 0
+  2 | attempted_at | TEXT | 1 | - | 0
+  3 | error | TEXT | 1 | '' | 0
+  4 | files | INTEGER | 1 | 0 | 0
+  5 | signatures | INTEGER | 1 | 0 | 0
+  6 | duration_ms | INTEGER | 1 | 0 | 0
+  7 | engine | TEXT | 1 | '' | 0
+  8 | database | TEXT | 1 | '' | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
 
 columns of site_status
   0 | site_id | INTEGER | 0 | - | 1

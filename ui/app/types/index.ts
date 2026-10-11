@@ -312,3 +312,34 @@ export interface VulnView {
   interval_seconds: number
   source: { name: string, url: string, license: string }
 }
+
+/** One file a malware scan found (#76). */
+export interface MalwareFinding {
+  id: number
+  path: string
+  signature: string
+  status: 'open' | 'quarantined' | 'gone'
+  first_seen: string
+  last_seen: string
+  quarantined_at?: string
+  quarantine_id?: string
+}
+
+/** GET /api/sites/{id}/malware. */
+export interface MalwareView {
+  enabled: boolean
+  scanned: boolean
+  next_scan?: string
+  scan: {
+    scanned_at: string
+    attempted_at: string
+    error?: string
+    files: number
+    signatures: number
+    duration_ms: number
+    engine?: string
+    database?: string
+  }
+  findings: MalwareFinding[]
+  interval_seconds: number
+}

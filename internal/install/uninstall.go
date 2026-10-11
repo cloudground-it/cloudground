@@ -485,7 +485,7 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 
 	// 5. The state and the directories.
 	rm("state", "/etc/cloudground", "/etc/cloudground-php", "/var/lib/cloudground", "/var/lib/cloudground-agent",
-		"/var/cache/cloudground", "/var/log/cloudground", "/run/cloudground", acmeWebroot,
+		"/var/lib/cloudground-signatures", "/etc/clamav/cloudground-freshclam.conf", "/var/cache/cloudground", "/var/log/cloudground", "/run/cloudground", acmeWebroot,
 		"/var/log/cloudground-install.log", "/tmp/cloudground-install.log")
 	if e.Acct != nil {
 		if _, _, ok := e.Acct.User("cloudground"); ok {

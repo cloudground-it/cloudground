@@ -662,7 +662,10 @@ In order:
    `daemon-reload`; the binaries (`panel-api`, `panel-agent`, `cgctl` itself, `cg-site-shell`, the
    `cg-site-cron` link, their `.bak` and `.cg-update` files).
 7. **The state**: `/etc/cloudground`, `/etc/cloudground-php`, `/var/lib/cloudground`,
-   `/var/lib/cloudground-agent` (update snapshots included), `/var/cache/cloudground`,
+   `/var/lib/cloudground-agent` (update snapshots and the malware quarantine included), the malware
+   scan's signature set `/var/lib/cloudground-signatures` and its freshclam configuration
+   `/etc/clamav/cloudground-freshclam.conf` (ClamAV itself, a distribution package, stays),
+   `/var/cache/cloudground`,
    `/var/log/cloudground`, `/run/cloudground`, `/var/www/cloudground-acme`, the install logs; the
    user `cloudground`, the groups `cloudground`, `cg-sftp-off` and `cg-sftp-keys`; the recorded `dirs` where empty;
    `/srv/sites` if empty.

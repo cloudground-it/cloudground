@@ -35,6 +35,9 @@ type PanelSettings struct {
 	// VulnerabilityCheck turns on the daily lookup of the WordPress sites'
 	// core, plugin and theme versions in a public database (api SPEC §11.6).
 	VulnerabilityCheck bool
+	// MalwareScan turns on the scheduled malware scan of every site (api
+	// SPEC §11.7); off by default, since it installs ClamAV.
+	MalwareScan bool
 }
 
 // EffectiveProbeTarget is ProbeTarget, or the default when unset.
@@ -45,12 +48,12 @@ func (p PanelSettings) EffectiveProbeTarget() string {
 	return p.ProbeTarget
 }
 
-const panelCols = `acme_email, panel_domain, probe_target, backup_repository, backup_s3_access_key, backup_s3_region, require_2fa_admin, update_check, update_channel, vulnerability_check`
+const panelCols = `acme_email, panel_domain, probe_target, backup_repository, backup_s3_access_key, backup_s3_region, require_2fa_admin, update_check, update_channel, vulnerability_check, malware_scan`
 
 func scanPanel(row interface{ Scan(...any) error }) (PanelSettings, error) {
 	var p PanelSettings
 	err := row.Scan(&p.ACMEEmail, &p.PanelDomain, &p.ProbeTarget, &p.BackupRepository,
-		&p.BackupS3AccessKey, &p.BackupS3Region, &p.Require2FAAdmin, &p.UpdateCheck, &p.UpdateChannel, &p.VulnerabilityCheck)
+		&p.BackupS3AccessKey, &p.BackupS3Region, &p.Require2FAAdmin, &p.UpdateCheck, &p.UpdateChannel, &p.VulnerabilityCheck, &p.MalwareScan)
 	return p, err
 }
 
@@ -86,9 +89,9 @@ func (s *Store) UpdatePanelSettings(fn func(*PanelSettings) error) (PanelSetting
 			return err
 		}
 		if _, err := conn.ExecContext(ctx, `UPDATE panel_settings SET acme_email=?, panel_domain=?, probe_target=?,
-			backup_repository=?, backup_s3_access_key=?, backup_s3_region=?, require_2fa_admin=?, update_check=?, update_channel=?, vulnerability_check=? WHERE id=1`,
+			backup_repository=?, backup_s3_access_key=?, backup_s3_region=?, require_2fa_admin=?, update_check=?, update_channel=?, vulnerability_check=?, malware_scan=? WHERE id=1`,
 			p.ACMEEmail, p.PanelDomain, p.ProbeTarget, repo, p.BackupS3AccessKey, p.BackupS3Region,
-			p.Require2FAAdmin, p.UpdateCheck, p.UpdateChannel, p.VulnerabilityCheck); err != nil {
+			p.Require2FAAdmin, p.UpdateCheck, p.UpdateChannel, p.VulnerabilityCheck, p.MalwareScan); err != nil {
 			return fmt.Errorf("update panel settings: %w", err)
 		}
 		out = p
