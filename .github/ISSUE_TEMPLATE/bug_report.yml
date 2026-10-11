@@ -64,5 +64,5 @@ body:
       options:
         - label: It is not a security problem (those go through SECURITY.md)
           required: true
-        - label: I looked for it in the [documentation](https://docs.cloudground.it)
+        - label: I looked for it in the [documentation](https://cloudground.it/en/docs)
           required: true

@@ -71,7 +71,7 @@ The panel answers on its own port, **https://server-address:8443**, with a self-
 at first; ports 80 and 443 belong to the sites. **Settings → Panel domain and HTTPS** gives the
 panel a domain with a Let's Encrypt certificate that renews itself.
 
-The full guide is at [docs.cloudground.it](https://docs.cloudground.it).
+The full guide is at [cloudground.it/docs](https://cloudground.it/en/docs).
 
 ## How it is built
 
@@ -94,7 +94,7 @@ argument lists only. More in [docs/architecture.md](./docs/architecture.md).
 ## Documentation
 
 How to use the panel (install, sites, cache, staging, backups, the command line) is at
-[docs.cloudground.it](https://docs.cloudground.it), from the `cloudground-it/cloudground-docs`
+[cloudground.it/docs](https://cloudground.it/en/docs), from the `cloudground-it/cloudground-docs`
 repository. This repository keeps the documents for developers:
 
 | | |

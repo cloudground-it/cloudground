@@ -456,7 +456,7 @@ or, when the tick would hold the request more than 10 s (maintenance waiting beh
 
 `POST /api/panel/update` takes `{"version": "v0.3.0"}`, which is recorded in the audit log and
 nothing more. The request cannot name a source or waive verification: the update origin and the key
-releases must be signed with are compiled into the agent. See [Update CloudGround](https://docs.cloudground.it/server/update-cloudground).
+releases must be signed with are compiled into the agent. See [Update CloudGround](https://cloudground.it/en/docs/server/update-cloudground).
 
 ### Tasks and the event stream
 

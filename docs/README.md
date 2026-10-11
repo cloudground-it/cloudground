@@ -2,7 +2,7 @@
 
 These pages are for whoever changes CloudGround's code. Using the panel (installing it, running
 sites, backups, the command line) is covered in the user documentation at
-<https://docs.cloudground.it>, which has its own repository, `cloudground-it/cloudground-docs`.
+<https://cloudground.it/en/docs>, which has its own repository, `cloudground-it/cloudground-docs`.
 
 Every page has one job. A **how-to** walks through a task, a **reference** lists exact values,
 an **explanation** gives the reasons behind a design. The explanations are worth reading once;
