@@ -385,6 +385,35 @@ func TestUninstallTakesDebianCnfWithMariaDB(t *testing.T) {
 	}
 }
 
+// A purge that failed leaves the package, its file and so its profile.
+func TestUninstallKeepsTheProfileOfAFailedPurge(t *testing.T) {
+	m := installed(t)
+	if err := m.env.record(func(r *InstallRecord) { r.Packages = []string{"nginx"} }); err != nil {
+		t.Fatal(err)
+	}
+	m.write("/etc/apparmor.d/nginx", "profile \"nginx web\" /usr/sbin/nginx {\n}\n", 0o644)
+	m.write(apparmorFS+"/profiles", "nginx web (enforce)\n", 0o444)
+	inner := m.cmd.handle
+	m.cmd.handle = func(line string) (string, error, bool) {
+		switch {
+		case line == "dpkg-query -L nginx":
+			return "/etc/apparmor.d/nginx\n", nil, true
+		case strings.HasPrefix(line, "apt-get purge"):
+			return "E: Could not get lock /var/lib/dpkg/lock-frontend", errors.New("exit status 100"), true
+		}
+		return inner(line)
+	}
+	if err := m.uninstall(UninstallOptions{PurgePackages: true, KeptDir: DefaultKeptDir}); err == nil {
+		t.Fatal("the failed purge was not reported")
+	}
+	if !m.gone(apparmorFS + "/.remove") {
+		t.Error("the profile of a package still installed was unloaded")
+	}
+	if got := profileNames("profile \"nginx web\" /usr/sbin/nginx {"); len(got) != 1 || got[0] != "nginx web" {
+		t.Errorf("quoted name read as %q", got)
+	}
+}
+
 // MariaDB kept for a database CloudGround did not make keeps its debian.cnf.
 func TestUninstallKeepsDebianCnfWithAKeptMariaDB(t *testing.T) {
 	m := installed(t)

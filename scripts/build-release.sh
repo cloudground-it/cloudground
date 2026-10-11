@@ -28,8 +28,11 @@ build_ui() {
     (cd ui && npm ci --no-audit --no-fund --silent && npm run build --silent)
     return
   fi
+  # Elsewhere the path differs (macOS: /tmp is /private/tmp): make docker-dist.
+  [[ $(uname -s) == Linux ]] || die "build ui/dist on Linux, or with make docker-dist"
   rm -rf "$UI_BUILD_DIR"
-  mkdir -p "$UI_BUILD_DIR"
+  # Not -p: another build at work, or anything planted at the path, stops it.
+  mkdir -m 0700 "$UI_BUILD_DIR" || die "$UI_BUILD_DIR exists: another UI build is running?"
   tar -C ui --exclude=./node_modules --exclude=./dist --exclude=./.nuxt --exclude=./.output -cf - . | tar -C "$UI_BUILD_DIR" -xf -
   (cd "$UI_BUILD_DIR" && npm ci --no-audit --no-fund --silent && npm run build --silent)
   rm -rf ui/dist

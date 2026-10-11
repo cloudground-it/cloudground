@@ -679,9 +679,20 @@ func purgeable(p string) bool {
 const apparmorFS = "/sys/kernel/security/apparmor"
 
 var (
-	apparmorNamed    = regexp.MustCompile(`(?m)^\s*profile\s+"?([^\s"{]+)`)
-	apparmorAttached = regexp.MustCompile(`(?m)^\s*"?(/[^\s"{]+)"?\s+(?:flags=\([^)]*\)\s*)?\{`)
+	apparmorNamed    = regexp.MustCompile(`(?m)^\s*profile\s+(?:"([^"]+)"|([^\s"{]+))`)
+	apparmorAttached = regexp.MustCompile(`(?m)^\s*(?:"(/[^"]+)"|(/[^\s"{]+))\s+(?:flags=\([^)]*\)\s*)?\{`)
 )
+
+// profileNames are the profile names the AppArmor policy text defines.
+func profileNames(text string) []string {
+	var names []string
+	for _, re := range []*regexp.Regexp{apparmorNamed, apparmorAttached} {
+		for _, m := range re.FindAllStringSubmatch(text, -1) {
+			names = append(names, m[1]+m[2])
+		}
+	}
+	return names
+}
 
 // apparmorProfiles are the profiles the packages' files in /etc/apparmor.d
 // define. A purge deletes the files but leaves the profiles loaded until a
@@ -695,27 +706,41 @@ func (e *Env) apparmorProfiles(ctx context.Context, pkgs []string) []string {
 		if filepath.Dir(f) != "/etc/apparmor.d" {
 			continue
 		}
-		b, err := os.ReadFile(e.path(f))
-		if err != nil {
-			continue
-		}
-		for _, re := range []*regexp.Regexp{apparmorNamed, apparmorAttached} {
-			for _, m := range re.FindAllStringSubmatch(string(b), -1) {
-				names = append(names, m[1])
-			}
+		if b, err := os.ReadFile(e.path(f)); err == nil {
+			names = append(names, profileNames(string(b))...)
 		}
 	}
 	return names
 }
 
-// unloadProfiles takes the profiles that are still loaded out of the kernel.
+// definedProfiles are the names the files left in /etc/apparmor.d define.
+func (e *Env) definedProfiles() map[string]bool {
+	defined := map[string]bool{}
+	entries, _ := os.ReadDir(e.path("/etc/apparmor.d"))
+	for _, d := range entries {
+		if !d.Type().IsRegular() {
+			continue
+		}
+		if b, err := os.ReadFile(e.path("/etc/apparmor.d/" + d.Name())); err == nil {
+			for _, n := range profileNames(string(b)) {
+				defined[n] = true
+			}
+		}
+	}
+	return defined
+}
+
+// unloadProfiles takes out of the kernel the profiles still loaded that no
+// file defines any more: a purge that failed, or another package's file
+// with the same name, keeps its profile.
 func (e *Env) unloadProfiles(names *[]string) {
 	loaded, err := os.ReadFile(e.path(apparmorFS + "/profiles"))
 	if err != nil {
 		return
 	}
+	defined := e.definedProfiles()
 	for _, n := range *names {
-		if !strings.Contains("\n"+string(loaded), "\n"+n+" (") {
+		if defined[n] || !strings.Contains("\n"+string(loaded), "\n"+n+" (") {
 			continue
 		}
 		if err := os.WriteFile(e.path(apparmorFS+"/.remove"), []byte(n), 0o600); err != nil {
