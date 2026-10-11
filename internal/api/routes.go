@@ -295,7 +295,7 @@ func (s *Server) routeTable() []route {
 
 		// Cron.
 		{Method: get, Path: "/api/sites/{id}/cron", Policy: policySignedIn, Load: loadSite, Handle: s.handleListCron,
-			Section: secCron, Doc: "this site's jobs; `last_run` and `last_status` are the latest run, scheduled or on demand"},
+			Section: secCron, Doc: "this site's jobs; `last_run` and `last_status` are the latest run, scheduled or on demand; for a read-only account `command` is redacted as in the audit log (first word, word count, fingerprint)"},
 		{Method: post, Path: "/api/sites/{id}/cron", Policy: policyManage, Load: loadSite, Handle: s.handleCreateCron,
 			Section: secCron, Doc: "create one (`schedule`, `command`, `description`, `enabled`)"},
 		{Method: patch, Path: "/api/cron/{id}", Policy: policyManage, Load: loadCron, Handle: s.handleUpdateCron,

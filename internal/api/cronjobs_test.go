@@ -148,3 +148,54 @@ func TestCronUpdate(t *testing.T) {
 		t.Fatalf("missing job = %d", resp.StatusCode)
 	}
 }
+
+// A job's command line can hold a secret: an account that manages the site
+// sees it whole, a read-only account sees it redacted as in the audit log
+// (#45).
+func TestCronListRedactsCommandsForReadOnly(t *testing.T) {
+	s, _, admin, site := cronSite(t)
+	const command = "curl -s -H 'Authorization: Bearer cron-secret-token' https://example.com/hook"
+	if resp, body := admin.do("POST", fmt.Sprintf("/api/sites/%d/cron", site.ID), map[string]string{
+		"schedule": "*/5 * * * *", "command": command,
+	}); resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create cron = %d %s", resp.StatusCode, body)
+	}
+	ts := admin.base
+	hash, _ := hashPassword("viewer-long-password")
+	if _, err := s.Store.CreateUser("viewer@example.com", hash, "readonly"); err != nil {
+		t.Fatal(err)
+	}
+	operator, err := s.Store.CreateUser("operator@example.com", hash, "operator")
+	if err == nil {
+		err = s.Store.SetUserSites(operator.ID, []int64{site.ID})
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	list := func(c *client) state.CronJob {
+		t.Helper()
+		resp, body := c.do("GET", fmt.Sprintf("/api/sites/%d/cron", site.ID), nil)
+		var jobs []state.CronJob
+		if resp.StatusCode != http.StatusOK || json.Unmarshal(body, &jobs) != nil || len(jobs) != 1 {
+			t.Fatalf("list = %d %s", resp.StatusCode, body)
+		}
+		return jobs[0]
+	}
+	signInAt := func(email string) *client {
+		c := &client{t: t, base: ts}
+		if resp, body := c.do("POST", "/api/login", map[string]string{"email": email, "password": "viewer-long-password"}); resp.StatusCode != http.StatusOK {
+			t.Fatalf("sign in as %s: %d %s", email, resp.StatusCode, body)
+		}
+		return c
+	}
+	if got := list(admin).Command; got != command {
+		t.Fatalf("admin sees %q", got)
+	}
+	if got := list(signInAt("operator@example.com")).Command; got != command {
+		t.Fatalf("operator sees %q", got)
+	}
+	job := list(signInAt("viewer@example.com"))
+	if strings.Contains(job.Command, "cron-secret-token") || job.Command != redactForAudit(command) || job.Schedule != "*/5 * * * *" {
+		t.Fatalf("read-only account sees %+v", job)
+	}
+}

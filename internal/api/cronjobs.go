@@ -79,6 +79,13 @@ func (s *Server) handleListCron(w http.ResponseWriter, r *http.Request, c *call)
 		jobs = []state.CronJob{}
 	}
 	s.withScheduledRuns(r.Context(), site, jobs)
+	// A command line can hold a token or a password. An account that cannot
+	// manage the site sees it as the audit log shows it to everyone.
+	if ok, _ := policyManage.admits(c.User.Role, ""); !ok {
+		for i := range jobs {
+			jobs[i].Command = redactForAudit(jobs[i].Command)
+		}
+	}
 	respond(w, http.StatusOK, jobs)
 }
 
