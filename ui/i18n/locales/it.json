@@ -108,7 +108,8 @@
   },
   "tasks": {
     "activity": "Attività",
-    "none": "Nessuna attività recente.",
+    "none": "Nessuna attività recente",
+    "noneHint": "Backup, rilasci e le altre attività del pannello compaiono qui mentre sono in corso.",
     "queued": "in coda",
     "recent": "Attività recenti",
     "status": {

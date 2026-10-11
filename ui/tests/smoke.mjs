@@ -6,7 +6,9 @@
 //     520 px: the regression long German labels cause;
 //   - an element whose box runs past its container's right edge, or whose
 //     text is cut without an ellipsis (text that does not fit);
-//   - horizontal scrolling of the page at 390 px.
+//   - horizontal scrolling of the page at 390 px;
+//   - a divider cut off by a side-scrolling box, an icon drawn in its
+//     background's colour.
 //
 // It needs a running panel with data, such as the uidev server
 // (internal/api/uidev_test.go, build tag uidev), and Playwright:
@@ -117,6 +119,27 @@ function probe(mobile) {
   if (sw > window.innerWidth + 1) found.push(`horizontal scroll: page is ${sw} px at ${window.innerWidth} px`)
   for (const body of document.querySelectorAll('[data-slot=body]')) {
     if (visible(body) && body.scrollWidth > body.clientWidth + 1) found.push(`horizontal scroll: the panel body is ${body.scrollWidth} px in ${body.clientWidth} px`)
+  }
+
+  // 4. A divider clipped by a side-scrolling box (a tab bar's wrapper hides
+  // its vertical overflow): a bottom border that ends below the scroller.
+  for (const box of document.querySelectorAll('*')) {
+    const cs = getComputedStyle(box)
+    if (!visible(box) || cs.overflowY !== 'hidden' || !/auto|scroll/.test(cs.overflowX)) continue
+    const bottom = box.getBoundingClientRect().bottom
+    for (const el of box.querySelectorAll('*')) {
+      if (!visible(el) || !(parseFloat(getComputedStyle(el).borderBottomWidth) > 0)) continue
+      const over = el.getBoundingClientRect().bottom - bottom
+      if (over > 0.5) found.push(`divider clipped: ${where(el)} (${Math.round(over)} px below its scroller)`)
+    }
+  }
+
+  // 5. An empty state's icon in the colour of what is behind it.
+  for (const icon of document.querySelectorAll('[data-slot=avatar] > [data-slot=icon]')) {
+    if (!visible(icon)) continue
+    let bg = 'rgba(0, 0, 0, 0)'
+    for (let e = icon; e && /rgba\(0, 0, 0, 0\)|transparent/.test(bg); e = e.parentElement) bg = getComputedStyle(e).backgroundColor
+    if (getComputedStyle(icon).color === bg) found.push(`icon invisible: ${where(icon)}`)
   }
   return [...new Set(found)]
 }

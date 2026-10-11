@@ -108,7 +108,8 @@
   },
   "tasks": {
     "activity": "Aktivität",
-    "none": "Keine aktuellen Aktivitäten.",
+    "none": "Keine aktuellen Aktivitäten",
+    "noneHint": "Backups, Releases und die anderen Vorgänge des Panels erscheinen hier, während sie laufen.",
     "queued": "in Warteschlange",
     "recent": "Letzte Aktivitäten",
     "status": {

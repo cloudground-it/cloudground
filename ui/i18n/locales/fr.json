@@ -108,7 +108,8 @@
   },
   "tasks": {
     "activity": "Activité",
-    "none": "Aucune activité récente.",
+    "none": "Aucune activité récente",
+    "noneHint": "Les sauvegardes, les releases et les autres opérations du panneau apparaissent ici pendant leur exécution.",
     "queued": "en file d’attente",
     "recent": "Activité récente",
     "status": {

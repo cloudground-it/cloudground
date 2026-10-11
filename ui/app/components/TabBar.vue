@@ -27,7 +27,10 @@ onMounted(() => nextTick(reveal))
 </script>
 
 <template>
-  <nav :aria-label="label" class="flex items-stretch border-b border-default">
+  <!-- The divider is an inset shadow, painted under the tabs: the active
+       tab's underline lies on it. As a border it sat below the scroller,
+       which clips anything drawn past its own box. -->
+  <nav :aria-label="label" class="flex items-stretch shadow-[inset_0_-1px_0_var(--ui-border)]">
     <div ref="scroller" class="scrollbar-none min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
       <UNavigationMenu
         :items="items"

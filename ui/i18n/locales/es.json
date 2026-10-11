@@ -108,7 +108,8 @@
   },
   "tasks": {
     "activity": "Actividad",
-    "none": "No hay actividad reciente.",
+    "none": "No hay actividad reciente",
+    "noneHint": "Las copias de seguridad, las releases y las demás operaciones del panel aparecen aquí mientras se ejecutan.",
     "queued": "en cola",
     "recent": "Actividad reciente",
     "status": {
