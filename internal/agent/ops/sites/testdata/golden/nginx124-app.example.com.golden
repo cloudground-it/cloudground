@@ -144,6 +144,6 @@ IOAccounting=yes
 TasksAccounting=yes
 # Over MemoryHigh the kernel reclaims and slows the site; at MemoryMax it
 # kills one of its processes. No other site is touched either way.
-MemoryHigh=3570M
-MemoryMax=3967M
+MemoryHigh=1843M
+MemoryMax=2048M
 TasksMax=512
