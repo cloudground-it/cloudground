@@ -94,7 +94,8 @@
       "deploy": "Release",
       "uptime": "Erreichbarkeit",
       "usage": "Ressourcen",
-      "vulnerability": "Sicherheitslücke"
+      "vulnerability": "Sicherheitslücke",
+      "malware": "Schadsoftware"
     },
     "more": "und {n} weitere unter Warnungen (Glocke oben rechts)",
     "dismiss": "Archivieren",
@@ -910,7 +911,9 @@
     "webhook": "Webhook",
     "webhookHint": "Eine https-URL von Slack, Discord, Mattermost o. Ä. (Feld text).",
     "vulnCheck": "WordPress-Websites auf bekannte Sicherheitslücken prüfen",
-    "vulnCheckHint": "Einmal am Tag werden die Versionen von Core, Plugins und Themes jeder WordPress-Website in der öffentlichen Datenbank WPVulnerability nachgeschlagen. Gesendet werden nur Namen und Versionen, nie die Website."
+    "vulnCheckHint": "Einmal am Tag werden die Versionen von Core, Plugins und Themes jeder WordPress-Website in der öffentlichen Datenbank WPVulnerability nachgeschlagen. Gesendet werden nur Namen und Versionen, nie die Website.",
+    "malwareScan": "Dateien der Websites jede Woche auf Schadsoftware prüfen",
+    "malwareScanHint": "Jede Website zu einer eigenen Stunde, mit ClamAV nur für den Scan gestartet, in der Sandbox der Website. Der erste Scan installiert ClamAV und seine Signaturen (etwa 300 MB Speicherplatz)."
   },
   "editor": {
     "close": "Schließen",
@@ -1420,5 +1423,34 @@
       "plugin": "Plugin",
       "theme": "Theme"
     }
+  },
+  "malware": {
+    "title": "Malware-Scan",
+    "hint": "Die Dateien der Website werden mit Signaturen bekannter Schadsoftware verglichen (ClamAV, mit den PHP-Regeln von Linux Malware Detect). Der Scanner läuft nur während des Scans, in der Sandbox der Website. Eine gefundene Datei kann in Quarantäne verschoben werden, aus der Website heraus.",
+    "off": "aus",
+    "pending": "erster Scan zur geplanten Zeit",
+    "clean": "nichts gefunden",
+    "found": "{n} infiziert",
+    "offHint": "Der Malware-Scan ist in den Einstellungen ausgeschaltet.",
+    "failed": "Der letzte Scan, {when}, wurde nicht abgeschlossen. Die Liste stammt vom Scan davor.",
+    "lastScan": "Letzter Scan",
+    "files": "Gescannte Dateien",
+    "duration": "Dauer",
+    "signatures": "Signaturen",
+    "nextScan": "Nächster geplanter Scan",
+    "file": "Datei",
+    "signature": "Signatur",
+    "status": "Status",
+    "state": {
+      "open": "in der Website",
+      "quarantined": "in Quarantäne",
+      "gone": "entfernt"
+    },
+    "scanNow": "Jetzt scannen",
+    "started": "Malware-Scan gestartet",
+    "quarantine": "Quarantäne",
+    "quarantineTitle": "{path} in Quarantäne verschieben?",
+    "quarantineHint": "Die Datei wird aus der Website entfernt und auf dem Server aufbewahrt, nur für root lesbar. Wenn die Website sie verwendet, funktioniert sie dort nicht mehr.",
+    "quarantined": "{path} in Quarantäne verschoben"
   }
 }

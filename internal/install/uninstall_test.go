@@ -41,6 +41,8 @@ func installed(t *testing.T) *machine {
 		"cg-site-1:x:1001:1001::/srv/sites/a.test:/usr/sbin/nologin\ncg-shell-1:x:1001:1001::/srv/sites/a.test:/usr/local/bin/cg-site-shell\n", 0o644)
 	m.write("/var/lib/cloudground-agent/sites.json", `{"version":1,"sites":{"1":"a.test"}}`, 0o600)
 	m.write("/var/lib/cloudground-agent/databases.json", `{"version":1,"databases":{"shop_db":1},"users":{"shop_user":{"site":1}}}`, 0o600)
+	m.write("/var/lib/cloudground-signatures/cloudground.json", `{}`, 0o644)
+	m.write("/etc/clamav/cloudground-freshclam.conf", "TestDatabases no\n", 0o644)
 	m.write("/srv/sites/a.test/current/index.html", "the site's own page\n", 0o644)
 	m.write("/etc/nginx/sites-enabled/a.test.conf", "# Managed by CloudGround — do not edit. Changes are detected as drift.\nserver {}\n", 0o644)
 	m.write("/etc/nginx/sites-enabled/operator.conf", "server { server_name mine; }\n", 0o644)
@@ -130,6 +132,7 @@ var removedByDefault = []string{
 	"/etc/nginx/conf.d/cloudground-cache-1.conf", "/etc/nginx/conf.d/cloudground-global.conf",
 	"/etc/cron.d/cloudground-cg-site-1",
 	"/etc/cloudground", "/etc/cloudground-php", "/var/lib/cloudground", "/var/lib/cloudground-agent",
+	"/var/lib/cloudground-signatures", "/etc/clamav/cloudground-freshclam.conf",
 	"/var/cache/cloudground", "/var/log/cloudground", "/run/cloudground", "/var/www/cloudground-acme",
 }
 

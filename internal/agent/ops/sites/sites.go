@@ -37,6 +37,9 @@ type Paths struct {
 	PHPSocketDir  string
 	PHPMasterDir  string
 	SystemdDir    string
+	// Quarantine holds the files the malware scan moved out of the sites,
+	// one directory per site id (ops/malware); "" keeps none.
+	Quarantine string
 }
 
 // Databases is the part of ops/db a site's lifecycle uses: the primary

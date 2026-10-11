@@ -9,6 +9,13 @@
 # (setup-workload.sh). The first run after a restart of the API looks every
 # component up; the next ones within six hours answer from its cache: set
 # COLD=1 to restart cloudground-api before the first run and see both.
+#
+# malware: the malware scan (#76) of the bench site, with the setting
+# malware_scan on. The first run of the day also updates the signatures
+# (freshclam and the set's rebuild, in the agent); FORCE_SIGS=1 removes the
+# set's stamp first so run 1 includes that update. The scanner's peak memory
+# is the slice's sampled peak over its resting level; the scan's own unit
+# (cg-scan-*) is also read for MemoryPeak when systemd keeps it.
 set -euo pipefail
 
 MODE="${1:?vuln}"
@@ -22,6 +29,7 @@ DOMAIN="bench.${IP//./-}.sslip.io"
 
 case "$MODE" in
   vuln) path=vulnerabilities/check ;;
+  malware) path=malware/scan ;;
   *) echo "unknown mode $MODE" >&2; exit 2 ;;
 esac
 
@@ -43,6 +51,11 @@ if [[ "${COLD:-}" == 1 ]]; then
   for _ in $(seq 30); do [[ -S "$SOCK" ]] && curl -sk --unix-socket "$SOCK" -o /dev/null "$BASE/healthz" && break; sleep 1; done
 fi
 login
+if [[ "$MODE" == malware ]]; then
+  api -o /dev/null -X PUT -H 'Content-Type: application/json' -d '{"malware_scan":"1"}' "$BASE/api/settings"
+  [[ "${FORCE_SIGS:-}" == 1 ]] && rm -f /var/lib/cloudground-signatures/cloudground.json
+  du -sk /var/lib/cloudground-signatures /var/lib/clamav 2>/dev/null || true
+fi
 site=$(api "$BASE/api/sites" | python3 -c 'import json,sys
 d=json.load(sys.stdin)
 for s in (d if isinstance(d, list) else d.get("sites", [])):

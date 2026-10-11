@@ -95,6 +95,10 @@ const vulnCheck = computed({
   get: () => form.value.vulnerability_check !== '0',
   set: (v: boolean) => { form.value.vulnerability_check = v ? '' : '0' }
 })
+const malwareScan = computed({
+  get: () => form.value.malware_scan === '1',
+  set: (v: boolean) => { form.value.malware_scan = v ? '1' : '' }
+})
 const updateCheck = computed({
   get: () => form.value.update_check !== '0',
   set: (v: boolean) => { form.value.update_check = v ? '' : '0' }
@@ -265,8 +269,9 @@ async function selfUpdate() {
                 <UInput v-model="form.notify_webhook" placeholder="https://hooks.slack.com/services/…" class="w-full font-mono" :disabled="!isAdmin" />
               </UFormField>
               <USwitch v-model="vulnCheck" :label="t('settings.vulnCheck')" :description="t('settings.vulnCheckHint')" :disabled="!isAdmin" />
+              <USwitch v-model="malwareScan" :label="t('settings.malwareScan')" :description="t('settings.malwareScanHint')" :disabled="!isAdmin" />
               <template v-if="isAdmin" #footer>
-                <UButton :label="t('common.save')" :loading="busy" @click="save(['notify_webhook', 'vulnerability_check'])" />
+                <UButton :label="t('common.save')" :loading="busy" @click="save(['notify_webhook', 'vulnerability_check', 'malware_scan'])" />
               </template>
             </PanelSection>
 

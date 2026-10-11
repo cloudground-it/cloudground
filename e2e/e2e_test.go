@@ -97,6 +97,7 @@ var sections = []section{
 	{name: "R-4.3 site settings", run: (*harness).siteSettings, lane: "settings"},
 	{name: "protected paths", run: (*harness).protectedPaths, lane: "protected paths"},
 	{name: "uptime", run: (*harness).uptime, lane: "uptime"},
+	{name: "malware scan", run: (*harness).malwareScan, lane: "malware"},
 	{name: "R-6.3 release channel", run: (*harness).releaseChannel, lane: "settings"},
 	{name: "SR tenant data", run: (*harness).tenantData, fixtures: []string{fxWooSite}},
 	{name: "R-10.5 root boundary", run: (*harness).boundary, lane: "boundary"},

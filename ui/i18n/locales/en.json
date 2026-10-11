@@ -94,7 +94,8 @@
       "deploy": "Release",
       "uptime": "Uptime",
       "usage": "Resources",
-      "vulnerability": "Vulnerability"
+      "vulnerability": "Vulnerability",
+      "malware": "Malware"
     },
     "more": "and {n} more in the Alerts panel (bell, top right)",
     "dismiss": "Dismiss",
@@ -910,7 +911,9 @@
     "webhook": "Webhook",
     "webhookHint": "An https URL from Slack, Discord, Mattermost or similar (text field).",
     "vulnCheck": "Check WordPress sites for known vulnerabilities",
-    "vulnCheckHint": "Once a day, the versions of each WordPress site’s core, plugins and themes are looked up in the public WPVulnerability database. Only names and versions are sent, never the site."
+    "vulnCheckHint": "Once a day, the versions of each WordPress site’s core, plugins and themes are looked up in the public WPVulnerability database. Only names and versions are sent, never the site.",
+    "malwareScan": "Scan the sites’ files for malware every week",
+    "malwareScanHint": "Each site at an hour of its own, with ClamAV started only for the scan, in the site’s sandbox. The first scan installs ClamAV and its signatures (about 300 MB of disk)."
   },
   "editor": {
     "close": "Close",
@@ -1420,5 +1423,34 @@
       "plugin": "Plugin",
       "theme": "Theme"
     }
+  },
+  "malware": {
+    "title": "Malware scan",
+    "hint": "The site’s files checked against known malware signatures (ClamAV, with PHP rules from Linux Malware Detect). The scanner runs only for the scan, in the site’s sandbox. A file it finds can be moved to quarantine, out of the site.",
+    "off": "off",
+    "pending": "first scan at the scheduled time",
+    "clean": "nothing found",
+    "found": "{n} infected",
+    "offHint": "The malware scan is turned off in the settings.",
+    "failed": "The last scan, {when}, did not complete. The list is from the scan before.",
+    "lastScan": "Last scan",
+    "files": "Files scanned",
+    "duration": "Duration",
+    "signatures": "Signatures",
+    "nextScan": "Next scheduled scan",
+    "file": "File",
+    "signature": "Signature",
+    "status": "Status",
+    "state": {
+      "open": "in the site",
+      "quarantined": "quarantined",
+      "gone": "gone"
+    },
+    "scanNow": "Scan now",
+    "started": "Malware scan started",
+    "quarantine": "Quarantine",
+    "quarantineTitle": "Move {path} to quarantine?",
+    "quarantineHint": "The file is removed from the site and kept on the server, readable only by root. If the site needs it, it will stop working where it uses it.",
+    "quarantined": "{path} moved to quarantine"
   }
 }

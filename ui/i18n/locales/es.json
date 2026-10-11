@@ -94,7 +94,8 @@
       "deploy": "Release",
       "uptime": "Disponibilidad",
       "usage": "Recursos",
-      "vulnerability": "Vulnerabilidad"
+      "vulnerability": "Vulnerabilidad",
+      "malware": "Malware"
     },
     "more": "y {n} más en el panel de alertas (campana, arriba a la derecha)",
     "dismiss": "Archivar",
@@ -910,7 +911,9 @@
     "webhook": "Webhook",
     "webhookHint": "Una URL https de Slack, Discord, Mattermost o similar (campo text).",
     "vulnCheck": "Buscar vulnerabilidades conocidas en los sitios WordPress",
-    "vulnCheckHint": "Una vez al día, las versiones del núcleo, los plugins y los temas de cada sitio WordPress se buscan en la base de datos pública WPVulnerability. Solo se envían nombres y versiones, nunca el sitio."
+    "vulnCheckHint": "Una vez al día, las versiones del núcleo, los plugins y los temas de cada sitio WordPress se buscan en la base de datos pública WPVulnerability. Solo se envían nombres y versiones, nunca el sitio.",
+    "malwareScan": "Analizar cada semana los archivos de los sitios en busca de malware",
+    "malwareScanHint": "Cada sitio a una hora propia, con ClamAV iniciado solo para el análisis, en el sandbox del sitio. El primer análisis instala ClamAV y sus firmas (unos 300 MB de disco)."
   },
   "editor": {
     "close": "Cerrar",
@@ -1420,5 +1423,34 @@
       "plugin": "Plugin",
       "theme": "Tema"
     }
+  },
+  "malware": {
+    "title": "Análisis de malware",
+    "hint": "Los archivos del sitio comparados con firmas de malware conocido (ClamAV, con las reglas PHP de Linux Malware Detect). El analizador solo se ejecuta durante el análisis, en el sandbox del sitio. Un archivo encontrado se puede poner en cuarentena, fuera del sitio.",
+    "off": "desactivado",
+    "pending": "primer análisis a la hora prevista",
+    "clean": "nada encontrado",
+    "found": "{n} infectados",
+    "offHint": "El análisis de malware está desactivado en los ajustes.",
+    "failed": "El último análisis, {when}, no terminó. La lista es la del análisis anterior.",
+    "lastScan": "Último análisis",
+    "files": "Archivos analizados",
+    "duration": "Duración",
+    "signatures": "Firmas",
+    "nextScan": "Próximo análisis previsto",
+    "file": "Archivo",
+    "signature": "Firma",
+    "status": "Estado",
+    "state": {
+      "open": "en el sitio",
+      "quarantined": "en cuarentena",
+      "gone": "eliminado"
+    },
+    "scanNow": "Analizar ahora",
+    "started": "Análisis de malware iniciado",
+    "quarantine": "Cuarentena",
+    "quarantineTitle": "¿Poner {path} en cuarentena?",
+    "quarantineHint": "El archivo se quita del sitio y se guarda en el servidor, legible solo por root. Si el sitio lo usa, dejará de funcionar donde lo necesite.",
+    "quarantined": "{path} puesto en cuarentena"
   }
 }

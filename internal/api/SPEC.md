@@ -1883,6 +1883,7 @@ lasts (across days, across a changing detail line), new when it changes.
 | `usage` | `usage.cpu:site:<id>`, `usage.memory:site:<id>` | when the run of samples over the threshold began (RFC 3339) | warning | `the site has used <n>% of its CPU for at least 15 minutes`; `… of its memory limit …` | the site's newest three samples or more (§11.5) over its threshold, CPU as a share of its allowance, memory of its `MemoryMax`; `at` is when the run began |
 | `usage` | `usage.disk:site:<id>` | the threshold | warning | `the site uses <n> MB of disk, over its threshold of <t> MB` | the site's last measured disk use is at or over `disk_mb` |
 | `vulnerability` | `vulnerability:site:<id>` | a hash of the findings (component, slug, version, id) | error when one finding is `high` or `critical`, else warning | `<n> known vulnerabilities in WordPress, its plugins or themes: <up to three "slug version", then …>` | an active WordPress site whose last complete check (§11.6) found something; `at` is that check |
+| `malware` | `malware:site:<id>` | a hash of the open findings (path and signature) | error | `<n> files with known malware: <up to three paths, then …>` | an active site with open malware findings (§11.7); `at` is when they were last seen |
 | `drift` | `drift` | the newest open event's id | warning | `<n> managed file(s) changed outside the panel` | open drift events |
 | `deploy` | `deploy:<deployment id>` | the deployment's note | warning | `deploy.drift: the site serves a release the panel had not recorded as live (release <r>, recorded <live or none>)`; `release <r> is live without its post-promotion verification (it was canceled)`; `release <r> regressed after its promotion and could not be rolled back automatically` | a deployment with a note (§4.5); the note's code picks the message |
 
@@ -2131,6 +2132,72 @@ and the cache's compact records.
   else the check is queued (joined if one is queued or running), audit
   `site.vulncheck`, 202 with the task.
 
+### 11.7 Malware scan (#76, `malware.go`)
+
+A scan looks for known malware in a site's files. It covers every type but the reverse proxy,
+which has no files. It runs once a week per site when the panel's switch `malware_scan` is on
+(§12, off by default, since the first scan installs ClamAV), and on demand. The agent's side is
+internal/agent/ops/malware/SPEC.md.
+
+**ClamAV is not resident.**
+
+- Its scanning daemon is never installed. Its update daemon is stopped and masked.
+- `clamscan` runs for one scan, in the site's slice and sandbox, as the site's user.
+- It is bounded to 768 MB (`MemoryMax`), the lowest CPU and IO priority, and two hours.
+- The signature set is ClamAV's databases reduced to the web platforms' signatures (PHP, HTML,
+  JavaScript, text, Unix, multi-OS, Perl, Python, Java, ASP, and the EICAR test), plus Linux
+  Malware Detect's PHP rules (GPL v2). Without that reduction, ClamAV holds about a gigabyte.
+
+**The job** (`site.malwarescan`, jobs SPEC §8, lock `security:malwarescan`: one scan at a time on
+the server) runs these steps:
+
+1. `MalwareSignatures` installs ClamAV the first time and updates the set when it is a day old.
+   An update that fails while a set exists scans with that set and says so in the task's log.
+2. `MalwareScan` scans the site.
+3. The result is stored (`state` `site_malware_scans`, `site_malware_findings`, migration 26):
+   - each file and signature found is an **open** finding (a new occurrence when it had gone or
+     been quarantined);
+   - an open finding a scan no longer finds is **gone**;
+   - at most 2 000 findings are kept per site, the oldest closed ones dropped first.
+
+It then asks for an alert evaluation. A scan that fails (the agent, the set, the scanner: out of
+memory, past its time) records its error and keeps the last findings; the job fails, one task alert
+per site (§11.1).
+
+**Schedule**: `security.sweep` (every five minutes) runs these rules:
+
+- Each site has a slot, an hour of the week counted from Monday 00:00 UTC: `(id × 37) mod 168`.
+- A site is queued when its key `malwarescan:site:<id>` was set before its newest slot. The key is
+  set when it is queued.
+- A site the sweep sees for the first time is only noted; its first scheduled scan is at its next
+  slot. Turning the switch on does not start every site's scan at once: the page's *Scan now* is
+  there for a first look.
+- A scan that failed waits for the next week, or for *Scan now*.
+
+**Cost** (to measure on the VPS, `bench/security-scans.md` §2): the signature update (freshclam and
+the set's rebuild, at most daily), and per scan the wall time, `clamscan`'s CPU and memory peak in
+the site's slice, and the agent's CPU.
+
+- `GET /api/sites/{id}/malware` (signed in, the site's readers; a reverse proxy → 400 `a reverse
+  proxy site has no files to scan`): `{enabled, scanned, next_scan, scan, findings,
+  interval_seconds}`.
+  - `scan` is `{scanned_at, attempted_at, error, files, signatures, duration_ms, engine, database}`;
+    `database` names the set's versions (`ClamAV daily <n>, main <n>, LMD <version>`).
+  - `findings` (at most 200, open first, then the newest) each `{id, path (relative to the site's
+    root), signature, status, first_seen, last_seen, quarantined_at, quarantine_id}`.
+  - `next_scan` is the site's next slot while the switch is on.
+- `POST /api/sites/{id}/malware/scan` (manage): a reverse proxy → 400; a site that is not active →
+  409; the switch off → 409 `the malware scan is turned off in the settings (malware_scan)`.
+  Otherwise the scan is queued (joined if one is queued or running), audit `site.malwarescan`, and
+  the answer is 202 with the task.
+- `POST /api/sites/{id}/malware/findings/{finding}/quarantine` (manage):
+  - a finding that is not the site's → 404 `finding not found`; one not open → 409;
+  - `MalwareQuarantine` moves the file out of the site into the agent's quarantine (ops/malware SPEC
+    §4); every open finding of that file becomes `quarantined` with the quarantine's id;
+  - audit `site.malware.quarantine` (`<path> (<signature>), sha256 <hash>`); 200 with the finding;
+  - a file the agent no longer finds → the finding is `gone`, 409 `the file is no longer there`;
+  - either way an alert evaluation follows.
+
 ## 12. Settings (R-4.3)
 
 `/api/settings` is a flat map of string keys (the settings page and cgctl
@@ -2145,7 +2212,8 @@ use it). Each key is a field of `state.PanelSettings` or a secret.
   (`stable` or `beta`, `""` meaning stable; else 400 `update_channel: must be
   stable or beta`; the release check and `POST /api/panel/update` follow
   it), `vulnerability_check` (`""` on, `"0"` off, as `update_check`; the
-  WordPress vulnerability check of §11.6), and the read-only
+  WordPress vulnerability check of §11.6), `malware_scan` (`"1"` on, `""` off, as
+  `require_2fa_admin`; the weekly malware scan of §11.7, whose first run installs ClamAV), and the read-only
   `panel_domain`.
 - Secrets: `backup_password`, `backup_s3_secret_key`, `cloudflare_api_token`
   show `••••••••` when set and `""` when not; `notify_webhook` is shown in

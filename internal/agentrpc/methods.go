@@ -190,6 +190,15 @@ var (
 	ImportMigration = define[rpc.MigrationParams, rpc.MigrationResult](Spec{Name: "ImportMigration", Timeout: 7 * hrs, Sites: true, Lock: LockLiveSite, Fail: "The migration failed"})
 )
 
+// The malware scan (internal/agent/ops/malware/SPEC.md). A scan reads the
+// site's tree in its sandbox and changes nothing; a quarantine moves one
+// file out of it.
+var (
+	MalwareSignatures = define[rpc.MalwareSignaturesParams, rpc.MalwareSignaturesResult](Spec{Name: "MalwareSignatures", Timeout: 45 * mins, Fail: "Could not update the malware signatures"})
+	MalwareScan       = define[rpc.MalwareScanParams, rpc.MalwareScanResult](Spec{Name: "MalwareScan", Timeout: 2*hrs + 10*mins, Sites: true, ReadOnly: true, Fail: "The malware scan failed"})
+	MalwareQuarantine = define[rpc.MalwareQuarantineParams, rpc.MalwareQuarantineResult](Spec{Name: "MalwareQuarantine", Timeout: 5 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not move the file to quarantine"})
+)
+
 // Quarry (internal/agent/ops/dbstudio/SPEC.md §1). The write methods
 // carry the caller's ReadOnly; the agent then works through a read-only
 // account.

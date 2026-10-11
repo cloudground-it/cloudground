@@ -13,7 +13,7 @@ and 6). This folder holds what you need for that. The exact behaviour of each pa
 | `cgbench` | runs `cmd/cgbench`: suite, repeat, ab, compare, parity |
 | `baseline.md`, `phase-*.md`, `final-review.md` | measurements taken during the rewrite |
 | `site-resources.md` | per-site limits' defaults and the cost of the usage collection (issues #18, #19) |
-| `security-scans.md`, `security-cost.sh` | the cost of a site's security checks: the WordPress vulnerability check (issue #31); to measure |
+| `security-scans.md`, `security-cost.sh` | the cost of a site's security checks: the WordPress vulnerability check (issue #31) and the malware scan (issue #76); to measure |
 | `uncached-php.md` | where an uncached render's time goes, and the PHP-FPM candidates A/B (issue #10) |
 
 No results are published yet: the benchmarks page comes once the whole suite has run on a
