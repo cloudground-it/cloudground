@@ -16,12 +16,13 @@ import (
 
 const defaultMonitorEvery = 15 * time.Second
 
-// startWatchers runs the alert watcher (alert_service.go) and the live
-// monitor until ctx ends.
+// startWatchers runs the alert watcher (alert_service.go), the live monitor
+// and the uptime checks (uptime.go) until ctx ends.
 func (s *Server) startWatchers(ctx context.Context) {
 	s.Init()
 	go s.watchAlerts(ctx)
 	go s.liveMonitor(ctx)
+	go s.watchUptime(ctx)
 }
 
 // liveMonitor reads the server's status and its services from the agent

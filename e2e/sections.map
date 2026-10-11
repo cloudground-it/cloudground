@@ -67,6 +67,7 @@ connector/**                           @wordpress
 internal/api/maintenance.go            R-0.7 reconcile, wordpress certificates
 internal/api/site_apply.go             R-4.3 site settings, R-4.2 job queue, wordpress slow request, wordpress cache, wordpress sftp
 internal/api/protected_paths.go        protected paths
+internal/api/uptime.go                 uptime
 internal/api/backup_policy.go          R-4.3 site settings, PHP extensions and backup hour
 internal/api/php_extensions.go         PHP extensions and backup hour
 internal/api/site_settings.go          R-4.3 site settings, wordpress slow request, R-4.7 capabilities, R-4.2 job queue, wordpress cache, wordpress sftp

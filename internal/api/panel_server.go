@@ -104,6 +104,14 @@ type Server struct {
 	// webhookLookup resolves a webhook's host when it is saved (nil: the
 	// system resolver; tests replace it).
 	webhookLookup func(ctx context.Context, host string) ([]net.IP, error)
+
+	// uptime holds the last check of every monitored site (uptime.go);
+	// uptimeKick asks for a round now; uptimeClient replaces the checks'
+	// HTTP client and uptimeEvery their period (tests).
+	uptime       uptimeState
+	uptimeKick   chan struct{}
+	uptimeClient *http.Client
+	uptimeEvery  time.Duration
 }
 
 // connectorFailures is how many wrong connector tokens an address may send
@@ -125,6 +133,9 @@ func (s *Server) Init() {
 	}
 	if s.alertKick == nil {
 		s.alertKick = make(chan struct{}, 1)
+	}
+	if s.uptimeKick == nil {
+		s.uptimeKick = make(chan struct{}, 1)
 	}
 	if s.accounts != nil {
 		return

@@ -91,7 +91,8 @@
       "task": "Attività",
       "service": "Servizio",
       "drift": "Configurazione",
-      "deploy": "Rilascio"
+      "deploy": "Rilascio",
+      "uptime": "Disponibilità"
     },
     "more": "e altri {n} nel pannello Avvisi (campanella in alto)",
     "dismiss": "Archivia",
@@ -1320,5 +1321,25 @@
     "removeTitle": "Togliere la protezione a {path}?",
     "removeHint": "Chiunque potrà raggiungerlo di nuovo senza password.",
     "ajaxNote": "admin-ajax.php resta aperto ai visitatori: temi e plugin lo chiamano dalle pagine pubbliche."
+  },
+  "uptime": {
+    "title": "Disponibilità",
+    "hint": "Ogni {n} s il pannello richiede il sito dal suo indirizzo pubblico, come farebbe un visitatore. Due errori di fila generano un avviso, inviato al webhook degli avvisi.",
+    "off": "disattivato",
+    "pending": "primo controllo a breve",
+    "up": "risponde",
+    "failing": "un errore",
+    "down": "non risponde",
+    "url": "Indirizzo controllato",
+    "lastCheck": "Ultimo controllo",
+    "answer": "Risposta",
+    "downSince": "Non risponde dal",
+    "path": "Percorso da richiedere",
+    "pathHelp": "Una pagina che risponde in fretta; / se non indicato. Un 4xx conta come risposta, un 5xx o nessuna risposta come errore.",
+    "pathBad": "Inizia con /; lettere, cifre e . _ ~ - tra le barre.",
+    "turnOn": "Attiva",
+    "turnOff": "Disattiva",
+    "saved": "Controllo di disponibilità salvato",
+    "turnedOff": "Controllo di disponibilità disattivato"
   }
 }

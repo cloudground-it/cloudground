@@ -91,7 +91,8 @@
       "task": "Task",
       "service": "Service",
       "drift": "Configuration",
-      "deploy": "Release"
+      "deploy": "Release",
+      "uptime": "Uptime"
     },
     "more": "and {n} more in the Alerts panel (bell, top right)",
     "dismiss": "Dismiss",
@@ -1320,5 +1321,25 @@
     "removeTitle": "Stop protecting {path}?",
     "removeHint": "Anyone can reach it again without a password.",
     "ajaxNote": "admin-ajax.php stays open to visitors: themes and plugins call it from the public pages."
+  },
+  "uptime": {
+    "title": "Uptime",
+    "hint": "Every {n} s the panel requests the site from its public address, as a visitor would. Two failures in a row raise an alert, sent to the alert webhook.",
+    "off": "off",
+    "pending": "first check soon",
+    "up": "answering",
+    "failing": "one failure",
+    "down": "down",
+    "url": "Address checked",
+    "lastCheck": "Last check",
+    "answer": "Answer",
+    "downSince": "Down since",
+    "path": "Path to request",
+    "pathHelp": "A page that answers quickly; / by default. A 4xx counts as an answer, a 5xx or no answer as a failure.",
+    "pathBad": "Starts with /; letters, digits and . _ ~ - between slashes.",
+    "turnOn": "Turn on",
+    "turnOff": "Turn off",
+    "saved": "Uptime check saved",
+    "turnedOff": "Uptime check off"
   }
 }

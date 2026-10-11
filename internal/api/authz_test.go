@@ -132,6 +132,8 @@ var routePolicy = map[string]string{
 	"POST /api/sites":                           "admin",
 	"GET /api/sites/{id}":                       "auth",
 	"DELETE /api/sites/{id}":                    "admin",
+	"GET /api/sites/{id}/uptime":                "auth",
+	"PUT /api/sites/{id}/uptime":                "manage",
 	"POST /api/sites/{id}/purge":                "manage",
 	"POST /api/sites/{id}/protected-paths":      "manage",
 	"DELETE /api/sites/{id}/protected-paths":    "manage",

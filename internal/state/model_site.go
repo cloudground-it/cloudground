@@ -90,6 +90,9 @@ type SiteConfig struct {
 	// ProtectedPaths are paths nginx asks a username and password for
 	// (#26), each with its own credentials.
 	ProtectedPaths []ProtectedPath `json:"protected_paths,omitempty"`
+	// Uptime is the panel's periodic check of the site from its public
+	// address (#32).
+	Uptime UptimeCheck `json:"uptime,omitzero"`
 }
 
 // ProtectedPath is one path behind HTTP basic auth: the path and what is
@@ -99,6 +102,13 @@ type ProtectedPath struct {
 	Path         string `json:"path"`
 	Username     string `json:"username"`
 	PasswordHash string `json:"password_hash,omitempty"`
+}
+
+// UptimeCheck turns the uptime check of a site on, and names the path it
+// requests ("" is "/").
+type UptimeCheck struct {
+	Enabled bool   `json:"enabled"`
+	Path    string `json:"path,omitempty"`
 }
 
 // DatabaseConfig is the database a site uses. It may be external (managed

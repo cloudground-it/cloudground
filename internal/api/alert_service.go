@@ -30,7 +30,7 @@ import (
 type Alert struct {
 	ID      string `json:"id"`
 	Level   string `json:"level"` // warning | error
-	Kind    string `json:"kind"`  // certificate | task | service | drift | deploy
+	Kind    string `json:"kind"`  // certificate | task | service | drift | deploy | uptime
 	SiteID  int64  `json:"site_id,omitempty"`
 	Site    string `json:"site,omitempty"`
 	Message string `json:"message"`
@@ -214,6 +214,10 @@ func (s *Server) evaluateAlertsAt(ctx context.Context, now time.Time) error {
 	}
 	if list, err := s.Store.ListJobs(200, false); keep(err, "alerts: ListJobs") && sitesErr == nil {
 		keep(s.Store.SyncAlerts("task", taskConditions(list, exists, now)), "SyncAlerts task")
+	}
+	// Uptime (uptime.go): left as they are until the first round has run.
+	if set, ready := s.uptimeConditions(sites); ready && sitesErr == nil {
+		keep(s.Store.SyncAlerts("uptime", set), "SyncAlerts uptime")
 	}
 	guessing, guessed := s.guesses.condition(now)
 	if svc, err := agentrpc.Call(ctx, s.Agent, agentrpc.ServiceStatus, agentrpc.None{}); keep(err, "alerts: ServiceStatus") {
