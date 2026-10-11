@@ -124,8 +124,8 @@ internal/throttle/**                   ALL
 
 internal/agent/ops/dbstudio/**         F4b Quarry, F9b Quarry service, SR tenant data
 internal/agent/ops/backup/**           wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, SR tenant data, R-10.5 root boundary, F9b site databases
-internal/agent/ops_backup.go           wordpress backups, R-4.6 backup interruption, R-10.5 root boundary
-internal/agent/host/restic.go          wordpress backups, R-4.6 backup interruption, R-10.5 root boundary
+internal/agent/ops_backup.go           wordpress backups, R-4.6 backup interruption, helper units, R-10.5 root boundary
+internal/agent/host/restic.go          wordpress backups, R-4.6 backup interruption, helper units, R-10.5 root boundary
 internal/agent/ops/cache/**            woocommerce, wordpress cache, wordpress backups, migration import
 internal/agent/ops/certs/**            wordpress certificates, wordpress status and drift, R-3.9 certificates and panel
 internal/agent/host/acme.go            wordpress certificates, R-3.9 certificates and panel

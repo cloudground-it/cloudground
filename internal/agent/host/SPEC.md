@@ -406,7 +406,9 @@ Interface `Nginx`: `Test`, `Reload`, `BuildInfo`.
   later is killed with its group. Killed outright (SIGKILL, the previous
   behaviour) it left its lock file in the repository: another host sees it
   as held until it is 30 minutes old, and `restic unlock` is needed to clear
-  it. restic 0.16 handles SIGINT the same way.
+  it. restic 0.16 handles SIGINT the same way. In the agent restic runs as
+  a helper in a unit of its own (see helpers), where the same stop is the
+  unit's `KillSignal=SIGINT` with `KillMode=mixed`.
 - **Version.** The installer puts a pinned restic (0.19.1, the official
   release binary, its SHA-256 fixed in `internal/install`, SPEC §3) in
   `/usr/local/bin`, ahead of the distribution's on `PATH`: Ubuntu 24.04 ships
@@ -430,7 +432,7 @@ Interface `Nginx`: `Test`, `Reload`, `BuildInfo`.
   read-only binds of `/usr`, `/lib*`, `/bin`, `/sbin` and the few `/etc`
   files restic reads (`resolv.conf`, `hosts`, `nsswitch.conf`, `ssl`,
   `ca-certificates`, `passwd`, `group`, `localtime`, `gai.conf`; a missing
-  one tolerated), `BindReadOnlyPaths=<Tree>`, `BindPaths=` for each of
+  one tolerated), in `HelperSlice` (see helpers), `BindReadOnlyPaths=<Tree>`, `BindPaths=` for each of
   `Writable` (restic's cache, a local repository), `PrivateDevices`,
   `PrivateTmp`, `PrivateIPC`, `ProtectProc=invisible`, the kernel
   protections, `NoNewPrivileges`, `RestrictSUIDSGID`,
@@ -490,6 +492,67 @@ Interface `Nginx`: `Test`, `Reload`, `BuildInfo`.
   is what ends up after `--`;
 - an optional secret on stdin (`--prompt=<field>`), never in argv;
 - `User` must be a valid account name, `Path` absolute and clean.
+
+## helpers — the heavy tools in units of their own (#66)
+
+restic, `mariadb-dump`, the `mariadb` client and certbot (`HelperNames`) use
+as much memory as the data they handle (a repository's index, a database,
+certbot's Python). Run as the agent's children they were in
+`cloudground-agent.service`'s cgroup, so a memory limit on the agent would have
+cut a large backup or restore. In the agent they run through `HelperExec`, an
+`Exec` that starts each of them in a transient service of its own and passes
+every other command to the `Exec` it wraps (OSExec) unchanged:
+
+- `systemd-run` (`ServiceArgs`: `--wait --pipe --collect`, `--uid=root`) of
+  unit `cg-helper-<tool>-<n>.service` in `HelperSlice` (`cg-helper.slice`,
+  under `cg.slice` beside the sites' `cg-site.slice`) with `HelperProps`: the
+  sandbox lines of `cloudground-agent.service`, one for one (the helpers
+  inherited them; `TestHelperPropsAreTheAgentsSandbox` holds the two
+  together, so a line added to the unit reaches the helpers too), and the
+  helper's own `MemoryMax=75%` (provisional, `bench/agent-memory.md`: a
+  runaway helper is killed in its own unit before the kernel picks a site's
+  PHP or MariaDB; swap is not limited). The command is
+  `/usr/local/bin/panel-agent helper-exec -- <tool's absolute path> <args>`.
+- **The same contract as OSExec.** The tool is looked up on the agent's
+  `PATH` before anything starts (a missing one wraps `exec.ErrNotFound`). Its
+  environment (`Cmd.Env`, or the agent's own when nil; restic's secrets
+  included) goes to helper-exec on **stdin**, `KEY=value` entries each
+  NUL-terminated and then an empty one, never as a unit property (which any
+  local user can read over D-Bus) nor in argv. helper-exec reads it one byte
+  at a time, so nothing past it is consumed, and execs the tool, whose stdin
+  is what follows (`Cmd.Stdin`: a dump piped into `restic backup --stdin`).
+  With `--pipe` the tool's stdout and stderr are systemd-run's: a captured
+  stdout keeps `StdoutLimit`, a streamed one is the caller's, stderr keeps its
+  last 64 KiB. systemd-run exits with the tool's status, returned as an
+  `*ExitError` under the tool's name (restic's typed codes classify as
+  before); a tool killed by a signal or for memory comes back as
+  systemd-run's 1 or 255, not -1. helper-exec's own failures exit 126.
+- **Deadline and cancellation** are the caller's context and `Cmd.Timeout`
+  (the runner's default when unset), and fail the call with the context's
+  error under the tool's name. systemd-run runs on a context they do not
+  end: the tool is not its child, and killed first it would leave the tool
+  writing into closed pipes. The unit is stopped instead (`systemctl stop`,
+  retried while systemd has not loaded it yet) while systemd-run is up:
+  `KillSignal=SIGKILL` to the whole cgroup at once, or, with `Interrupt`,
+  `KillMode=mixed`, `KillSignal=SIGINT` and `TimeoutStopSec=<Interrupt>`
+  (SIGINT to the tool alone, the rest killed when it has exited or the grace
+  is over: OSExec's Interrupt). systemd-run is killed only if it is still
+  there `Interrupt` + 30 s after the first stop. A stdout past `StdoutLimit`
+  has systemd-run killed by the runner, then the unit stopped.
+  `RuntimeMaxSec` is a backstop past the agent's own deadline.
+- **Leftovers.** A helper outlives an agent that stops or dies. At start,
+  before serving, the agent stops every `cg-helper-*` and `cg-restic-*` unit
+  still loaded (`Agent.SweepHelpers`): none of them is the new agent's, and
+  a restic among them holds its repository's lock.
+- Verified on systemd 255 (Ubuntu 24.04) and 259 (26.04) in containers booted
+  with systemd (`helper_integration_test.go`): the tool runs in
+  `/cg.slice/cg-helper.slice/cg-helper-…`, gets its environment and stdin,
+  its exit status and stderr come back, a cancel interrupts it and leaves
+  nothing behind, and one past its memory limit ends with result `oom-kill`
+  while the caller runs on.
+- Wired: `ResticCLI.Exec`, `MariaDBAdmin.Tools`, `Certbot.Exec`. The rest
+  (`nginx -t`, ufw, the account tools, apt-get, `restic version`) stays the
+  agent's child, inside its limit.
 
 ## firewall (ufw) and acme (certbot)
 

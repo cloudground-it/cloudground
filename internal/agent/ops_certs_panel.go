@@ -75,5 +75,5 @@ func (a *Agent) acme() host.ACME {
 	if a.ACME != nil {
 		return a.ACME
 	}
-	return host.NewCertbot(host.OSExec{Timeout: 20 * time.Minute})
+	return host.NewCertbot(helpers(20 * time.Minute))
 }

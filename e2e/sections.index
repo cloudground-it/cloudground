@@ -13,15 +13,15 @@ e2e/accounts_test.go	harness.signInDuringAttack	R-4.3 accounts
 e2e/agentrpc_test.go	harness.agentErrorsAreSafe	security
 e2e/agentrpc_test.go	harness.agentPeerCredentials	security
 e2e/agentrpc_test.go	harness.agentPing	security
-e2e/backup_interrupt_test.go	agentRPC.args	R-4.6 backup interruption|SR tenant data|R-10.5 root boundary
-e2e/backup_interrupt_test.go	agentRPC.call	R-4.6 backup interruption|SR tenant data|R-10.5 root boundary
+e2e/backup_interrupt_test.go	agentRPC.args	R-4.6 backup interruption|helper units|SR tenant data|R-10.5 root boundary
+e2e/backup_interrupt_test.go	agentRPC.call	R-4.6 backup interruption|helper units|SR tenant data|R-10.5 root boundary
 e2e/backup_interrupt_test.go	agentRPC.start	R-4.6 backup interruption
 e2e/backup_interrupt_test.go	feat.backupInterruption	R-4.6 backup interruption
 e2e/backup_interrupt_test.go	feat.backupStoppedMidRun	R-4.6 backup interruption
 e2e/backup_interrupt_test.go	feat.backupWhileTmpChurns	R-4.6 backup interruption
 e2e/backup_interrupt_test.go	harness.backupInterruption	R-4.6 backup interruption
-e2e/backup_interrupt_test.go	harness.clearStandIns	wordpress backups|R-4.6 backup interruption|R-4.3 deploys and backups|migration import|R-10.5 root boundary
-e2e/backup_interrupt_test.go	newAgentRPC	R-4.6 backup interruption|SR tenant data|R-10.5 root boundary
+e2e/backup_interrupt_test.go	harness.clearStandIns	wordpress backups|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|migration import|R-10.5 root boundary
+e2e/backup_interrupt_test.go	newAgentRPC	R-4.6 backup interruption|helper units|SR tenant data|R-10.5 root boundary
 e2e/backup_interrupt_test.go	resticVersion	R-4.6 backup interruption
 e2e/boundary_test.go	bnd.backup	R-10.5 root boundary
 e2e/boundary_test.go	bnd.backupSeesOnlyTheSite	R-10.5 root boundary
@@ -107,7 +107,7 @@ e2e/e2e_test.go	TestE2E	ALL
 e2e/e2e_test.go	contains	wordpress staging|wordpress status and drift|wordpress slow request|wordpress cron|wordpress safe push|wordpress backups|firewall|F9b Quarry service|migration import|security|woocommerce security|F4b Quarry|R-5.2 reload drain|R-2.4 services|R-4.3 accounts|R-10.5 root boundary
 e2e/e2e_test.go	harness.dbStudioSection	F4b Quarry
 e2e/e2e_test.go	harness.distFPMInactive	site types
-e2e/e2e_test.go	harness.dom	site types|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|migration safety snapshot|F9b site creation|F9b Quarry service|wordpress teardown|migration import|security|woocommerce security|F4b Quarry|R-0.7 reconcile|R-5.2 reload drain|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-4.2 job queue|F8 events|R-4.7 capabilities|R-5.4 routing|R-4.3 site settings|protected paths|uptime|SR tenant data|R-10.5 root boundary|site resources|PHP extensions and backup hour|woocommerce teardown|R-6.5 upgrade
+e2e/e2e_test.go	harness.dom	site types|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|migration safety snapshot|F9b site creation|F9b Quarry service|wordpress teardown|migration import|security|woocommerce security|F4b Quarry|R-0.7 reconcile|R-5.2 reload drain|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-4.2 job queue|F8 events|R-4.7 capabilities|R-5.4 routing|R-4.3 site settings|protected paths|uptime|SR tenant data|R-10.5 root boundary|site resources|PHP extensions and backup hour|woocommerce teardown|R-6.5 upgrade
 e2e/e2e_test.go	harness.migration	migration import
 e2e/e2e_test.go	harness.runLanes	ALL
 e2e/e2e_test.go	harness.runSection	ALL
@@ -115,9 +115,9 @@ e2e/e2e_test.go	harness.runType	site types
 e2e/e2e_test.go	harness.siteTypes	site types
 e2e/e2e_test.go	harness.woocommerce	woocommerce
 e2e/e2e_test.go	harness.woocommerceTeardown	woocommerce teardown
-e2e/e2e_test.go	harness.wpSiteJSON	site types|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|F9b Quarry service|wordpress teardown|migration import|woocommerce security|F4b Quarry|R-3.13 interrupted create|SR tenant data|woocommerce teardown
+e2e/e2e_test.go	harness.wpSiteJSON	site types|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|F9b Quarry service|wordpress teardown|migration import|woocommerce security|F4b Quarry|R-3.13 interrupted create|SR tenant data|woocommerce teardown
 e2e/e2e_test.go	parallel	ALL
-e2e/e2e_test.go	section.uses	woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|F9b Quarry service|wordpress teardown|woocommerce security|F4b Quarry|SR tenant data|woocommerce teardown
+e2e/e2e_test.go	section.uses	woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|F9b Quarry service|wordpress teardown|woocommerce security|F4b Quarry|SR tenant data|woocommerce teardown
 e2e/e2e_test.go	yesNo	wordpress backups|migration safety snapshot|migration import
 e2e/events_test.go	apiClient.streamClient	F8 events
 e2e/events_test.go	eventStream.close	F8 events
@@ -175,7 +175,7 @@ e2e/features_test.go	harness.wordpressSlowRequest	wordpress slow request
 e2e/features_test.go	harness.wordpressStaging	wordpress staging
 e2e/features_test.go	harness.wordpressStatusDrift	wordpress status and drift
 e2e/features_test.go	harness.wordpressTeardown	wordpress teardown
-e2e/features_test.go	head	R-6.1 installer|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress cron|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|firewall|F9b site databases|migration safety snapshot|F9b site creation|wordpress teardown|migration import|security|R-0.7 reconcile|R-3.9 certificates and panel|R-3.7 site lifecycle|R-5.4 routing|R-4.3 accounts|R-4.3 sign-in review|SR tenant data|R-10.5 root boundary|R-10.5 agent limits|site resources
+e2e/features_test.go	head	R-6.1 installer|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress cron|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|firewall|F9b site databases|migration safety snapshot|F9b site creation|wordpress teardown|migration import|security|R-0.7 reconcile|R-3.9 certificates and panel|R-3.7 site lifecycle|R-5.4 routing|R-4.3 accounts|R-4.3 sign-in review|SR tenant data|R-10.5 root boundary|R-10.5 agent limits|site resources
 e2e/features_test.go	logOffset	woocommerce|wordpress cache
 e2e/features_test.go	logSince	woocommerce|wordpress cache
 e2e/features_test.go	newest	wordpress releases|wordpress backups|R-4.3 deploys and backups|F9b site databases|migration safety snapshot
@@ -189,19 +189,19 @@ e2e/fixtures_self_test.go	TestSectionTable	NONE
 e2e/fixtures_test.go	feat.ensureObjectCache	wordpress sftp|wordpress backups
 e2e/fixtures_test.go	fixtureSet.get	ALL
 e2e/fixtures_test.go	harness.dropFixture	wordpress teardown|woocommerce teardown
-e2e/fixtures_test.go	harness.featureSite	wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|F9b Quarry service|wordpress teardown
+e2e/fixtures_test.go	harness.featureSite	wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|F9b Quarry service|wordpress teardown
 e2e/fixtures_test.go	harness.featureStaging	wordpress staging|wordpress safe push|wordpress backups|R-4.3 deploys and backups|F9b site databases|wordpress teardown
-e2e/fixtures_test.go	harness.fixture	woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|F9b Quarry service|wordpress teardown|woocommerce security|F4b Quarry|SR tenant data|woocommerce teardown
-e2e/fixtures_test.go	harness.fixtureFail	woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|F9b Quarry service|wordpress teardown|woocommerce security|F4b Quarry|SR tenant data|woocommerce teardown
+e2e/fixtures_test.go	harness.fixture	woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|F9b Quarry service|wordpress teardown|woocommerce security|F4b Quarry|SR tenant data|woocommerce teardown
+e2e/fixtures_test.go	harness.fixtureFail	woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|F9b Quarry service|wordpress teardown|woocommerce security|F4b Quarry|SR tenant data|woocommerce teardown
 e2e/fixtures_test.go	harness.fixtureMade	wordpress staging
-e2e/fixtures_test.go	harness.withFeature	wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress releases|R-4.6 cgctl tokens|R-4.6 backup interruption
+e2e/fixtures_test.go	harness.withFeature	wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress releases|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units
 e2e/fixtures_test.go	harness.wooSite	woocommerce|F9b Quarry service|woocommerce security|F4b Quarry|SR tenant data|woocommerce teardown
 e2e/fixtures_test.go	init	ALL
 e2e/fixtures_test.go	sectionOf	ALL
 e2e/fixtures_test.go	testName	ALL
 e2e/harness_self_test.go	TestHarnessAPIClient	NONE
 e2e/harness_test.go	TestMain	ALL
-e2e/harness_test.go	apiClient.createSite	site types|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|migration safety snapshot|F9b Quarry service|wordpress teardown|migration import|security|woocommerce security|F4b Quarry|R-0.7 reconcile|R-5.2 reload drain|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-4.2 job queue|F8 events|R-5.4 routing|R-4.3 site settings|protected paths|uptime|SR tenant data|R-10.5 root boundary|site resources|PHP extensions and backup hour|woocommerce teardown|R-6.5 upgrade
+e2e/harness_test.go	apiClient.createSite	site types|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|migration safety snapshot|F9b Quarry service|wordpress teardown|migration import|security|woocommerce security|F4b Quarry|R-0.7 reconcile|R-5.2 reload drain|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-4.2 job queue|F8 events|R-5.4 routing|R-4.3 site settings|protected paths|uptime|SR tenant data|R-10.5 root boundary|site resources|PHP extensions and backup hour|woocommerce teardown|R-6.5 upgrade
 e2e/harness_test.go	apiClient.del	ALL
 e2e/harness_test.go	apiClient.deleteSite	ALL
 e2e/harness_test.go	apiClient.do	ALL
@@ -210,11 +210,11 @@ e2e/harness_test.go	apiClient.login	ALL
 e2e/harness_test.go	apiClient.post	ALL
 e2e/harness_test.go	apiClient.put	wordpress certificates|wordpress safe push|wordpress backups|R-4.6 cgctl tokens|R-4.3 deploys and backups|F9b site databases|migration safety snapshot|security|R-5.4 routing|R-4.3 accounts|R-4.3 site settings|uptime|R-6.3 release channel|R-10.5 root boundary|PHP extensions and backup hour
 e2e/harness_test.go	apiClient.relogin	ALL
-e2e/harness_test.go	apiClient.site	site types|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|migration safety snapshot|F9b site creation|F9b Quarry service|wordpress teardown|migration import|security|woocommerce security|F4b Quarry|R-0.7 reconcile|R-5.2 reload drain|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-4.2 job queue|F8 events|R-4.7 capabilities|R-5.4 routing|R-4.3 site settings|protected paths|uptime|SR tenant data|R-10.5 root boundary|site resources|PHP extensions and backup hour|woocommerce teardown|R-6.5 upgrade
+e2e/harness_test.go	apiClient.site	site types|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|migration safety snapshot|F9b site creation|F9b Quarry service|wordpress teardown|migration import|security|woocommerce security|F4b Quarry|R-0.7 reconcile|R-5.2 reload drain|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-4.2 job queue|F8 events|R-4.7 capabilities|R-5.4 routing|R-4.3 site settings|protected paths|uptime|SR tenant data|R-10.5 root boundary|site resources|PHP extensions and backup hour|woocommerce teardown|R-6.5 upgrade
 e2e/harness_test.go	apiClient.sites	wordpress staging|wordpress safe push|wordpress backups|R-4.3 deploys and backups|F9b site databases|F9b site creation|wordpress teardown|R-0.7 reconcile
 e2e/harness_test.go	apiClient.stagingOf	wordpress staging|wordpress safe push|wordpress backups|R-4.3 deploys and backups|F9b site databases|wordpress teardown
 e2e/harness_test.go	apiClient.teardownGone	ALL
-e2e/harness_test.go	apiClient.waitActive	site types|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|migration safety snapshot|F9b site creation|F9b Quarry service|wordpress teardown|migration import|security|woocommerce security|F4b Quarry|R-0.7 reconcile|R-5.2 reload drain|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-4.2 job queue|F8 events|R-4.7 capabilities|R-5.4 routing|R-4.3 site settings|protected paths|uptime|SR tenant data|R-10.5 root boundary|site resources|PHP extensions and backup hour|woocommerce teardown|R-6.5 upgrade
+e2e/harness_test.go	apiClient.waitActive	site types|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress sftp|wordpress logs|wordpress slow request|wordpress cron|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|migration safety snapshot|F9b site creation|F9b Quarry service|wordpress teardown|migration import|security|woocommerce security|F4b Quarry|R-0.7 reconcile|R-5.2 reload drain|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-4.2 job queue|F8 events|R-4.7 capabilities|R-5.4 routing|R-4.3 site settings|protected paths|uptime|SR tenant data|R-10.5 root boundary|site resources|PHP extensions and backup hour|woocommerce teardown|R-6.5 upgrade
 e2e/harness_test.go	apiClient.waitTask	woocommerce|wordpress cache|wordpress staging|wordpress certificates|wordpress sftp|wordpress slow request|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|migration safety snapshot|wordpress teardown|migration import|security|woocommerce security|F4b Quarry|R-4.5 site shell|F8 events|R-5.4 routing|R-4.3 site settings|SR tenant data|R-10.5 root boundary|site resources|PHP extensions and backup hour
 e2e/harness_test.go	canary.check	ALL
 e2e/harness_test.go	clip	ALL
@@ -232,7 +232,7 @@ e2e/harness_test.go	harness.get	ALL
 e2e/harness_test.go	harness.logSectionTimes	ALL
 e2e/harness_test.go	harness.mustWriteAs	site types|woocommerce|wordpress cache|wordpress logs|wordpress slow request|wordpress cron|wordpress safe push|wordpress releases|wordpress backups|R-4.3 deploys and backups|migration safety snapshot|security|R-5.2 reload drain|R-4.5 site shell|R-5.4 routing|R-4.3 site settings|protected paths|R-10.5 root boundary|site resources|PHP extensions and backup hour|R-6.5 upgrade
 e2e/harness_test.go	harness.record	ALL
-e2e/harness_test.go	harness.remove	woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress logs|wordpress slow request|wordpress releases|wordpress backups|R-4.6 backup interruption|R-4.3 deploys and backups|migration safety snapshot|migration import|security|woocommerce security|R-5.2 reload drain|R-4.5 site shell|R-6.3 release channel|SR tenant data|R-10.5 root boundary|site resources
+e2e/harness_test.go	harness.remove	woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress logs|wordpress slow request|wordpress releases|wordpress backups|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|migration safety snapshot|migration import|security|woocommerce security|R-5.2 reload drain|R-4.5 site shell|R-6.3 release channel|SR tenant data|R-10.5 root boundary|site resources
 e2e/harness_test.go	harness.run	ALL
 e2e/harness_test.go	harness.runIn	ALL
 e2e/harness_test.go	harness.sectionDone	ALL
@@ -248,13 +248,18 @@ e2e/harness_test.go	lookupIDs	site types|woocommerce|wordpress cache|wordpress s
 e2e/harness_test.go	newAPIClient	ALL
 e2e/harness_test.go	newCanary	ALL
 e2e/harness_test.go	newHarness	ALL
-e2e/harness_test.go	readTrim	wordpress staging|wordpress sftp|wordpress cron|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|migration safety snapshot|migration import|R-4.5 site shell|R-4.3 site settings|protected paths|R-10.5 root boundary|site resources|R-6.5 upgrade
+e2e/harness_test.go	readTrim	wordpress staging|wordpress sftp|wordpress cron|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|helper units|migration safety snapshot|migration import|R-4.5 site shell|R-4.3 site settings|protected paths|R-10.5 root boundary|site resources|R-6.5 upgrade
 e2e/harness_test.go	resp.CodeStr	site types|woocommerce|wordpress cache|wordpress staging|wordpress slow request|wordpress releases|wordpress backups|firewall|F9b site creation|migration import|R-5.2 reload drain|R-3.7 site lifecycle|R-4.5 site shell|R-5.4 routing|R-4.3 site settings|protected paths|site resources|PHP extensions and backup hour
 e2e/harness_test.go	result.OK	R-6.1 installer|site types|wordpress staging|wordpress sftp|wordpress cron|wordpress vulnerabilities|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|R-4.3 deploys and backups|firewall|F9b site databases|F9b site creation|migration import|security|woocommerce security|R-0.7 reconcile|R-3.7 site lifecycle|R-3.13 interrupted create|R-4.5 site shell|R-4.2 job queue|R-5.4 routing|R-4.3 accounts|SR tenant data|R-10.5 root boundary|R-6.5 upgrade
 e2e/harness_test.go	result.String	ALL
 e2e/harness_test.go	result.Trim	ALL
 e2e/harness_test.go	statOwnerMode	wordpress staging|wordpress releases|wordpress backups|security|woocommerce security|protected paths
 e2e/harness_test.go	taskID	woocommerce|wordpress cache|wordpress staging|wordpress sftp|wordpress slow request|wordpress vulnerabilities|wordpress safe push|wordpress releases|wordpress backups|R-4.3 deploys and backups|R-4.3 proxies and alerts|F9b site databases|migration safety snapshot|F9b Quarry service|wordpress teardown|migration import|security|woocommerce security|F4b Quarry|R-4.5 site shell|R-4.2 job queue|F8 events|R-5.4 routing|SR tenant data|R-10.5 root boundary|site resources
+e2e/helpers_test.go	feat.helperKilledForMemory	helper units
+e2e/helpers_test.go	feat.helperUnits	helper units
+e2e/helpers_test.go	feat.helpersInTheirUnits	helper units
+e2e/helpers_test.go	harness.agentUnit	helper units
+e2e/helpers_test.go	harness.helperUnits	helper units
 e2e/install_test.go	harness.installer	R-6.1 installer
 e2e/install_test.go	harness.installerFailsOnADeadAgent	R-6.1 installer
 e2e/interrupted_create_test.go	harness.interruptedCreate	R-3.13 interrupted create
@@ -274,7 +279,7 @@ e2e/migration_test.go	harness.migrationArchives	migration import
 e2e/migration_test.go	harness.migrationLimitRaised	migration import
 e2e/migration_test.go	harness.migrationPrefix	migration import
 e2e/migration_test.go	writeTGZ	migration safety snapshot|migration import
-e2e/migration_test.go	zeroReader.Read	wordpress backups|R-4.6 backup interruption|R-4.3 deploys and backups|F9b site databases|migration safety snapshot|F9b Quarry service|migration import|SR tenant data|R-10.5 root boundary
+e2e/migration_test.go	zeroReader.Read	wordpress backups|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|F9b site databases|migration safety snapshot|F9b Quarry service|migration import|SR tenant data|R-10.5 root boundary
 e2e/modes_test.go	harness.installedModes	R-6.1 installer
 e2e/modes_test.go	harness.siteModes	site types
 e2e/modes_test.go	modeOwner	R-6.1 installer|site types
@@ -324,11 +329,11 @@ e2e/parse_test.go	TestWPConfigDBName	NONE
 e2e/parse_test.go	TestWPConfigValue	NONE
 e2e/parse_test.go	TestWarmerRequests	NONE
 e2e/php_extensions_test.go	harness.phpExtensions	PHP extensions and backup hour
-e2e/proc_test.go	b64	wordpress backups|R-4.6 backup interruption|R-4.3 deploys and backups|F9b site databases|migration safety snapshot|F9b Quarry service|SR tenant data|R-10.5 root boundary
+e2e/proc_test.go	b64	wordpress backups|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|F9b site databases|migration safety snapshot|F9b Quarry service|SR tenant data|R-10.5 root boundary
 e2e/proc_test.go	bg.stop	wordpress backups|R-4.6 backup interruption|F4b Quarry|R-10.5 root boundary
 e2e/proc_test.go	execBackground	wordpress backups|R-4.6 backup interruption|R-10.5 root boundary
 e2e/proc_test.go	harness.resticOn	wordpress backups|R-4.6 backup interruption|R-4.3 deploys and backups|SR tenant data|R-10.5 root boundary
-e2e/proc_test.go	runEnv	wordpress backups|R-4.6 backup interruption|R-4.3 deploys and backups|SR tenant data|R-10.5 root boundary
+e2e/proc_test.go	runEnv	wordpress backups|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|SR tenant data|R-10.5 root boundary
 e2e/protected_paths_test.go	harness.protectedPaths	protected paths
 e2e/proxies_test.go	connectorPurge	R-4.3 proxies and alerts
 e2e/proxies_test.go	harness.alerts	R-4.3 proxies and alerts

@@ -16,6 +16,7 @@ and 6). This folder holds what you need for that. The exact behaviour of each pa
 | `security-scans.md`, `security-cost.sh` | the cost of a site's security checks: the WordPress vulnerability check (issue #31); to measure |
 | `uncached-php.md` | where an uncached render's time goes, and the PHP-FPM candidates A/B (issue #10) |
 | `v0.2.0-rc.md` | the v0.2.0 release candidate: install time, the full e2e, the REST upgrade check, the suites against v0.1.0 |
+| `agent-memory.md`, `agent-memory.sh` | the agent unit's memory limit and its helpers' (issue #66): provisional values and the measurement that sets them |
 
 No results are published yet: the benchmarks page comes once the whole suite has run on a
 CloudGround release.
