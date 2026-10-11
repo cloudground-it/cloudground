@@ -48,6 +48,7 @@ func newShellOps(t *testing.T) *shellFixture {
 	}}
 	e.paths = ShellPaths{
 		DropIn:     filepath.Join(dir, "11-cloudground-shell.conf"),
+		KeysDropIn: filepath.Join(dir, "09-cloudground-sftp-keys.conf"),
 		BinDir:     filepath.Join(dir, "bin"),
 		SystemdDir: filepath.Join(dir, "systemd"),
 		Socket:     filepath.Join(dir, "shell.sock"),

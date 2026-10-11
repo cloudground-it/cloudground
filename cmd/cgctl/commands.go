@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -114,6 +116,28 @@ var commands = []command{
 		}
 		return map[string]any{"name": a[1], "grants": grants}, nil
 	})},
+	{words: []string{"sftp", "keys"}, args: "<site-id>", min: 1, max: 1, build: call("GET", "/api/sites/%s/ssh-keys", nil)},
+	{words: []string{"sftp", "keys-only"}, args: "<site-id> [public-key-file]", min: 1, max: 2, build: call("POST", "/api/sites/%s/sftp", func(a []string) (any, error) {
+		body := map[string]any{"enable": true, "keys_only": true}
+		if len(a) == 2 {
+			key, err := readPublicKey(a[1])
+			if err != nil {
+				return nil, err
+			}
+			body["public_key"] = key
+		}
+		return body, nil
+	})},
+	{words: []string{"sftp", "password"}, args: "<site-id>  (the password on stdin)", min: 1, max: 1, build: call("POST", "/api/sites/%s/sftp", func([]string) (any, error) {
+		pw, err := readPasswordLine(siteCreateStdin)
+		if err != nil {
+			return nil, fmt.Errorf("sftp password: %w", err)
+		}
+		return map[string]any{"enable": true, "keys_only": false, "password": pw}, nil
+	})},
+	{words: []string{"sftp", "off"}, args: "<site-id>", min: 1, max: 1, build: call("POST", "/api/sites/%s/sftp", func([]string) (any, error) {
+		return map[string]any{"enable": false}, nil
+	})},
 	{words: []string{"cron", "run"}, args: "<cron-id>", min: 1, max: 1, build: call("POST", "/api/cron/%s/run", nil)},
 	{words: []string{"cert", "issue"}, args: "<site-id>", min: 1, max: 1, build: call("POST", "/api/sites/%s/certificate", nil)},
 	{words: []string{"status"}, build: get("/api/system/status")},
@@ -215,4 +239,34 @@ func parseArgs(args []string) (invocation, error) {
 	}
 	inv.req = req
 	return inv, nil
+}
+
+// maxPublicKey bounds a public key file: an RSA key of 16384 bits is under
+// 3 KiB.
+const maxPublicKey = 16 << 10
+
+// readPublicKey reads one public key from path ("-" is stdin), its line
+// ending dropped; the panel checks the key itself.
+func readPublicKey(path string) (string, error) {
+	var r io.Reader = siteCreateStdin
+	if path != "-" {
+		f, err := os.Open(path)
+		if err != nil {
+			return "", err
+		}
+		defer f.Close()
+		r = f
+	}
+	b, err := io.ReadAll(io.LimitReader(r, maxPublicKey+1))
+	if err != nil {
+		return "", err
+	}
+	if len(b) > maxPublicKey {
+		return "", fmt.Errorf("%s: more than %d bytes, not a public key", path, maxPublicKey)
+	}
+	key := strings.TrimSpace(string(b))
+	if key == "" {
+		return "", fmt.Errorf("%s: no public key", path)
+	}
+	return key, nil
 }

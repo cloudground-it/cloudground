@@ -3,7 +3,8 @@
     "full": {
       "site": "@state.Site",
       "password": "Password",
-      "enable": true
+      "enable": true,
+      "keys_only": true
     },
     "zero": {
       "site": "@state.Site",

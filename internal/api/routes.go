@@ -283,7 +283,7 @@ func (s *Server) routeTable() []route {
 
 		// SFTP and SSH keys.
 		{Method: post, Path: "/api/sites/{id}/sftp", Policy: policyManage, Load: loadSite, Handle: s.handleSetSFTP,
-			Section: secSFTP, Doc: "turn SFTP on with a new password"},
+			Section: secSFTP, Doc: "turn SFTP on (`keys_only` and an optional `public_key`, or a new `password`) or off (`enable`)"},
 		{Method: get, Path: "/api/sites/{id}/ssh-keys", Policy: policySignedIn, Load: loadSite, Handle: s.handleListSSHKeys,
 			Section: secSFTP, Doc: "the site's SSH keys"},
 		{Method: post, Path: "/api/sites/{id}/ssh-keys", Policy: policyManage, Load: loadSite, Handle: s.handleAddSSHKey,

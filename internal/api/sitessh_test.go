@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"testing"
 
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
@@ -112,5 +113,80 @@ func TestTokensCannotOpenAShell(t *testing.T) {
 	}
 	if kp := agent.last(agentrpc.SSHKeys.Name()).(rpc.SSHKeyParams); kp.Access != "sftp" {
 		t.Fatalf("agent got %+v", kp)
+	}
+}
+
+// #47: SFTP keys only. A public key with no keys_only makes a keys-only
+// login, the key added first as an SFTP key; keys only with a password is
+// refused; a password login stores keys_only false.
+func TestSFTPKeysOnly(t *testing.T) {
+	s, agent, ts := testServer(t)
+	c := setupAdmin(t, s, ts)
+	site := createWPSite(t, s, c, "keys.example.com")
+	base := fmt.Sprintf("/api/sites/%d", site.ID)
+	sftp := func(body map[string]any, want int) {
+		t.Helper()
+		if resp, out := c.do("POST", base+"/sftp", body); resp.StatusCode != want {
+			t.Fatalf("POST sftp %v = %d %s, want %d", body, resp.StatusCode, out, want)
+		}
+	}
+	stored := func() (bool, bool) {
+		got, _ := s.Store.GetSite(site.ID)
+		return got.Config.SFTPEnabled, got.Config.SFTPKeysOnly
+	}
+
+	agent.forget()
+	sftp(map[string]any{"enable": true, "public_key": "ssh-ed25519 AAAA dev"}, http.StatusOK)
+	kp, _ := agent.last(agentrpc.SSHKeys.Name()).(rpc.SSHKeyParams)
+	if kp.Action != "add" || kp.Access != "sftp" || kp.PublicKey != "ssh-ed25519 AAAA dev" {
+		t.Fatalf("key: agent got %+v", kp)
+	}
+	if p, _ := agent.last(agentrpc.SetSFTP.Name()).(rpc.SFTPParams); !p.Enable || !p.KeysOnly || p.Password != "" {
+		t.Fatalf("SetSFTP: agent got %+v", p)
+	}
+	agent.mu.Lock()
+	calls := slices.Clone(agent.calls)
+	agent.mu.Unlock()
+	if i, j := slices.Index(calls, agentrpc.SSHKeys.Name()), slices.Index(calls, agentrpc.SetSFTP.Name()); i < 0 || i > j {
+		t.Fatalf("the key is not added before the login opens: %v", calls)
+	}
+	if on, keys := stored(); !on || !keys {
+		t.Fatalf("stored enabled %v, keys only %v", on, keys)
+	}
+
+	// Refused before the agent is asked.
+	agent.forget()
+	sftp(map[string]any{"enable": true, "keys_only": true, "password": "a-long-sftp-password"}, http.StatusBadRequest)
+	sftp(map[string]any{"enable": true, "keys_only": false, "public_key": "ssh-ed25519 AAAA dev"}, http.StatusBadRequest)
+	sftp(map[string]any{"enable": true}, http.StatusBadRequest)
+	if agent.called(agentrpc.SetSFTP.Name()) || agent.called(agentrpc.SSHKeys.Name()) {
+		t.Fatal("a refused request reached the agent")
+	}
+
+	// Back to a password, with a key kept: keys_only false is stored.
+	sftp(map[string]any{"enable": true, "keys_only": false, "password": "a-long-sftp-password", "public_key": "ssh-ed25519 AAAA dev"}, http.StatusOK)
+	if p, _ := agent.last(agentrpc.SetSFTP.Name()).(rpc.SFTPParams); p.KeysOnly || p.Password != "a-long-sftp-password" {
+		t.Fatalf("SetSFTP: agent got %+v", p)
+	}
+	if on, keys := stored(); !on || keys {
+		t.Fatalf("stored enabled %v, keys only %v", on, keys)
+	}
+
+	// Explicit keys only, no key given; a key already there is fine.
+	agent.mu.Lock()
+	agent.errs[agentrpc.SSHKeys.Name()] = agentrpc.Conflict("SSH key already exists")
+	agent.mu.Unlock()
+	sftp(map[string]any{"enable": true, "keys_only": true, "public_key": "ssh-ed25519 AAAA dev"}, http.StatusOK)
+	if on, keys := stored(); !on || !keys {
+		t.Fatalf("stored enabled %v, keys only %v", on, keys)
+	}
+	// Any other refusal of the key stops there.
+	agent.mu.Lock()
+	agent.errs[agentrpc.SSHKeys.Name()] = agentrpc.Invalid("not a key")
+	agent.mu.Unlock()
+	agent.forget()
+	sftp(map[string]any{"enable": true, "public_key": "nonsense"}, http.StatusBadRequest)
+	if agent.called(agentrpc.SetSFTP.Name()) {
+		t.Fatal("SFTP was turned on after its key was refused")
 	}
 }

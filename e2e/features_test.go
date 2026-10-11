@@ -779,6 +779,7 @@ func (f *feat) sftp(t *testing.T) {
 	h.assert(t, "R-2.4: SFTP on takes the user out of the deny group", !h.inGroup(f.fsu, "cg-sftp-off"),
 		"%s is still in cg-sftp-off", f.fsu)
 	h.assert(t, "SFTP signs in with the key", keyLogin(), "SFTP refused the key")
+	f.sftpKeysOnly(t, kdir, port, keyLogin)
 	h.check(t, "SFTP can be turned off", f.sftpSet(`{"enable":false}`), "200")
 	h.assert(t, "R-2.4: SFTP off puts the user in the deny group", h.inGroup(f.fsu, "cg-sftp-off"),
 		"%s is not in cg-sftp-off", f.fsu)
@@ -822,6 +823,58 @@ func (f *feat) sftp(t *testing.T) {
 		h.api.del(f.api("/ssh-keys/%s", QuoteAll(fp)))
 	}
 	cleanK()
+}
+
+// sftpKeysOnly (#47): a login set to keys only refuses its password, which
+// sshd does not even offer, and still takes the key; a password login (the
+// control) signs in with it; a public key sent with no keys_only makes a
+// keys-only login. Leaves SFTP on with a password.
+func (f *feat) sftpKeysOnly(t *testing.T, kdir, port string, keyLogin func() bool) {
+	h := f.h
+	const pw = "cg-e2e-sftp-pass-1"
+	askpass := kdir + "/askpass"
+	if err := os.WriteFile(askpass, []byte("#!/bin/sh\necho '"+pw+"'\n"), 0o700); err != nil {
+		h.fail(t, "#47 control: an askpass helper", "%v", err)
+		return
+	}
+	// Not -b, which makes sftp's ssh BatchMode and so never send a
+	// password; not -q, which hides the methods sshd offers.
+	passwordLogin := func() result {
+		return h.runIn("ls\n", "env", "SSH_ASKPASS="+askpass, "SSH_ASKPASS_REQUIRE=force", "DISPLAY=:0",
+			"sftp", "-P", port, "-o", "PubkeyAuthentication=no",
+			"-o", "PreferredAuthentications=password,keyboard-interactive", "-o", "NumberOfPasswordPrompts=1",
+			"-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", f.fsu+"@127.0.0.1")
+	}
+	r := passwordLogin()
+	h.assert(t, "#47 control: a password login signs in with its password", r.OK(), "sftp: %s", r)
+
+	h.check(t, "#47: SFTP can be set to keys only", f.sftpSet(`{"enable":true,"keys_only":true}`), "200")
+	s := h.api.site(f.fid)
+	h.check(t, "#47: keys only is stored", PyBool(s.Config.SFTPKeysOnly), "True")
+	r = passwordLogin()
+	h.assert(t, "#47: a keys-only login refuses its old password", !r.OK(), "the password still signs in")
+	h.assert(t, "#47: sshd does not offer a keys-only login a password", strings.Contains(r.Err, "Permission denied (publickey)"),
+		"sftp: %s", r)
+	shadow, _ := os.ReadFile("/etc/shadow")
+	spw, _ := ShadowPassword(string(shadow), f.fsu)
+	h.assert(t, "#47: a keys-only login's password is locked", strings.HasPrefix(spw, "!"), "password field %.3q…", spw)
+	h.assert(t, "#47: a keys-only login takes its key", keyLogin(), "SFTP refused the key")
+	h.check(t, "#47: a keys-only request with a password is refused",
+		f.sftpSet(`{"enable":true,"keys_only":true,"password":"cg-e2e-sftp-pass-9"}`), "400")
+
+	// A key given with no keys_only: keys only, that key added and signing in.
+	h.run("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "cg-e2e-ko", "-f", kdir+"/k2")
+	body, _ := json.Marshal(map[string]any{"enable": true, "public_key": readTrim(kdir + "/k2.pub")})
+	h.check(t, "#47: SFTP turned on with a key", f.sftpSet(string(body)), "200")
+	s = h.api.site(f.fid)
+	h.check(t, "#47: a login that comes with a key takes keys only", PyBool(s.Config.SFTPKeysOnly), "True")
+	k2 := h.runIn("ls\n", "sftp", "-q", "-b", "-", "-i", kdir+"/k2", "-P", port,
+		"-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", f.fsu+"@127.0.0.1")
+	h.assert(t, "#47: the key sent with the request signs in", k2.OK(), "sftp: %s", k2)
+
+	h.check(t, "#47: back to a password", f.sftpSet(`{"enable":true,"keys_only":false,"password":"`+pw+`"}`), "200")
+	r = passwordLogin()
+	h.assert(t, "#47: a password login signs in again", r.OK(), "sftp: %s", r)
 }
 
 // concurrentChanges (R-0.5): two changes to one site at once both stick.

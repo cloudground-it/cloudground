@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /**
- * A site's SFTP / SSH tab (artboard PanelSiteSFTP): the chrooted SFTP login
- * and its password, the SSH keys with their type, and the SSH shell an
- * administrator can turn on for the "shell" keys (R-4.5).
+ * A site's SFTP / SSH tab (artboard PanelSiteSFTP): the chrooted SFTP login,
+ * by SSH keys only or with a password (#47), the SSH keys with their type,
+ * and the SSH shell an administrator can turn on for the "shell" keys (R-4.5).
  */
 type Access = 'sftp' | 'shell'
+type SignIn = 'keys' | 'password'
 interface SSHKey { type: string, fingerprint: string, label?: string, access?: Access }
 
 const { t } = useI18n()
@@ -27,6 +28,26 @@ const { data: keys, refresh: refreshKeys } = useLoad(async () => {
 })
 
 const sftpOn = computed(() => site.value.config.sftp_enabled)
+const keysOnly = computed(() => !!site.value.config.sftp_keys_only)
+// How the login signs in: what it is now, else keys only, the safer choice.
+const signIn = ref<SignIn>('keys')
+watch([sftpOn, keysOnly], ([on, only]) => { signIn.value = on && !only ? 'password' : 'keys' }, { immediate: true })
+const signInItems = computed(() => [
+  { value: 'keys' as const, label: t('sftp.modeKeys'), description: t('sftp.modeKeysHint') },
+  { value: 'password' as const, label: t('sftp.modePassword'), description: t('sftp.modePasswordHint') }
+])
+// With no key on the site yet, keys only takes the first one here.
+const firstKey = ref('')
+const needsKey = computed(() => signIn.value === 'keys' && keys.value !== undefined && !(keys.value ?? []).length)
+const submitLabel = computed(() => {
+  if (signIn.value === 'keys') return sftpOn.value ? t('sftp.switchKeys') : t('sftp.enableKeys')
+  return !sftpOn.value ? t('sftp.enable') : keysOnly.value ? t('sftp.switchPassword') : t('sftp.update')
+})
+// Nothing to send when the login already takes keys only.
+const showSubmit = computed(() => !(signIn.value === 'keys' && sftpOn.value && keysOnly.value))
+const canSubmit = computed(() => signIn.value === 'keys'
+  ? !needsKey.value || !!firstKey.value.trim()
+  : password.value.length >= 12)
 const shellOn = computed(() => !!site.value.config.shell_enabled)
 // The server's address as the browser reached the panel: the same machine.
 const host = computed(() => typeof window !== 'undefined' ? window.location.hostname : site.value.domain)
@@ -49,9 +70,15 @@ const rows = computed(() => {
 })
 
 async function enable() {
-  if (await run(() => api.post(`/api/sites/${site.value.id}/sftp`, { enable: true, password: password.value }), t('sftp.enabled'))) {
+  const byKeys = signIn.value === 'keys'
+  const body = byKeys
+    ? { enable: true, keys_only: true, ...(firstKey.value.trim() ? { public_key: firstKey.value.trim() } : {}) }
+    : { enable: true, keys_only: false, password: password.value }
+  if (await run(() => api.post(`/api/sites/${site.value.id}/sftp`, body), byKeys ? t('sftp.keysOnlyOn') : t('sftp.enabled'))) {
     password.value = ''
+    firstKey.value = ''
     await refresh()
+    await refreshKeys()
   }
 }
 const disable = () => run(() => api.post(`/api/sites/${site.value.id}/sftp`, { enable: false }), t('sftp.disabled')).then(refresh)
@@ -108,7 +135,7 @@ const keyColumns = computed(() => [
 <template>
   <PanelSection :title="t('sftp.title')" :description="t('sftp.hint')">
     <template #actions>
-      <UBadge :color="sftpOn ? 'success' : 'neutral'" variant="subtle" size="lg" :label="sftpOn ? t('sftp.on') : t('sftp.off')" />
+      <UBadge :color="sftpOn ? 'success' : 'neutral'" variant="subtle" size="lg" :label="sftpOn ? (keysOnly ? t('sftp.onKeys') : t('sftp.on')) : t('sftp.off')" />
     </template>
     <div class="grid items-start gap-6 lg:grid-cols-2">
       <div class="flex min-w-0 flex-col gap-2">
@@ -118,11 +145,21 @@ const keyColumns = computed(() => [
         <SummaryList :rows="rows.map(r => ({ k: r.k, v: r.v, mono: true, copy: r.copy }))" />
       </div>
       <div v-if="canManage" class="flex min-w-0 flex-col gap-3">
-        <UFormField :label="t('sftp.password')" :hint="t('auth.min12')" :help="sftpOn ? undefined : t('sftp.offHint')">
+        <URadioGroup
+          v-model="signIn"
+          :legend="t('sftp.signIn')"
+          :items="signInItems"
+          variant="card"
+          :ui="{ legend: 'hud mb-2 text-muted' }"
+        />
+        <UFormField v-if="needsKey" :label="t('sftp.publicKey')" :help="t('sftp.firstKeyHint')">
+          <UTextarea v-model="firstKey" :rows="2" autoresize class="w-full" :ui="{ base: 'font-mono text-[13px]' }" placeholder="ssh-ed25519 AAAA… developer@laptop" />
+        </UFormField>
+        <UFormField v-if="signIn === 'password'" :label="t('sftp.password')" :hint="t('auth.min12')" :help="sftpOn ? undefined : t('sftp.offHint')">
           <UInput v-model="password" type="password" autocomplete="new-password" class="w-full font-mono" />
         </UFormField>
         <div class="flex flex-wrap gap-2">
-          <UButton :label="sftpOn ? t('sftp.update') : t('sftp.enable')" :disabled="password.length < 12" :loading="busy" @click="enable" />
+          <UButton v-if="showSubmit" :label="submitLabel" :disabled="!canSubmit" :loading="busy" @click="enable" />
           <UButton v-if="sftpOn" color="error" variant="outline" :label="t('sftp.disable')" :disabled="busy" @click="disable" />
         </div>
       </div>

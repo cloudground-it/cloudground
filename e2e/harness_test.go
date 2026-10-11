@@ -454,9 +454,10 @@ type siteInfo struct {
 	SystemUser string `json:"system_user"`
 	StagingOf  int64  `json:"staging_of"`
 	Config     struct {
-		ObjectCache bool `json:"object_cache"`
-		SFTPEnabled bool `json:"sftp_enabled"`
-		Database    struct {
+		ObjectCache  bool `json:"object_cache"`
+		SFTPEnabled  bool `json:"sftp_enabled"`
+		SFTPKeysOnly bool `json:"sftp_keys_only"`
+		Database     struct {
 			Name string `json:"name"`
 		} `json:"database"`
 		Backups struct {

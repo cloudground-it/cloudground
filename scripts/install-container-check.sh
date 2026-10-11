@@ -152,7 +152,7 @@ cmp -s /etc/nginx/nginx.conf /tmp/nginx.conf.before || die "nginx.conf is not th
 if [[ -n $default_site ]]; then
   [[ $(readlink /etc/nginx/sites-enabled/default) == "$default_site" ]] || die "the default site was not put back"
 fi
-for name in cloudground cg-sftp-off cg-shell; do
+for name in cloudground cg-sftp-off cg-sftp-keys cg-shell; do
   ! getent group "$name" >/dev/null || die "group $name is still there"
 done
 ! id cloudground >/dev/null 2>&1 || die "user cloudground is still there"

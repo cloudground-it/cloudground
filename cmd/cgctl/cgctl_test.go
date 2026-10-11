@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -202,6 +204,57 @@ func TestStartedTask(t *testing.T) {
 	for body, want := range cases {
 		if got, _ := startedTask([]byte(body)); got != want {
 			t.Errorf("%s → %d, want %d", body, got, want)
+		}
+	}
+}
+
+// #47: the SFTP commands map to POST /sftp; the password comes from stdin,
+// the key from a file.
+func TestSFTPCommands(t *testing.T) {
+	keyFile := filepath.Join(t.TempDir(), "id.pub")
+	if err := os.WriteFile(keyFile, []byte("ssh-ed25519 AAAA dev@laptop\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	inv, err := parseArgs([]string{"sftp", "keys-only", "7", keyFile})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := inv.req.body.(map[string]any)
+	if inv.req.method != "POST" || inv.req.path != "/api/sites/7/sftp" || b["enable"] != true || b["keys_only"] != true || b["public_key"] != "ssh-ed25519 AAAA dev@laptop" {
+		t.Fatalf("keys-only: %+v", inv.req)
+	}
+	if inv, err = parseArgs([]string{"sftp", "keys-only", "7"}); err != nil || inv.req.body.(map[string]any)["public_key"] != nil {
+		t.Fatalf("keys-only without a key: %+v %v", inv.req, err)
+	}
+
+	old := siteCreateStdin
+	t.Cleanup(func() { siteCreateStdin = old })
+	siteCreateStdin = strings.NewReader("a-long-sftp-password\n")
+	inv, err = parseArgs([]string{"sftp", "password", "7"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b = inv.req.body.(map[string]any)
+	if b["password"] != "a-long-sftp-password" || b["keys_only"] != false || b["enable"] != true {
+		t.Fatalf("password: %+v", inv.req)
+	}
+	siteCreateStdin = strings.NewReader("")
+	if _, err := parseArgs([]string{"sftp", "password", "7"}); err == nil {
+		t.Error("sftp password with nothing on stdin accepted")
+	}
+
+	if inv, err = parseArgs([]string{"sftp", "off", "7"}); err != nil || inv.req.body.(map[string]any)["enable"] != false {
+		t.Fatalf("off: %+v %v", inv.req, err)
+	}
+	if inv, err = parseArgs([]string{"sftp", "keys", "7"}); err != nil || inv.req.method != "GET" || inv.req.path != "/api/sites/7/ssh-keys" {
+		t.Fatalf("keys: %+v %v", inv.req, err)
+	}
+	for _, bad := range [][]string{
+		{"sftp", "keys-only", "x"}, {"sftp", "keys-only", "7", filepath.Join(t.TempDir(), "missing.pub")},
+		{"sftp", "password", "7", "inline-password"}, {"sftp", "off"},
+	} {
+		if _, err := parseArgs(bad); err == nil {
+			t.Errorf("%q accepted", bad)
 		}
 	}
 }

@@ -117,11 +117,13 @@ func (p *ManageFileParams) Validate() error {
 	return fmt.Errorf("unsupported file operation %q", p.Operation)
 }
 
-// SFTPParams turns the site user's SFTP access on (with Password) or off.
+// SFTPParams turns the site user's SFTP access on (with Password, or for
+// keys only with KeysOnly and no password) or off.
 type SFTPParams struct {
 	Site     state.Site `json:"site"`
 	Password string     `json:"password"`
 	Enable   bool       `json:"enable"`
+	KeysOnly bool       `json:"keys_only,omitempty"`
 }
 
 // Sites lists the site whose access changes.

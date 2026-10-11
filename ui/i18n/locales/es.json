@@ -633,7 +633,7 @@
     "on": "activado",
     "off": "desactivado",
     "command": "Comando",
-    "offHint": "Elige una contraseña para activarlo. Las claves SSH solo funcionan mientras el acceso está activado.",
+    "offHint": "Elige cómo acceder para activarlo. Las claves SSH solo funcionan mientras el acceso está activado.",
     "connection": "Datos de conexión",
     "folder": "Carpeta",
     "publicKey": "Clave pública",
@@ -664,7 +664,18 @@
     "confirmShellOff": "¿Desactivar el shell SSH? Las sesiones abiertas terminan ahora.",
     "confirmShellKeys": "Estas claves abrirán un shell: {keys}.",
     "confirmShellNoKeys": "Todavía no hay claves de tipo «shell»: añade una después de activar el shell.",
-    "shellKeyAdminOnly": "Solo un administrador puede añadir una clave «shell»."
+    "shellKeyAdminOnly": "Solo un administrador puede añadir una clave «shell».",
+    "signIn": "Cómo acceder",
+    "modeKeys": "Solo claves SSH",
+    "modeKeysHint": "Recomendado. No hay contraseña que adivinar: el servidor ni siquiera la pide.",
+    "modePassword": "Contraseña o clave SSH",
+    "modePasswordHint": "La contraseña se puede probar desde cualquier lugar: frente a los intentos repetidos, por ahora solo se aplican los límites del servidor SSH.",
+    "firstKeyHint": "El sitio aún no tiene claves SSH: pega la que usarás para acceder.",
+    "enableKeys": "Activar con solo claves",
+    "switchKeys": "Cambiar a solo claves",
+    "switchPassword": "Cambiar a una contraseña",
+    "onKeys": "activado · solo claves",
+    "keysOnlyOn": "SFTP configurado con solo claves"
   },
   "migration": {
     "archive": "Archivo del sitio",

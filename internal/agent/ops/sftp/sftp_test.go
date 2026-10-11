@@ -112,8 +112,8 @@ func TestSetSFTPTogglesAccessAndPassword(t *testing.T) {
 			groupadds++
 		}
 	}
-	if groupadds != 1 || !acc.HasGroup(DenyGroup) {
-		t.Fatalf("deny group ensured %d times, want once", groupadds)
+	if groupadds != 2 || !acc.HasGroup(DenyGroup) || !acc.HasGroup(KeysGroup) {
+		t.Fatalf("groups ensured %d times, want once each", groupadds)
 	}
 }
 
@@ -354,5 +354,84 @@ func TestConcurrentAddsKeepEveryKey(t *testing.T) {
 	res, err := o.SSHKeys(ctx, rpc.SSHKeyParams{Site: s, Action: "list"})
 	if err != nil || len(res.Keys) != n {
 		t.Fatalf("%d keys after %d concurrent adds (%v)", len(res.Keys), n, err)
+	}
+}
+
+func inKeys(t *testing.T, acc *host.FakeAccounts) bool {
+	t.Helper()
+	ok, err := acc.IsMember(ctx, user, KeysGroup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ok
+}
+
+// #47: keys only locks the password and joins the keys-only group before
+// access opens; a password with it is refused and changes nothing; a
+// password afterwards leaves the group and unlocks.
+func TestSetSFTPKeysOnly(t *testing.T) {
+	o, acc, s := newOps(t)
+	if _, err := o.SetSFTP(ctx, rpc.SFTPParams{Site: s, Enable: true, Password: "a-long-enough-pw"}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := o.SetSFTP(ctx, rpc.SFTPParams{Site: s, Enable: true, KeysOnly: true, Password: "a-long-enough-pw"})
+	wantCode(t, "keys only with a password", err, agentrpc.CodeInvalid)
+	if u, _ := acc.User(user); u.Locked || inKeys(t, acc) {
+		t.Fatalf("a refused keys-only call changed the account: %+v, keys-only %v", u, inKeys(t, acc))
+	}
+	for i := 0; i < 2; i++ {
+		out, err := o.SetSFTP(ctx, rpc.SFTPParams{Site: s, Enable: true, KeysOnly: true})
+		if err != nil {
+			t.Fatalf("keys only #%d: %v", i, err)
+		}
+		if out["sftp"] != "enabled" || out["auth"] != "keys" {
+			t.Fatalf("result %v", out)
+		}
+		if u, _ := acc.User(user); !u.Locked || !inKeys(t, acc) || member(t, acc) {
+			t.Fatalf("keys only: %+v, keys-only %v, denied %v", u, inKeys(t, acc), member(t, acc))
+		}
+	}
+	out, err := o.SetSFTP(ctx, rpc.SFTPParams{Site: s, Enable: true, Password: "another-long-pw"})
+	if err != nil || out["auth"] != "password" {
+		t.Fatalf("back to a password: %v %v", out, err)
+	}
+	if u, _ := acc.User(user); u.Locked || u.Password != "another-long-pw" || inKeys(t, acc) || member(t, acc) {
+		t.Fatalf("password: %+v, keys-only %v, denied %v", u, inKeys(t, acc), member(t, acc))
+	}
+}
+
+// #47: the keys-only drop-in is written and checked with sshd -t before the
+// password is locked; one sshd refuses leaves no file and the login as it
+// was.
+func TestKeysOnlyDropIn(t *testing.T) {
+	e := newShellOps(t)
+	if _, err := e.o.SetSFTP(ctx, rpc.SFTPParams{Site: e.s, Enable: true, Password: "a-long-enough-pw"}); err != nil {
+		t.Fatal(err)
+	}
+	e.refuse = true
+	if _, err := e.o.SetSFTP(ctx, rpc.SFTPParams{Site: e.s, Enable: true, KeysOnly: true}); err == nil {
+		t.Fatal("keys only went through with sshd refusing the drop-in")
+	}
+	if _, err := os.Stat(e.paths.KeysDropIn); !os.IsNotExist(err) {
+		t.Fatalf("the refused drop-in is still there: %v", err)
+	}
+	if u, _ := e.acc.User(user); u.Locked || inKeys(t, e.acc) {
+		t.Fatalf("a refused drop-in changed the login: %+v", u)
+	}
+	e.refuse = false
+	if _, err := e.o.SetSFTP(ctx, rpc.SFTPParams{Site: e.s, Enable: true, KeysOnly: true}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(e.paths.KeysDropIn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Match Group " + KeysGroup + "\n", "    PasswordAuthentication no\n", "    KbdInteractiveAuthentication no\n"} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("drop-in lacks %q:\n%s", want, b)
+		}
+	}
+	if filepath.Base(e.paths.KeysDropIn) >= "10-cloudground-sftp.conf" || filepath.Base(DefaultShellPaths().KeysDropIn) >= "10-cloudground-sftp.conf" {
+		t.Error("the keys-only drop-in must sort before 10-cloudground-sftp.conf")
 	}
 }

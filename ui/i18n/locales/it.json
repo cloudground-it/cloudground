@@ -633,7 +633,7 @@
     "on": "attivo",
     "off": "disattivato",
     "command": "Comando",
-    "offHint": "Per attivarlo scegli una password. Le chiavi SSH funzionano solo con l'accesso attivo.",
+    "offHint": "Per attivarlo scegli come si accede. Le chiavi SSH funzionano solo con l'accesso attivo.",
     "connection": "Dati di connessione",
     "folder": "Cartella",
     "publicKey": "Chiave pubblica",
@@ -664,7 +664,18 @@
     "confirmShellOff": "Disattivare la shell SSH? Le sessioni aperte terminano subito.",
     "confirmShellKeys": "Queste chiavi apriranno una shell: {keys}.",
     "confirmShellNoKeys": "Ancora nessuna chiave di tipo “shell”: aggiungine una dopo aver attivato la shell.",
-    "shellKeyAdminOnly": "Solo un amministratore può aggiungere una chiave “shell”."
+    "shellKeyAdminOnly": "Solo un amministratore può aggiungere una chiave “shell”.",
+    "signIn": "Come si accede",
+    "modeKeys": "Solo chiavi SSH",
+    "modeKeysHint": "Consigliato. Non c’è nessuna password da indovinare: il server non la chiede nemmeno.",
+    "modePassword": "Password o chiave SSH",
+    "modePasswordHint": "La password si può tentare da ovunque: contro i tentativi ripetuti per ora valgono solo i limiti del server SSH.",
+    "firstKeyHint": "Il sito non ha ancora chiavi SSH: incolla quella che userai per accedere.",
+    "enableKeys": "Attiva con solo chiavi",
+    "switchKeys": "Passa a solo chiavi",
+    "switchPassword": "Passa a una password",
+    "onKeys": "attivo · solo chiavi",
+    "keysOnlyOn": "SFTP impostato su solo chiavi"
   },
   "migration": {
     "archive": "Archivio del sito",

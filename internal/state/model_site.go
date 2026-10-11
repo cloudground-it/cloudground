@@ -59,6 +59,9 @@ type SiteConfig struct {
 	Backups     BackupPolicy   `json:"backups"`
 	PHP         PHPSettings    `json:"php"`
 	SFTPEnabled bool           `json:"sftp_enabled"`
+	// SFTPKeysOnly: the SFTP login takes keys only, its password locked
+	// (ops/sftp SPEC §3).
+	SFTPKeysOnly bool `json:"sftp_keys_only,omitempty"`
 	// ShellEnabled lets the site's SSH keys of kind "shell" open a shell
 	// in the site (R-4.5, ops/sftp SPEC §5). Only an administrator sets it.
 	ShellEnabled bool `json:"shell_enabled"`

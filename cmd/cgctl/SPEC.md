@@ -107,3 +107,18 @@ over its socket with the agent's token, for the same `SelfUpdate` the panel's bu
 waits for the guard's verdict), `cgctl uninstall` in §9. Exit codes: 0 done (or, for `update
 --check`, an answer given), 1 refused or failed (with the reason on stderr), 2 a usage error or
 not root.
+
+## 8. sftp (#47)
+
+    cgctl sftp keys-only <site-id> [public-key-file]
+    cgctl sftp password <site-id>      (the password on stdin)
+    cgctl sftp off <site-id>
+    cgctl sftp keys <site-id>
+
+`keys-only` is `POST /api/sites/<id>/sftp {"enable": true, "keys_only": true}`, with
+`"public_key"` the file's content (trimmed; `-` is stdin; at most 16 KiB, empty refused) when one
+is named: the login takes keys only and the key, if any, is added first (internal/api,
+ops/sftp SPEC §3.1). `password` reads the password as one line from stdin, as
+`--db-password-stdin` does (§6; never from argv), and sends `{"enable": true, "keys_only": false,
+"password": …}`. `off` sends `{"enable": false}`; `keys` is `GET /api/sites/<id>/ssh-keys`. The
+output and exit codes are §3's and §4's.

@@ -34,6 +34,7 @@ export interface Site {
     cache_ttl_sec: number
     object_cache: boolean
     sftp_enabled: boolean
+    sftp_keys_only?: boolean
     shell_enabled?: boolean
     hsts?: boolean
     wildcard_cert?: boolean

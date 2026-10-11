@@ -66,6 +66,7 @@ type ShellSystemd interface {
 // ShellPaths is where the site shell's files are.
 type ShellPaths struct {
 	DropIn     string // the sshd drop-in (§5.3)
+	KeysDropIn string // the keys-only sshd drop-in (§3.1)
 	BinDir     string // panel-agent's directory, where the gate link goes
 	SystemdDir string // where a user manager is masked
 	Socket     string // the gate socket
@@ -80,6 +81,7 @@ type ShellPaths struct {
 func DefaultShellPaths() ShellPaths {
 	return ShellPaths{
 		DropIn:     "/etc/ssh/sshd_config.d/11-cloudground-shell.conf",
+		KeysDropIn: "/etc/ssh/sshd_config.d/09-cloudground-sftp-keys.conf",
 		BinDir:     "/usr/local/bin",
 		SystemdDir: "/etc/systemd/system",
 		Socket:     "/run/cloudground/shell.sock",

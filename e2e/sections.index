@@ -149,6 +149,7 @@ e2e/features_test.go	feat.optionProbe	wordpress cache|wordpress backups
 e2e/features_test.go	feat.phpErrorLog	wordpress logs
 e2e/features_test.go	feat.safePush	wordpress safe push
 e2e/features_test.go	feat.sftp	wordpress sftp
+e2e/features_test.go	feat.sftpKeysOnly	wordpress sftp
 e2e/features_test.go	feat.sftpSet	wordpress sftp
 e2e/features_test.go	feat.slowRequest	wordpress slow request
 e2e/features_test.go	feat.staging	wordpress staging
