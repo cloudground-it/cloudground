@@ -137,10 +137,37 @@ what ufw drives on Ubuntu 24.04 and later). fail2ban would add a Python
 daemon reading the same logs, with its own state and configuration, beside
 the panel's.
 
-## 6. Tests
+## 6. Countries (#25)
+
+A site may refuse, or serve only, some countries (internal/engine SPEC
+§4.7). The data is DB-IP's **IP to Country Lite**
+(<https://db-ip.com/db/download/ip-to-country-lite>), licensed **CC BY
+4.0**: free to download without an account or a key, and to redistribute
+with attribution, which every rendered rules file, the panel's country
+picker and the README carry ("IP Geolocation by DB-IP"). It is a CSV of
+`start,end,country` rows, IPv4 and IPv6, about 710,000 rows (31 MB, 4.5 MB
+gzipped, October 2026), published monthly.
+
+- `ValidCountry(c)`: two capital letters (ISO 3166-1 alpha-2, as DB-IP
+  writes them; `ZZ` is its "unknown").
+- `RangePrefixes(lo, hi)`: the shortest list of prefixes covering exactly
+  the range (the largest aligned block that fits, again from the next
+  address), in either family; nothing for a backwards or mixed range.
+- `CountryPrefixes(r, want)`: the prefixes of each wanted code, sorted. A
+  row that is not three fields, or a range that does not parse or runs
+  backwards, is an error (the data becomes configuration); so is a file of
+  fewer than 1,000 rows (not the database).
+
+Measured on the October 2026 file: the United States are 92,286 ranges,
+China 10,041. The prefixes a rule renders, and what a large country costs
+nginx's memory and reload, are in `bench/blocklist.md` (to measure).
+
+## 7. Tests
 
 `blocklist_test.go`: §1 (parse, mask, unmap, the width bound, the unit),
 §2 (bounds), §3 (the window, a ban resets, exempt addresses, the bound on
 units, `enabled` off), §4 (each sshd line, the ones that must not count,
 nginx datagrams), §5 (the script byte for byte, covered prefixes dropped,
-empty sets). The e2e section `blocklist` checks it on a server.
+empty sets). `geo_test.go`: §6 (ranges of both families, the whole space,
+one address, the CSV and its refusals). The e2e sections `blocklist` and
+`site blocking` check it on a server.

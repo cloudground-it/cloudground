@@ -111,6 +111,9 @@ type Ops struct {
 	SystemPorts func() []int
 	LocalAddrs  func() []netip.Addr
 	Resolve     func(host string) ([]netip.Addr, error)
+	// CountryPrefixes resolves country codes to their addresses for a
+	// site's blocking rules (ops/blocklist SPEC §5); nil refuses them.
+	CountryPrefixes func(ctx context.Context, codes []string) ([]netip.Prefix, error)
 
 	buildOnce      sync.Once
 	http3, http2On bool
@@ -146,6 +149,11 @@ func (o *Ops) vhostPath(s state.Site) string {
 
 func (o *Ops) cacheZonePath(s state.Site) string {
 	return filepath.Join(o.Paths.NginxConfDir, "cloudground-cache-"+itoa(s.ID)+".conf")
+}
+
+// blockingPath is the site's blocking rules (internal/engine SPEC §4.7).
+func (o *Ops) blockingPath(s state.Site) string {
+	return filepath.Join(o.Paths.NginxConfDir, "cloudground-block-"+itoa(s.ID)+".conf")
 }
 
 func (o *Ops) poolPath(s state.Site) string {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -167,6 +168,15 @@ var commands = []command{
 	// with the password; over the API socket the caller has no address,
 	// which is how an operator who blocked themselves out gets back in.
 	{words: []string{"blocklist"}, build: get("/api/blocklist")},
+	// A site's refused visitors (#25): the whole rule set as JSON, `{}`
+	// refusing nobody.
+	{words: []string{"sites", "block"}, args: "<site-id> <rules-json>", min: 2, max: 2, build: call("PUT", "/api/sites/%s/blocking", func(a []string) (any, error) {
+		var rules map[string]any
+		if err := json.Unmarshal([]byte(a[1]), &rules); err != nil {
+			return nil, fmt.Errorf("the rules are a JSON object ({\"addresses\": […], \"user_agents\": […], \"countries\": […], \"allow_countries_only\": false}): %w", err)
+		}
+		return rules, nil
+	})},
 	{words: []string{"blocklist", "block"}, args: "<address-or-cidr> [minutes]", min: 1, max: 2, password: true, build: blockRequest("POST", "/api/blocklist/blocks")},
 	{words: []string{"blocklist", "unblock"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("DELETE", "/api/blocklist/blocks")},
 	{words: []string{"blocklist", "allow"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("POST", "/api/blocklist/allowed")},

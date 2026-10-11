@@ -56,6 +56,7 @@ them takes the site lock; the lock is not reentrant.
 | pool / master config | `<PHPMasterDir>/<user>.conf` |
 | vhost | `<NginxSites>/<domain>.conf` |
 | page-cache zone | `<NginxConfDir>/cloudground-cache-<id>.conf` |
+| refused visitors (#25) | `<NginxConfDir>/cloudground-block-<id>.conf` |
 | staging password | `<NginxAuthDir>/<domain>.htpasswd` |
 | protected path password (#26) | `<NginxAuthDir>/<domain>.path-<first 6 bytes of the path's SHA-256, hex>.htpasswd` |
 | logs / page cache | `<LogRoot>/<domain>`, `<CacheRoot>/<sanitised domain>` |
@@ -138,6 +139,12 @@ the PHP masters' directory, set to 0755 on every PHP render (step 4).
    `CertAvailable` says the chosen fullchain exists; PHP socket
    `<PHPSocketDir>/<user>/php.sock` except for static and proxy sites; a
    staging site (`StagingAuthHash`) gets its password file and internal key;
+   a site with blocking rules (`Config.Blocking`) its addresses, user agents
+   and countries, the countries resolved by `CountryPrefixes` (ops/blocklist
+   SPEC §4; a failure fails the render, nothing written), and this
+   machine's addresses as the exempt ones (internal/engine SPEC §4.7); a
+   site without rules has its rules file removed in the same nginx change
+   (put back if the change is rolled back);
    every site the socket WordPress vhosts log failed sign-ins to
    (`Paths.AuthLogSocket`, ops/blocklist SPEC §1.2; internal/engine SPEC §4.6);
    each protected path (`Config.ProtectedPaths`) its own password file, one
@@ -247,7 +254,7 @@ be `<SitesRoot>/<domain>`; nothing else is checked, the site may be half
 gone.
 
 1. Routing first: under the nginx lock, remove the vhost, the page-cache
-   zone and the password files (staging's and every protected path's),
+   zone, the blocking rules and the password files (staging's and every protected path's),
    then test and reload nginx.
 2. Stop the slice: the PHP master, cron jobs run now and wp-cli runs go
    together (systemd kills the whole cgroup). An unknown slice is fine.

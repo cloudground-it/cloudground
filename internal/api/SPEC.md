@@ -970,7 +970,7 @@ failure); any other error 500 with its text.
 - `GET /certificate` (signed in): `exists`, `hsts`, and when it exists `not_after` (RFC 3339, UTC), `days_left`, `issuer`, `custom`; `last_renewal_error` when the last renewal failed.
 - `PUT|DELETE /certificate/custom` (manage): PUT needs `fullchain` and `key` (400 `fullchain and key (PEM) are required`); an agent refusal defaults to 400; files recorded; audited `certificate.custom.install|remove`; 200 `{"status": "ok"}` for PUT. DELETE (back to Let's Encrypt) then queues `certificate.issue` for the site's names as they are now (aliases added over the custom certificate got no reissue, so the certificate it goes back to may not cover them), audited `certificate.issue` (`back to Let's Encrypt`): 200 `{"status": "ok", "task"}`; with no ACME e-mail, or a queue that refuses, 200 `{"status": "ok", "warning"}` and nothing queued.
 - `POST /purge` (manage): an empty body purges everything; a malformed one is 400 `malformed request`, never a full purge; 200 with the agent's `{removed}`; audited `cache.purge` (`<n> urls, <m> removed`).
-- A managed file belongs to a site (`siteOwnsPath`) by exact name, never by substring (`cg-site-1` is not `cg-site-10`): `<domain>.conf`, `cloudground-cache-<id>.conf`, `<user>.conf`, `cloudground-php-<user>.service` and the files of its `.service.d` directory, `<domain>.htpasswd`, `<domain>.path-*.htpasswd` (a protected path's, #26), and anything under `<root>/`. After a full render (`recordRendered`) the files it wrote are recorded and the site's other configuration files are no longer tracked; files under the root (the connector, installed by deploys) are left alone. `pruneOrphanManagedFiles` drops per-site records (`cg-site-` in the name or its directory's, `.htpasswd`, under the sites' root) that belong to no site; it reports the pass complete only when the records were read and the sites' root was known.
+- A managed file belongs to a site (`siteOwnsPath`) by exact name, never by substring (`cg-site-1` is not `cg-site-10`): `<domain>.conf`, `cloudground-cache-<id>.conf`, `<user>.conf`, `cloudground-php-<user>.service` and the files of its `.service.d` directory, `<domain>.htpasswd`, `<domain>.path-*.htpasswd` (a protected path's, #26), `cloudground-block-<id>.conf` (its refused visitors, #25), and anything under `<root>/`. After a full render (`recordRendered`) the files it wrote are recorded and the site's other configuration files are no longer tracked; files under the root (the connector, installed by deploys) are left alone. `pruneOrphanManagedFiles` drops per-site records (`cg-site-` in the name or its directory's, `.htpasswd`, under the sites' root) that belong to no site; it reports the pass complete only when the records were read and the sites' root was known.
 
 ### 3.10 Names lock and the public root
 
@@ -1009,6 +1009,29 @@ username}]`.
   Audit `site.protected_path`, `add <path> (user <username>)`.
 - `DELETE /api/sites/{id}/protected-paths` `{path}`: a path not protected →
   404 `that path is not protected`. Audit `remove <path>`.
+
+### 3.13 Refused visitors (#25, `site_blocking.go`)
+
+`PUT /api/sites/{id}/blocking` (manage, body at most 64 KiB) replaces the
+site's rules (`config.blocking`: `addresses`, `user_agents`, `countries`,
+`allow_countries_only`; internal/engine SPEC §4.7). The body is normalised
+first: each address parsed and written as its masked prefix
+(`203.0.113.9/24` is `203.0.113.0/24`, an address its `/32` or `/128`),
+each country upper-cased, each user agent trimmed; addresses and countries
+sorted without repeats. Then refused (400, the rule's message):
+`site.CheckBlocking` (at most 500 addresses, none wider than /8 or /16; at
+most 50 user agents of 2–100 printable characters without `" \ $ { }`; at
+most 50 countries of two capital letters; serving only some countries needs
+one; nothing twice), an address holding the caller's own (`… you would lock
+yourself out of the site`), and one holding this machine or loopback (`…
+the panel's own checks of the site come from there`). As the protected
+paths do: under the site's lock, the agent's `ApplySiteConfig` renders the
+site with the rules, and they are stored (`MutateSiteApplied`, files
+recorded) only once nginx has them; an agent refusal (the country data
+could not be downloaded, say) stores nothing. Empty lists refuse nobody and
+remove the rules. Audit `site.blocking`, detail `<n> addresses, <n> user
+agents, countries <codes>|only <codes>|no countries` or `none`. Answer: 200,
+the rules as stored.
 
 ### 3.11 Tests
 

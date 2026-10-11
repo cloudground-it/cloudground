@@ -1,6 +1,9 @@
 package agent
 
 import (
+	"context"
+	"net/netip"
+
 	"github.com/cloudground-it/cloudground/internal/agent/ops/sites"
 )
 
@@ -32,7 +35,11 @@ func (a *Agent) sitesHandlers() *sites.Ops {
 			WordPress: a.wpHandlers(),
 			Relink:    relinkSite,
 			NginxMu:   &a.nginxMu,
-			Log:       a.log(),
+			// Resolved at call time: ops/blocklist is built on its own.
+			CountryPrefixes: func(ctx context.Context, codes []string) ([]netip.Prefix, error) {
+				return a.blocklistHandlers().CountryPrefixes(ctx, codes)
+			},
+			Log: a.log(),
 		}
 	})
 	return a.sitesOps

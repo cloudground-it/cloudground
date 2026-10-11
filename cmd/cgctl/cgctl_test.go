@@ -340,3 +340,18 @@ func TestBlocklistCommands(t *testing.T) {
 		t.Fatal("a duration that is not a number was accepted")
 	}
 }
+
+// #25: a site's rules go as the JSON given; JSON that does not parse is a
+// usage error.
+func TestSitesBlock(t *testing.T) {
+	inv, err := parseArgs([]string{"sites", "block", "7", `{"countries":["CN"]}`})
+	if err != nil || inv.req.method != "PUT" || inv.req.path != "/api/sites/7/blocking" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if b := inv.req.body.(map[string]any); fmt.Sprint(b["countries"]) != "[CN]" {
+		t.Fatalf("body %v", b)
+	}
+	if _, err := parseArgs([]string{"sites", "block", "7", "{nope"}); err == nil {
+		t.Fatal("bad JSON accepted")
+	}
+}

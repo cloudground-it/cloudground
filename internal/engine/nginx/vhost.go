@@ -95,6 +95,11 @@ func prepare(in engine.Input) (*vhost, error) {
 			return nil, fmt.Errorf("invalid protected path %q", p.Path)
 		}
 	}
+	if in.Blocking != nil {
+		if err := checkBlocking(in.Blocking); err != nil {
+			return nil, err
+		}
+	}
 	v := &vhost{
 		in:       in,
 		php:      in.PHPSocket != "" && s.Type != state.SiteProxy && s.Type != state.SiteStatic,
@@ -156,6 +161,9 @@ func (r Renderer) SiteFiles(in engine.Input) (map[string]string, error) {
 	}
 	if in.Policy.Enabled {
 		files[filepath.Join(orDefault(r.ConfDir, DefaultConfDir), fmt.Sprintf("cloudground-cache-%d.conf", in.Site.ID))] = v.zone()
+	}
+	if in.Blocking != nil {
+		files[r.BlockingFile(in.Site.ID)] = v.blockingFile()
 	}
 	return files, nil
 }
@@ -252,6 +260,15 @@ func (v *vhost) render() (before, block, after string) {
 			"listen 443 quic;", "listen [::]:443 quic;")
 	}
 	c.put(1, "server_name "+names+";", "server_tokens off;")
+	if in.Blocking != nil {
+		c.put(1, "",
+			"# Visitors this site refuses: addresses, countries, user agents (SPEC",
+			"# §4.7, cloudground-block-"+strconv.FormatInt(s.ID, 10)+".conf). The server rewrite phase runs",
+			"# before the page cache is read, so a refused visitor gets no cached page.")
+		c.putf(1, "if ($cg_block_%d) {", s.ID)
+		c.put(2, "return 403;")
+		c.put(1, "}")
+	}
 	if in.BasicAuthFile != "" {
 		c.put(1, "",
 			"# A staging copy asks for a password. CloudGround's own requests (guard",

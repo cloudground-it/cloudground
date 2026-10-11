@@ -27,6 +27,7 @@ const (
 // Body limits that differ from defaultMaxBody (SPEC.md §1.6).
 const (
 	smallBody      = 8 << 10   // credentials and profile fields
+	blockingBody   = 64 << 10  // a site's blocking rules: 500 networks, 50 user agents
 	certBody       = 256 << 10 // a PEM chain and key
 	dbEditBody     = 16 << 20  // a batch of row changes
 	fileUploadBody = maxPanelTransfer
@@ -113,6 +114,8 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "protect a path with a username and password, or change them (`{\"path\": \"/wp-admin\", \"username\": …, \"password\": …}`); answers the site's protected paths"},
 		{Method: del, Path: "/api/sites/{id}/protected-paths", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleDeleteProtectedPath,
 			Section: secSites, Doc: "stop protecting a path (`{\"path\": \"/wp-admin\"}`); answers the site's protected paths"},
+		{Method: put, Path: "/api/sites/{id}/blocking", Policy: policyManage, MaxBody: blockingBody, Load: loadSite, Handle: s.handleSetBlocking,
+			Section: secSites, Doc: "the visitors the site refuses with 403 (`{\"addresses\": [\"203.0.113.0/24\"], \"user_agents\": [\"GPTBot\"], \"countries\": [\"CN\"], \"allow_countries_only\": false}`; empty lists refuse nobody); live at once, answers the rules"},
 		{Method: get, Path: "/api/sites/{id}/routing", Policy: policyAdmin, SessionOnly: true, Load: loadSite, Handle: s.handleGetRouting,
 			Section: secSites, Doc: "the site's routing block (`routing`, `default`, `custom`, `editable`) and the panel's vhost around it (`before`, `after`)"},
 		{Method: put, Path: "/api/sites/{id}/routing", Policy: policyAdmin, SessionOnly: true, MaxBody: routingBody, Load: loadSite, Handle: s.handleSetRouting,

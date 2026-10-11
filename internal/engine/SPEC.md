@@ -31,6 +31,7 @@ in the rendered comments (they are part of the output and stay with it) and
 | `BasicAuthFile`, `InternalKey` | staging: the password file, and the header value that passes it |
 | `ProtectedPaths` | the site's protected paths (#26), each `{Path, File}`: the path and its password file (§4.5) |
 | `AuthLogSocket` | the agent's datagram socket for failed sign-ins (#21, §4.6); empty logs none |
+| `Blocking` | the visitors the site refuses (#25, §4.7): addresses, user agents, countries already resolved to their prefixes, and this machine's addresses (never refused); nil refuses nobody |
 
 `Renderer` has `SiteFiles(Input) (path → content)`, `GlobalFiles()` and
 `Routing(Input) (RoutingView)` (§7.5).
@@ -41,6 +42,7 @@ in the rendered comments (they are part of the output and stay with it) and
 |---|---|
 | `<SitesDir>/<domain>.conf` (default `/etc/nginx/sites-enabled`) | always: the vhost (§4) |
 | `<ConfDir>/cloudground-cache-<id>.conf` (default `/etc/nginx/conf.d`) | the policy caches: the cache zone (§3.2) |
+| `<ConfDir>/cloudground-block-<id>.conf` | `Blocking` set: the site's refused visitors (§4.7) |
 | `<ConfDir>/cloudground-global.conf` | `GlobalFiles`: http-level maps and tuning (§3.1) |
 
 Refused before anything is rendered:
@@ -96,6 +98,7 @@ In this order. "Security headers" is the set of §4.3.
      `443 ssl` and `http2 on;`; with `HTTP3` also `443 quic` (no
      `reuseport`: the installer's default server holds the only one);
    - server names, `server_tokens off`;
+   - with `Blocking`, `if ($cg_block_<id>) { return 403; }` (§4.7);
    - staging: `auth_basic $cg_staging_realm_<id>` and the password file;
    - protected paths: `auth_basic $cg_auth_realm_<id>` and
      `auth_basic_user_file $cg_auth_file_<id>` (§4.5);
@@ -252,6 +255,64 @@ is logged. Measured in `bench/blocklist.md`.
 A site can mark any of its own responses, so a site's code can count
 failures against the addresses that actually sent it a POST, and against no
 other: nginx writes the address, not the site.
+
+### 4.7 Refused visitors (#25)
+
+A site may refuse addresses or networks, user agents, and countries (or
+serve only some countries). The rules are the panel's (`config.blocking`,
+internal/api SPEC §3.13); the agent resolves the countries to their
+prefixes from DB-IP's data (ops/blocklist SPEC §4) and fills `Blocking`.
+
+Refused before anything is rendered: a user agent pattern that is not
+`site.ValidUserAgentPattern` (2–100 printable ASCII characters, none of `"
+\ $ { }`), a country that is not two capital letters, an invalid prefix,
+and serving only some countries with none named.
+
+The rules go to one http-level file per site, `cloudground-block-<id>.conf`
+(beside the cache zone; the vhost stays readable in the routing editor):
+
+```
+# Written by CloudGround: the visitors <domain> (site <id>) refuses (#25).
+# Country data: IP Geolocation by DB-IP (https://db-ip.com), CC BY 4.0.   (with countries)
+geo $cg_block_ip_<id> {
+    default  0;
+    127.0.0.0/8  x;   ::1/128  x;   <each of this machine's addresses>  x;
+    <each refused prefix>  1;
+}
+geo $cg_block_cc_<id> {          (with countries)
+    default  0;                  (1 when serving only the countries named)
+    <each prefix of the countries>  1;   (0 when serving only them)
+}
+map $http_user_agent $cg_block_ua_<id> {    (with user agents)
+    default  0;
+    "~*(?:<pattern>|<pattern>)"  1;          (each regex-quoted: a substring, any case)
+}
+map "$cg_block_ip_<id>[$cg_block_cc_<id>][$cg_block_ua_<id>]" $cg_block_<id> {
+    default  1;
+    "0…0"  0;
+    "x…"  0;          (every combination after an x)
+}
+```
+
+- `$cg_block_<id>` is 1 when any rule refuses the request and the address is
+  not this machine's: loopback and the machine's own addresses (`x`) are
+  never refused, so the panel's own requests to the site (Performance
+  Guard, the warmer, the uptime check from the public address) always get
+  through. The longest prefix wins in a `geo`, so an exemption holds inside
+  a refused network.
+- Prefixes are written once each, sorted, without those another covers.
+  Lookups: one radix-tree match per `geo`, one case-insensitive regex for all
+  the user agents, and one hash lookup for the combination, all evaluated
+  only for this site's requests.
+- In the 443 server, after `server_tokens`: `if ($cg_block_<id>) { return
+  403; }`. The server rewrite phase runs before locations, so before the
+  page cache is read: a refused visitor never gets a cached page. Port 80
+  only redirects and serves ACME challenges (Let's Encrypt's validation may
+  come from a refused country), so it refuses nobody.
+- Without rules there is no file and no `if`: such a site pays nothing.
+  Rules taken away remove the file before the reload (ops/sites SPEC §4).
+
+The cost is in `bench/blocklist.md` (to measure on the VPS).
 
 ## 5. Page-cache policy (`velocity.PolicyFor`)
 

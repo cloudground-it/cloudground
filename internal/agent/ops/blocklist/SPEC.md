@@ -63,16 +63,39 @@ standard input: the table `inet cloudground` is replaced in one transaction
 - `nft` refuses the script → `internal` with nft's message as the detail;
   the table is as it was (the transaction is all or nothing).
 
-## 4. Removal
+## 4. Country data (#25)
+
+`CountryPrefixes(ctx, codes)`, for ops/sites when it renders a site that
+refuses or serves only some countries (internal/engine SPEC §4.7):
+
+- The file is `/var/lib/cloudground-agent/geo/dbip-country-lite.csv.gz`
+  (root's, 0644). Missing, or older than 35 days (DB-IP publishes monthly),
+  it is downloaded first: `https://download.db-ip.com/free/dbip-country-lite-<YYYY-MM>.csv.gz`
+  for this month, then last month's when this one is not out yet; 2-minute
+  timeout, at most 64 MiB; it must unpack and read as the database
+  (internal/blocklist SPEC §6) before it replaces the old one (written
+  beside it, then renamed). No account and no key.
+- A refresh that fails keeps the file there is (logged); with no file and
+  no download the answer is `unavailable`, `could not download the country
+  data from db-ip.com`, and the render fails with the site as it was.
+- A code that is not two capital letters is `invalid`.
+- The answer is the prefixes of every code, by code; the last answer is
+  kept for the same file and codes (a site's every render reads the same).
+- One read or download at a time.
+
+## 5. Removal
 
 `cgctl uninstall` deletes the table (`nft delete table inet cloudground`,
 internal/install SPEC §9) with everything else the panel set up.
 
-## 5. Tests
+## 6. Tests
 
 `blocklist_test.go`: the journal reader counts an sshd failure from root in
 the SSH unit and ignores the same message from another uid or unit; the
 datagram reader counts a line it received with root's credentials over a
 real socket and refuses the rest; loopback and own addresses are dropped;
 the bound on pairs; a read empties; the apply's script and its refusals,
-and nft missing. The e2e section `blocklist` checks it on a server.
+and nft missing. `countries_test.go`: the download (last month's when this
+month's is missing), the cache, a refresh that fails keeping the old file, no
+data being unavailable, and a download that is not the database not kept.
+The e2e sections `blocklist` and `site blocking` check it on a server.

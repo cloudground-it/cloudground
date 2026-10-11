@@ -16,6 +16,14 @@ export interface Me {
   created_at: string
 }
 
+/** A site's refused visitors (#25): addresses, user agents, countries. */
+export interface SiteBlocking {
+  addresses?: string[]
+  user_agents?: string[]
+  countries?: string[]
+  allow_countries_only?: boolean
+}
+
 export interface Site {
   id: number
   domain: string
@@ -49,6 +57,8 @@ export interface Site {
     php: { memory_limit_mb: number, upload_max_mb: number, max_execution_seconds: number }
     /** Paths behind a username and password (the hash never leaves the panel). */
     protected_paths?: { path: string, username: string }[]
+    /** Visitors the site answers 403 (#25). */
+    blocking?: SiteBlocking
     /** The panel's periodic check from the public address (absent: off). */
     uptime?: { enabled: boolean, path?: string }
   }

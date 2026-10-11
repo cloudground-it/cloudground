@@ -98,6 +98,7 @@ func (o *Ops) removeConfig(ctx context.Context, s state.Site) error {
 	o.NginxMu.Lock()
 	remove(o.vhostPath(s))
 	remove(o.cacheZonePath(s))
+	remove(o.blockingPath(s))
 	if o.Paths.NginxAuthDir != "" {
 		remove(staging.AuthFile(o.Paths.NginxAuthDir, s.Domain))
 		paths, _ := filepath.Glob(filepath.Join(o.Paths.NginxAuthDir, s.Domain+".path-*.htpasswd"))
