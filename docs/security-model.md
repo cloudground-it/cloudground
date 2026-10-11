@@ -109,6 +109,13 @@ user can write look-alike lines to the journal, and they are ignored), and the W
 are logged by nginx with the address it saw, so a site's code can count failures only against
 addresses that really sent it a sign-in POST.
 
+**A site's refused visitors** (issue #25, internal/engine/SPEC.md §4.7). Each site may answer 403
+to addresses, user agents and countries (or serve only some countries), from one nginx file of its
+own; the server's own addresses and loopback are never refused, so the panel's checks of the site
+still reach it. User agents are a courtesy filter, not a boundary: any client can send any
+`User-Agent`. Country rules are as good as DB-IP's monthly data and do nothing against a visitor
+behind a proxy or VPN in another country.
+
 ## Findings of the internal review
 
 Kept because a list of what was wrong says more about a codebase than a list of what is right.

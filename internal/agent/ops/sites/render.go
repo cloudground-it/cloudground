@@ -23,6 +23,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/ops/rootfile"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/staging"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/wp"
+	"github.com/cloudground-it/cloudground/internal/blocklist"
 	"github.com/cloudground-it/cloudground/internal/engine"
 	"github.com/cloudground-it/cloudground/internal/phpfpm"
 	"github.com/cloudground-it/cloudground/internal/rpc"
@@ -110,6 +111,16 @@ func (o *Ops) input(ctx context.Context, s state.Site) engine.Input {
 	for _, p := range s.Config.ProtectedPaths {
 		in.ProtectedPaths = append(in.ProtectedPaths, engine.ProtectedPath{Path: p.Path, File: protectedAuthFile(o.Paths.NginxAuthDir, s.Domain, p.Path)})
 	}
+	if b := s.Config.Blocking; b.Any() {
+		in.Blocking = &engine.Blocking{Exempt: o.localAddrs(), UserAgents: b.UserAgents,
+			Countries: b.Countries, AllowCountriesOnly: b.AllowCountriesOnly}
+		for _, a := range b.Addresses {
+			// Checked when the site was (site.CheckBlocking).
+			if p, err := blocklist.ParsePrefix(a); err == nil {
+				in.Blocking.Addresses = append(in.Blocking.Addresses, p)
+			}
+		}
+	}
 	o.probeBuild(ctx)
 	in.HTTP3, in.HTTP2Directive = o.http3, o.http2On
 	if s.Config.Routing != "" {
@@ -156,6 +167,29 @@ func (tx *configTx) write(path, content string, mode os.FileMode) (bool, error) 
 	sum := sha256.Sum256([]byte(content))
 	tx.files = append(tx.files, rpc.ManagedFile{Path: path, SHA256: hex.EncodeToString(sum[:])})
 	return readErr != nil || string(old) != content, nil
+}
+
+// remove deletes path, remembering it for restore, and reports whether
+// there was a file.
+func (tx *configTx) remove(path string) (bool, error) {
+	old, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if _, seen := tx.prior[path]; !seen {
+		p := &priorFile{content: old, mode: 0o644}
+		if fi, err := os.Lstat(path); err == nil {
+			p.mode = fi.Mode().Perm()
+			if st, ok := fi.Sys().(*syscall.Stat_t); ok {
+				p.uid, p.gid = int(st.Uid), int(st.Gid)
+			}
+		}
+		tx.prior[path] = p
+	}
+	return true, os.Remove(path)
 }
 
 // existed reports whether path was there before the render.
@@ -224,6 +258,17 @@ func (o *Ops) render(ctx context.Context, s state.Site, onlyIfChanged bool) ([]r
 		return nil, err
 	}
 	in := o.input(ctx, s)
+	if in.Blocking != nil && len(in.Blocking.Countries) > 0 {
+		// The countries' addresses, from DB-IP's data (ops/blocklist §5).
+		if o.CountryPrefixes == nil {
+			return nil, fmt.Errorf("blocking countries needs the country data, which this agent cannot read")
+		}
+		pfx, err := o.CountryPrefixes(ctx, in.Blocking.Countries)
+		if err != nil {
+			return nil, err
+		}
+		in.Blocking.CountryPrefixes = pfx
+	}
 	nginxFiles, err := o.Renderer.SiteFiles(in)
 	if err != nil {
 		return nil, err
@@ -325,6 +370,15 @@ func (o *Ops) writeNginx(ctx context.Context, in engine.Input, nginxFiles map[st
 				return err
 			}
 		}
+	}
+	// Rules taken away: their file goes before the reload, so nginx does
+	// not keep loading them (SPEC §4.6).
+	if in.Blocking == nil {
+		removed, err := tx.remove(o.blockingPath(in.Site))
+		if err != nil {
+			return err
+		}
+		nginxChanged = nginxChanged || removed
 	}
 	if !onlyIfChanged || nginxChanged {
 		return o.reloadNginx(ctx)

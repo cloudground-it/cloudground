@@ -133,6 +133,15 @@ session-only routes, so they sign in with the password (§2.3). Run on the serve
 socket, the caller has no address the panel could block: an operator blocked out of the panel and
 SSH (from the provider's console) gets back in with `cgctl blocklist unblock <their address>`.
 
+## 6.4 sites block (#25)
+
+    cgctl sites block <site-id> '<rules-json>'
+
+`PUT /api/sites/{id}/blocking` (internal/api SPEC §3.13) with the JSON object given, which must
+parse (else a usage error, exit 2): `{"addresses": […], "user_agents": […], "countries": […],
+"allow_countries_only": false}`; `'{}'` refuses nobody. The answer is the site's rules, printed as
+§3.
+
 ## 7. update and uninstall (R-6.4, R-6.5)
 
 `cgctl update` and `cgctl uninstall`, like `install` and `doctor`, run as root on the server and

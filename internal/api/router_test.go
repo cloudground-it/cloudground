@@ -616,6 +616,7 @@ func TestRouteBodyLimitsArePinned(t *testing.T) {
 		"POST /api/blocklist/allowed":                  smallBody,
 		"DELETE /api/blocklist/allowed":                smallBody,
 		"PUT /api/blocklist/settings":                  smallBody,
+		"PUT /api/sites/{id}/blocking":                 blockingBody,
 		"POST /api/sites/{id}/protected-paths":         smallBody,
 		"DELETE /api/sites/{id}/protected-paths":       smallBody,
 		"PUT /api/sites/{id}/uptime":                   smallBody,

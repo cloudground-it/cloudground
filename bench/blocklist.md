@@ -1,4 +1,4 @@
-# The block list: what it costs cached traffic (issue #21)
+# The block list and site rules: what they cost cached traffic (issues #21, #25)
 
 **Status: to measure on the VPS.** The design keeps the cost on cached traffic close to nothing;
 these are the measurements that have to confirm it, with the commands, before the numbers below
@@ -54,7 +54,37 @@ bench/cgbench ab -a /root/cg-main -b /root/cg-blocklist -rounds 3 -scenarios cac
 | cached-single | – | – | – |
 | browsers | – | – | – |
 
-## 3. Reading and enforcing
+## 3. A site's refused visitors (#25)
+
+The bench site with rules against the same site without, alternated (`cgctl sites block`, then
+`cgbench repeat`; loopback is fine here: the rules are nginx's, and the server's own addresses
+are exempt only from being refused, the lookups still run for them). Three rule sets: 500
+networks; 50 user agents; the countries CN and RU (about 20,000 prefixes) — and, for memory and
+reload, US alone (about 200,000 prefixes).
+
+```sh
+cgctl sites block <id> '{}'                                   # arm: none
+cgctl sites block <id> '{"addresses": [...500 networks...]}'  # arm: addresses
+cgctl sites block <id> '{"user_agents": [...50 patterns...]}' # arm: user agents
+cgctl sites block <id> '{"countries": ["CN", "RU"]}'           # arm: countries
+bench/cgbench repeat -n 3 -scenarios cached-sustained,cached-single https://bench.<ip>.sslip.io <arm>
+```
+
+| Arm | cached-sustained | cached-single | vs none |
+| --- | ---: | ---: | ---: |
+| none | – | – | |
+| 500 networks | – | – | – |
+| 50 user agents | – | – | – |
+| CN + RU | – | – | – |
+
+| US alone | Result |
+| --- | --- |
+| prefixes in the rules file, its size | – |
+| `nginx -t` and reload time | – |
+| nginx master and worker RSS added | – |
+| the render's time (the agent reading the country file) | – |
+
+## 4. Reading and enforcing
 
 | | How | Result |
 | --- | --- | --- |

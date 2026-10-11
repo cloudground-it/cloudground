@@ -94,6 +94,25 @@ type SiteConfig struct {
 	// Uptime is the panel's periodic check of the site from its public
 	// address (#32).
 	Uptime UptimeCheck `json:"uptime,omitzero"`
+	// Blocking is who the site refuses (#25): addresses, user agents,
+	// countries (internal/engine SPEC §4.7).
+	Blocking SiteBlocking `json:"blocking,omitzero"`
+}
+
+// SiteBlocking is the visitors a site answers 403: addresses or networks,
+// user agents containing one of UserAgents (case-insensitive), and those
+// whose address is in one of Countries (ISO 3166-1 alpha-2), or, with
+// AllowCountriesOnly, in none of them.
+type SiteBlocking struct {
+	Addresses          []string `json:"addresses,omitempty"`
+	UserAgents         []string `json:"user_agents,omitempty"`
+	Countries          []string `json:"countries,omitempty"`
+	AllowCountriesOnly bool     `json:"allow_countries_only,omitempty"`
+}
+
+// Any reports whether b refuses anyone.
+func (b SiteBlocking) Any() bool {
+	return len(b.Addresses)+len(b.UserAgents)+len(b.Countries) > 0
 }
 
 // ProtectedPath is one path behind HTTP basic auth: the path and what is
