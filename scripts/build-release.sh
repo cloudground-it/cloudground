@@ -18,8 +18,23 @@ cd "$(dirname "$0")/.."
 
 die() { echo "build-release: $*" >&2; exit 1; }
 
+# @nuxtjs/i18n names each locale file by a hash of its absolute path, so
+# ui/dist depends on where it is built: every build (this one, CI's and the
+# containers of make docker-dist and docker-release-build) happens at this path.
+UI_BUILD_DIR=/tmp/cloudground-ui
+
 build_ui() {
-  (cd ui && npm ci --no-audit --no-fund --silent && npm run build --silent)
+  if [[ $(pwd -P)/ui == "$UI_BUILD_DIR" ]]; then
+    (cd ui && npm ci --no-audit --no-fund --silent && npm run build --silent)
+    return
+  fi
+  rm -rf "$UI_BUILD_DIR"
+  mkdir -p "$UI_BUILD_DIR"
+  tar -C ui --exclude=./node_modules --exclude=./dist --exclude=./.nuxt --exclude=./.output -cf - . | tar -C "$UI_BUILD_DIR" -xf -
+  (cd "$UI_BUILD_DIR" && npm ci --no-audit --no-fund --silent && npm run build --silent)
+  rm -rf ui/dist
+  cp -R "$UI_BUILD_DIR/dist" ui/dist
+  rm -rf "$UI_BUILD_DIR"
 }
 
 build_bin() {

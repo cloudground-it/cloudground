@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared by scripts/e2e-affected.sh and scripts/e2e-new-checks.sh: sourced,
 # not run. Needs bash, git and a POSIX awk (BSD awk, mawk and gawk all do).
 

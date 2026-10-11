@@ -19,12 +19,14 @@ BINARIES    = panel-api panel-agent cgctl cg-site-shell
 # emulation on an arm64 Mac openat2 is missing and the symlink-confinement
 # tests fail for reasons that have nothing to do with the code.
 GO_IMAGE   ?= golang:1.26
-NODE_IMAGE ?= node:22
+NODE_IMAGE ?= node:22.23.3
 GO_VOLUMES  = -v cloudground-gomod:/go/pkg/mod -v cloudground-gocache:/root/.cache/go-build
-DOCKER_GO   = docker run --rm -v "$(CURDIR)":/src -w /src $(GO_VOLUMES) $(GO_IMAGE)
+DOCKER_GO   = docker run --rm -v "$(CURDIR)":/src -w /src -e GOFLAGS=-buildvcs=false $(GO_VOLUMES) $(GO_IMAGE)
 # node_modules lives in a volume: the host's copy holds macOS-native tools a
 # Linux container cannot run.
-DOCKER_NODE = docker run --rm -v "$(CURDIR)/ui":/ui -v cloudground-ui-modules:/ui/node_modules -w /ui $(NODE_IMAGE)
+# ui/dist depends on the path it is built at (scripts/build-release.sh, UI_BUILD_DIR).
+UI_BUILD_DIR = /tmp/cloudground-ui
+DOCKER_NODE = docker run --rm -v "$(CURDIR)/ui":$(UI_BUILD_DIR) -v cloudground-ui-modules:$(UI_BUILD_DIR)/node_modules -w $(UI_BUILD_DIR) $(NODE_IMAGE)
 
 .PHONY: build ui test vet dist clean e2e-bin e2e-index api-doc \
 	docker-test docker-dist docker-e2e-bin docker-e2e-index docker-api-doc docker-nginx-test docker-install-test docker-upgrade-bundle \
@@ -34,7 +36,7 @@ DOCKER_NODE = docker run --rm -v "$(CURDIR)/ui":/ui -v cloudground-ui-modules:/u
 # ------------------------------------------------------------- development --
 
 ui:
-	cd ui && npm ci --silent && npm run build --silent
+	bash scripts/build-release.sh ui
 
 build: ui
 	mkdir -p bin
@@ -168,7 +170,7 @@ docker-release: release-require-key docker-release-build
 
 docker-release-build:
 	@test -n "$(RELEASE_TAG)" || { echo "release: HEAD carries no tag; set RELEASE_TAG" >&2; exit 1; }
-	docker run --rm -v "$(CURDIR)/ui":/ui -v cloudground-ui-modules:/ui/node_modules -w /ui $(NODE_RELEASE_IMAGE) \
+	docker run --rm -v "$(CURDIR)/ui":$(UI_BUILD_DIR) -v cloudground-ui-modules:$(UI_BUILD_DIR)/node_modules -w $(UI_BUILD_DIR) $(NODE_RELEASE_IMAGE) \
 		sh -c 'npm ci --no-audit --no-fund --silent && npm run build --silent'
 	$(DOCKER_RELEASE_GO) $(GO_RELEASE_IMAGE) sh -c '$(RELEASE_GIT_SAFE) && bash scripts/build-release.sh bin $(RELEASE_TAG) $(RELEASE_DIR)'
 

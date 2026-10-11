@@ -24,21 +24,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
-      - name: gofmt
-        run: |
-          bad=$(gofmt -l internal cmd e2e scripts)
-          if [ -n "$bad" ]; then echo "::error::gofmt: these files need formatting"; echo "$bad"; exit 1; fi
-      - name: go vet
-        run: go vet ./... && go vet -tags e2e ./e2e/...
-      # The e2e index, the section table and docs/api.md are checked by unit
-      # tests in this run; they are named here so a stale one is obvious.
-      - name: e2e section index and map
-        run: go test -count=1 -run 'TestSections' ./e2e
-      - name: go test
-        run: go test -race -timeout 30m ./...
+      # The same gate as on a workstation: in a container, as root, with no
+      # nginx, sshd or PHP of the runner's to stumble on.
+      - name: gofmt, vet and tests (make docker-test)
+        run: make docker-test
 
   ui:
     name: UI build and locales
@@ -53,10 +42,10 @@ jobs:
           cache: npm
           cache-dependency-path: ui/package-lock.json
       - name: Build
-        run: cd ui && npm ci --no-audit --no-fund && npm run build
+        run: bash scripts/build-release.sh ui
       # Every locale has en.json's keys and placeholders, and compiles.
       - name: Locales
-        run: cd ui && npm test
+        run: cd ui && npm ci --no-audit --no-fund && npm test
       # ui/dist is committed for go:embed; the build is reproducible, so the
       # committed copy must be exactly what this commit builds.
       - name: The committed ui/dist is current
