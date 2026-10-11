@@ -1882,6 +1882,7 @@ lasts (across days, across a changing detail line), new when it changes.
 | `uptime` | `uptime:site:<id>` | when the outage began (RFC 3339) | error | `the site does not answer from its public address: <reason>` (refreshed at each evaluation) | a monitored site whose last two checks or more failed (§11.4); `at` is when the outage began |
 | `usage` | `usage.cpu:site:<id>`, `usage.memory:site:<id>` | when the run of samples over the threshold began (RFC 3339) | warning | `the site has used <n>% of its CPU for at least 15 minutes`; `… of its memory limit …` | the site's newest three samples or more (§11.5) over its threshold, CPU as a share of its allowance, memory of its `MemoryMax`; `at` is when the run began |
 | `usage` | `usage.disk:site:<id>` | the threshold | warning | `the site uses <n> MB of disk, over its threshold of <t> MB` | the site's last measured disk use is at or over `disk_mb` |
+| `vulnerability` | `vulnerability:site:<id>` | a hash of the findings (component, slug, version, id) | error when one finding is `high` or `critical`, else warning | `<n> known vulnerabilities in WordPress, its plugins or themes: <up to three "slug version", then …>` | an active WordPress site whose last complete check (§11.6) found something; `at` is that check |
 | `drift` | `drift` | the newest open event's id | warning | `<n> managed file(s) changed outside the panel` | open drift events |
 | `deploy` | `deploy:<deployment id>` | the deployment's note | warning | `deploy.drift: the site serves a release the panel had not recorded as live (release <r>, recorded <live or none>)`; `release <r> is live without its post-promotion verification (it was canceled)`; `release <r> regressed after its promotion and could not be rolled back automatically` | a deployment with a note (§4.5); the note's code picks the message |
 
@@ -2054,6 +2055,82 @@ WooCommerce bench site (13 000 entries) 100 ms, once an hour: far under
   before the first walk); `latest` the newest sample (also `tasks`,
   `oom_kills`, `disk_inodes`). Another range → 400.
 
+### 11.6 WordPress vulnerabilities (#31, `vulnerabilities.go`, `vulndb.go`)
+
+Once a day per active WordPress or WooCommerce site, and on demand, the
+versions of its WordPress core, plugins and themes are looked up in a
+public vulnerability database. The panel's switch `vulnerability_check`
+(§12, on by default) turns it off for every site.
+
+**The database** is WPVulnerability (`https://www.wpvulnerability.net`,
+documented at `https://www.wpvulnerability.com`). Chosen because its terms
+fit a product others install: its data is dedicated to the public domain
+under CC0 1.0, commercial use included, with attribution voluntary (its
+License page); its public endpoints need no key or account and have no hard
+rate limit, asking only that answers be cached and that a project over
+5 000 calls a day consider sponsoring (its FAQ). It aggregates CVE, EUVD,
+JVN, Patchstack, Wordfence and WPScan. Rejected: the Wordfence Intelligence
+feed (v3, since v1 and v2 stopped on 9 March 2026) needs an API key tied to
+a wordfence.com account that may not be shared, so every operator would
+have to register; WPScan's API is free only for non-commercial use, 25
+requests a day, and forbids caching; OSV has no WordPress ecosystem. The
+panel names the source on the site's Security page.
+
+**What is sent**: one `GET` per component, `/core/<version>/`,
+`/plugin/<slug>/` or `/theme/<slug>/`, with the `User-Agent`
+`CloudGround/<version> (+https://cloudground.it)`. Never the site's
+domain or anything else about the server. A slug must be a WordPress.org
+directory name (`[a-z0-9][a-z0-9._-]{0,199}`) and a version
+`<digits>.<digits>` then at most 40 of `0-9 A-Z a-z . + -`; a must-use
+plugin, a drop-in and a component without a version are not looked up.
+
+**The check** (`wp.vulncheck`, jobs SPEC §8): `WPPlugins` (ops/wp SPEC §3,
+wp-cli in the site's sandbox) gives core, plugins and themes with their
+versions; the components are looked up four at a time, each request within
+20 s and 4 MB; an answer is reused for 6 h by every site (at most 4 096
+answers in memory, so a server whose sites share plugins asks once). For a
+plugin or theme each listed vulnerability carries a range (`min_version`
+`min_operator`, `max_version` `max_operator`, operators `lt le gt ge eq`)
+compared with the installed version as PHP's `version_compare` does; a
+range with an operator the panel does not know matches nothing. For core
+the list is the one for the installed version. A finding is `{id,
+component, slug, version, title, severity, cve, fixed_in, unfixed, link}`:
+the title of the first source with one of its own (a vendor advisory), the
+first CVE, the CVSS severity (`critical high medium low`, or none), the
+fixed version when the range is `< x` and the vulnerability is not marked
+unfixed, and the source's `https` link (any other scheme is dropped). Most
+severe first. A complete check replaces the site's record (`state`
+`site_vulnerabilities`, migration 25) and asks for an alert evaluation;
+one that fails (the agent, wp-cli, a request, an answer that is not the
+database's JSON or one with an `error`) records its error and keeps the
+last findings, and the job fails: a partial lookup would read as fewer
+vulnerabilities. Failures of `wp.vulncheck` are one task alert per site
+(§11.1).
+
+**Schedule**: `security.sweep`, every five minutes (jobs SPEC §9), queues
+the check of each active WordPress site whose `vulncheck:site:<id>` key is a
+day old, and sets the key then: a site is checked every 24 h from when it
+was first seen, so the checks of many sites spread over the day, and one
+that failed waits for the next day. `wp.vulncheck` takes the lock
+`security:vulncheck`: one check runs at a time on the server.
+
+**Cost** (to measure on the VPS, `bench/security-scans.md`): one wp-cli
+run of `core version`, `plugin list` and `theme list` in the site's slice,
+then the requests; the panel holds one parsed answer at a time per lookup
+and the cache's compact records.
+
+- `GET /api/sites/{id}/vulnerabilities` (signed in, the site's readers; a
+  site that is not WordPress → 400 `not a WordPress site`): `{enabled,
+  checked, checked_at, attempted_at, error, core, components, findings,
+  interval_seconds, source: {name, url, license}}`; `checked` is false
+  before the first check, `checked_at` the last complete one,
+  `attempted_at` and `error` the last one.
+- `POST /api/sites/{id}/vulnerabilities/check` (manage): a site that is not
+  WordPress → 400; not active → 409; the switch off → 409 `the
+  vulnerability check is turned off in the settings (vulnerability_check)`;
+  else the check is queued (joined if one is queued or running), audit
+  `site.vulncheck`, 202 with the task.
+
 ## 12. Settings (R-4.3)
 
 `/api/settings` is a flat map of string keys (the settings page and cgctl
@@ -2067,7 +2144,8 @@ use it). Each key is a field of `state.PanelSettings` or a secret.
   `false`, else 400 `update_check: must be 0 or empty`), `update_channel`
   (`stable` or `beta`, `""` meaning stable; else 400 `update_channel: must be
   stable or beta`; the release check and `POST /api/panel/update` follow
-  it), and the read-only
+  it), `vulnerability_check` (`""` on, `"0"` off, as `update_check`; the
+  WordPress vulnerability check of §11.6), and the read-only
   `panel_domain`.
 - Secrets: `backup_password`, `backup_s3_secret_key`, `cloudflare_api_token`
   show `••••••••` when set and `""` when not; `notify_webhook` is shown in

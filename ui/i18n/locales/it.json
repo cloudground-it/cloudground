@@ -93,7 +93,8 @@
       "drift": "Configurazione",
       "deploy": "Rilascio",
       "uptime": "Disponibilità",
-      "usage": "Risorse"
+      "usage": "Risorse",
+      "vulnerability": "Vulnerabilità"
     },
     "more": "e altri {n} nel pannello Avvisi (campanella in alto)",
     "dismiss": "Archivia",
@@ -210,7 +211,8 @@
     "sftp": "SFTP / SSH",
     "vhost": "Vhost",
     "protection": "Percorsi protetti",
-    "resources": "Risorse"
+    "resources": "Risorse",
+    "security": "Sicurezza"
   },
   "overview": {
     "certificate": "Certificato",
@@ -906,7 +908,9 @@
     "updatesHint": "Gli aggiornamenti sono firmati: il pannello installa solo binari verificati.",
     "updateTitle": "Aggiornare CloudGround?",
     "webhook": "Webhook",
-    "webhookHint": "URL https di Slack, Discord, Mattermost o simili (campo text)."
+    "webhookHint": "URL https di Slack, Discord, Mattermost o simili (campo text).",
+    "vulnCheck": "Controlla i siti WordPress per vulnerabilità note",
+    "vulnCheckHint": "Una volta al giorno le versioni di core, plugin e temi di ogni sito WordPress vengono cercate nel database pubblico WPVulnerability. Si inviano solo nomi e versioni, mai il sito."
   },
   "editor": {
     "close": "Chiudi",
@@ -1382,5 +1386,39 @@
     "alertPctHelp": "0: il predefinito, 90 %.",
     "alertDisk": "Disco",
     "alertDiskHelp": "0: nessun avviso sul disco."
+  },
+  "vulns": {
+    "title": "Vulnerabilità note",
+    "hint": "Una volta al giorno le versioni di WordPress, dei plugin e dei temi vengono cercate nel database pubblico di {source}. Ciò che riguarda le versioni installate compare qui e genera un avviso.",
+    "off": "disattivato",
+    "pending": "primo controllo a breve",
+    "none": "nessuna nota",
+    "found": "{n} trovate",
+    "offHint": "Il controllo delle vulnerabilità è disattivato nelle impostazioni.",
+    "offLink": "Impostazioni",
+    "failed": "L’ultimo controllo, {when}, non è stato completato. L’elenco è quello del controllo precedente.",
+    "lastCheck": "Ultimo controllo",
+    "components": "Componenti controllati",
+    "severity": "Gravità",
+    "component": "Installato",
+    "vulnerability": "Vulnerabilità",
+    "fix": "Correzione",
+    "fixedIn": "Aggiorna alla {v}",
+    "unfixed": "Ancora nessuna correzione",
+    "fixUnknown": "Vedi l’avviso",
+    "checkNow": "Controlla ora",
+    "started": "Controllo delle vulnerabilità avviato",
+    "sourceNote": "Dati sulle vulnerabilità da",
+    "level": {
+      "critical": "Critica",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Bassa"
+    },
+    "kind": {
+      "core": "WordPress",
+      "plugin": "Plugin",
+      "theme": "Tema"
+    }
   }
 }

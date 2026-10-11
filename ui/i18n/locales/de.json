@@ -93,7 +93,8 @@
       "drift": "Konfiguration",
       "deploy": "Release",
       "uptime": "Erreichbarkeit",
-      "usage": "Ressourcen"
+      "usage": "Ressourcen",
+      "vulnerability": "Sicherheitslücke"
     },
     "more": "und {n} weitere unter Warnungen (Glocke oben rechts)",
     "dismiss": "Archivieren",
@@ -210,7 +211,8 @@
     "sftp": "SFTP / SSH",
     "vhost": "Vhost",
     "protection": "Geschützte Pfade",
-    "resources": "Ressourcen"
+    "resources": "Ressourcen",
+    "security": "Sicherheit"
   },
   "overview": {
     "certificate": "Zertifikat",
@@ -906,7 +908,9 @@
     "updatesHint": "Updates sind signiert: Das Panel installiert nur geprüfte Binärdateien.",
     "updateTitle": "CloudGround aktualisieren?",
     "webhook": "Webhook",
-    "webhookHint": "Eine https-URL von Slack, Discord, Mattermost o. Ä. (Feld text)."
+    "webhookHint": "Eine https-URL von Slack, Discord, Mattermost o. Ä. (Feld text).",
+    "vulnCheck": "WordPress-Websites auf bekannte Sicherheitslücken prüfen",
+    "vulnCheckHint": "Einmal am Tag werden die Versionen von Core, Plugins und Themes jeder WordPress-Website in der öffentlichen Datenbank WPVulnerability nachgeschlagen. Gesendet werden nur Namen und Versionen, nie die Website."
   },
   "editor": {
     "close": "Schließen",
@@ -1382,5 +1386,39 @@
     "alertPctHelp": "0: der Standard, 90 %.",
     "alertDisk": "Speicherplatz",
     "alertDiskHelp": "0: keine Warnung zum Speicherplatz."
+  },
+  "vulns": {
+    "title": "Bekannte Sicherheitslücken",
+    "hint": "Einmal am Tag werden die Versionen von WordPress, seinen Plugins und Themes in der öffentlichen Datenbank von {source} nachgeschlagen. Was die installierten Versionen betrifft, steht hier und löst eine Warnung aus.",
+    "off": "aus",
+    "pending": "erste Prüfung bald",
+    "none": "keine bekannt",
+    "found": "{n} gefunden",
+    "offHint": "Die Prüfung auf Sicherheitslücken ist in den Einstellungen ausgeschaltet.",
+    "offLink": "Einstellungen",
+    "failed": "Die letzte Prüfung, {when}, wurde nicht abgeschlossen. Die Liste stammt von der Prüfung davor.",
+    "lastCheck": "Letzte Prüfung",
+    "components": "Geprüfte Komponenten",
+    "severity": "Schweregrad",
+    "component": "Installiert",
+    "vulnerability": "Sicherheitslücke",
+    "fix": "Behebung",
+    "fixedIn": "Auf {v} aktualisieren",
+    "unfixed": "Noch keine Behebung",
+    "fixUnknown": "Siehe Hinweis",
+    "checkNow": "Jetzt prüfen",
+    "started": "Prüfung auf Sicherheitslücken gestartet",
+    "sourceNote": "Daten zu Sicherheitslücken von",
+    "level": {
+      "critical": "Kritisch",
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig"
+    },
+    "kind": {
+      "core": "WordPress",
+      "plugin": "Plugin",
+      "theme": "Theme"
+    }
   }
 }

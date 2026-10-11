@@ -52,7 +52,11 @@ can be reached.
 
 ## 3. WPPlugins
 
-`plugin list` and `theme list`, `--format=json --fields=name,status,version,update`.
+`core version`, then `plugin list` and `theme list`, `--format=json --fields=name,status,version,update`.
+`core` is the last line `core version` printed (a notice may come before
+it); one that is not a version (`<digits>.<digits>` then at most 40 of
+`0-9 A-Z a-z . + -`) is an error, as is a failing command: the panel's
+vulnerability check (api SPEC §11.6) looks the version up.
 A failing wp-cli or output that is not that JSON is an error (the old code
 returned empty lists, which read as "no plugins"). `update` is a string
 (`available`, `none`, `unavailable`, `version higher than expected`) for an

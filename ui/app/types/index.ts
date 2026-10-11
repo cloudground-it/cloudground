@@ -284,3 +284,31 @@ export interface QueryResult {
   rows: string[][] | null
   message?: string
 }
+
+/** One known vulnerability of something a WordPress site has installed (#31). */
+export interface VulnFinding {
+  id: string
+  component: 'core' | 'plugin' | 'theme'
+  slug?: string
+  version: string
+  title: string
+  severity?: 'critical' | 'high' | 'medium' | 'low'
+  cve?: string
+  fixed_in?: string
+  unfixed?: boolean
+  link?: string
+}
+
+/** GET /api/sites/{id}/vulnerabilities. */
+export interface VulnView {
+  enabled: boolean
+  checked: boolean
+  checked_at: string
+  attempted_at: string
+  error?: string
+  core?: string
+  components: number
+  findings: VulnFinding[]
+  interval_seconds: number
+  source: { name: string, url: string, license: string }
+}
