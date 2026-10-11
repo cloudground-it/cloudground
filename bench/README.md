@@ -12,6 +12,7 @@ and 6). This folder holds what you need for that. The exact behaviour of each pa
 | `cpu-parity.sh` | checks that the box is still the box it was |
 | `cgbench` | runs `cmd/cgbench`: suite, repeat, ab, compare, parity |
 | `baseline.md`, `phase-*.md`, `final-review.md` | measurements taken during the rewrite |
+| `site-resources.md` | per-site limits' defaults and the cost of the usage collection (issues #18, #19) |
 | `uncached-php.md` | where an uncached render's time goes, and the PHP-FPM candidates A/B (issue #10) |
 
 No results are published yet: the benchmarks page comes once the whole suite has run on a

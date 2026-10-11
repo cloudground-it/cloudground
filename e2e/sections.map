@@ -65,12 +65,12 @@ connector/**                           @wordpress
 # --------------------------------------------------------------------- API --
 
 internal/api/maintenance.go            R-0.7 reconcile, wordpress certificates
-internal/api/site_apply.go             R-4.3 site settings, R-4.2 job queue, wordpress slow request, wordpress cache, wordpress sftp
+internal/api/site_apply.go             site resources, R-4.3 site settings, R-4.2 job queue, wordpress slow request, wordpress cache, wordpress sftp
 internal/api/protected_paths.go        protected paths
 internal/api/uptime.go                 uptime
 internal/api/backup_policy.go          R-4.3 site settings, PHP extensions and backup hour
 internal/api/php_extensions.go         PHP extensions and backup hour
-internal/api/site_settings.go          R-4.3 site settings, wordpress slow request, R-4.7 capabilities, R-4.2 job queue, wordpress cache, wordpress sftp
+internal/api/site_settings.go          site resources, R-4.3 site settings, wordpress slow request, R-4.7 capabilities, R-4.2 job queue, wordpress cache, wordpress sftp
 internal/api/staging.go                wordpress staging, wordpress safe push, wordpress backups, wordpress teardown
 internal/api/site_certs.go             wordpress certificates, wordpress status and drift
 internal/api/site_databases.go         F9b site databases
@@ -159,7 +159,8 @@ internal/agent/ops/migration/**        migration import
 internal/agent/ops_migration.go        migration import
 internal/agent/ops/staging/**          wordpress staging, wordpress safe push, wordpress backups, wordpress teardown, R-10.5 root boundary
 internal/agent/ops_staging.go          wordpress staging, wordpress safe push, wordpress backups, wordpress teardown
-internal/agent/ops/system/drift.go     wordpress status and drift
+internal/agent/ops/system/drift.go     wordpress status and drift, site resources
+internal/agent/ops/system/usage.go     site resources
 internal/agent/ops/system/firewall.go  firewall
 internal/agent/host/firewall.go        firewall
 internal/agent/ops/system/journal.go   wordpress logs, security
@@ -192,6 +193,8 @@ internal/phpfpm/sandbox.go             @php, R-4.5 site shell, R-10.5 root bound
 internal/phpfpm/**                     @php
 internal/sysprobe/**                   @php
 
+internal/api/usage.go                  site resources
+internal/rpc/usage.go                  site resources
 internal/agent/ops/sites/routing.go    R-5.4 routing
 internal/agent/ops/sites/reach.go      R-5.4 routing, R-10.5 root boundary
 # Site creation and deletion, rendering, releases, accounts, systemd units,

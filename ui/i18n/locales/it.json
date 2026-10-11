@@ -92,7 +92,8 @@
       "service": "Servizio",
       "drift": "Configurazione",
       "deploy": "Rilascio",
-      "uptime": "Disponibilità"
+      "uptime": "Disponibilità",
+      "usage": "Risorse"
     },
     "more": "e altri {n} nel pannello Avvisi (campanella in alto)",
     "dismiss": "Archivia",
@@ -208,7 +209,8 @@
     "more": "Altro",
     "sftp": "SFTP / SSH",
     "vhost": "Vhost",
-    "protection": "Percorsi protetti"
+    "protection": "Percorsi protetti",
+    "resources": "Risorse"
   },
   "overview": {
     "certificate": "Certificato",
@@ -1344,5 +1346,41 @@
     "turnOff": "Disattiva",
     "saved": "Controllo di disponibilità salvato",
     "turnedOff": "Controllo di disponibilità disattivato"
+  },
+  "resources": {
+    "title": "Risorse",
+    "hint": "Quello che usano i processi del sito (il suo PHP, le attività pianificate, wp-cli e la shell), letto ogni cinque minuti dalla sua slice; il disco ogni ora.",
+    "range24h": "24 ore",
+    "range30d": "30 giorni",
+    "memory": "Memoria",
+    "disk": "Disco",
+    "io": "IO su disco",
+    "cpuOfServer": "delle {n} CPU del server",
+    "cpuOfQuota": "della sua quota del {pct} % di una CPU",
+    "ofLimit": "di {limit}, il suo limite",
+    "killed": "{n} processi terminati al limite di memoria",
+    "files": "{n} file",
+    "diskPending": "misurato entro un'ora",
+    "ioNote": "{read}/s letti, {write}/s scritti",
+    "daysAgo": "-{n} g",
+    "chartAria": "CPU al {cpu} % di quanto il sito può usare, memoria al {mem} % del suo limite",
+    "empty": "Ancora nessun campione: il primo arriva entro cinque minuti.",
+    "limitsTitle": "Limiti",
+    "limitsHint": "Applicati dal kernel al solo sito: oltre il limite di memoria uno dei suoi processi viene terminato, e nessun altro sito ne risente. 0 è il valore predefinito.",
+    "memoryMax": "Limite di memoria",
+    "memoryMaxHelp": "0: il predefinito, {mb} MB su questo server (metà della sua memoria, almeno 1024 MB).",
+    "cpuQuota": "Quota di CPU",
+    "cpuQuotaHelp": "100 % è una CPU; 0: nessuna quota, il sito può usare tutte le CPU.",
+    "tasksMax": "Limite di processi",
+    "tasksMaxHelp": "0: il predefinito, {n}.",
+    "adminOnly": "Solo un amministratore può cambiare i limiti.",
+    "alertsTitle": "Avvisi sull'uso",
+    "alertsHint": "Un avviso quando il sito resta sopra una soglia per 15 minuti, nel pannello e sul webhook degli avvisi.",
+    "alertsOn": "Avvisi sull'uso di questo sito",
+    "alertCpu": "CPU",
+    "alertMemory": "Memoria",
+    "alertPctHelp": "0: il predefinito, 90 %.",
+    "alertDisk": "Disco",
+    "alertDiskHelp": "0: nessun avviso sul disco."
   }
 }

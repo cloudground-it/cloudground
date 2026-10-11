@@ -1,6 +1,7 @@
 package state
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"time"
@@ -124,17 +125,55 @@ type DatabaseConfig struct {
 	TLS      bool   `json:"tls"`
 }
 
-// Resources size a site. Both fields do something today: MemoryHighMB
-// feeds the estimate of PHP-FPM's pm.max_children (a heuristic, not a
-// memory limit), and PHPWorkers, when set, is that worker count. No CPU,
-// memory or connection quota is offered on purpose: nothing enforces one
-// per site (no cgroup or slice limit is set from here), and a field that
-// promises a guarantee the system does not give is worse than none.
+// Resources size and bound a site. MemoryHighMB feeds the estimate of
+// PHP-FPM's pm.max_children (a heuristic, not a limit), and PHPWorkers,
+// when set, is that worker count. MemoryMaxMB, CPUQuotaPct and TasksMax are
+// enforced by the kernel on the site's slice (cg-site-<id>.slice), which
+// holds every process of the site: its PHP master, cron, wp-cli and shell
+// (ops/sites SPEC §3). 0 is the measured default of each.
 type Resources struct {
 	MemoryHighMB int `json:"memory_high_mb"`
 	// PHPWorkers of 0 sizes the pool automatically.
 	PHPWorkers int `json:"php_workers"`
+	// MemoryMaxMB is the slice's MemoryMax; 0 is half the server's memory,
+	// and never less than DefaultMemoryFloorMB.
+	MemoryMaxMB int `json:"memory_max_mb,omitempty"`
+	// CPUQuotaPct is the slice's CPUQuota, 100 per CPU; 0 is no quota.
+	CPUQuotaPct int `json:"cpu_quota_pct,omitempty"`
+	// TasksMax is the slice's TasksMax; 0 is DefaultTasksMax.
+	TasksMax int `json:"tasks_max,omitempty"`
+	// Alerts are the usage thresholds a site may stay above before an
+	// alert (api SPEC §11.5).
+	Alerts UsageAlerts `json:"alerts,omitzero"`
 }
+
+// The measured defaults of a site's limits (bench/site-resources.md): the
+// WooCommerce bench site peaked at 561 MB and 8 tasks with its whole suite,
+// cron and a cache warm.
+const (
+	DefaultMemoryFloorMB = 1024
+	DefaultTasksMax      = 512
+)
+
+// UsageAlerts are a site's usage thresholds; 0 is the default of each.
+type UsageAlerts struct {
+	// Off turns the site's usage alerts off.
+	Off bool `json:"off,omitempty"`
+	// CPUPct is the share of the site's CPU allowance (its quota, or every
+	// CPU of the server) it may stay above; default DefaultAlertPct.
+	CPUPct int `json:"cpu_pct,omitempty"`
+	// MemoryPct is the share of its MemoryMax; default DefaultAlertPct.
+	MemoryPct int `json:"memory_pct,omitempty"`
+	// DiskMB is the disk use of its directories; 0 is no disk alert.
+	DiskMB int `json:"disk_mb,omitempty"`
+}
+
+// DefaultAlertPct is the CPU and memory threshold of a site that sets none.
+const DefaultAlertPct = 90
+
+// CPU and memory thresholds with their defaults applied.
+func (a UsageAlerts) CPU() int    { return cmp.Or(a.CPUPct, DefaultAlertPct) }
+func (a UsageAlerts) Memory() int { return cmp.Or(a.MemoryPct, DefaultAlertPct) }
 
 // BackupPolicy is a site's restic schedule. A "repository" key that old
 // releases wrote and nothing read is ignored when a config is decoded.

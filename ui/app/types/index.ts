@@ -42,7 +42,10 @@ export interface Site {
     public_root?: string
     database: { enabled: boolean, name: string, user: string }
     backups: { enabled: boolean, schedule: string, retention_days: number, hour?: number | null }
-    resources?: { memory_high_mb: number, php_workers: number }
+    resources?: {
+      memory_high_mb: number, php_workers: number, memory_max_mb?: number, cpu_quota_pct?: number, tasks_max?: number
+      alerts?: { off?: boolean, cpu_pct?: number, memory_pct?: number, disk_mb?: number }
+    }
     php: { memory_limit_mb: number, upload_max_mb: number, max_execution_seconds: number }
     /** Paths behind a username and password (the hash never leaves the panel). */
     protected_paths?: { path: string, username: string }[]

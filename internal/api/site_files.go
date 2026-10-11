@@ -32,6 +32,7 @@ func siteOwnsPath(site state.Site, path string) bool {
 		unit := "cloudground-php-" + u + ".service"
 		owned[u+".conf"] = true
 		owned[unit] = true
+		owned[u+".slice"] = true // the site's slice unit, its limits
 		// The PHP master's drop-ins (its slice) live in <unit>.d/.
 		if dir == unit+".d" {
 			return true

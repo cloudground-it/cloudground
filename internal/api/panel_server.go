@@ -109,6 +109,7 @@ type Server struct {
 	// uptimeKick asks for a round now; uptimeClient replaces the checks'
 	// HTTP client and uptimeEvery their period (tests).
 	uptime       uptimeState
+	usageWalks   usageWalks
 	uptimeKick   chan struct{}
 	uptimeClient *http.Client
 	uptimeEvery  time.Duration

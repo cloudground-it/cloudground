@@ -254,6 +254,11 @@ func (o *Ops) render(ctx context.Context, s state.Site, onlyIfChanged bool) ([]r
 		}
 		return nil, cause
 	}
+	// The slice holds every process of the site, PHP or not (its cron and
+	// shell too), so every site has its limits (SPEC §3.1).
+	if err := o.renderSlice(ctx, s, phpTx); err != nil {
+		return fail(err)
+	}
 	if isPHP(s) {
 		if err := o.renderPHP(ctx, s, phpTx, onlyIfChanged); err != nil {
 			return fail(err)
@@ -477,6 +482,24 @@ func (o *Ops) renderPHP(ctx context.Context, s state.Site, tx *configTx, onlyIfC
 	return o.startPHP(ctx, s, restart)
 }
 
+// slicePath is the site's slice unit.
+func (o *Ops) slicePath(s state.Site) string { return site.SlicePath(o.Paths.SystemdDir, s.SystemUser) }
+
+// renderSlice writes the site's slice unit, its accounting and limits, and
+// has systemd load it when it changed: a running slice takes new limits on
+// the reload, with nothing in it restarted (SPEC §3.1).
+func (o *Ops) renderSlice(ctx context.Context, s state.Site, tx *configTx) error {
+	unit, err := site.SliceUnit(s, site.EffectiveLimits(s.Config.Resources, o.memTotalMB()))
+	if err != nil {
+		return err
+	}
+	changed, err := tx.write(o.slicePath(s), unit, 0o644)
+	if err != nil || !changed {
+		return err
+	}
+	return o.Systemd.DaemonReload(ctx)
+}
+
 // sliceDropin puts the site's PHP master in the site's slice.
 func sliceDropin(s state.Site) string {
 	return "# Managed by CloudGround — do not edit. Changes are detected as drift.\n" +
@@ -489,6 +512,15 @@ func (o *Ops) rollbackPHP(ctx context.Context, s state.Site, tx *configTx) error
 	errs := []error{tx.restore()}
 	if !tx.existed(o.dropinPath(s)) {
 		_ = os.Remove(o.dropinDir(s)) // only if empty: it was made for the drop-in
+	}
+	if !isPHP(s) || s.PHPVersion == "" {
+		// The slice unit may have been written: the old limits come back
+		// with the reload.
+		if _, wrote := tx.prior[o.slicePath(s)]; wrote {
+			if err := o.Systemd.DaemonReload(ctx); err != nil {
+				errs = append(errs, err)
+			}
+		}
 	}
 	if isPHP(s) && s.PHPVersion != "" {
 		if err := o.Systemd.DaemonReload(ctx); err != nil {

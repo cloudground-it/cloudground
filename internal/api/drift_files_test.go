@@ -61,6 +61,13 @@ func TestTrackedFilesFollowTheRenders(t *testing.T) {
 	if siteOwnsPath(state.Site{SystemUser: "cg-site-70", Domain: "b.example.com"}, dropIn) {
 		t.Error("site 70 claims site 7's drop-in")
 	}
+	// #19: the site's slice unit.
+	if !siteOwnsPath(site, "/etc/systemd/system/"+site.SystemUser+".slice") {
+		t.Error("the slice unit is not matched to its site")
+	}
+	if siteOwnsPath(state.Site{SystemUser: "cg-site-70", Domain: "b.example.com"}, "/etc/systemd/system/"+site.SystemUser+".slice") {
+		t.Error("site 70 claims site 7's slice unit")
+	}
 }
 
 // An open drift event closes by itself when its file matches what the panel

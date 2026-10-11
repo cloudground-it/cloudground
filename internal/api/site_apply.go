@@ -52,6 +52,13 @@ type scalars struct {
 	// BypassCookies is the site's own bypass cookie names, comma-joined
 	// (a scalar, so a payload compares as one value).
 	BypassCookies string `json:"bypass_cookies,omitempty"`
+	// The slice's limits (#19): written into its unit by the render.
+	MemoryMaxMB int `json:"memory_max_mb,omitempty"`
+	CPUQuotaPct int `json:"cpu_quota_pct,omitempty"`
+	TasksMax    int `json:"tasks_max,omitempty"`
+	// The usage alert thresholds (#18): the evaluator reads them from the
+	// store, no file depends on them.
+	UsageAlerts state.UsageAlerts `json:"usage_alerts,omitzero"`
 }
 
 // editable is every setting a patch can change, as a job payload stores it.
@@ -69,16 +76,20 @@ func editableOf(st state.Site) editable {
 			MemoryMB: c.PHP.MemoryLimitMB, UploadMB: c.PHP.UploadMaxMB, MaxExecSec: c.PHP.MaxExecutionSeconds,
 			PublicRoot: c.PublicRoot, Upstream: c.ProxyUpstream, ObjectCache: c.ObjectCache,
 			BypassCookies: strings.Join(c.BypassCookies, ","),
+			MemoryMaxMB:   c.Resources.MemoryMaxMB, CPUQuotaPct: c.Resources.CPUQuotaPct, TasksMax: c.Resources.TasksMax,
+			UsageAlerts: c.Resources.Alerts,
 		},
 		Aliases: slices.Clone(st.Aliases),
 	}
 }
 
 // sameAside reports whether a and b agree on everything but the object
-// cache.
+// cache and the usage alert thresholds, the two settings no rendered file
+// depends on.
 func sameAside(a, b editable) bool {
 	x, y := a.scalars, b.scalars
 	x.ObjectCache, y.ObjectCache = false, false
+	x.UsageAlerts, y.UsageAlerts = state.UsageAlerts{}, state.UsageAlerts{}
 	return x == y && slices.Equal(a.Aliases, b.Aliases)
 }
 
@@ -101,7 +112,8 @@ func renderNeeded(kind string, p applyPayload) bool {
 	if kind == kindObjectCache {
 		return false
 	}
-	return !(p.objectCacheChanged() && sameAside(p.Ours, p.Previous))
+	quiet := p.objectCacheChanged() || p.Ours.UsageAlerts != p.Previous.UsageAlerts
+	return !(quiet && sameAside(p.Ours, p.Previous))
 }
 
 // enqueueApply queues the job of kind for a change that turned previous
@@ -149,6 +161,10 @@ var putters = map[string]func(st *state.Site, v editable){
 	"proxy_upstream":        func(st *state.Site, v editable) { st.Config.ProxyUpstream = v.Upstream },
 	"object_cache":          func(st *state.Site, v editable) { st.Config.ObjectCache = v.ObjectCache },
 	"bypass_cookies":        func(st *state.Site, v editable) { st.Config.BypassCookies = splitCookies(v.BypassCookies) },
+	"memory_max_mb":         func(st *state.Site, v editable) { st.Config.Resources.MemoryMaxMB = v.MemoryMaxMB },
+	"cpu_quota_pct":         func(st *state.Site, v editable) { st.Config.Resources.CPUQuotaPct = v.CPUQuotaPct },
+	"tasks_max":             func(st *state.Site, v editable) { st.Config.Resources.TasksMax = v.TasksMax },
+	"usage_alerts":          func(st *state.Site, v editable) { st.Config.Resources.Alerts = v.UsageAlerts },
 }
 
 // splitCookies is the list a payload's comma-joined bypass cookies stand
@@ -367,6 +383,11 @@ func (s *Server) runApply(ctx context.Context, r *jobs.Run) error {
 			r.Progress(100, map[bool]string{true: "Object cache enabled", false: "Object cache disabled"}[on])
 			return nil
 		}
+	}
+	if !rendered && !p.objectCacheChanged() && p.OurGen > 0 && cur.AppliedGeneration >= p.PrevGen {
+		// Only the usage alert thresholds changed: no file depends on
+		// them, so the site is as rendered.
+		s.logIfErr(s.Store.MarkApplied(cur.ID, p.OurGen, nil), "MarkApplied")
 	}
 	r.Progress(100, applyWords[kind][1])
 	return nil

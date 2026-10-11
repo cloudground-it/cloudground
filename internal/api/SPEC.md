@@ -824,11 +824,15 @@ names no field → 400 `name at least one setting to change`.
 | `public_root` | every type but `proxy` | empty (the release root) or a relative path of segments of letters, digits, `-` and `_` (`internal/site.ValidPublicRoot`), and the agent's `CheckDocRoot` passes: no component below the release is a symbolic link or a file (its `invalid` answer is the field's message; another agent error answers as one) |
 | `proxy_upstream` | `proxy` sites | `internal/site.NormalizeProxyUpstream`; stored normalised. **admin only** |
 | `object_cache` | WordPress and WooCommerce | boolean |
+| `memory_max_mb` | every site | 0 (the default: half the server's memory, at least 1024 MB) or 128–1 048 576; the slice's `MemoryMax` (ops/sites SPEC §3.1). **admin only** |
+| `cpu_quota_pct` | every site | 0 (no quota) or 10–25 600, 100 per CPU; the slice's `CPUQuota`. **admin only** |
+| `tasks_max` | every site | 0 (the default, 512) or 32–65 536; the slice's `TasksMax`. **admin only** |
+| `usage_alerts` | every site | `{off, cpu_pct, memory_pct, disk_mb}`, replaced whole: the percentages 0 (the default, 90) to 100, `disk_mb` ≥ 0 (0: no disk alert) (§11.5). Changes no file: its job renders nothing and marks the site applied |
 
 Refusals, in order:
 
 1. Body malformed or an unknown field → 400 `malformed request: <decoder error>`.
-2. An admin-only field from anyone else → **403** `only an administrator can change a site's aliases or proxy upstream`, with `fields` naming each such field. (Both decide which hosts a site answers for or where its traffic goes, as creating a site does, which is an admin's.)
+2. An admin-only field from anyone else → **403** `only an administrator can change a site's aliases, proxy upstream or resource limits`, with `fields` naming each such field. (The first two decide which hosts a site answers for or where its traffic goes, as creating a site does, which is an admin's; the limits decide what the site may take from every other site on the server.)
 3. Field validation: every field present is checked, in the table's order. Any failure → **400** `{"error": <the first failure's message>, "fields": {<field>: <message>, …}}`. The installed PHP versions come from Capabilities; an agent failure there answers as an agent error (§1.7) at that point.
 4. The PHP budget (PATCH only; the deprecated routes never checked it): with `php_workers` > 0 and either it or `memory_limit_mb` sent, workers × memory limit (the pool's default, 256 MB or 512 for a store, when unset) must not exceed the site's own memory limit (`resources.memory_high_mb`), else the server's memory (the agent's `SystemStatus`) → 400 `<w> PHP workers × <m> MB is <n> MB, more than <what> (<b> MB): …`, naming the fields sent. `"allow_over_budget": true` (a flag, not a setting) skips it; anyone but an admin sending it → 403 `only an administrator can allow PHP workers beyond the site's memory budget`.
 5. `hsts: true` while the agent's certificate status for the domain shows no certificate, or one that lapses within 14 days → **409** `issue a certificate for this site before enabling HSTS`; the status call failing answers as an agent error. (HSTS makes browsers refuse anything but valid HTTPS for a year.)
@@ -1876,6 +1880,8 @@ lasts (across days, across a changing detail line), new when it changes.
 | `service` | `service:<name>` | the state | error | `<name> is <state>: <detail>` | a service the agent reports `failed` or `stopped` |
 | `service` | `connector.token_guessing` | the burst's start | error | `<n> invalid connector tokens since <time>: something may be guessing the sites' tokens` | a burst of wrong connector tokens (§8); `at` is its start |
 | `uptime` | `uptime:site:<id>` | when the outage began (RFC 3339) | error | `the site does not answer from its public address: <reason>` (refreshed at each evaluation) | a monitored site whose last two checks or more failed (§11.4); `at` is when the outage began |
+| `usage` | `usage.cpu:site:<id>`, `usage.memory:site:<id>` | when the run of samples over the threshold began (RFC 3339) | warning | `the site has used <n>% of its CPU for at least 15 minutes`; `… of its memory limit …` | the site's newest three samples or more (§11.5) over its threshold, CPU as a share of its allowance, memory of its `MemoryMax`; `at` is when the run began |
+| `usage` | `usage.disk:site:<id>` | the threshold | warning | `the site uses <n> MB of disk, over its threshold of <t> MB` | the site's last measured disk use is at or over `disk_mb` |
 | `drift` | `drift` | the newest open event's id | warning | `<n> managed file(s) changed outside the panel` | open drift events |
 | `deploy` | `deploy:<deployment id>` | the deployment's note | warning | `deploy.drift: the site serves a release the panel had not recorded as live (release <r>, recorded <live or none>)`; `release <r> is live without its post-promotion verification (it was canceled)`; `release <r> regressed after its promotion and could not be rolled back automatically` | a deployment with a note (§4.5); the note's code picks the message |
 
@@ -1999,6 +2005,54 @@ turned off, or that stops being active, leaves the set at once.
   `fields.path`. Stored without a render (`MutateSiteApplied`); audit
   `site.uptime`, `enabled=<bool> path=<path>`; a round runs at once. 200,
   the view.
+
+### 11.5 Site usage (#18, `usage.go`)
+
+The `sites.usage` job runs with every maintenance tick (five minutes, and
+`POST /api/system/maintenance`): one `SiteUsage` call to the agent reads, for
+every active site, its slice's `cpu.stat` (`usage_usec`), `memory.current`,
+`memory.max`, `io.stat` (read and written bytes over the devices),
+`pids.current` and `memory.events` (`oom_kill`), all from the cgroup tree
+(`/sys/fs/cgroup/cg.slice/cg-site.slice/cg-site-<id>.slice`). A site's
+directories (`<SitesRoot>/<domain>` and `<LogRoot>/<domain>`) are walked for
+their disk use (allocated blocks, entries; no link followed, no other file
+system entered) when that site's last walk is an hour old or more: far
+dearer than the counters, and disk use moves slowly. Its last measure is
+carried into the samples between two walks. A site sampled less than 20 s
+ago is left out of a tick: a rate over less says nothing, and two ticks run
+back to back would count as two samples of a sustained run.
+
+Each sample stores the raw counters and the rates since the site's
+previous sample (CPU cores used, IO bytes per second), when that sample is
+at most 15 minutes old and the counters only grew (a slice that restarted
+starts them again: no rate that time). The store keeps a day of samples and
+one row per site and hour for 30 days (average and peak CPU and memory,
+average IO, last disk use), each pruned as it is written; a deleted site
+takes its rows with it (`state` migration 24). The job then asks the alert
+watcher for an evaluation.
+
+**Alerts** (`usage` in §11.1): unless the site's `usage_alerts.off`, a site
+whose newest three samples or more (a quarter of an hour) are all at or over
+its CPU threshold (`cpu_pct`, default 90 % of its allowance: its quota, or
+every CPU of the server) or its memory threshold (`memory_pct`, default
+90 % of its `MemoryMax`), and a site whose last measured disk use is at or
+over `disk_mb` (none by default). They are notified like every other alert
+(§11.3, the webhook) and shown on the panel.
+
+**Cost**, measured on the 2 vCPU box (`bench/site-resources.md`): a read
+of the counters is under 1 ms of the agent's CPU per site, a walk of the
+WooCommerce bench site (13 000 entries) 100 ms, once an hour: far under
+1 % of the server's CPU.
+
+- `GET /api/sites/{id}/usage?range=24h|30d` (signed in, the site's
+  readers): `{range, cpus, limits, points, latest}`. `limits` are the
+  site's effective limits (`site.EffectiveLimits`: its own or the defaults,
+  ops/sites SPEC §3.1); `points` the day's samples (`24h`, the default) or
+  the hours of 30 days (`30d`, with the hour's CPU peak as `cpu_max_pct`),
+  each with `cpu_pct` (of the site's CPU allowance), `mem_bytes`, `mem_pct`
+  (of its memory limit), `io_read_bps`, `io_write_bps` and `disk_bytes` (−1
+  before the first walk); `latest` the newest sample (also `tasks`,
+  `oom_kills`, `disk_inodes`). Another range → 400.
 
 ## 12. Settings (R-4.3)
 

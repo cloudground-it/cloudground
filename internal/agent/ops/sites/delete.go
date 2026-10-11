@@ -129,6 +129,9 @@ func (o *Ops) removeConfig(ctx context.Context, s state.Site) error {
 		errs = append(errs, err)
 	}
 	remove(o.poolPath(s))
+	if remove(o.slicePath(s)) {
+		removed = true
+	}
 	if removed {
 		if err := o.Systemd.DaemonReload(ctx); err != nil {
 			errs = append(errs, err)

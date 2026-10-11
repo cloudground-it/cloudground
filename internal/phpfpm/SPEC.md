@@ -86,7 +86,9 @@ Refused (error, nothing rendered) without a system user, a PHP version or a root
   test box, uncached WooCommerce shop page, four alternated rounds of 60 s: 8.00 req/s without the
   JIT, 8.26 with it (+3.2 %, ahead in three rounds of four; `bench/uncached-php.md`).
 - `ExecReload=/bin/kill -USR2 $MAINPID` (a graceful reload: §5.2), `Restart=on-failure`,
-  `RestartSec=2`, `LimitNOFILE=65536`.
+  `RestartSec=2`, `LimitNOFILE=65536`, `OOMPolicy=continue`: a worker the kernel kills at the site's
+  memory limit (its slice's `MemoryMax`, ops/sites SPEC §3.1) ends that request only; systemd's
+  default (`stop`) would stop the whole master and every request of the site with it.
 - The sandbox: every line of `Sandbox(site)` (§4.1), under a comment that names the boundary,
   then `MasterHardening` (§4.1).
 - `WantedBy=multi-user.target`.

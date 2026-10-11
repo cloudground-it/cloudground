@@ -164,6 +164,9 @@ func TestRenderIsByteIdentical(t *testing.T) {
 			t.Run(build+"/"+site.Domain, func(t *testing.T) {
 				e := newEnv(t)
 				e.nginx.Build = info
+				// The slice's default memory limit is half the machine's:
+				// a fixed machine, or the render follows the test host's.
+				e.MemTotalMB = func() int64 { return 4096 }
 				// The reference agent had no binary directory set: its
 				// units named the bare program.
 				e.Paths.PHPBinDir = ""
