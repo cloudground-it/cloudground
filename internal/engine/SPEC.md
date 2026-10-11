@@ -81,7 +81,8 @@ In this order. "Security headers" is the set of §4.3.
 
 1. Header comment: managed, and `# Site: <domain> (id <id>, type <type>, profile <profile>)`.
 2. Protected paths (§4.5): the two maps `$cg_auth_realm_<id>` and
-   `$cg_auth_file_<id>`.
+   `$cg_auth_file_<id>`. WordPress hardening with XML-RPC off (§4.6): the
+   geo block `$cg_xmlrpc_from_<id>` and the map `$cg_xmlrpc_deny_<id>`.
 3. Staging (`BasicAuthFile` set): a map from `$http_x_cloudground_internal`
    to `$cg_staging_realm_<id>`: the internal key (when there is one) gives
    `off`, anything else `"Staging"`.
@@ -105,6 +106,9 @@ In this order. "Security headers" is the set of §4.3.
    - `client_max_body_size`;
    - `http3 on;` with `HTTP3`;
    - the security headers, at server level;
+   - WordPress hardening (§4.6): `if ($cg_xmlrpc_deny_<id>) { return 403; }`
+     with XML-RPC off, `if ($uri = /wp-login.php) { return 404; }` with a
+     login path;
    - **proxy site**: the routing block (§7), whose default is
      `location /` proxying to the upstream (HTTP/1.1, Host, X-Real-IP,
      X-Forwarded-For, X-Forwarded-Proto, Upgrade/Connection for websockets,
@@ -119,7 +123,8 @@ In this order. "Security headers" is the set of §4.3.
      plugin let into the uploads is never run; a regex location, so it
      must come before the routing block's and the PHP location, since the
      first regex that matches wins; requests outside that prefix see one
-     more regex test, measured with the benchmarks); the static
+     more regex test, measured with the benchmarks); with hardening
+     (§4.6), the readme location and the login path's exact location; the static
      assets location (css, js, mjs, images, fonts, mp4, webm, pdf: `expires
      30d`, `Cache-Control: public, immutable`, the security headers, no
      access log, `gzip_static on`, `try_files $uri =404`); then
@@ -221,6 +226,47 @@ matches the PHP regex location, not the prefix one, and would reach PHP
 without the password. The access phase runs before the page cache is read,
 so a cached page of a protected path is not served without the password.
 Port 80 only redirects.
+
+### 4.6 WordPress hardening (#75)
+
+`Site.Config.WPHardening`, on a WordPress or WooCommerce site with a PHP
+socket; every other site ignores it. Each item is on or off on its own.
+Refused before anything is rendered: a login path that is not
+`site.ValidLoginPath` (3–64 of `a-z 0-9 -`, starting with a letter or
+digit, not one of WordPress's or WooCommerce's first path segments), and an
+exception that is not an IP address or network in canonical form
+(`site.NormalizeXMLRPCAllow`).
+
+- **XML-RPC off** (`xmlrpc_off`): at http level a geo block
+  `$cg_xmlrpc_from_<id>` (`default 0`, each exception `1`) and a map
+  `"$uri|$cg_xmlrpc_from_<id>|$arg_for" → $cg_xmlrpc_deny_<id>`, `1` for
+  `~^/xmlrpc\.php\|0\|(?!jetpack$)`: `/xmlrpc.php` (the normalised path) from
+  an address that is not an exception, unless the query's first `for` is
+  `jetpack`. At server level, before any location is chosen,
+  `if ($cg_xmlrpc_deny_<id>) { return 403; }`; the PHP location passes
+  `fastcgi_param CLOUDGROUND_XMLRPC_FROM $cg_xmlrpc_from_<id>`. nginx and PHP
+  can read a query string differently (`for=jetpack&for=x`): the connector
+  decides again with PHP's reading and lets `for=jetpack` through only when
+  Jetpack is active (connector/SPEC.md §2.11), so nginx's test only saves
+  the PHP work for everything else. Jetpack's servers call XML-RPC with
+  `for=jetpack` and sign the request; with it Jetpack serves only its own
+  methods.
+- **Readme and licence files** (`block_readme`): a case-insensitive regex
+  location, after the uploads one, answering 404 for
+  `/readme.html`, `/license.txt` and a plugin's or theme's top-level
+  `readme`, `changelog` or `license` `.txt`/`.md`/`.html`: they give the
+  versions away.
+- **Login path** (`login_path`, e.g. `my-door`): `location = /my-door {
+  rewrite ^ /wp-login.php last; }` after the readme location, and at
+  server level `if ($uri = /wp-login.php) { return 404; }`. The server-level
+  `if` runs once, on the request as it came (normalised, so no spelling of
+  the path slips past); the rewrite is an internal redirect to the PHP
+  location, which the server level does not see again. With a caching
+  policy, `$uri = /my-door` also skips the cache (§5.1). The connector
+  rewrites WordPress's links and redirects to the new path.
+- The file editor and the version (`file_edit_off`, `hide_version`) are the
+  connector's alone, through the PHP master's environment (internal/phpfpm
+  SPEC §5.3).
 
 ## 5. Page-cache policy (`velocity.PolicyFor`)
 

@@ -52,6 +52,7 @@ export interface Site {
     /** The panel's periodic check from the public address (absent: off). */
     uptime?: { enabled: boolean, path?: string }
     wp_two_factor?: 'optional' | 'required'
+    wp_hardening?: WPHardening
   }
   created_at: string
 }
@@ -284,4 +285,14 @@ export interface QueryResult {
   columns: string[] | null
   rows: string[][] | null
   message?: string
+}
+
+/** A WordPress site's hardening (#75); an absent field is off. */
+export interface WPHardening {
+  xmlrpc_off?: boolean
+  xmlrpc_allow?: string[]
+  file_edit_off?: boolean
+  hide_version?: boolean
+  block_readme?: boolean
+  login_path?: string
 }

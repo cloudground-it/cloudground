@@ -113,6 +113,7 @@ final class Site
     public static bool $mailWorks = true;
     public static int $current = 0;
     public static array $actions = [];
+    public static array $removed = [];
     public static bool $isCart = false;
     public static string $environment = 'production';
 
@@ -211,6 +212,8 @@ function do_action($hook, ...$args)
     }
 }
 function __return_true() { return true; }
+function __return_empty_string() { return ''; }
+function remove_action($hook, $cb, $prio = 10) { Site::$removed[] = $hook . ':' . $cb; return true; }
 
 // ------------------------------------------------------------- options --
 
@@ -378,7 +381,7 @@ function esc_html__($s, $domain = 'default') { return esc_html($s); }
 function esc_attr__($s, $domain = 'default') { return esc_attr($s); }
 function wp_unslash($v) { return is_array($v) ? array_map('wp_unslash', $v) : (is_string($v) ? stripslashes($v) : $v); }
 function wp_specialchars_decode($s, $q = ENT_NOQUOTES) { return htmlspecialchars_decode($s, $q); }
-function get_bloginfo($what) { return 'Example'; }
+function get_bloginfo($what) { return $what === 'version' ? '7.1.3' : 'Example'; }
 function site_url($path = '', $scheme = null) { return home_url('/' . ltrim($path, '/')); }
 function wp_login_url() { return site_url('wp-login.php'); }
 function wp_parse_url($url, $component = -1) { return parse_url($url, $component); }

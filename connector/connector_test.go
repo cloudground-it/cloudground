@@ -57,6 +57,16 @@ func TestTwoFactorPHP(t *testing.T) {
 	t.Logf("%s", out)
 }
 
+// Hardening (SPEC 2.11), in its own process for the same reason.
+func TestHardeningPHP(t *testing.T) {
+	run := phpRunner(t)
+	out, err := run("display_errors=stderr", "hardening.php")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	t.Logf("%s", out)
+}
+
 // The drop-in's suite (SPEC part 3) as wp-cli runs it, with APCu off; and
 // as PHP-FPM does, where the APCu extension is installed (test/flush/run.sh
 // always runs it that way).

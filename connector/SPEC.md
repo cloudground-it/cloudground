@@ -41,6 +41,12 @@ the site can edit; wp-cli does not see it:
 | Variable | Meaning |
 | --- | --- |
 | `CLOUDGROUND_2FA` | `optional` or `required`: two-factor sign-in (§2.10). Anything else, or absent, is off. |
+| `CLOUDGROUND_HARDENING` | Comma-separated hardening items: `xmlrpc`, `file_edit`, `version` (§2.11). Unknown items are ignored. |
+| `CLOUDGROUND_LOGIN_PATH` | The sign-in page's path segment instead of `wp-login.php` (§2.11), `^[a-z0-9][a-z0-9-]{2,63}$`; anything else is ignored. |
+
+And from nginx, as a FastCGI parameter no client can set:
+`CLOUDGROUND_XMLRPC_FROM` = `1` when the address is on the site's XML-RPC
+exception list (§2.11).
 
 The connector stores nothing of its own in the database except the
 one-shot login rows the agent writes (§2.5) and the two-factor user meta
@@ -388,6 +394,43 @@ Not done: a QR code (the key is typed, or the link opened on the phone),
 other second factors (email codes after setup, WebAuthn), ending the
 sessions opened before the setting.
 
+### 2.11 Hardening (#75)
+
+Each item on its own, from `CLOUDGROUND_HARDENING` and
+`CLOUDGROUND_LOGIN_PATH` (§1); nginx does the other half
+(internal/engine SPEC §4.6). Nothing is stored.
+
+- **`xmlrpc`**: on `plugins_loaded` at the first priority (every plugin is
+  loaded, so Jetpack can be seen; none has answered yet), an XML-RPC request
+  (`XMLRPC_REQUEST`) is answered 403 `XML-RPC is turned off on this site.`
+  unless `$_SERVER['CLOUDGROUND_XMLRPC_FROM']` is `1` (nginx: the address is
+  an exception) or Jetpack is active (class `Jetpack` or
+  `Automattic\Jetpack\Connection\Manager`) and `$_GET['for']` is exactly
+  `jetpack`: PHP's reading of the query, the one Jetpack acts on, so a
+  query nginx reads otherwise (`for=jetpack&for=x`) gets nothing more. Also
+  no `X-Pingback` header and no RSD link in the page head.
+- **`file_edit`**: `map_meta_cap` adds `do_not_allow` to `edit_themes`,
+  `edit_plugins` and `edit_files`: what `DISALLOW_FILE_EDIT` does, whatever
+  `wp-config.php` defines.
+- **`version`**: no generator tag (`wp_generator` off `wp_head`,
+  `the_generator` empty, which covers feeds and every other caller), and a
+  `ver=` equal to WordPress's version in a style or script URL becomes the
+  first 8 hex characters of `hmac_sha256(key=wp_salt('nonce'), version)`:
+  it still changes with each update, so browsers fetch new files. Plugin
+  versions in their own asset URLs are left alone.
+- **Login path** (`my-door`): `site_url` and `network_site_url` (last
+  priority) turn `/wp-login.php` into `/my-door` (every core link to the
+  sign-in page, the lost-password and reset links in emails, the
+  password-protected post form, the session-expired dialog, the second step
+  of §2.10); `wp_redirect` does the same for redirects to this host,
+  relative ones included (core's `wp-login.php?loggedout=true`).
+  `wp_redirect_admin_locations` is removed (`/login`, `/admin` would
+  redirect to the new path), and on `init` a visitor who is not signed in
+  gets a plain 404 for any wp-admin page but `admin-ajax.php` and
+  `admin-post.php` (Ajax calls pass too), instead of the redirect that
+  would give the new path away. wp-cli does not see the environment: an
+  email sent from a wp-cli or system cron run links to `wp-login.php`.
+
 ## 3. The object-cache drop-in
 
 ### 3.1 When it shares
@@ -506,6 +549,25 @@ class `WP_Object_Cache` with public `cache_hits`, `cache_misses` and
   second step; a customer signs in from My account as before; the magic
   login signs in; the profile resets, sets up and shows the codes once; the
   key is sealed in `wp_usermeta`, nothing in `wp_options`.
+- `php/tests/hardening.php`: §2.11 against the stand-in, in its own
+  process: the items and the path from the environment, the XML-RPC
+  decision, the file editor's capabilities, the asset version, the login
+  links and redirects, wp-admin for visitors.
+- Hardening checked by hand on 2026-10-11 with nginx 1.28 (the rendered
+  directives of internal/engine SPEC §4.6) in front of
+  `wordpress:php8.3-fpm` (WordPress 7.1.3, WooCommerce 11.2.1, then also
+  Jetpack 16.3 active; the pool's `env[…]` as the panel writes them):
+  no generator tag, no core `ver=` (assets keep a tag), no RSD link or
+  `X-Pingback`; readme and licence files 404, plugin CSS served; XML-RPC
+  403, and `?for=jetpack&for=x` 403 (refused by the connector after nginx
+  let it through); `?for=jetpack` answers with the Jetpack connection's
+  methods only (WooCommerce ships that package, so it does even without
+  Jetpack); `/wp-login.php`, `//wp-login.php`, `/wp-login.ph%70` 404, the new
+  path shows a form posting to itself and its lost-password link; wp-admin
+  404 for a visitor, admin-ajax.php answers; a customer signs in at the new
+  path and from My account and logs out; an administrator is sent to the
+  two-factor step at the new path; shop and cart answer; the theme and
+  plugin editors are refused; `WP_DEBUG` logged nothing.
 - `test/flush/run.sh`: the measurement in §3.4.
 - Checked by hand on 2026-10-09 against WordPress 7.1.3 and WooCommerce
   11.2.1 in docker, intercepting the purge request: the previous connector

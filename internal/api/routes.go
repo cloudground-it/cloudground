@@ -290,6 +290,8 @@ func (s *Server) routeTable() []route {
 			Section: secWP, Doc: "installed plugins and themes, and their updates"},
 		{Method: post, Path: "/api/sites/{id}/wp/update", Policy: policyManage, Load: loadSite, Handle: s.handleWPUpdate,
 			Section: secWP, Doc: "apply updates to `core`, `plugins`, `themes` or `all`"},
+		{Method: put, Path: "/api/sites/{id}/wp/hardening", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleSetWPHardening,
+			Section: secWP, Doc: "WordPress hardening, each item on its own: `{\"xmlrpc_off\", \"xmlrpc_allow\": [addresses or networks], \"file_edit_off\", \"hide_version\", \"block_readme\", \"login_path\"}`; answers the hardening"},
 		{Method: put, Path: "/api/sites/{id}/wp/two-factor", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleSetWPTwoFactor,
 			Section: secWP, Doc: "two-factor sign-in for the site's accounts: `{\"mode\": \"off\"}`, `optional` (each account can set it up) or `required` (also compulsory for administrators and shop managers); answers the mode"},
 

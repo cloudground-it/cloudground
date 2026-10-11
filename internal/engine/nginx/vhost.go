@@ -66,6 +66,9 @@ type vhost struct {
 	sec      []string // the security headers, one directive each
 	skipVar  string
 	zoneName string
+	// harden is the site's WordPress hardening, zero for any other site
+	// (SPEC §4.6).
+	harden state.WPHardening
 }
 
 // prepare checks the input and works out what the vhost is made of
@@ -100,6 +103,18 @@ func prepare(in engine.Input) (*vhost, error) {
 		php:      in.PHPSocket != "" && s.Type != state.SiteProxy && s.Type != state.SiteStatic,
 		skipVar:  "$cg_skip_" + strconv.FormatInt(s.ID, 10),
 		zoneName: "cg_" + strconv.FormatInt(s.ID, 10),
+	}
+	if v.php && (s.Type == state.SiteWordPress || s.Type == state.SiteWooCommerce) {
+		h := s.Config.WPHardening
+		if h.LoginPath != "" && !site.ValidLoginPath(h.LoginPath) {
+			return nil, fmt.Errorf("invalid login path %q", h.LoginPath)
+		}
+		for _, a := range h.XMLRPCAllow {
+			if n, err := site.NormalizeXMLRPCAllow(a); err != nil || n != a {
+				return nil, fmt.Errorf("invalid XML-RPC exception %q", a)
+			}
+		}
+		v.harden = h
 	}
 	v.sec = []string{
 		"add_header X-Content-Type-Options nosniff always;",
@@ -220,6 +235,7 @@ func (v *vhost) render() (before, block, after string) {
 	c.put(0, "# Managed by CloudGround — do not edit. Changes are detected as drift.")
 	c.putf(0, "# Site: %s (id %d, type %s, profile %s)", s.Domain, s.ID, s.Type, s.Profile)
 	v.protectedMaps(&c)
+	v.xmlrpcMaps(&c)
 	if in.BasicAuthFile != "" {
 		c.put(0, "")
 		c.putf(0, "map $http_x_cloudground_internal $cg_staging_realm_%d {", s.ID)
@@ -290,6 +306,20 @@ func (v *vhost) render() (before, block, after string) {
 		c.put(1, "http3 on;")
 	}
 	v.headers(&c)
+	if v.harden.XMLRPCOff || v.harden.LoginPath != "" {
+		c.put(1, "", "# WordPress hardening (SPEC §4.6): before any location is chosen.")
+		if v.harden.XMLRPCOff {
+			c.putf(1, "if ($cg_xmlrpc_deny_%d) {", s.ID)
+			c.put(2, "return 403;")
+			c.put(1, "}")
+		}
+		if v.harden.LoginPath != "" {
+			c.put(1, "# The sign-in page has moved: only its new path reaches it.")
+			c.put(1, "if ($uri = /wp-login.php) {")
+			c.put(2, "return 404;")
+			c.put(1, "}")
+		}
+	}
 
 	if s.Type != state.SiteProxy {
 		c.put(1, "",
@@ -311,6 +341,19 @@ func (v *vhost) render() (before, block, after string) {
 				"# Uploads are data: a .php a plugin let through is never run (SR-T9).",
 				`location ~* ^/wp-content/uploads/.*\.php$ {`)
 			c.put(2, "deny all;")
+			c.put(1, "}")
+		}
+		if v.harden.BlockReadme {
+			c.put(1, "",
+				"# Files that tell the WordPress, plugin and theme versions (SPEC §4.6).",
+				"location ~* "+readmeRegex+" {")
+			c.put(2, "return 404;")
+			c.put(1, "}")
+		}
+		if v.harden.LoginPath != "" {
+			c.put(1, "")
+			c.putf(1, "location = /%s {", v.harden.LoginPath)
+			c.put(2, "rewrite ^ /wp-login.php last;")
 			c.put(1, "}")
 		}
 		c.put(1, "",
@@ -372,6 +415,32 @@ func (v *vhost) protectedMaps(c *conf) {
 	c.put(0, "}")
 }
 
+// readmeRegex matches, without regard to case, the files that give
+// WordPress's version away and those of its plugins and themes (SPEC §4.6).
+const readmeRegex = `^/(?:readme\.html|license\.txt|wp-content/(?:plugins|themes)/[^/]+/(?:readme|changelog|license)\.(?:txt|md|html))$`
+
+// xmlrpcMaps writes, for a site with XML-RPC off, the addresses it still
+// answers (a geo block of the exceptions) and the decision (SPEC §4.6):
+// xmlrpc.php is refused unless the address is an exception or the request
+// is Jetpack's (for=jetpack; the connector checks again with PHP's own
+// reading of the query and that Jetpack is active).
+func (v *vhost) xmlrpcMaps(c *conf) {
+	if !v.harden.XMLRPCOff {
+		return
+	}
+	id := v.in.Site.ID
+	c.put(0, "")
+	c.putf(0, "geo $cg_xmlrpc_from_%d {", id)
+	c.put(1, "default  0;")
+	for _, a := range v.harden.XMLRPCAllow {
+		c.putf(1, "%s  1;", a)
+	}
+	c.put(0, "}")
+	c.putf(0, `map "$uri|$cg_xmlrpc_from_%d|$arg_for" $cg_xmlrpc_deny_%d {`, id, id)
+	c.put(1, `"~^/xmlrpc\.php\|0\|(?!jetpack$)"  1;`, "default  0;")
+	c.put(0, "}")
+}
+
 // leftoverRegex matches, without regard to case, the paths a site never
 // serves (SPEC §4.4): a name ending in a backup or editor suffix (.bak,
 // .old, .orig, .save, .swp, .swo, ~), an SQL dump (.sql, compressed or
@@ -418,12 +487,19 @@ func (v *vhost) php_(c *conf) {
 			}
 			skip(`$request_uri ~* "` + strings.Join(res, "|") + `"`)
 		}
+		if v.harden.LoginPath != "" {
+			skip("$uri = /" + v.harden.LoginPath)
+		}
 	}
 	c.put(1, "", `location ~ \.php$ {`)
 	c.put(2, "try_files $uri =404;", "include fastcgi_params;",
 		"fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;",
 		"fastcgi_param HTTPS on;",
 		"fastcgi_pass unix:"+in.PHPSocket+";")
+	if v.harden.XMLRPCOff {
+		// For the connector's check of the exceptions; no client can set it.
+		c.putf(2, "fastcgi_param CLOUDGROUND_XMLRPC_FROM $cg_xmlrpc_from_%d;", in.Site.ID)
+	}
 	c.putf(2, "fastcgi_read_timeout %ds;", in.Site.Config.PHP.RequestTimeoutSeconds())
 	c.put(2, "fastcgi_buffers 16 32k;", "fastcgi_buffer_size 64k;")
 	if p.Enabled {

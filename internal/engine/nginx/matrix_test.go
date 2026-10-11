@@ -265,6 +265,26 @@ func matrixCases() []matrixCase {
 			add(name, b, in)
 		}
 	}
+	// WordPress hardening (#75, SPEC §4.6), after the others so their
+	// site ids stay: every item, with exceptions of both families; and
+	// XML-RPC off alone, with none.
+	hardening := []option{
+		{"wp-hardening", state.SiteWooCommerce, func(in *engine.Input) {
+			in.Site.Config.WPHardening = state.WPHardening{XMLRPCOff: true, XMLRPCAllow: []string{"192.0.2.10", "198.51.100.0/24", "2001:db8::/32"},
+				FileEditOff: true, HideVersion: true, BlockReadme: true, LoginPath: "my-door"}
+		}},
+		{"wp-hardening-xmlrpc", state.SiteWordPress, func(in *engine.Input) {
+			in.Site.Config.WPHardening = state.WPHardening{XMLRPCOff: true}
+		}},
+	}
+	for _, b := range matrixBuilds {
+		for _, o := range hardening {
+			id++
+			in := matrixInput(id, o.typ, state.ProfileBalanced, true)
+			o.set(&in)
+			add(fmt.Sprintf("%s-opt-%s", b.name, o.name), b, in)
+		}
+	}
 	return cases
 }
 

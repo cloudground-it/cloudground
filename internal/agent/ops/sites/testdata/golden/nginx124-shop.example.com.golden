@@ -3,7 +3,7 @@
 /ROOT/nginx/conf.d/cloudground-global.conf
 /ROOT/nginx/sites-enabled/shop.example.com.conf
 /ROOT/php-masters/cg-site-5.conf
-/ROOT/srv/shop.example.com/current/wp-content/mu-plugins/cloudground-connector.php 9db10f5d02444801ef6502f9f9d04466341dadc1778348c38f7c4753114a5402
+/ROOT/srv/shop.example.com/current/wp-content/mu-plugins/cloudground-connector.php 8301b31edfb6f6a9d45bcd4cd95f85c59e9e1c2ae4f92ed2500f70b39d675c0b
 /ROOT/systemd/cg-site-5.slice
 /ROOT/systemd/cloudground-php-cg-site-5.service
 ## /ROOT/nginx/conf.d/cloudground-cache-5.conf -rw-r--r--

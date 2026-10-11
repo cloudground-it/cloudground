@@ -178,6 +178,11 @@ path changes.
   (connector/SPEC.md §2.10); nothing otherwise. In the pool, root's, rather than in
   `wp-config.php`, which the site can edit: a site's own code still runs in the site, but turning
   the setting off takes the panel.
+- On a WordPress or WooCommerce site with hardening (`config.wp_hardening`, #75):
+  `env[CLOUDGROUND_HARDENING]` = the connector's items that are on, comma-separated, in the order
+  `xmlrpc`, `file_edit`, `version` (the readme item is nginx's alone), and
+  `env[CLOUDGROUND_LOGIN_PATH]` = the login path when it is one (`^[a-z0-9][a-z0-9-]{2,63}$`);
+  nothing when neither applies.
 - APCu on (`apc.enabled`), sized on the command line (§4). OPcache on, `validate_timestamps = 1`,
   `revalidate_freq = 60` (the JIT mode is on the command line, §4). `apc.enable_cli` and
   `opcache.enable_cli` off.

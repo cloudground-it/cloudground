@@ -18,6 +18,7 @@ package site
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -101,6 +102,57 @@ func ValidProtectedPath(p string) bool {
 	return true
 }
 
+// MaxXMLRPCAllow bounds a site's XML-RPC exception list.
+const MaxXMLRPCAllow = 50
+
+// loginPathRe is a sign-in path: one lowercase segment, as the connector
+// takes it (connector/SPEC.md §2.11).
+var loginPathRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{2,63}$`)
+
+// reservedLoginPaths are WordPress's and WooCommerce's own first path
+// segments: a sign-in path there would hide them.
+var reservedLoginPaths = map[string]bool{
+	"wp-admin": true, "wp-content": true, "wp-includes": true, "wp-json": true, "wp-login": true,
+	"wp-login-php": true, "wp-cron": true, "xmlrpc": true, "feed": true, "comments": true, "author": true,
+	"category": true, "tag": true, "page": true, "search": true, "embed": true, "trackback": true,
+	"login": true, "admin": true, "dashboard": true, "shop": true, "cart": true, "checkout": true,
+	"my-account": true, "product": true, "product-category": true, "product-tag": true, "wc-api": true,
+}
+
+// ValidLoginPath reports whether p may be a WordPress site's sign-in path.
+func ValidLoginPath(p string) bool { return loginPathRe.MatchString(p) && !reservedLoginPaths[p] }
+
+// NormalizeXMLRPCAllow is an XML-RPC exception: an IPv4 or IPv6 address or
+// network, in its canonical form (a network's address masked).
+func NormalizeXMLRPCAllow(s string) (string, error) {
+	if pfx, err := netip.ParsePrefix(s); err == nil {
+		return pfx.Masked().String(), nil
+	}
+	if a, err := netip.ParseAddr(s); err == nil && a.Zone() == "" {
+		return a.Unmap().String(), nil
+	}
+	return "", invalid("%q is not an IP address or network", s)
+}
+
+// checkHardening refuses WordPress hardening that could not be rendered as
+// it is: the login path and the exceptions are pasted into nginx's
+// configuration and the PHP master's environment.
+func checkHardening(s state.Site) error {
+	h := s.Config.WPHardening
+	if h.LoginPath != "" && !ValidLoginPath(h.LoginPath) {
+		return invalid("invalid login path %q", h.LoginPath)
+	}
+	if len(h.XMLRPCAllow) > MaxXMLRPCAllow {
+		return invalid("at most %d XML-RPC exceptions", MaxXMLRPCAllow)
+	}
+	for _, a := range h.XMLRPCAllow {
+		if n, err := NormalizeXMLRPCAllow(a); err != nil || n != a {
+			return invalid("invalid XML-RPC exception %q", a)
+		}
+	}
+	return nil
+}
+
 // ValidBasicAuthUser reports whether u is a username a protected path may
 // take.
 func ValidBasicAuthUser(u string) bool { return basicAuthUserRe.MatchString(u) }
@@ -180,6 +232,9 @@ func Validate(sitesRoot string, s state.Site) (Valid, error) {
 		return Valid{}, err
 	}
 	if err := checkProtectedPaths(s); err != nil {
+		return Valid{}, err
+	}
+	if err := checkHardening(s); err != nil {
 		return Valid{}, err
 	}
 	if err := CheckRoot(sitesRoot, s); err != nil {

@@ -3,6 +3,8 @@ package phpfpm
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/state"
 )
@@ -56,6 +58,33 @@ func twoFactor(site state.Site) string {
 		return m
 	}
 	return ""
+}
+
+// loginPathRe is the sign-in path the connector takes; anything else is
+// left out of the pool (internal/site validates it before).
+var loginPathRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{2,63}$`)
+
+// hardening is what the connector does of a WordPress site's hardening:
+// its items, comma-separated, and the sign-in path (SPEC §5.3). The
+// readme item is nginx's alone.
+func hardening(site state.Site) (items, login string) {
+	if site.Type != state.SiteWordPress && site.Type != state.SiteWooCommerce {
+		return "", ""
+	}
+	h := site.Config.WPHardening
+	var on []string
+	for _, it := range []struct {
+		on   bool
+		name string
+	}{{h.XMLRPCOff, "xmlrpc"}, {h.FileEditOff, "file_edit"}, {h.HideVersion, "version"}} {
+		if it.on {
+			on = append(on, it.name)
+		}
+	}
+	if loginPathRe.MatchString(h.LoginPath) {
+		login = h.LoginPath
+	}
+	return strings.Join(on, ","), login
 }
 
 // RenderPool renders site's master configuration, its pool sized against
@@ -157,6 +186,16 @@ func RenderPool(site state.Site, budgetMB int) (path, content string, err error)
 			"; Here rather than in wp-config.php, which the site can edit.",
 		)
 		f.add("env[CLOUDGROUND_2FA] = %s", mode)
+		f.add("")
+	}
+	if items, login := hardening(site); items != "" || login != "" {
+		f.add("; WordPress hardening, the connector's half (connector/SPEC.md 2.11).")
+		if items != "" {
+			f.add("env[CLOUDGROUND_HARDENING] = %s", items)
+		}
+		if login != "" {
+			f.add("env[CLOUDGROUND_LOGIN_PATH] = %s", login)
+		}
 		f.add("")
 	}
 

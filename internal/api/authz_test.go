@@ -138,6 +138,7 @@ var routePolicy = map[string]string{
 	"POST /api/sites/{id}/purge":                "manage",
 	"POST /api/sites/{id}/protected-paths":      "manage",
 	"PUT /api/sites/{id}/wp/two-factor":         "manage",
+	"PUT /api/sites/{id}/wp/hardening":          "manage",
 	"DELETE /api/sites/{id}/protected-paths":    "manage",
 	"POST /api/sites/{id}/certificate":          "manage",
 	"POST /api/sites/{id}/staging":              "manage",
