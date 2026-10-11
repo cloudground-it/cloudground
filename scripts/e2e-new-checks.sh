@@ -76,7 +76,9 @@ fi
 printf '%s\n' "$found" | awk -F '\t' '{ printf "  %-32s %-28s %s\n", $1, $3, $4 }' >&2
 
 pats=$(printf '%s\n' "$found" | cut -f 4 | awk '!seen[$0]++' | paste -sd '|' -)
-if printf '%s\n' "$found" | cut -f 3 | grep -qx ALL; then
+# awk reads to the end: grep -q would quit at its first match and, under
+# pipefail, the SIGPIPE of the commands before it would fail the test.
+if printf '%s\n' "$found" | awk -F '\t' '$3 == "ALL" { all = 1 } END { exit !all }'; then
 	secs='[^/]*'
 else
 	secs=$(printf '%s\n' "$found" | cut -f 3 | e2e_order | e2e_alternation)

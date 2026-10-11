@@ -101,12 +101,15 @@ e2e_regex_name() {
 }
 
 # e2e_order prints the section names read on stdin in the table's order,
-# once each.
+# once each. The names go to grep as a here-string, not through a pipe:
+# under pipefail, grep -q quitting at its first match can kill the writer
+# with SIGPIPE, and the pipeline then fails although grep matched (on a
+# loaded machine, where printf writes line by line, a section dropped).
 e2e_order() {
 	local want
 	want=$(cat)
 	e2e_sections | while IFS= read -r s; do
-		if printf '%s\n' "$want" | grep -qxF -- "$s"; then
+		if grep -qxF -- "$s" <<<"$want"; then
 			printf '%s\n' "$s"
 		fi
 	done

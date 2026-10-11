@@ -49,7 +49,7 @@ build_bin() {
     die "the tree differs from the commit (a stale ui/dist shows up here): commit or clean it first"
   }
   if [[ ${CG_RELEASE_TEST:-} != 1 ]]; then
-    git tag --points-at HEAD | grep -qxF "$tag" || die "HEAD is not tagged $tag"
+    grep -qxF "$tag" <<<"$(git tag --points-at HEAD)" || die "HEAD is not tagged $tag"
   fi
   local want got
   want=$(sed -n 's/^toolchain //p' go.mod)
@@ -77,7 +77,7 @@ build_bin() {
   # The binaries name their commit (go version -m). Go does not stamp a
   # linked worktree, whose .git is a file; a checkout's must be stamped.
   if [[ -d .git ]]; then
-    go version -m "$out/cgctl" | grep -q "vcs.revision=$(git rev-parse HEAD)" || die "the binaries carry no VCS stamp of HEAD"
+    grep -q "vcs.revision=$(git rev-parse HEAD)" <<<"$(go version -m "$out/cgctl")" || die "the binaries carry no VCS stamp of HEAD"
   fi
   # The units are compiled into the binaries (internal/units); the release
   # also publishes them, signed, for servers whose self-update installs them.
