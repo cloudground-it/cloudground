@@ -192,6 +192,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `GET` | `/api/sites/{id}/cache-stats` | auth | APCu hits, misses and memory in use |
 | `GET` | `/api/sites/{id}/logs?source=` | auth | tail one of the site's own logs: `access`, `error` or `php` |
 | `POST` | `/api/sites/{id}/migration` | manage | bring in a site from a files archive and a SQL dump |
+| `GET` | `/api/sites/{id}/usage` | auth | the site's resource usage for `range` `24h` (five-minute samples) or `30d` (hourly averages, with the hour's CPU peak): CPU as a share of its allowance, memory, IO and disk; its effective `limits`; the `latest` sample |
 | `GET` | `/api/sites/{id}/uptime` | auth | the site's uptime check: `enabled`, `path`, `url`, `interval_seconds` and the `last` result (`up`, `status`, `latency_ms`, `error`, `down_since`) |
 | `PUT` | `/api/sites/{id}/uptime` | manage | turn the uptime check on or off (`enabled`) and choose the path it requests (`path`, default `/`) |
 

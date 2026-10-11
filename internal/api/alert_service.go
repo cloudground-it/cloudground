@@ -30,7 +30,7 @@ import (
 type Alert struct {
 	ID      string `json:"id"`
 	Level   string `json:"level"` // warning | error
-	Kind    string `json:"kind"`  // certificate | task | service | drift | deploy | uptime
+	Kind    string `json:"kind"`  // certificate | task | service | drift | deploy | uptime | usage
 	SiteID  int64  `json:"site_id,omitempty"`
 	Site    string `json:"site,omitempty"`
 	Message string `json:"message"`
@@ -218,6 +218,12 @@ func (s *Server) evaluateAlertsAt(ctx context.Context, now time.Time) error {
 	// Uptime (uptime.go): left as they are until the first round has run.
 	if set, ready := s.uptimeConditions(sites); ready && sitesErr == nil {
 		keep(s.Store.SyncAlerts("uptime", set), "SyncAlerts uptime")
+	}
+	// Usage (usage.go): from the samples the sites.usage job keeps.
+	if sitesErr == nil {
+		if set, err := s.usageAlerts(sites); keep(err, "alerts: site usage") {
+			keep(s.Store.SyncAlerts("usage", set), "SyncAlerts usage")
+		}
 	}
 	guessing, guessed := s.guesses.condition(now)
 	if svc, err := agentrpc.Call(ctx, s.Agent, agentrpc.ServiceStatus, agentrpc.None{}); keep(err, "alerts: ServiceStatus") {

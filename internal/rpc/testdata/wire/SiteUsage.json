@@ -1,0 +1,39 @@
+{
+  "params": {
+    "full": {
+      "sites": [
+        {
+          "id": 7,
+          "system_user": "SystemUser",
+          "domain": "Domain",
+          "disk": true
+        }
+      ]
+    },
+    "zero": {
+      "sites": null
+    }
+  },
+  "result": {
+    "full": {
+      "sites": [
+        {
+          "id": 7,
+          "running": true,
+          "cpu_usec": 7,
+          "memory_bytes": 7,
+          "memory_max_bytes": 7,
+          "io_read_bytes": 7,
+          "io_write_bytes": 7,
+          "tasks": 7,
+          "oom_kills": 7,
+          "disk_bytes": 7,
+          "disk_inodes": 7
+        }
+      ]
+    },
+    "zero": {
+      "sites": null
+    }
+  }
+}

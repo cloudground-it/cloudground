@@ -62,6 +62,11 @@ func RenderUnit(site state.Site, phpBinDir string) (name, content string, err er
 	f.add("Restart=on-failure")
 	f.add("RestartSec=2")
 	f.add("LimitNOFILE=65536")
+	f.addAll(
+		"# A worker the kernel kills at the site's memory limit (its slice's",
+		"# MemoryMax) is that request's: the master stays up and starts another.",
+	)
+	f.add("OOMPolicy=continue")
 	f.add("")
 	f.addAll(
 		"# The site sees its own tree and nothing of any other site: /srv/sites is an",

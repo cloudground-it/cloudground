@@ -39,6 +39,12 @@ type sitePatch struct {
 	// BypassCookies replaces the site's own page-cache bypass cookies
 	// (cookie names; [] clears them).
 	BypassCookies *[]string `json:"bypass_cookies"`
+	// The limits of the site's slice (#19); 0 is the measured default.
+	MemoryMaxMB *int `json:"memory_max_mb"`
+	CPUQuotaPct *int `json:"cpu_quota_pct"`
+	TasksMax    *int `json:"tasks_max"`
+	// UsageAlerts replaces the site's usage alert thresholds (#18).
+	UsageAlerts *state.UsageAlerts `json:"usage_alerts"`
 	// AllowOverBudget lets an administrator set PHP workers and a memory
 	// limit whose product is beyond the site's memory budget. It is a flag
 	// of the request, not a setting.
@@ -56,7 +62,7 @@ const (
 const (
 	msgNoPHP        = "this site does not run PHP"
 	msgNotWordPress = "not a WordPress site"
-	msgAdminFields  = "only an administrator can change a site's aliases or proxy upstream"
+	msgAdminFields  = "only an administrator can change a site's aliases, proxy upstream or resource limits"
 	msgNeedCert     = "issue a certificate for this site before enabling HSTS"
 )
 
@@ -96,6 +102,14 @@ func intRange(v *int, lo, hi int, msg string) string {
 		return msg
 	}
 	return ""
+}
+
+// zeroOrRange is intRange with 0 also allowed: the default.
+func zeroOrRange(v *int, lo, hi int, msg string) string {
+	if *v == 0 {
+		return ""
+	}
+	return intRange(v, lo, hi, msg)
 }
 
 func needsPHP(pc *patchCheck) string {
@@ -170,6 +184,42 @@ var patchFields = []patchField{
 			return intRange(p.PHPWorkers, 0, maxPHPWorkers, fmt.Sprintf("PHP workers must be 0–%d (0 sizes them automatically)", maxPHPWorkers)), nil
 		},
 		write: func(p *sitePatch, st *state.Site) { st.Config.Resources.PHPWorkers = *p.PHPWorkers }},
+	// The limits bound what the site may take from every other site: an
+	// operator of the site cannot raise them (§3.4).
+	{name: "memory_max_mb", adminOnly: true,
+		named: func(p *sitePatch) bool { return p.MemoryMaxMB != nil },
+		check: func(_ *patchCheck, p *sitePatch) (string, error) {
+			return zeroOrRange(p.MemoryMaxMB, site.MinMemoryMaxMB, site.MaxMemoryMaxMB,
+				fmt.Sprintf("memory limit must be 0 (the default) or %d–%d MB", site.MinMemoryMaxMB, site.MaxMemoryMaxMB)), nil
+		},
+		write: func(p *sitePatch, st *state.Site) { st.Config.Resources.MemoryMaxMB = *p.MemoryMaxMB }},
+	{name: "cpu_quota_pct", adminOnly: true,
+		named: func(p *sitePatch) bool { return p.CPUQuotaPct != nil },
+		check: func(_ *patchCheck, p *sitePatch) (string, error) {
+			return zeroOrRange(p.CPUQuotaPct, site.MinCPUQuotaPct, site.MaxCPUQuotaPct,
+				fmt.Sprintf("CPU quota must be 0 (none) or %d–%d %% (100 %% is one CPU)", site.MinCPUQuotaPct, site.MaxCPUQuotaPct)), nil
+		},
+		write: func(p *sitePatch, st *state.Site) { st.Config.Resources.CPUQuotaPct = *p.CPUQuotaPct }},
+	{name: "tasks_max", adminOnly: true,
+		named: func(p *sitePatch) bool { return p.TasksMax != nil },
+		check: func(_ *patchCheck, p *sitePatch) (string, error) {
+			return zeroOrRange(p.TasksMax, site.MinTasksMax, site.MaxTasksMax,
+				fmt.Sprintf("process limit must be 0 (the default) or %d–%d", site.MinTasksMax, site.MaxTasksMax)), nil
+		},
+		write: func(p *sitePatch, st *state.Site) { st.Config.Resources.TasksMax = *p.TasksMax }},
+	{name: "usage_alerts",
+		named: func(p *sitePatch) bool { return p.UsageAlerts != nil },
+		check: func(_ *patchCheck, p *sitePatch) (string, error) {
+			a := p.UsageAlerts
+			if a.CPUPct < 0 || a.CPUPct > 100 || a.MemoryPct < 0 || a.MemoryPct > 100 {
+				return "alert thresholds must be 0 (the default) or 1–100 %", nil
+			}
+			if a.DiskMB < 0 || a.DiskMB > site.MaxMemoryMaxMB*64 {
+				return "the disk alert must be 0 (none) or a size in MB", nil
+			}
+			return "", nil
+		},
+		write: func(p *sitePatch, st *state.Site) { st.Config.Resources.Alerts = *p.UsageAlerts }},
 	{name: "hsts",
 		named: func(p *sitePatch) bool { return p.HSTS != nil },
 		write: func(p *sitePatch, st *state.Site) { st.Config.HSTS = *p.HSTS }},

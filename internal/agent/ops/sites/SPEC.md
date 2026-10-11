@@ -77,6 +77,37 @@ Every process of a site runs in its slice:
 Not in it: SFTP sessions (sshd's, chrooted). Deletion deals with those
 through the user (§6).
 
+### 3.1 The slice unit: accounting and limits (#18, #19)
+
+Every site, PHP or not (a static site's cron jobs and shell are in its slice
+too), has a unit file for its slice, `<SystemdDir>/cg-site-<id>.slice`
+(`site.SliceUnit`), a managed file like the others (drift: `system` ops'
+`managed`, the API's `siteOwnsPath`). `[Slice]`:
+
+- `CPUAccounting`, `MemoryAccounting`, `IOAccounting`, `TasksAccounting`:
+  the counters the panel's usage figures are read from (`system` ops'
+  `SiteUsage`, api SPEC §11.5);
+- `MemoryHigh` (nine tenths of the limit: the kernel reclaims and slows the
+  site there) and `MemoryMax` (one of the site's processes is killed there,
+  never another site's; the PHP master keeps running, phpfpm SPEC §4
+  `OOMPolicy=continue`);
+- `CPUQuota` when the site has one (`CPUQuotaPct`, 100 per CPU); none by
+  default, so a site may use every CPU;
+- `TasksMax`.
+
+`site.EffectiveLimits` gives the values: the site's own (`Config.Resources`),
+or the defaults, measured with `bench/` (`bench/site-resources.md`): memory
+half the server's (at least 1024 MB; the WooCommerce bench site peaked at
+561 MB through the whole suite, its cron and a cache warm), 512 tasks (it
+peaked at 8), no CPU quota (it used both CPUs of the 2-CPU box under the
+uncached scenario, so any quota would have cut its throughput).
+
+The unit is written before the PHP master's files (render step 4) and, when
+it changed, systemd is reloaded: a running slice takes new limits on the
+reload, nothing in it is restarted (checked on Ubuntu 26.04: `memory.max`,
+`pids.max` and `cpu.max` change at once, and go back to `max` when the unit
+is removed). A failed render restores it with the rest and reloads again.
+
 ## 4. Render
 
 `Render(ctx, site)` writes everything the site's configuration consists of
@@ -219,7 +250,8 @@ gone.
 2. Stop the slice: the PHP master, cron jobs run now and wp-cli runs go
    together (systemd kills the whole cgroup). An unknown slice is fine.
 3. The master unit, if its file is there: stop (a no-op after the slice),
-   disable, remove unit, drop-in and pool, daemon-reload, reset-failed.
+   disable, remove unit, drop-in and pool; the slice unit (§3.1);
+   daemon-reload when a unit file went, reset-failed.
 4. `ops/cron` RemoveSite: runs still going and the schedule.
 5. The database and its account (local only).
 6. `ops/certs` RemoveSite: the certbot lineage and the operator's

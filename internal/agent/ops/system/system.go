@@ -29,6 +29,10 @@ type Paths struct {
 	PHPMasterDir string
 	NginxAuthDir string
 	SystemdDir   string
+
+	// CgroupRoot is where the cgroup tree is mounted ("" is /sys/fs/cgroup):
+	// the sites' slices are read there (usage.go).
+	CgroupRoot string
 }
 
 // PanelPort is the port the panel answers on (internal/install, the bootstrap vhost).
@@ -62,6 +66,7 @@ func (o *Ops) Register(s *agentrpc.Server) {
 	agentrpc.Handle(s, agentrpc.FirewallRule, o.FirewallRule)
 	agentrpc.Handle(s, agentrpc.FirewallEnable, o.FirewallEnable)
 	agentrpc.Handle(s, agentrpc.CheckDrift, o.CheckDrift)
+	agentrpc.Handle(s, agentrpc.SiteUsage, o.SiteUsage)
 }
 
 func (o *Ops) log() *slog.Logger {

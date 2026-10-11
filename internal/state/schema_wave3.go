@@ -70,3 +70,41 @@ var stepSiteDatabases = schemaStep{version: 22, stmts: []string{
 var stepBackupDatabases = schemaStep{version: 23, stmts: []string{
 	`ALTER TABLE backups ADD COLUMN databases TEXT`,
 }}
+
+// stepSiteUsage keeps each site's resource usage (#18): a five-minute sample
+// table for the last day, and one row per site and hour for 30 days, both
+// pruned as they are written (site_usage.go).
+var stepSiteUsage = schemaStep{version: 24, stmts: []string{
+	`CREATE TABLE site_usage (
+		id             INTEGER PRIMARY KEY AUTOINCREMENT,
+		site_id        INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+		sampled_at     TEXT NOT NULL,
+		cpu_usec       INTEGER NOT NULL,
+		io_read_bytes  INTEGER NOT NULL,
+		io_write_bytes INTEGER NOT NULL,
+		cpu_cores      REAL NOT NULL,
+		mem_bytes      INTEGER NOT NULL,
+		mem_max_bytes  INTEGER NOT NULL,
+		io_read_bps    REAL NOT NULL,
+		io_write_bps   REAL NOT NULL,
+		tasks          INTEGER NOT NULL,
+		oom_kills      INTEGER NOT NULL,
+		disk_bytes     INTEGER NOT NULL,
+		disk_inodes    INTEGER NOT NULL
+	)`,
+	`CREATE INDEX idx_site_usage_site_time ON site_usage(site_id, sampled_at)`,
+	`CREATE TABLE site_usage_hourly (
+		site_id       INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+		hour          TEXT NOT NULL,
+		n             INTEGER NOT NULL,
+		cpu_cores_sum REAL NOT NULL,
+		cpu_cores_max REAL NOT NULL,
+		mem_bytes_sum REAL NOT NULL,
+		mem_bytes_max INTEGER NOT NULL,
+		mem_max_bytes INTEGER NOT NULL,
+		io_read_sum   REAL NOT NULL,
+		io_write_sum  REAL NOT NULL,
+		disk_bytes    INTEGER NOT NULL,
+		PRIMARY KEY (site_id, hour)
+	)`,
+}}

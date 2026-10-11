@@ -3,6 +3,7 @@
 /ROOT/nginx/conf.d/cloudground-global.conf
 /ROOT/nginx/sites-enabled/fast.example.com.conf
 /ROOT/php-masters/cg-site-8.conf
+/ROOT/systemd/cg-site-8.slice
 /ROOT/systemd/cloudground-php-cg-site-8.service
 ## /ROOT/nginx/conf.d/cloudground-cache-8.conf -rw-r--r--
 # Written by CloudGround: page-cache zone of fast.example.com (site 8).
@@ -295,6 +296,22 @@ php_admin_flag[opcache.enable_cli] = off
 ; compressed here as well, instead of by nginx, so there is a single path.
 php_admin_flag[zlib.output_compression] = on
 php_admin_value[zlib.output_compression_level] = 5
+## /ROOT/systemd/cg-site-8.slice -rw-r--r--
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+[Unit]
+Description=Site fast.example.com: its PHP master, cron, wp-cli and shell
+
+[Slice]
+# Counted for the panel's usage figures.
+CPUAccounting=yes
+MemoryAccounting=yes
+IOAccounting=yes
+TasksAccounting=yes
+# Over MemoryHigh the kernel reclaims and slows the site; at MemoryMax it
+# kills one of its processes. No other site is touched either way.
+MemoryHigh=3570M
+MemoryMax=3967M
+TasksMax=512
 ## /ROOT/systemd/cloudground-php-cg-site-8.service -rw-r--r--
 # Managed by CloudGround — do not edit. Changes are detected as drift.
 [Unit]
@@ -312,6 +329,9 @@ ExecReload=/bin/kill -USR2 $MAINPID
 Restart=on-failure
 RestartSec=2
 LimitNOFILE=65536
+# A worker the kernel kills at the site's memory limit (its slice's
+# MemoryMax) is that request's: the master stays up and starts another.
+OOMPolicy=continue
 
 # The site sees its own tree and nothing of any other site: /srv/sites is an
 # empty tmpfs with only this site bound into it, and the same for its logs.

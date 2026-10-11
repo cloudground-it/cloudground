@@ -72,6 +72,7 @@ const links = computed(() => {
   )
   const more: Tab[] = [{ label: 'Cron', icon: 'i-cg-cron', to: `${base.value}/cron` }]
   if (s.php_version) more.push({ label: 'PHP', icon: 'i-cg-code', to: `${base.value}/php` })
+  more.push({ label: t('tabs.resources'), icon: 'i-cg-gauge', to: `${base.value}/resources` })
   more.push(
     { label: t('tabs.sftp'), icon: 'i-cg-key', to: `${base.value}/sftp` },
     // A staging copy asks for its own password everywhere already.

@@ -92,7 +92,8 @@
       "service": "Service",
       "drift": "Configuration",
       "deploy": "Release",
-      "uptime": "Uptime"
+      "uptime": "Uptime",
+      "usage": "Resources"
     },
     "more": "and {n} more in the Alerts panel (bell, top right)",
     "dismiss": "Dismiss",
@@ -208,7 +209,8 @@
     "more": "More",
     "sftp": "SFTP / SSH",
     "vhost": "Vhost",
-    "protection": "Protected paths"
+    "protection": "Protected paths",
+    "resources": "Resources"
   },
   "overview": {
     "certificate": "Certificate",
@@ -1344,5 +1346,41 @@
     "turnOff": "Turn off",
     "saved": "Uptime check saved",
     "turnedOff": "Uptime check off"
+  },
+  "resources": {
+    "title": "Resources",
+    "hint": "What the site's processes use (its PHP, cron jobs, wp-cli and shell), read every five minutes from its slice; the disk every hour.",
+    "range24h": "24 hours",
+    "range30d": "30 days",
+    "memory": "Memory",
+    "disk": "Disk",
+    "io": "Disk IO",
+    "cpuOfServer": "of the server's {n} CPUs",
+    "cpuOfQuota": "of its quota of {pct} % of a CPU",
+    "ofLimit": "of {limit}, its limit",
+    "killed": "{n} processes killed at the memory limit",
+    "files": "{n} files",
+    "diskPending": "measured within the hour",
+    "ioNote": "{read}/s read, {write}/s written",
+    "daysAgo": "-{n} d",
+    "chartAria": "CPU {cpu} % of what the site may use, memory {mem} % of its limit",
+    "empty": "No sample yet: the first arrives within five minutes.",
+    "limitsTitle": "Limits",
+    "limitsHint": "Enforced by the kernel on the site alone: over its memory limit one of its processes is ended, and no other site is touched. 0 is the default.",
+    "memoryMax": "Memory limit",
+    "memoryMaxHelp": "0: the default, {mb} MB on this server (half its memory, at least 1024 MB).",
+    "cpuQuota": "CPU quota",
+    "cpuQuotaHelp": "100 % is one CPU; 0: no quota, the site may use every CPU.",
+    "tasksMax": "Process limit",
+    "tasksMaxHelp": "0: the default, {n}.",
+    "adminOnly": "Only an administrator can change the limits.",
+    "alertsTitle": "Usage alerts",
+    "alertsHint": "An alert when the site stays above a threshold for 15 minutes, in the panel and on the alert webhook.",
+    "alertsOn": "Alert on this site's usage",
+    "alertCpu": "CPU",
+    "alertMemory": "Memory",
+    "alertPctHelp": "0: the default, 90 %.",
+    "alertDisk": "Disk",
+    "alertDiskHelp": "0: no disk alert."
   }
 }

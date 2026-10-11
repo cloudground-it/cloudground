@@ -172,3 +172,12 @@ func TestMasterHasPrivateIPC(t *testing.T) {
 		}
 	}
 }
+
+// SPEC §4: a worker killed at the slice's memory limit does not stop the
+// master (systemd's default OOMPolicy would).
+func TestMasterSurvivesAWorkerKilledForMemory(t *testing.T) {
+	_, unit, err := RenderUnit(site(state.SiteWordPress, state.ProfileBalanced), "/usr/sbin")
+	if err != nil || !strings.Contains(unit, "\nOOMPolicy=continue\n") {
+		t.Fatalf("the master's unit lacks OOMPolicy=continue (err %v):\n%s", err, unit)
+	}
+}

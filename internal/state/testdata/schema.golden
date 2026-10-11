@@ -32,6 +32,8 @@ index idx_site_db_grants_database on site_db_grants
   create index idx_site_db_grants_database on site_db_grants(database_id)
 index idx_site_db_users_site on site_db_users
   create index idx_site_db_users_site on site_db_users(site_id)
+index idx_site_usage_site_time on site_usage
+  create index idx_site_usage_site_time on site_usage(site_id,sampled_at)
 index idx_sites_staging_of on sites
   create index idx_sites_staging_of on sites(staging_of)
 index idx_user_sites_site on user_sites
@@ -63,6 +65,8 @@ index sqlite_autoindex_site_databases_1 on site_databases
 index sqlite_autoindex_site_db_grants_1 on site_db_grants
   
 index sqlite_autoindex_site_db_users_1 on site_db_users
+  
+index sqlite_autoindex_site_usage_hourly_1 on site_usage_hourly
   
 index sqlite_autoindex_sites_1 on sites
   
@@ -116,6 +120,10 @@ table site_db_users on site_db_users
   create table site_db_users(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,name text not null unique,secret text not null,created_at text not null)
 table site_status on site_status
   create table site_status(site_id integer primary key references sites(id)on delete cascade,cert_expiry text not null default '',cert_error text not null default '')
+table site_usage on site_usage
+  create table site_usage(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,sampled_at text not null,cpu_usec integer not null,io_read_bytes integer not null,io_write_bytes integer not null,cpu_cores real not null,mem_bytes integer not null,mem_max_bytes integer not null,io_read_bps real not null,io_write_bps real not null,tasks integer not null,oom_kills integer not null,disk_bytes integer not null,disk_inodes integer not null)
+table site_usage_hourly on site_usage_hourly
+  create table site_usage_hourly(site_id integer not null references sites(id)on delete cascade,hour text not null,n integer not null,cpu_cores_sum real not null,cpu_cores_max real not null,mem_bytes_sum real not null,mem_bytes_max integer not null,mem_max_bytes integer not null,io_read_sum real not null,io_write_sum real not null,disk_bytes integer not null,primary key(site_id,hour))
 table sites on sites
   create table sites(id integer primary key autoincrement,domain text not null unique,aliases text not null default '[]',type text not null,profile text not null,engine text not null default 'nginx',php_version text not null default '',system_user text not null,root_path text not null,status text not null,staging_of integer not null default 0,config text not null default '{}',created_at text not null,updated_at text not null,desired_generation integer not null default 1,applied_generation integer not null default 0,last_apply_error text not null default '')
 table sqlite_sequence on sqlite_sequence
@@ -365,6 +373,40 @@ columns of site_status
   1 | cert_expiry | TEXT | 1 | '' | 0
   2 | cert_error | TEXT | 1 | '' | 0
   fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+
+columns of site_usage
+  0 | id | INTEGER | 0 | - | 1
+  1 | site_id | INTEGER | 1 | - | 0
+  2 | sampled_at | TEXT | 1 | - | 0
+  3 | cpu_usec | INTEGER | 1 | - | 0
+  4 | io_read_bytes | INTEGER | 1 | - | 0
+  5 | io_write_bytes | INTEGER | 1 | - | 0
+  6 | cpu_cores | REAL | 1 | - | 0
+  7 | mem_bytes | INTEGER | 1 | - | 0
+  8 | mem_max_bytes | INTEGER | 1 | - | 0
+  9 | io_read_bps | REAL | 1 | - | 0
+  10 | io_write_bps | REAL | 1 | - | 0
+  11 | tasks | INTEGER | 1 | - | 0
+  12 | oom_kills | INTEGER | 1 | - | 0
+  13 | disk_bytes | INTEGER | 1 | - | 0
+  14 | disk_inodes | INTEGER | 1 | - | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index idx_site_usage_site_time unique=0 origin=c partial=0 on 0:1:site_id, 1:2:sampled_at
+
+columns of site_usage_hourly
+  0 | site_id | INTEGER | 1 | - | 1
+  1 | hour | TEXT | 1 | - | 2
+  2 | n | INTEGER | 1 | - | 0
+  3 | cpu_cores_sum | REAL | 1 | - | 0
+  4 | cpu_cores_max | REAL | 1 | - | 0
+  5 | mem_bytes_sum | REAL | 1 | - | 0
+  6 | mem_bytes_max | INTEGER | 1 | - | 0
+  7 | mem_max_bytes | INTEGER | 1 | - | 0
+  8 | io_read_sum | REAL | 1 | - | 0
+  9 | io_write_sum | REAL | 1 | - | 0
+  10 | disk_bytes | INTEGER | 1 | - | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index sqlite_autoindex_site_usage_hourly_1 unique=1 origin=pk partial=0 on 0:0:site_id, 1:1:hour
 
 columns of sites
   0 | id | INTEGER | 0 | - | 1

@@ -120,6 +120,7 @@ var (
 	Ping            = define[None, map[string]string](Spec{Name: "Ping", Timeout: 10 * sec, ReadOnly: true, Fail: "The agent did not answer"})
 	Capabilities    = define[None, rpc.Capabilities](Spec{Name: "Capabilities", Timeout: 10 * sec, ReadOnly: true, Fail: "Could not read what this server offers"})
 	SystemStatus    = define[None, rpc.SystemStatusResult](Spec{Name: "SystemStatus", Timeout: 30 * sec, ReadOnly: true, Fail: "Could not read the system status"})
+	SiteUsage       = define[rpc.SiteUsageParams, rpc.SiteUsageResult](Spec{Name: "SiteUsage", Timeout: 2 * mins, ReadOnly: true, Fail: "Could not read the sites' resource usage"})
 	CreateSite      = define[rpc.CreateSiteParams, rpc.CreateSiteResult](Spec{Name: "CreateSite", Timeout: 45 * mins, Sites: true, Lock: LockSite, Fail: "Could not create the site"})
 	DeleteSite      = define[rpc.SiteRef, map[string]any](Spec{Name: "DeleteSite", Timeout: 15 * mins, Sites: true, Lock: LockSite, Fail: "Could not delete the site"})
 	ApplySiteConfig = define[rpc.SiteRef, rpc.ApplyResult](Spec{Name: "ApplySiteConfig", Timeout: 15 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not apply the site's configuration"})

@@ -92,7 +92,8 @@
       "service": "Dienst",
       "drift": "Konfiguration",
       "deploy": "Release",
-      "uptime": "Erreichbarkeit"
+      "uptime": "Erreichbarkeit",
+      "usage": "Ressourcen"
     },
     "more": "und {n} weitere unter Warnungen (Glocke oben rechts)",
     "dismiss": "Archivieren",
@@ -208,7 +209,8 @@
     "more": "Mehr",
     "sftp": "SFTP / SSH",
     "vhost": "Vhost",
-    "protection": "Geschützte Pfade"
+    "protection": "Geschützte Pfade",
+    "resources": "Ressourcen"
   },
   "overview": {
     "certificate": "Zertifikat",
@@ -1344,5 +1346,41 @@
     "turnOff": "Ausschalten",
     "saved": "Erreichbarkeitsprüfung gespeichert",
     "turnedOff": "Erreichbarkeitsprüfung aus"
+  },
+  "resources": {
+    "title": "Ressourcen",
+    "hint": "Was die Prozesse der Website nutzen (ihr PHP, Cronjobs, wp-cli und die Shell), alle fünf Minuten aus ihrem Slice gelesen; der Speicherplatz stündlich.",
+    "range24h": "24 Stunden",
+    "range30d": "30 Tage",
+    "memory": "Arbeitsspeicher",
+    "disk": "Speicherplatz",
+    "io": "Datenträger-E/A",
+    "cpuOfServer": "der {n} CPUs des Servers",
+    "cpuOfQuota": "ihres Kontingents von {pct} % einer CPU",
+    "ofLimit": "von {limit}, ihrem Limit",
+    "killed": "{n} Prozesse am Speicherlimit beendet",
+    "files": "{n} Dateien",
+    "diskPending": "wird innerhalb einer Stunde gemessen",
+    "ioNote": "{read}/s gelesen, {write}/s geschrieben",
+    "daysAgo": "-{n} T",
+    "chartAria": "CPU bei {cpu} % dessen, was die Website nutzen darf, Arbeitsspeicher bei {mem} % ihres Limits",
+    "empty": "Noch keine Messung: Die erste kommt innerhalb von fünf Minuten.",
+    "limitsTitle": "Limits",
+    "limitsHint": "Vom Kernel nur für diese Website durchgesetzt: Über ihrem Speicherlimit wird einer ihrer Prozesse beendet, keine andere Website ist betroffen. 0 ist der Standardwert.",
+    "memoryMax": "Speicherlimit",
+    "memoryMaxHelp": "0: der Standard, {mb} MB auf diesem Server (die Hälfte seines Arbeitsspeichers, mindestens 1024 MB).",
+    "cpuQuota": "CPU-Kontingent",
+    "cpuQuotaHelp": "100 % ist eine CPU; 0: kein Kontingent, die Website darf alle CPUs nutzen.",
+    "tasksMax": "Prozesslimit",
+    "tasksMaxHelp": "0: der Standard, {n}.",
+    "adminOnly": "Nur ein Administrator kann die Limits ändern.",
+    "alertsTitle": "Nutzungswarnungen",
+    "alertsHint": "Eine Warnung, wenn die Website 15 Minuten lang über einem Schwellenwert bleibt, im Panel und über den Webhook für Warnungen.",
+    "alertsOn": "Warnungen zur Nutzung dieser Website",
+    "alertCpu": "CPU",
+    "alertMemory": "Arbeitsspeicher",
+    "alertPctHelp": "0: der Standard, 90 %.",
+    "alertDisk": "Speicherplatz",
+    "alertDiskHelp": "0: keine Warnung zum Speicherplatz."
   }
 }

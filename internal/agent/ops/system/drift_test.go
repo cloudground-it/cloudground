@@ -31,7 +31,8 @@ func TestDriftRefusesUnmanagedPaths(t *testing.T) {
 	conn := filepath.Join(f.Paths.SitesRoot, "docs.example.com", "current", "wp-content", "mu-plugins", "cloudground-connector.php")
 	auth := filepath.Join(f.Paths.NginxAuthDir, "staging.example.com.htpasswd") // never written: deleted
 	dropin := filepath.Join(f.Paths.SystemdDir, "cloudground-php-cg-site-9.service.d", "cloudground-slice.conf")
-	for _, p := range []string{vhost, unit, conf, tuning, conn, dropin} {
+	slice := filepath.Join(f.Paths.SystemdDir, "cg-site-9.slice")
+	for _, p := range []string{vhost, unit, conf, tuning, conn, dropin, slice} {
 		write(t, p, "managed")
 	}
 	shadow := filepath.Join(f.dir, "shadow")
@@ -45,8 +46,10 @@ func TestDriftRefusesUnmanagedPaths(t *testing.T) {
 		filepath.Join(f.Paths.SystemdDir, "sub", "cloudground-php-x.service"),
 		filepath.Join(f.Paths.SystemdDir, "ssh.service.d", "override.conf"),
 		filepath.Join(f.Paths.SystemdDir, "cloudground-php-x.service.d", "sub", "x.conf"),
+		filepath.Join(f.Paths.SystemdDir, "user.slice"),
+		filepath.Join(f.Paths.SystemdDir, "cg-site.slice"),
 	}
-	expected := map[string]string{vhost: sum("managed"), unit: sum("managed"), conf: "stale", tuning: sum("managed"), conn: sum("managed"), auth: sum("x"), dropin: sum("managed")}
+	expected := map[string]string{vhost: sum("managed"), unit: sum("managed"), conf: "stale", tuning: sum("managed"), conn: sum("managed"), auth: sum("x"), dropin: sum("managed"), slice: sum("managed")}
 	for _, p := range notManaged {
 		expected[p] = "x"
 	}

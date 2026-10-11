@@ -173,6 +173,8 @@ func (s *Server) routeTable() []route {
 			Section: secBackups, Doc: "delete the snapshot from the repository (queued under its lock); refused for one whose restore test has not run and for the site's newest verified one"},
 		{Method: post, Path: "/api/backups/test", Policy: policyAdmin, Handle: s.handleTestBackupRepo,
 			Section: secBackups, Doc: "try the backup repository's credentials"},
+		{Method: get, Path: "/api/sites/{id}/usage", Policy: policySignedIn, Load: loadSite, Handle: s.handleSiteUsage,
+			Section: secSites, Doc: "the site's resource usage for `range` `24h` (five-minute samples) or `30d` (hourly averages, with the hour's CPU peak): CPU as a share of its allowance, memory, IO and disk; its effective `limits`; the `latest` sample"},
 		{Method: get, Path: "/api/sites/{id}/uptime", Policy: policySignedIn, Load: loadSite, Handle: s.handleGetUptime,
 			Section: secSites, Doc: "the site's uptime check: `enabled`, `path`, `url`, `interval_seconds` and the `last` result (`up`, `status`, `latency_ms`, `error`, `down_since`)"},
 		{Method: put, Path: "/api/sites/{id}/uptime", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleSetUptime,

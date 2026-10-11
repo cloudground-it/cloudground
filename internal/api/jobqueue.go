@@ -298,6 +298,7 @@ func (s *Server) registerJobKinds() {
 	for name, run := range map[string]jobs.Func{
 		"maintenance.reconcile": s.runReconcile,
 		"metrics.sample":        s.runMetricSample,
+		"sites.usage":           s.runSiteUsage,
 		"backup.sweep":          s.runBackupSweep,
 		"retention.sweep":       s.runRetentionSweep,
 		"certificate.sweep":     s.runCertificateSweep,
@@ -329,6 +330,7 @@ func (s *Server) schedules() []jobs.Schedule {
 	return []jobs.Schedule{
 		every("maintenance.reconcile", 5*time.Minute, jobs.InTick, jobs.RenderLock),
 		every("metrics.sample", 5*time.Minute, jobs.InTick),
+		every("sites.usage", 5*time.Minute, jobs.InTick),
 		every("backup.sweep", 5*time.Minute, jobs.InTick),
 		every("retention.sweep", 5*time.Minute, jobs.InTick),
 		cert,
