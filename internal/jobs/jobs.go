@@ -104,10 +104,11 @@ const (
 // SiteLock is the key of anything that changes site id.
 func SiteLock(id int64) string { return "site:" + strconv.FormatInt(id, 10) }
 
-// RepoLock is the key of anything that runs restic against repository.
-// The URL can carry credentials, so the key is a hash of it.
+// RepoLock is the key of anything that runs restic against repository: a
+// hash of the URL without its password (state.RepoKey), so a new password
+// is the same repository.
 func RepoLock(repository string) string {
-	sum := sha256.Sum256([]byte(repository))
+	sum := sha256.Sum256([]byte(state.RepoKey(repository)))
 	return "repo:" + hex.EncodeToString(sum[:8])
 }
 

@@ -115,6 +115,10 @@ func (s *Store) bringUpToDate(path string, opt Options) error {
 			return fmt.Errorf("move secrets out of settings: %w", err)
 		}
 		plaintextRemoved = plaintextRemoved || moved
+		if moved, err = s.sealRepoCredentials(); err != nil {
+			return fmt.Errorf("seal backup repository credentials: %w", err)
+		}
+		plaintextRemoved = plaintextRemoved || moved
 		if err := s.indexConnectorTokens(); err != nil {
 			return fmt.Errorf("index connector tokens: %w", err)
 		}

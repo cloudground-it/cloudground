@@ -53,7 +53,12 @@ func scanPanel(row interface{ Scan(...any) error }) (PanelSettings, error) {
 
 // PanelSettings returns the panel's configuration.
 func (s *Store) PanelSettings() (PanelSettings, error) {
-	return scanPanel(s.db.QueryRow(`SELECT ` + panelCols + ` FROM panel_settings WHERE id=1`))
+	p, err := scanPanel(s.db.QueryRow(`SELECT ` + panelCols + ` FROM panel_settings WHERE id=1`))
+	if err != nil {
+		return p, err
+	}
+	p.BackupRepository, err = s.openRepo(p.BackupRepository)
+	return p, err
 }
 
 // UpdatePanelSettings applies fn to the settings as stored now and saves the
@@ -62,16 +67,24 @@ func (s *Store) PanelSettings() (PanelSettings, error) {
 func (s *Store) UpdatePanelSettings(fn func(*PanelSettings) error) (PanelSettings, error) {
 	var out PanelSettings
 	err := s.writeTx(func(conn *sql.Conn, ctx context.Context) error {
+		q := connExec{conn: conn, ctx: ctx}
 		p, err := scanPanel(conn.QueryRowContext(ctx, `SELECT `+panelCols+` FROM panel_settings WHERE id=1`))
+		if err == nil {
+			p.BackupRepository, err = s.openRepoFrom(q, p.BackupRepository)
+		}
 		if err != nil {
 			return err
 		}
 		if err := fn(&p); err != nil {
 			return err
 		}
+		repo, err := s.storedRepo(q, p.BackupRepository)
+		if err != nil {
+			return err
+		}
 		if _, err := conn.ExecContext(ctx, `UPDATE panel_settings SET acme_email=?, panel_domain=?, probe_target=?,
 			backup_repository=?, backup_s3_access_key=?, backup_s3_region=?, require_2fa_admin=?, update_check=?, update_channel=? WHERE id=1`,
-			p.ACMEEmail, p.PanelDomain, p.ProbeTarget, p.BackupRepository, p.BackupS3AccessKey, p.BackupS3Region,
+			p.ACMEEmail, p.PanelDomain, p.ProbeTarget, repo, p.BackupS3AccessKey, p.BackupS3Region,
 			p.Require2FAAdmin, p.UpdateCheck, p.UpdateChannel); err != nil {
 			return fmt.Errorf("update panel settings: %w", err)
 		}

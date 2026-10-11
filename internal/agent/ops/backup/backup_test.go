@@ -995,3 +995,12 @@ func TestRestoreRefusesAnotherSitesSnapshot(t *testing.T) {
 		})
 	}
 }
+
+// A failed restore test's detail never carries a repository's password,
+// whatever error it comes from (#48).
+func TestVerifyDetailRedactsCredentials(t *testing.T) {
+	err := fmt.Errorf("open repository rest:https://backup:repo-secret@backups.example.com/repo: %w", errors.New("connection refused"))
+	if d := failDetail(err); strings.Contains(d, "repo-secret") || !strings.Contains(d, "backups.example.com") {
+		t.Fatalf("detail = %q", d)
+	}
+}
