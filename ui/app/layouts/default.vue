@@ -128,7 +128,7 @@ const searchGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
         <div class="flex flex-col gap-1 border-b border-default px-5 py-3.5">
           <span class="hud text-dimmed">{{ t('nav.server') }}</span>
           <span class="mono truncate text-[13px] text-highlighted" :title="host">{{ host || '—' }}</span>
-          <span v-if="version" class="mono text-xs text-muted">v{{ version }}</span>
+          <span v-if="version" class="mono text-xs text-muted">{{ version.startsWith('v') ? version : `v${version}` }}</span>
         </div>
 
         <nav :aria-label="t('cg.shell.navigation')" class="flex flex-col gap-0.5 py-4">
