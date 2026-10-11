@@ -73,6 +73,8 @@ type Inventory struct {
 	Lineages                     []string // certbot lineages of the sites
 	PanelLineage                 bool
 	SiteVhosts, SiteConfs, Units []string
+	// SliceUnits are the sites' slice units, with their limits (#19).
+	SliceUnits []string
 }
 
 var (
@@ -192,6 +194,11 @@ func (e *Env) TakeInventory(ctx context.Context) Inventory {
 	inv.SiteVhosts = e.cloudgroundVhosts()
 	inv.SiteConfs = e.glob("/etc/nginx/conf.d/cloudground-*.conf")
 	inv.Units = e.glob(unitDir + "/cloudground-php-*.service")
+	for _, u := range e.glob(unitDir + "/cg-site-*.slice") {
+		if siteUserRe.MatchString(strings.TrimSuffix(filepath.Base(u), ".slice")) {
+			inv.SliceUnits = append(inv.SliceUnits, u)
+		}
+	}
 	return inv
 }
 
@@ -336,6 +343,7 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 	for _, u := range inv.Units {
 		rm("site.unit-files", u, u+".d")
 	}
+	rm("site.slice-units", inv.SliceUnits...)
 	rm("nginx.site-files", append(append(append([]string{}, inv.SiteVhosts...), inv.SiteConfs...), "/etc/nginx/cloudground-auth")...)
 	rm("cron.files", append(e.glob("/etc/cron.d/cloudground-*"), e.glob("/var/spool/cron/crontabs/cg-site-*")...)...)
 	for _, u := range inv.ShellUsers {

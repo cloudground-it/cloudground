@@ -49,6 +49,8 @@ func installed(t *testing.T) *machine {
 	m.write("/etc/nginx/conf.d/cloudground-global.conf", "map x y {}\n", 0o644)
 	m.write("/etc/systemd/system/cloudground-php-cg-site-1.service", "[Service]\n", 0o644)
 	m.write("/etc/systemd/system/cloudground-php-cg-site-1.service.d/cloudground-slice.conf", "[Service]\nSlice=cg-site-1.slice\n", 0o644)
+	m.write("/etc/systemd/system/cg-site-1.slice", "[Slice]\nMemoryMax=1024M\n", 0o644)
+	m.write("/etc/systemd/system/user.slice", "[Slice]\n", 0o644) // not CloudGround's
 	m.write("/etc/systemd/system/multi-user.target.wants/.keep", "", 0o644)
 	os.Symlink("/etc/systemd/system/cloudground-php-cg-site-1.service", m.path("/etc/systemd/system/multi-user.target.wants/cloudground-php-cg-site-1.service"))
 	os.Symlink("/etc/systemd/system/cloudground-agent.service", m.path("/etc/systemd/system/multi-user.target.wants/cloudground-agent.service"))
@@ -117,6 +119,7 @@ var removedByDefault = []string{
 	"/usr/local/bin/panel-api", "/usr/local/bin/panel-agent", "/usr/local/bin/cgctl", "/usr/local/bin/panel-agent.bak",
 	managed.AgentUnit, managed.APIUnit, managed.SocketUnit,
 	"/etc/systemd/system/cloudground-php-cg-site-1.service", "/etc/systemd/system/cloudground-php-cg-site-1.service.d",
+	"/etc/systemd/system/cg-site-1.slice",
 	"/etc/systemd/system/multi-user.target.wants/cloudground-php-cg-site-1.service",
 	"/etc/systemd/system/multi-user.target.wants/cloudground-agent.service",
 	"/etc/systemd/system/user@1001.service",
@@ -145,7 +148,7 @@ func TestUninstallKeepsTheSites(t *testing.T) {
 			t.Errorf("%s is still there", p)
 		}
 	}
-	for _, p := range []string{"/srv/sites/a.test/current/index.html", mariadbTuning, "/etc/nginx/sites-enabled/operator.conf"} {
+	for _, p := range []string{"/srv/sites/a.test/current/index.html", mariadbTuning, "/etc/nginx/sites-enabled/operator.conf", "/etc/systemd/system/user.slice"} {
 		if m.gone(p) {
 			t.Errorf("%s was removed", p)
 		}

@@ -634,7 +634,7 @@ In order:
 2. **`keep.state`** (fatal; when `/var/lib/cloudground/state.db` or `secret.key` exists): §9.3.
 3. **The sites' wiring**: `stop cg-site.slice` (every site's PHP master, cron runs, wp-cli and shell
    sessions); `disable --now` each `cloudground-php-*.service`, then their unit files and `.d`
-   drop-in directories; the vhosts in `sites-enabled` that are the panel's (`cloudground-*`) or
+   drop-in directories; each site's slice unit `cg-site-<id>.slice` (its limits, #19); the vhosts in `sites-enabled` that are the panel's (`cloudground-*`) or
    start with `Managed by CloudGround` (an operator's own vhost is left), every
    `conf.d/cloudground-*.conf`, `/etc/nginx/cloudground-auth`; `/etc/cron.d/cloudground-*` and the
    legacy `/var/spool/cron/crontabs/cg-site-*`; each shell login `cg-shell-<id>` (`userdel -f`), its
