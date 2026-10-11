@@ -39,7 +39,9 @@ build() { # build <tag> <dir>
   done
   cp internal/units/*.service internal/units/*.socket "$dir/"
 }
-sign() { go run ./scripts/release-sign sign "$work/throwaway.key" "$1" "$out/upgrade-bundle/$1"; }
+# The signer runs here, so it is built for this machine, not for the box
+# (an arm64 workstation cannot run the amd64 binary without emulation).
+sign() { GOOS= GOARCH= go run ./scripts/release-sign sign "$work/throwaway.key" "$1" "$out/upgrade-bundle/$1"; }
 
 for tag in v0.1.0 v0.2.0 v0.2.1; do
   build "$tag" "$out/upgrade-bundle/$tag"
