@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+use CloudGround\Connector\AuthFailure;
 use CloudGround\Connector\Events;
 use CloudGround\Connector\Guard;
 use CloudGround\Connector\MagicLogin;
@@ -395,5 +396,18 @@ Site::reset();
 do_action('wp_print_footer_scripts');
 check('dequeued again before footer scripts print (widgets enqueue late)', Site::$dequeued, ['wc-cart-fragments']);
 check('staging sends no mail', apply_filters('pre_wp_mail', null, []), true);
+
+section('failed sign-ins');
+$sent = [];
+AuthFailure::$send = function (string $line) use (&$sent) { $sent[] = $line; };
+AuthFailure::reset();
+do_action('wp_login_failed', 'admin', null);
+check('a failed sign-in is marked', $sent, ['X-CloudGround-Auth: failed=1']);
+do_action('application_password_failed_authentication', null);
+check('a second failure in the request carries the count', end($sent), 'X-CloudGround-Auth: failed=2');
+AuthFailure::reset();
+$sent = [];
+do_action('wp_login', 'admin', null);
+check('a successful sign-in is not marked', $sent, []);
 
 done();

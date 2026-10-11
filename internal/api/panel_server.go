@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -118,6 +119,13 @@ type Server struct {
 	// (vulndb.go), made once by vulnDB (tests set it first).
 	vulnOnce   sync.Once
 	vulnSource *vulnDB
+
+	// blocks is the block list's failure counts and what netfilter has
+	// (blocklist.go); blocklistEvery replaces the watcher's period and
+	// localAddrs this machine's addresses (tests).
+	blocks         blocklistState
+	blocklistEvery time.Duration
+	localAddrs     func() []netip.Addr
 }
 
 // connectorFailures is how many wrong connector tokens an address may send
@@ -143,10 +151,12 @@ func (s *Server) Init() {
 	if s.uptimeKick == nil {
 		s.uptimeKick = make(chan struct{}, 1)
 	}
+	s.initBlocklist()
 	if s.accounts != nil {
 		return
 	}
 	s.accounts = accounts.New(s.Store, s.audit)
+	s.accounts.Failed = s.signInFailed
 	s.connectorFailLimiter = throttle.New(connectorFailures, time.Minute)
 	s.studioGate = newStudioGate()
 	if s.Store != nil {

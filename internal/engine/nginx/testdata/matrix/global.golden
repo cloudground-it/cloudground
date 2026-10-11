@@ -70,3 +70,15 @@ map "$http_authorization$http_x_cloudground_probe" $cg_private_req {
     ""       0;
     default  1;
 }
+
+# Failed sign-ins, for the block list (SPEC §4.6). The connector marks
+# WordPress's answer to a failed sign-in with X-CloudGround-Auth ("failed=<n>",
+# hidden from the client); a WordPress vhost sends a POST so marked to the
+# agent as one short line. Only a POST: a page cache entry, headers and all,
+# could otherwise mark every visitor of a cached page. The map is read when a
+# line is logged, a hash lookup on the method.
+map $request_method $cg_auth_failed {
+    POST     $upstream_http_x_cloudground_auth;
+    default  "";
+}
+log_format cloudground_auth '$remote_addr $cg_auth_failed';

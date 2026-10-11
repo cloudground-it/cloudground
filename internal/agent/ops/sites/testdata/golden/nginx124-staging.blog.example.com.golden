@@ -4,7 +4,7 @@
 /ROOT/nginx/conf.d/cloudground-global.conf
 /ROOT/nginx/sites-enabled/staging.blog.example.com.conf
 /ROOT/php-masters/cg-site-7.conf
-/ROOT/srv/staging.blog.example.com/current/wp-content/mu-plugins/cloudground-connector.php c9fbbe79bb8fdd094982a1126db92bf30694e5ad873ea0bc30d78661fe502794
+/ROOT/srv/staging.blog.example.com/current/wp-content/mu-plugins/cloudground-connector.php 63b91a84ca2611de106a2ed394a6f58d8a3274034bb508fa7004e876f031fc1e
 /ROOT/systemd/cg-site-7.slice
 /ROOT/systemd/cloudground-php-cg-site-7.service
 ## /ROOT/nginx-auth/staging.blog.example.com.htpasswd -rw-r-----
@@ -85,6 +85,18 @@ map "$http_authorization$http_x_cloudground_probe" $cg_private_req {
     ""       0;
     default  1;
 }
+
+# Failed sign-ins, for the block list (SPEC §4.6). The connector marks
+# WordPress's answer to a failed sign-in with X-CloudGround-Auth ("failed=<n>",
+# hidden from the client); a WordPress vhost sends a POST so marked to the
+# agent as one short line. Only a POST: a page cache entry, headers and all,
+# could otherwise mark every visitor of a cached page. The map is read when a
+# line is logged, a hash lookup on the method.
+map $request_method $cg_auth_failed {
+    POST     $upstream_http_x_cloudground_auth;
+    default  "";
+}
+log_format cloudground_auth '$remote_addr $cg_auth_failed';
 ## /ROOT/nginx/sites-enabled/staging.blog.example.com.conf -rw-------
 # Managed by CloudGround — do not edit. Changes are detected as drift.
 # Site: staging.blog.example.com (id 7, type wordpress, profile balanced)

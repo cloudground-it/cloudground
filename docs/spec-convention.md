@@ -7,9 +7,9 @@ refer to it.
 
 A package with behaviour worth pinning has a `SPEC.md` in its folder. Today there are specs for
 `cmd/cgctl`, `connector`, and in `internal/`: `agent/host`, `agent/sitefs`, every domain under
-`agent/ops/` (`backup`, `certs`, `cron`, `db`, `dbstudio`, `files`, `migration`, `panel`,
+`agent/ops/` (`backup`, `blocklist`, `certs`, `cron`, `db`, `dbstudio`, `files`, `migration`, `panel`,
 `release`, `sftp`, `sites`, `staging`, `system`, `wp`), `agentrpc`, `api` and `api/events`,
-`config`, `engine`, `guard`, `jobs`, `phpfpm`, `rpc`, `state`, `tune`, `velocity`, `version`.
+`blocklist`, `config`, `engine`, `guard`, `jobs`, `phpfpm`, `rpc`, `state`, `tune`, `velocity`, `version`.
 List them with `find . -name SPEC.md`.
 
 A spec is the contract for its package. When the spec and the code disagree, one of them has a bug,

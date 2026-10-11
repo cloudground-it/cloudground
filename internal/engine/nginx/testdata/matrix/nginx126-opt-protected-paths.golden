@@ -61,6 +61,10 @@ server {
     # Log lines go out in 64 KiB batches, at least once a second.
     access_log /srv/cgt/log/c192.example.test/access.log cloudground buffer=64k flush=1s;
     error_log /srv/cgt/log/c192.example.test/error.log warn;
+    # A failed WordPress sign-in also goes to the agent, which counts it
+    # towards blocking the address (SPEC §4.6). Unbuffered, and only the
+    # requests the connector marked: every other request logs nothing here.
+    access_log syslog:server=unix:/run/cloudground/auth-log.sock,nohostname,tag=cloudground cloudground_auth if=$cg_auth_failed;
 
     client_max_body_size 128m;
     add_header X-Content-Type-Options nosniff always;
@@ -127,6 +131,8 @@ server {
         fastcgi_read_timeout 120s;
         fastcgi_buffers 16 32k;
         fastcgi_buffer_size 64k;
+        # The connector's mark of a failed sign-in is for the log, not the client.
+        fastcgi_hide_header X-CloudGround-Auth;
 
         # Page cache. PHP is always asked for gzip, so each page is stored once,
         # compressed; gunzip serves the few clients that do not accept it.

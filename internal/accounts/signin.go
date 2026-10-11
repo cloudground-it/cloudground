@@ -106,6 +106,7 @@ func (sv *Service) Login(ctx context.Context, in SignIn) (state.User, error) {
 	if unknown || !ok {
 		a.Fail()
 		sv.audit(printable(email), "login.failed", "panel", in.Address)
+		sv.failed(in.Address)
 		return state.User{}, refuse(Unauthorized, msgBadLogin)
 	}
 	// Only now, so that the answer does not tell which addresses exist.
@@ -144,6 +145,7 @@ func (sv *Service) checkSecondFactor(a *attempt, u state.User, in SignIn) error 
 		return err
 	case res == codeWrong:
 		sv.audit(u.Email, "login.totp_failed", "panel", in.Address)
+		sv.failed(in.Address)
 		return secondFactor(msgCodeWrong)
 	case res == codeReused:
 		// The watermark only moves forward: of two sign-ins with one code,

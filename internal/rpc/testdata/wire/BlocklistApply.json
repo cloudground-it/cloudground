@@ -1,0 +1,26 @@
+{
+  "params": {
+    "full": {
+      "block": [
+        "Block"
+      ],
+      "allow": [
+        "Allow"
+      ]
+    },
+    "zero": {
+      "block": null,
+      "allow": null
+    }
+  },
+  "result": {
+    "full": {
+      "blocked": 7,
+      "allowed": 7
+    },
+    "zero": {
+      "blocked": 0,
+      "allowed": 0
+    }
+  }
+}

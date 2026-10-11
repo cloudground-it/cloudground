@@ -79,6 +79,7 @@ func matrixInput(id int64, typ state.SiteType, prof state.Profile, cache bool) e
 		FallbackCert:  matrixRoot + "/fallback/cert.pem",
 		FallbackKey:   matrixRoot + "/fallback/key.pem",
 		ACMEWebroot:   matrixRoot + "/acme",
+		AuthLogSocket: "/run/cloudground/auth-log.sock",
 	}
 	if typ != state.SiteStatic && typ != state.SiteProxy {
 		in.PHPSocket = matrixRoot + "/php/" + s.SystemUser + "/php.sock"

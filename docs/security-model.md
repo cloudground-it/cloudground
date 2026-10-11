@@ -96,6 +96,19 @@ limits and the audit log comes from nginx's `X-Real-IP` only on the Unix socket,
 can open; on TCP, loopback included, the peer address counts and the header is ignored
 (internal/api/SPEC.md §2.7).
 
+**The block list** (issue #21, internal/blocklist/SPEC.md). Repeated failed sign-ins at SSH,
+WordPress (wp-login.php, XML-RPC, application passwords) and the panel block the address for a
+while, on every port: one netfilter table of the panel's, `inet cloudground`, drops its packets
+before sshd, nginx or the panel see them (6 failures in 10 minutes block for an hour by default;
+an IPv6 address counts as its /64). Addresses can also be blocked by hand. Loopback, the server's
+own addresses and an allowlist are never blocked, and the panel refuses a block that holds the
+address of the person making it; an operator locked out anyway gets back in from the server's
+console with `cgctl blocklist unblock <address>` over the API socket, which has no address to
+block. What can feed the list is bounded: sshd's lines count only from root in the SSH unit (a
+user can write look-alike lines to the journal, and they are ignored), and the WordPress failures
+are logged by nginx with the address it saw, so a site's code can count failures only against
+addresses that really sent it a sign-in POST.
+
 ## Findings of the internal review
 
 Kept because a list of what was wrong says more about a codebase than a list of what is right.
@@ -122,8 +135,13 @@ Kept because a list of what was wrong says more about a codebase than a list of 
   are the defence against that. An attacker behind the owner's own address (a shared NAT, the same
   IPv6 /48) shares that network's delay with the owner.
 - SFTP logins are named `cg-site-<id>`, so they are easy to guess. A login kept on a password is
-  protected only by the password and sshd's own limits (`MaxAuthTries`, `MaxStartups`): nothing yet
-  blocks an address that keeps failing (issue #21). Keys only is the defence until then.
+  protected by the password, sshd's own limits (`MaxAuthTries`, `MaxStartups`) and the block list,
+  which slows a guesser to a handful of tries an hour per address (per /64 for IPv6); a botnet of
+  many addresses still gets that many tries from each. Keys only is the defence against that.
+- A site's own code can mark any of its POST responses as a failed sign-in, so it can get the
+  addresses that post to it blocked on the whole server (its own visitors). It cannot name an
+  address that did not send it a request; the allowlist and the server's own addresses are never
+  blocked.
 - Drift detection covers the files the panel rendered. It is not a file-integrity monitor.
 - The sandbox limits what a compromised site can reach. It does not make vulnerable application code
   safe. A way out of the sandbox is a vulnerability: report it as `SECURITY.md` says.

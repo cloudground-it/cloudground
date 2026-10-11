@@ -1763,6 +1763,79 @@ A PHP version's extensions are the server's, shared by every site on it
   site master on that version restarts to load it. 202 `{task}`; audit
   `php.extension`, subject `PHP <version>`, detail the extension.
 
+### 7.4 Block list (#21, `blocklist.go`)
+
+The server's block list (internal/blocklist SPEC): addresses blocked by
+hand or for repeated failed sign-ins, the allowlist, and the automatic
+blocking's settings, kept in the store (`blocklist`, state SPEC) and
+enforced by the agent in netfilter (ops/blocklist SPEC §3).
+
+**Counting.** Three sources report failures: the panel's own sign-in (the
+accounts service's `Failed`, given `clientIP` of each wrong password and
+wrong two-factor code: §2.3, §2.7), and the agent's sshd and WordPress
+readers, which the watcher drains with `BlocklistFailures`. Each failure
+goes to one in-memory `blocklist.Tracker` with the settings as stored now
+and the exempt set (loopback, this machine's addresses from its
+interfaces, the allowlist). An address that does not parse (`unix`: the API
+socket reached without nginx) is not counted. A unit that reaches the
+threshold is stored as a block: source the failure's, `failures` the
+threshold, ending `ban_minutes` from now; a block of the same unit that
+already lasts as long or longer (a manual one, or none at all) is left as
+it is. Automatic blocks are logged to the journal, not audited (a bot can
+make hundreds a day).
+
+**The watcher** (`watchBlocklist`, every 10 s, or at once when a block was
+made): deletes the blocks that have ended, reads and counts the agent's
+failures, and sends the list (`BlocklistApply {block, allow}`: every block
+that has not ended, every allowed prefix, each sorted) when it differs from
+the last one the agent took, when the last apply failed, or when it is 10
+minutes old (netfilter forgets the table at a reboot, and nothing else
+would tell). A failed apply is logged once per distinct error.
+
+**Routes** (the reads `global`; every change admin and session only, like
+the firewall's: SPEC §1.2 step 6):
+
+- `GET /api/blocklist`: `settings`; `blocked` (the blocks that have not
+  ended, newest first: `id`, `address` (a prefix), `source` (`manual`,
+  `ssh`, `wordpress`, `panel`), `note`, `failures`, `created_at`,
+  `expires_at` (absent: until removed)); `allowed` (the same shape);
+  `enforced` (the agent took the list and the last apply succeeded),
+  `error` (why not), `applied_at`; `watching {ssh, wordpress}` (the agent's
+  readers as of the last read); `your_address` (`clientIP`: the one to
+  allow so as not to be locked out).
+- `POST /api/blocklist/blocks {address, note, minutes}`: an address or a
+  CIDR (`blocklist.ParsePrefix`); a note of at most 200 bytes on one line;
+  `minutes` 0 (until removed) to 525600. Refused (400): what does not parse,
+  a block wider than /8 or /16, a prefix holding the caller's own address
+  (`… holds your own address (<a>): you would lock yourself out`), and one
+  overlapping loopback, this machine or an allowed prefix (`… holds this
+  server, loopback or an allowed address: those are never blocked`). A
+  prefix already blocked gets the new note and end. Audit
+  `blocklist.block`, subject the prefix, detail `until <time>` or `until
+  removed`.
+- `DELETE /api/blocklist/blocks {address}`: the block of exactly that
+  prefix (404 `that address is not blocked`); its failure count is
+  forgotten. Audit `blocklist.unblock`.
+- `POST /api/blocklist/allowed {address, note}`: any width. The automatic
+  blocks it overlaps are removed and their counts forgotten (a manual block
+  stays: the allowlist wins over it in netfilter anyway). Audit
+  `blocklist.allow`, detail the note.
+- `DELETE /api/blocklist/allowed {address}`: 404 `that address is not on
+  the allowlist`. Audit `blocklist.disallow`.
+- `PUT /api/blocklist/settings {enabled, max_failures, window_minutes,
+  ban_minutes}`: the bounds of internal/blocklist SPEC §2 (400 naming the
+  field). Audit `blocklist.settings`.
+
+Every change answers the list as `GET` does, after sending it to the agent
+at once; a list the agent could not take is still saved, and the answer
+says so (`enforced` false, `error`), so the operator sees it and the
+watcher keeps trying.
+
+**Recovery.** An operator who blocked themselves out reaches the panel
+from the server: `cgctl` over the API socket has no address to block
+(`unix`), so `cgctl blocklist unblock <address>` or `cgctl blocklist allow
+<address>` (cgctl SPEC §6.2) undoes it.
+
 ## 8. Connector purge (R-4.3)
 
 `POST /api/connector/purge` (also on the loopback listener) is called by a

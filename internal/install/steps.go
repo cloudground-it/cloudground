@@ -82,7 +82,9 @@ func MainPackages(php string) []string {
 		pkgs = append(pkgs, "php"+php+"-"+ext)
 	}
 	// cron runs the sites' jobs (/etc/cron.d); minimal images ship without it.
-	return append(pkgs, "git", "unzip", "cron")
+	// nftables is the block list's (internal/blocklist SPEC §5): ufw drives
+	// netfilter without it, and not every image has the nft command.
+	return append(pkgs, "git", "unzip", "cron", "nftables")
 }
 
 // The progress groups, in order: the old installer's ten lines.

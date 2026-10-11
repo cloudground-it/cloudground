@@ -98,7 +98,7 @@ owner, a new one is created root-owned (what `install -d -m` does).
        nginx mariadb-server certbot python3-certbot-dns-cloudflare
        php<php>-fpm php<php>-mysql php<php>-curl php<php>-gd php<php>-intl
        php<php>-mbstring php<php>-soap php<php>-xml php<php>-zip php<php>-imagick
-       php<php>-bcmath php<php>-apcu git unzip cron
+       php<php>-bcmath php<php>-apcu git unzip cron nftables
 
    **Changed (R-6.1): `redis-server` and `php<php>-redis` are no longer installed.** Redis was
    installed and never enabled, and nothing ever turned it on: install.sh's comment said it stayed
@@ -655,7 +655,8 @@ In order:
    (`10-cloudground-sftp.conf`, `11-cloudground-shell.conf`, `09-cloudground-sftp-keys.conf`), then `sshd -t` and `reload ssh` (a
    failing `sshd -t` fails the action: an sshd that would not restart is the operator's to see);
    `60-cloudground.conf` (the live kernel values stay until a reboot or `sysctl --system`);
-   `logrotate.d/cloudground`; the renewal hook and `cloudground-cloudflare.ini`; the bootstrap
+   where `nft` is installed, the block list's table `inet cloudground` when it exists (#21; with
+   the agent gone its blocks would stay until a reboot); `logrotate.d/cloudground`; the renewal hook and `cloudground-cloudflare.ini`; the bootstrap
    vhost; **nginx.conf** (below); the default site's link, put back when recorded and its target
    exists; `nginx -t` (a failure fails the action) and `reload nginx` when it runs; the three unit
    files with their `.d` directories and every `cloudground-*` link in a `*.wants` directory, then
