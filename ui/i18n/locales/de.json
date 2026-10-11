@@ -206,7 +206,8 @@
     "overview": "Übersicht",
     "more": "Mehr",
     "sftp": "SFTP / SSH",
-    "vhost": "Vhost"
+    "vhost": "Vhost",
+    "protection": "Geschützte Pfade"
   },
   "overview": {
     "certificate": "Zertifikat",
@@ -1297,5 +1298,27 @@
       "page": "Seitenzahl",
       "of": "von {n}"
     }
+  },
+  "protect": {
+    "title": "Geschützte Pfade",
+    "hint": "Pfade, die einen Benutzernamen und ein Passwort verlangen, bevor etwas ausgeliefert wird, etwa /wp-admin oder ein privater Ordner. Jeder Pfad hat eigene Zugangsdaten und deckt alles darunter ab.",
+    "none": "Kein Pfad ist geschützt.",
+    "add": "Pfad schützen",
+    "change": "Ändern",
+    "changeTitle": "Neue Zugangsdaten für {path}",
+    "dialogHint": "Der Browser fragt danach, bevor er den Pfad zeigt. Speichern macht es sofort wirksam.",
+    "path": "Pfad",
+    "pathHelp": "Beginnt mit / und deckt alles darunter ab: /wp-admin, /private/files.",
+    "pathBad": "Buchstaben, Ziffern und . _ ~ - zwischen Schrägstrichen; nicht / allein.",
+    "username": "Benutzername",
+    "userBad": "1–64 Buchstaben, Ziffern oder . _ {'@'} -.",
+    "password": "Passwort",
+    "passwordRange": "8–72 Zeichen",
+    "added": "{path} ist geschützt",
+    "changed": "Zugangsdaten geändert",
+    "removed": "{path} ist nicht mehr geschützt",
+    "removeTitle": "Schutz für {path} aufheben?",
+    "removeHint": "Jeder kann ihn dann wieder ohne Passwort erreichen.",
+    "ajaxNote": "admin-ajax.php bleibt für Besucher offen: Themes und Plugins rufen es von den öffentlichen Seiten auf."
   }
 }

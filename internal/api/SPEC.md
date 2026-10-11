@@ -966,7 +966,7 @@ failure); any other error 500 with its text.
 - `GET /certificate` (signed in): `exists`, `hsts`, and when it exists `not_after` (RFC 3339, UTC), `days_left`, `issuer`, `custom`; `last_renewal_error` when the last renewal failed.
 - `PUT|DELETE /certificate/custom` (manage): PUT needs `fullchain` and `key` (400 `fullchain and key (PEM) are required`); an agent refusal defaults to 400; files recorded; audited `certificate.custom.install|remove`; 200 `{"status": "ok"}` for PUT. DELETE (back to Let's Encrypt) then queues `certificate.issue` for the site's names as they are now (aliases added over the custom certificate got no reissue, so the certificate it goes back to may not cover them), audited `certificate.issue` (`back to Let's Encrypt`): 200 `{"status": "ok", "task"}`; with no ACME e-mail, or a queue that refuses, 200 `{"status": "ok", "warning"}` and nothing queued.
 - `POST /purge` (manage): an empty body purges everything; a malformed one is 400 `malformed request`, never a full purge; 200 with the agent's `{removed}`; audited `cache.purge` (`<n> urls, <m> removed`).
-- A managed file belongs to a site (`siteOwnsPath`) by exact name, never by substring (`cg-site-1` is not `cg-site-10`): `<domain>.conf`, `cloudground-cache-<id>.conf`, `<user>.conf`, `cloudground-php-<user>.service` and the files of its `.service.d` directory, `<domain>.htpasswd`, and anything under `<root>/`. After a full render (`recordRendered`) the files it wrote are recorded and the site's other configuration files are no longer tracked; files under the root (the connector, installed by deploys) are left alone. `pruneOrphanManagedFiles` drops per-site records (`cg-site-` in the name or its directory's, `.htpasswd`, under the sites' root) that belong to no site; it reports the pass complete only when the records were read and the sites' root was known.
+- A managed file belongs to a site (`siteOwnsPath`) by exact name, never by substring (`cg-site-1` is not `cg-site-10`): `<domain>.conf`, `cloudground-cache-<id>.conf`, `<user>.conf`, `cloudground-php-<user>.service` and the files of its `.service.d` directory, `<domain>.htpasswd`, `<domain>.path-*.htpasswd` (a protected path's, #26), and anything under `<root>/`. After a full render (`recordRendered`) the files it wrote are recorded and the site's other configuration files are no longer tracked; files under the root (the connector, installed by deploys) are left alone. `pruneOrphanManagedFiles` drops per-site records (`cg-site-` in the name or its directory's, `.htpasswd`, under the sites' root) that belong to no site; it reports the pass complete only when the records were read and the sites' root was known.
 
 ### 3.10 Names lock and the public root
 
@@ -982,6 +982,29 @@ group. The agent refuses one with a link below `current` at the PATCH
 the vhost of a site with a public root checks links from `<root>/current`
 (`disable_symlinks if_not_owner from=<root>/current`), so a folder swapped
 for a link after the PATCH is refused by nginx too.
+
+### 3.12 Protected paths (#26, `protected_paths.go`)
+
+A site's paths behind a username and password (`config.protected_paths`,
+each `{path, username, password_hash}`; the API never shows the hash:
+`Site.Public`). Both routes are `manage`, take the site's lock (`freshSite`)
+and render at once, as the routing block does: the agent's
+`ApplySiteConfig` renders the site with the change (internal/engine SPEC
+§4.5), and the change is stored (`MutateSiteApplied`, files recorded) only
+once nginx has it; an agent refusal answers as the agent says and stores
+nothing. A staging copy → 400 `a staging copy is protected as a whole: it
+takes no protected paths`. Answer: 200, the site's paths `[{path,
+username}]`.
+
+- `POST /api/sites/{id}/protected-paths` `{path, username, password}`: a
+  path that is not `site.ValidProtectedPath` (not `/` itself: the cache
+  warmer and Safe Push must reach the site), a username outside 1–64
+  letters, digits and `. _ @ -`, or a password outside 8–72 bytes → 400; a
+  path already protected gets the new username and password, a new one is
+  added (at most 20 → 400). The password is stored as its bcrypt hash.
+  Audit `site.protected_path`, `add <path> (user <username>)`.
+- `DELETE /api/sites/{id}/protected-paths` `{path}`: a path not protected →
+  404 `that path is not protected`. Audit `remove <path>`.
 
 ### 3.11 Tests
 

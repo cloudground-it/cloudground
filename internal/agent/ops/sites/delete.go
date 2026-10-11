@@ -100,6 +100,10 @@ func (o *Ops) removeConfig(ctx context.Context, s state.Site) error {
 	remove(o.cacheZonePath(s))
 	if o.Paths.NginxAuthDir != "" {
 		remove(staging.AuthFile(o.Paths.NginxAuthDir, s.Domain))
+		paths, _ := filepath.Glob(filepath.Join(o.Paths.NginxAuthDir, s.Domain+".path-*.htpasswd"))
+		for _, p := range paths {
+			remove(p)
+		}
 	}
 	if err := o.reloadNginx(ctx); err != nil {
 		errs = append(errs, err)

@@ -74,6 +74,8 @@ const links = computed(() => {
   if (s.php_version) more.push({ label: 'PHP', icon: 'i-cg-code', to: `${base.value}/php` })
   more.push(
     { label: t('tabs.sftp'), icon: 'i-cg-key', to: `${base.value}/sftp` },
+    // A staging copy asks for its own password everywhere already.
+    ...(s.staging_of ? [] : [{ label: t('tabs.protection'), icon: 'i-cg-lock', to: `${base.value}/protection` }]),
     // The routing block is nginx configuration: an administrator's (R-5.4).
     ...(isAdmin.value ? [{ label: t('tabs.vhost'), icon: 'i-cg-file-code', to: `${base.value}/vhost` }] : []),
     { label: t('tabs.migration'), icon: 'i-cg-import', to: `${base.value}/migration` },

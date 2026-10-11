@@ -209,3 +209,26 @@ func TestLeftoversAreNotServed(t *testing.T) {
 		}
 	}
 }
+
+// #26: a staging copy takes no protected paths, and a path or file that is
+// not plain is refused before anything is rendered.
+func TestProtectedPathsRefused(t *testing.T) {
+	in := matrixInput(900, state.SiteWordPress, state.ProfileBalanced, true)
+	ok := engine.ProtectedPath{Path: "/wp-admin", File: "/etc/nginx/cloudground-auth/x.htpasswd"}
+	for name, set := range map[string]func(*engine.Input){
+		"staging": func(in *engine.Input) {
+			in.BasicAuthFile = "/etc/nginx/cloudground-auth/s.htpasswd"
+			in.ProtectedPaths = []engine.ProtectedPath{ok}
+		},
+		"path":          func(in *engine.Input) { in.ProtectedPaths = []engine.ProtectedPath{{Path: "/a;b", File: ok.File}} },
+		"root":          func(in *engine.Input) { in.ProtectedPaths = []engine.ProtectedPath{{Path: "/", File: ok.File}} },
+		"relative file": func(in *engine.Input) { in.ProtectedPaths = []engine.ProtectedPath{{Path: "/a", File: "x.htpasswd"}} },
+		"file syntax":   func(in *engine.Input) { in.ProtectedPaths = []engine.ProtectedPath{{Path: "/a", File: "/x;y"}} },
+	} {
+		c := in
+		set(&c)
+		if _, err := (Renderer{}).SiteFiles(c); err == nil {
+			t.Errorf("%s: rendered", name)
+		}
+	}
+}

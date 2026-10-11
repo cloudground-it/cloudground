@@ -51,6 +51,10 @@ type Input struct {
 	BasicAuthFile string
 	InternalKey   string
 
+	// ProtectedPaths are the site's paths behind a password (#26, SPEC
+	// §4.5), each with the password file the agent writes for it.
+	ProtectedPaths []ProtectedPath
+
 	// What a custom routing block must not reach (SPEC §7.3): the ports
 	// system services listen on here, this machine's own addresses, and a
 	// resolver for proxy host names. The agent fills them in at every
@@ -58,6 +62,12 @@ type Input struct {
 	SystemPorts []int
 	LocalAddrs  []netip.Addr
 	Resolve     func(host string) ([]netip.Addr, error)
+}
+
+// ProtectedPath is one protected path and its password file.
+type ProtectedPath struct {
+	Path string
+	File string
 }
 
 // RoutingView is a site's routing as the editor shows it (SPEC §7.5).

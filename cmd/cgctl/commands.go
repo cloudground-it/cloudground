@@ -138,6 +138,18 @@ var commands = []command{
 	{words: []string{"sftp", "off"}, args: "<site-id>", min: 1, max: 1, build: call("POST", "/api/sites/%s/sftp", func([]string) (any, error) {
 		return map[string]any{"enable": false}, nil
 	})},
+	// The password comes on stdin, never in argv (ps and the shell's
+	// history show argv): `printf '%s\n' "$PW" | cgctl protect add …`.
+	{words: []string{"protect", "add"}, args: "<site-id> <path> <username> (password on stdin)", min: 3, max: 3, build: call("POST", "/api/sites/%s/protected-paths", func(a []string) (any, error) {
+		pw, err := readPasswordLine(siteCreateStdin)
+		if err != nil {
+			return nil, fmt.Errorf("the password, one line on stdin: %w", err)
+		}
+		return map[string]string{"path": a[1], "username": a[2], "password": pw}, nil
+	})},
+	{words: []string{"protect", "remove"}, args: "<site-id> <path>", min: 2, max: 2, build: call("DELETE", "/api/sites/%s/protected-paths", func(a []string) (any, error) {
+		return map[string]string{"path": a[1]}, nil
+	})},
 	{words: []string{"cron", "run"}, args: "<cron-id>", min: 1, max: 1, build: call("POST", "/api/cron/%s/run", nil)},
 	{words: []string{"cert", "issue"}, args: "<site-id>", min: 1, max: 1, build: call("POST", "/api/sites/%s/certificate", nil)},
 	{words: []string{"status"}, build: get("/api/system/status")},

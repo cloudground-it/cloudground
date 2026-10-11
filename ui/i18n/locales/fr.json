@@ -206,7 +206,8 @@
     "overview": "Aperçu",
     "more": "Plus",
     "sftp": "SFTP / SSH",
-    "vhost": "Vhost"
+    "vhost": "Vhost",
+    "protection": "Chemins protégés"
   },
   "overview": {
     "certificate": "Certificat",
@@ -1297,5 +1298,27 @@
       "page": "Numéro de page",
       "of": "sur {n}"
     }
+  },
+  "protect": {
+    "title": "Chemins protégés",
+    "hint": "Des chemins qui demandent un nom d’utilisateur et un mot de passe avant de servir quoi que ce soit, comme /wp-admin ou un dossier privé. Chaque chemin a ses propres identifiants et couvre tout ce qu’il contient.",
+    "none": "Aucun chemin n’est protégé.",
+    "add": "Protéger un chemin",
+    "change": "Modifier",
+    "changeTitle": "Nouveaux identifiants pour {path}",
+    "dialogHint": "Le navigateur les demande avant d’afficher le chemin. L’enregistrement l’applique aussitôt.",
+    "path": "Chemin",
+    "pathHelp": "Commence par / et couvre tout ce qu’il contient : /wp-admin, /private/files.",
+    "pathBad": "Lettres, chiffres et . _ ~ - entre les barres obliques ; pas / seul.",
+    "username": "Nom d’utilisateur",
+    "userBad": "1 à 64 lettres, chiffres ou . _ {'@'} -.",
+    "password": "Mot de passe",
+    "passwordRange": "8 à 72 caractères",
+    "added": "{path} est protégé",
+    "changed": "Identifiants modifiés",
+    "removed": "{path} n’est plus protégé",
+    "removeTitle": "Ne plus protéger {path} ?",
+    "removeHint": "Tout le monde pourra y accéder de nouveau sans mot de passe.",
+    "ajaxNote": "admin-ajax.php reste ouvert aux visiteurs : les thèmes et les extensions l’appellent depuis les pages publiques."
   }
 }

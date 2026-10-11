@@ -17,8 +17,8 @@ import (
 // siteCreateArgs is the usage of sites create.
 const siteCreateArgs = "<domain> <type> [flags-json] [--with-database] [--db-name <name>] [--db-user <user>] [--db-password-stdin | --db-password-file <file> | --db-password <password>] [--json]"
 
-// siteCreateStdin is what --db-password-stdin, sftp password and a public
-// key file "-" read (a variable for the tests).
+// siteCreateStdin is what --db-password-stdin, sftp password, protect add
+// and a public key file "-" read (a variable for the tests).
 var siteCreateStdin io.Reader = os.Stdin
 
 // maxPasswordLine bounds the line --db-password-stdin reads.

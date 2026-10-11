@@ -98,6 +98,17 @@ socket, name, user and password, and SFTP (host, port and user when on; a new si
 ending with a note that the password is shown only now. `--json` prints the API's answer as §3
 does. The exit codes are §4's.
 
+## 6.1 protect (#26)
+
+    cgctl protect add <site-id> <path> <username>     (the password: one line on stdin)
+    cgctl protect remove <site-id> <path>
+
+`protect add` is `POST /api/sites/{id}/protected-paths` (internal/api SPEC §3.12): it reads the
+password as `--db-password-stdin` does (one line, its ending dropped, at most 4 KiB, empty
+refused: a usage error, exit 2), so it never shows in `ps` nor in the shell's history.
+`protect remove` is `DELETE` of the same route with `{"path"}`. The path goes in the body, never
+in the URL; the answer is the site's protected paths, printed as §3.
+
 ## 7. update and uninstall (R-6.4, R-6.5)
 
 `cgctl update` and `cgctl uninstall`, like `install` and `doctor`, run as root on the server and

@@ -1,1 +1,0 @@
-import{d as e}from"./CGXWVGLR.js";import{o as t}from"./_VENyAVz.js";var n=null;function r(){let r=t(),i=e(`capabilities`,()=>null);return!i.value&&!n&&(n=r.get(`/api/system/capabilities`).then(e=>{i.value=e}).catch(()=>{}).finally(()=>{n=null})),i}export{r as t};

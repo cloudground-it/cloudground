@@ -94,6 +94,7 @@ var sections = []section{
 	{name: "R-4.3 accounts", run: (*harness).accounts},
 	{name: "R-4.3 sign-in review", run: (*harness).signinReview},
 	{name: "R-4.3 site settings", run: (*harness).siteSettings, lane: "settings"},
+	{name: "protected paths", run: (*harness).protectedPaths, lane: "protected paths"},
 	{name: "R-6.3 release channel", run: (*harness).releaseChannel, lane: "settings"},
 	{name: "SR tenant data", run: (*harness).tenantData, fixtures: []string{fxWooSite}},
 	{name: "R-10.5 root boundary", run: (*harness).boundary, lane: "boundary"},

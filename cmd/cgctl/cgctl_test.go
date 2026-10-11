@@ -258,3 +258,29 @@ func TestSFTPCommands(t *testing.T) {
 		}
 	}
 }
+
+// #26: protect add takes the password from stdin, never from argv, and
+// protect remove names the path in the body.
+func TestProtectPaths(t *testing.T) {
+	old := siteCreateStdin
+	t.Cleanup(func() { siteCreateStdin = old })
+	siteCreateStdin = strings.NewReader("s3cret pass\n")
+	inv, err := parseArgs([]string{"protect", "add", "5", "/wp-admin", "boss"})
+	if err != nil || inv.req.method != "POST" || inv.req.path != "/api/sites/5/protected-paths" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if b := inv.req.body.(map[string]string); b["path"] != "/wp-admin" || b["username"] != "boss" || b["password"] != "s3cret pass" {
+		t.Fatalf("body %v", b)
+	}
+	siteCreateStdin = strings.NewReader("")
+	if _, err := parseArgs([]string{"protect", "add", "5", "/wp-admin", "boss"}); err == nil {
+		t.Fatal("an empty stdin was accepted")
+	}
+	inv, err = parseArgs([]string{"protect", "remove", "5", "/wp-admin"})
+	if err != nil || inv.req.method != "DELETE" || inv.req.path != "/api/sites/5/protected-paths" || inv.req.body.(map[string]string)["path"] != "/wp-admin" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if _, err := parseArgs([]string{"protect", "add", "x", "/a", "u"}); err == nil {
+		t.Fatal("a site id that is not a number was accepted")
+	}
+}

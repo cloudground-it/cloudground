@@ -70,7 +70,64 @@ var (
 	publicRootRe   = regexp.MustCompile(`^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$`)
 	upstreamHostRe = regexp.MustCompile(`^(localhost|[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*)$`)
 	upstreamPathRe = regexp.MustCompile(`^(/[A-Za-z0-9._~-]*)*$`)
+	// protectedPathRe is a path a site may put behind a password: one or
+	// more segments of plain characters, nothing nginx's regex or its
+	// configuration parser would read as syntax.
+	protectedPathRe = regexp.MustCompile(`^(/[A-Za-z0-9._~-]+)+$`)
+	// basicAuthUserRe is a username nginx's password file can hold (no
+	// colon, no white space).
+	basicAuthUserRe = regexp.MustCompile(`^[A-Za-z0-9._@-]{1,64}$`)
+	// bcryptRe is a bcrypt hash as Go's bcrypt writes it.
+	bcryptRe = regexp.MustCompile(`^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$`)
 )
+
+// MaxProtectedPaths bounds a site's protected paths.
+const MaxProtectedPaths = 20
+
+// ValidProtectedPath reports whether p is a path a site may protect (#26):
+// absolute, at most 200 bytes, segments of letters, digits and . _ ~ -,
+// none of them "." or "..", no trailing slash, and not "/" itself (the
+// whole site is a staging copy's protection; the cache warmer and Safe
+// Push must reach a production site).
+func ValidProtectedPath(p string) bool {
+	if len(p) > 200 || !protectedPathRe.MatchString(p) {
+		return false
+	}
+	for _, seg := range strings.Split(p[1:], "/") {
+		if seg == "." || seg == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+// ValidBasicAuthUser reports whether u is a username a protected path may
+// take.
+func ValidBasicAuthUser(u string) bool { return basicAuthUserRe.MatchString(u) }
+
+// checkProtectedPaths refuses protected paths that could not be rendered
+// as they are: each is pasted into nginx's configuration and its password
+// file.
+func checkProtectedPaths(s state.Site) error {
+	if len(s.Config.ProtectedPaths) > MaxProtectedPaths {
+		return invalid("at most %d protected paths", MaxProtectedPaths)
+	}
+	seen := map[string]bool{}
+	for _, p := range s.Config.ProtectedPaths {
+		switch {
+		case !ValidProtectedPath(p.Path):
+			return invalid("invalid protected path %q", p.Path)
+		case seen[p.Path]:
+			return invalid("protected path %q is named twice", p.Path)
+		case !ValidBasicAuthUser(p.Username):
+			return invalid("invalid username for %q", p.Path)
+		case !bcryptRe.MatchString(p.PasswordHash):
+			return invalid("invalid password hash for %q", p.Path)
+		}
+		seen[p.Path] = true
+	}
+	return nil
+}
 
 // Validate checks every field of s that root acts on and confines its root to
 // sitesRoot/<domain>. Checks run in a fixed order and the first failure is
@@ -120,6 +177,9 @@ func Validate(sitesRoot string, s state.Site) (Valid, error) {
 		}
 	}
 	if err := checkDatabase(s); err != nil {
+		return Valid{}, err
+	}
+	if err := checkProtectedPaths(s); err != nil {
 		return Valid{}, err
 	}
 	if err := CheckRoot(sitesRoot, s); err != nil {

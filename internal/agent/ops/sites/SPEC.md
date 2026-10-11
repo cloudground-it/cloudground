@@ -57,6 +57,7 @@ them takes the site lock; the lock is not reentrant.
 | vhost | `<NginxSites>/<domain>.conf` |
 | page-cache zone | `<NginxConfDir>/cloudground-cache-<id>.conf` |
 | staging password | `<NginxAuthDir>/<domain>.htpasswd` |
+| protected path password (#26) | `<NginxAuthDir>/<domain>.path-<first 6 bytes of the path's SHA-256, hex>.htpasswd` |
 | logs / page cache | `<LogRoot>/<domain>`, `<CacheRoot>/<sanitised domain>` |
 | tree | `<SitesRoot>/<domain>` |
 
@@ -105,7 +106,9 @@ the PHP masters' directory, set to 0755 on every PHP render (step 4).
    when it exists) or Let's Encrypt's (`<CertLiveDir>/<domain>`), and
    `CertAvailable` says the chosen fullchain exists; PHP socket
    `<PHPSocketDir>/<user>/php.sock` except for static and proxy sites; a
-   staging site (`StagingAuthHash`) gets its password file and internal key.
+   staging site (`StagingAuthHash`) gets its password file and internal key;
+   each protected path (`Config.ProtectedPaths`) its own password file, one
+   line `<username>:<bcrypt hash>`.
    `HTTP3` and `HTTP2Directive` (nginx ≥ 1.25.1) come from `nginx -V`, read
    once per process (`host.Nginx.BuildInfo`, which reads stderr).
 2. The renderer's site files and global files. The page-cache directory is
@@ -115,9 +118,12 @@ the PHP masters' directory, set to 0755 on every PHP render (step 4).
    site, `php-error.log` is created there, owned by the site user, never
    through a link.
 3. Each nginx file is written atomically (temp file + rename) with mode 0644;
-   the password file is 0640 root:www-data in a 0750 root:www-data
-   directory; a vhost carrying the internal key is 0600. The password hash
-   must be bcrypt (`$2a/b/y$NN$` + 53 characters) or the render is refused.
+   the password files are 0640 root:www-data in a 0750 root:www-data
+   directory; a vhost carrying the internal key is 0600. Every password hash
+   must be bcrypt (`$2a/b/y$NN$` + 53 characters), and a protected path's
+   username `site.ValidBasicAuthUser`, or the render is refused. Once nginx
+   has the new files, the site's protected-path password files the render
+   did not write (a path no longer protected) are removed.
 4. **PHP master** (PHP sites): the budget is `MemoryHighMB`, or when unset a
    quarter of the machine's memory shared by the provisioned sites (trees
    with a `releases/` directory), at least 160 MB (and a warning when the
@@ -208,7 +214,8 @@ be `<SitesRoot>/<domain>`; nothing else is checked, the site may be half
 gone.
 
 1. Routing first: under the nginx lock, remove the vhost, the page-cache
-   zone and the password file, then test and reload nginx.
+   zone and the password files (staging's and every protected path's),
+   then test and reload nginx.
 2. Stop the slice: the PHP master, cron jobs run now and wp-cli runs go
    together (systemd kills the whole cgroup). An unknown slice is fine.
 3. The master unit, if its file is there: stop (a no-op after the slice),

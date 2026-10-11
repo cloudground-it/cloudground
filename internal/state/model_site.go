@@ -87,6 +87,18 @@ type SiteConfig struct {
 	// site type's own set (internal/velocity SPEC §1.4): an application's
 	// session cookie the type does not know.
 	BypassCookies []string `json:"bypass_cookies,omitempty"`
+	// ProtectedPaths are paths nginx asks a username and password for
+	// (#26), each with its own credentials.
+	ProtectedPaths []ProtectedPath `json:"protected_paths,omitempty"`
+}
+
+// ProtectedPath is one path behind HTTP basic auth: the path and what is
+// below it (site.ValidProtectedPath), the one username it takes, and the
+// bcrypt hash of its password, which the API never shows (Public).
+type ProtectedPath struct {
+	Path         string `json:"path"`
+	Username     string `json:"username"`
+	PasswordHash string `json:"password_hash,omitempty"`
 }
 
 // DatabaseConfig is the database a site uses. It may be external (managed
@@ -187,8 +199,16 @@ func (s Site) InternalKey() string {
 }
 
 // Public is the site as panel users see it through the API: without the
-// staging password hash, from which InternalKey derives.
+// staging password hash, from which InternalKey derives, nor the protected
+// paths' password hashes.
 func (s Site) Public() Site {
 	s.Config.StagingAuthHash = ""
+	if n := len(s.Config.ProtectedPaths); n > 0 {
+		paths := make([]ProtectedPath, n)
+		for i, p := range s.Config.ProtectedPaths {
+			paths[i] = ProtectedPath{Path: p.Path, Username: p.Username}
+		}
+		s.Config.ProtectedPaths = paths
+	}
 	return s
 }
