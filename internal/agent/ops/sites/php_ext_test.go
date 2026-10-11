@@ -54,13 +54,15 @@ func TestPHPExtensionsListsWhatFPMLoads(t *testing.T) {
 	}
 }
 
-// Installing runs apt for php<v>-<ext> only, then restarts the masters on
-// that version (read from their unit files) and no other.
+// Installing runs apt for php<v>-<ext> only, as a transient service outside
+// the agent's sandbox (where /usr and dpkg's database are read-only), then
+// restarts the masters on that version (read from their unit files) and no
+// other.
 func TestInstallPHPExtension(t *testing.T) {
 	e := newEnv(t)
 	e.installPHP(t, "8.3", "8.4")
 	e.exec.Respond = func(c host.FakeCall) host.FakeReply {
-		if c.Name == "apt-get" {
+		if c.Name == "systemd-run" {
 			return host.FakeReply{}
 		}
 		return host.FakeReply{Stdout: fpmModules + "redis\n"}
@@ -75,18 +77,27 @@ func TestInstallPHPExtension(t *testing.T) {
 		t.Fatal(err)
 	}
 	var apt []string
-	var env []string
 	for _, c := range e.exec.Calls() {
-		if c.Name == "apt-get" {
+		if c.Name == "apt-get" || strings.Contains(c.Line(), "apt-get") {
 			apt = append(apt, c.Line())
-			env = c.Env
 		}
 	}
-	if want := []string{"apt-get -o DPkg::Lock::Timeout=120 install -y -qq --no-install-recommends php8.3-redis"}; !reflect.DeepEqual(apt, want) {
+	if len(apt) != 1 {
 		t.Fatalf("apt = %v", apt)
 	}
-	if !strings.Contains(strings.Join(env, " "), "DEBIAN_FRONTEND=noninteractive") {
-		t.Fatalf("apt env = %v", env)
+	// systemd-run starts a fresh root service: no --uid, no slice, nothing of
+	// the agent's sandbox; it waits and pipes apt's output back.
+	run, cmd, _ := strings.Cut(apt[0], " -- ")
+	if cmd != "apt-get -o DPkg::Lock::Timeout=120 install -y -qq --no-install-recommends php8.3-redis" {
+		t.Fatalf("apt = %q", apt[0])
+	}
+	for _, want := range []string{"systemd-run ", " --wait", " --pipe", " --collect", "--setenv=DEBIAN_FRONTEND=noninteractive", "RuntimeMaxSec="} {
+		if !strings.Contains(run, want) {
+			t.Errorf("%q lacks %q", run, want)
+		}
+	}
+	if strings.Contains(run, "--uid") || strings.Contains(run, "--slice") {
+		t.Errorf("%q runs apt as another user or in a site's slice", run)
 	}
 	var restarts []string
 	for _, op := range e.systemd.Ops()[mark:] {
