@@ -122,6 +122,11 @@ make docker-e2e-bin && scp dist/cg-e2e root@<server>:/root/ && ssh root@<server>
 [CONTRIBUTING.md](./CONTRIBUTING.md) explains the rest. The rule that matters most: **check it
 on the server, do not trust the diff.**
 
+## Support
+
+CloudGround is built and maintained by one person. If it saves you time, you can support it on
+[GitHub Sponsors](https://github.com/sponsors/manuto276).
+
 ## Licence
 
 CloudGround is source-available under the [Elastic License 2.0](./LICENSE): you may use, modify
