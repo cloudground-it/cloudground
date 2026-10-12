@@ -53,7 +53,7 @@ fi
 login
 if [[ "$MODE" == malware ]]; then
   api -o /dev/null -X PUT -H 'Content-Type: application/json' -d '{"malware_scan":"1"}' "$BASE/api/settings"
-  [[ "${FORCE_SIGS:-}" == 1 ]] && rm -f /var/lib/cloudground-signatures/cloudground.json
+  [[ "${FORCE_SIGS:-}" == 1 ]] && rm -f /var/lib/cloudground-signatures/set/cloudground.json
   du -sk /var/lib/cloudground-signatures /var/lib/clamav 2>/dev/null || true
 fi
 site=$(api "$BASE/api/sites" | python3 -c 'import json,sys
@@ -72,7 +72,7 @@ for run in $(seq "$RUNS"); do
   rest=$(cat "$slice/memory.current")
   a0=$(svc_cpu cloudground-api) g0=$(svc_cpu cloudground-agent) s0=$(slice_cpu)
   t0=$(date +%s.%N)
-  task=$(api -X POST "$BASE/api/sites/$site/$path" | field task id)
+  task=$(api -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/api/sites/$site/$path" | field task id)
   [[ -n "$task" ]] || { echo "the check did not start" >&2; exit 1; }
   : >"$samples"
   while :; do
