@@ -26,8 +26,8 @@ Site security. What changes for a person running the panel:
 - the agent's long jobs (backups, restores, imports, scans) run in units of their own, so the
   agent keeps a memory limit; Ubuntu's needrestart no longer restarts them halfway;
 - a self-update installs the system packages a new release needs;
-- webhooks and the panel's own-address checks work again: the API unit could not list the
-  server's addresses;
+- fixed: in v0.2.0 every alert webhook was refused, public ones included, because the API could
+  not list the server's addresses;
 - when the panel's service fails to start, the installer names it and shows its log;
 - interface: the sidebar shows the version once, empty states sit higher, tab bars are no longer
   clipped.
