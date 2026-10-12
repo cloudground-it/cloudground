@@ -301,7 +301,11 @@ http-level is rendered by the agent into `conf.d` (`internal/engine/nginx`).
     The journal is read quietly and a line carrying the setup link (step 30) is replaced by a
     placeholder. `systemctl start` of a `Type=simple` unit returns as soon as it forks, so without
     this wait a unit that fails at exec (`status=226/NAMESPACE`) and restarts for ever left the
-    installer printing "CloudGround is running" (measured on a reimaged 26.04). The same wait runs
+    installer printing "CloudGround is running" (measured on a reimaged 26.04). A start job that
+    fails outright (the agent's `ExecStartPre=panel-agent ensure-packages` runs in its sandbox, so
+    the same NAMESPACE failure fails the job) makes `enable --now` or the restart exit non-zero
+    before the wait: the error is systemctl's, then the panel unit that is not active and its
+    journal, the same 15 lines. The same wait runs
     on every apply of the step, so on an upgrade it follows the restart; and the check is needed
     when, with all four units enabled and active, the panel still does not answer (`the panel does
     not answer: …`, a single `/healthz` try), so `cgctl doctor` reports a dead panel and a re-run

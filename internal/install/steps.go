@@ -875,7 +875,7 @@ func (r *run) servicesStep() Step {
 			// not running starts on the new files and needs no restart.
 			restartPanel := restart(ctx)
 			if err := e.Sd.Do(ctx, append([]string{"enable", "--now"}, services...)...); err != nil {
-				return err
+				return r.startFailed(ctx, err)
 			}
 			if restartPanel {
 				if err := e.Sd.Do(ctx, "stop", "cloudground-api"); err != nil {
@@ -885,7 +885,7 @@ func (r *run) servicesStep() Step {
 					return err
 				}
 				if err := e.Sd.Do(ctx, "restart", "cloudground-agent", "cloudground-api"); err != nil {
-					return err
+					return r.startFailed(ctx, err)
 				}
 				r.mark("restarted")
 			}
@@ -967,6 +967,19 @@ func (r *run) waitPanel(ctx context.Context) error {
 		b.WriteString(r.journalTail(ctx, u))
 	}
 	return errors.New(b.String())
+}
+
+// startFailed is the error of a systemctl start that failed. When a panel
+// unit is down after it, its journal follows, as waitPanel shows it: a unit
+// whose start job fails (its ExecStartPre fails at step NAMESPACE, say) makes
+// systemctl fail before the wait, and systemctl's own message names neither
+// the cause nor the journal.
+func (r *run) startFailed(ctx context.Context, err error) error {
+	unit, why := r.panelDown(ctx)
+	if unit == "" {
+		return err
+	}
+	return fmt.Errorf("%w\n  %s%s", err, why, r.journalTail(ctx, unit))
 }
 
 // journalLines is how much of a unit's journal a failure shows.

@@ -100,6 +100,10 @@ type fakeSd struct {
 	// stuck units never become active, whatever they are told (a unit
 	// that fails at start and is restarted for ever).
 	stuck map[string]bool
+	// failStart units fail their start job: systemctl start, restart or
+	// enable --now naming one exits non-zero (an ExecStartPre that fails),
+	// after acting on the others.
+	failStart map[string]bool
 }
 
 func (s *fakeSd) unit(name string) *unitState {
@@ -136,8 +140,12 @@ func (s *fakeSd) Do(_ context.Context, args ...string) error {
 	if len(units) > 0 && units[0] == "--now" {
 		now, units = true, units[1:]
 	}
+	var failed []string
 	for _, u := range units {
 		st := s.unit(u)
+		if s.failStart[strings.TrimSuffix(u, ".service")] && (args[0] == "start" || args[0] == "restart" || args[0] == "enable" && now) {
+			failed = append(failed, u)
+		}
 		switch args[0] {
 		case "enable":
 			st.exists, st.enabled = true, true
@@ -150,6 +158,9 @@ func (s *fakeSd) Do(_ context.Context, args ...string) error {
 		case "restart", "start":
 			st.active = true
 		}
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("exit status 1: Job for %s.service failed because the control process exited with error code", failed[0])
 	}
 	return nil
 }
@@ -271,7 +282,7 @@ func newMachine(t *testing.T, distro string) *machine {
 	m := &machine{t: t, root: root,
 		cmd:       &fakeCmd{tools: map[string]bool{}},
 		pkg:       &fakePkg{root: root, installed: map[string]bool{}},
-		sd:        &fakeSd{running: true, units: map[string]*unitState{}, stuck: map[string]bool{}},
+		sd:        &fakeSd{running: true, units: map[string]*unitState{}, stuck: map[string]bool{}, failStart: map[string]bool{}},
 		acct:      &fakeAcct{users: map[string][2]int{"root": {0, 0}, "www-data": {33, 33}}, groups: map[string]int{"root": 0, "www-data": 33}, next: 900},
 		fs:        &fakeFS{owners: map[string][2]int{}},
 		net:       &fakeNet{files: map[string][]byte{}},

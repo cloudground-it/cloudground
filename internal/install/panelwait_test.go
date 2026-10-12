@@ -46,6 +46,37 @@ func TestServicesFailWhenAPanelUnitDoesNotStart(t *testing.T) {
 	}
 }
 
+// A panel unit whose start job itself fails (since #113 the agent's
+// ExecStartPre runs in its sandbox, so a NAMESPACE failure fails the job)
+// makes systemctl fail before the wait: the error still names the unit and
+// shows its journal, on a fresh install and on the restart of an upgrade.
+func TestServicesNameAUnitWhoseStartJobFails(t *testing.T) {
+	for _, upgrade := range []bool{false, true} {
+		m := newMachine(t, "26.04")
+		o := m.options(false)
+		o.SkipPackages = true
+		if upgrade {
+			o.From = m.build("v1")
+			m.mustApply(o)
+			o.Upgrade = true
+			o.From = m.build("v2")
+		}
+		m.sd.stuck["cloudground-agent"] = true
+		m.sd.failStart["cloudground-agent"] = true
+		m.journal["cloudground-agent"] = namespaceJournal
+		m.listening[443] = true
+		err := Apply(bg, m.env, Steps(m.env, o), nil)
+		if err == nil {
+			t.Fatalf("upgrade=%v: the install succeeded with a failing agent", upgrade)
+		}
+		for _, want := range []string{"services:", "control process exited", "cloudground-agent is not active", "journalctl -u cloudground-agent", "Failed at step NAMESPACE"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("upgrade=%v: error lacks %q:\n%v", upgrade, want, err)
+			}
+		}
+	}
+}
+
 // Both units active but /healthz failing (the API does not reach the
 // agent) fails the step too, with both journals.
 func TestServicesFailWhenTheHealthCheckFails(t *testing.T) {
