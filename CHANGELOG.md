@@ -7,6 +7,31 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.3.0
+
+Site security. What changes for a person running the panel:
+
+- WordPress sites are checked against a public vulnerability database (WPVulnerability): the
+  panel lists the core, plugin and theme versions with known issues and the version that fixes
+  them;
+- malware scan of a site's files, opt-in, with ClamAV: scheduled or on demand, quarantine of a
+  flagged file, alerts;
+- two-factor sign-in for WordPress accounts, per site, from the panel;
+- one-click WordPress hardening, each item on its own and reversible;
+- a block list: addresses that keep failing to sign in (panel, SSH, wp-login, xmlrpc) are blocked
+  at the firewall for a while, with an allowlist; see them on the new Blocking page or with
+  `cgctl blocklist`;
+- per-site blocking of visitors by address or network, user agent or country (country data:
+  DB-IP Lite, CC BY 4.0);
+- the agent's long jobs (backups, restores, imports, scans) run in units of their own, so the
+  agent keeps a memory limit; Ubuntu's needrestart no longer restarts them halfway;
+- a self-update installs the system packages a new release needs;
+- fixed: in v0.2.0 every alert webhook was refused, public ones included, because the API could
+  not list the server's addresses;
+- when the panel's service fails to start, the installer names it and shows its log;
+- interface: the sidebar shows the version once, empty states sit higher, tab bars are no longer
+  clipped.
+
 ## v0.2.0
 
 Security, data safety and per-site resources. What changes for a person running the panel:
