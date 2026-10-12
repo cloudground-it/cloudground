@@ -1,23 +1,21 @@
 <script setup lang="ts">
 /**
- * The CloudGround mark (docs/media/logo.svg, v2): the cloud in ink over two
- * bars, the upper one blue and the lower one the brand orange, with no tile.
- * Drawn from the tokens, so it follows the colour mode; inlined so the
+ * The CloudGround mark, "Messa a terra" (docs/media/logo.svg, v3): the
+ * electrical ground symbol with a cloud at the top of its wire, one 6/64
+ * stroke in --mark (the logo's blue, lighter on dark). Inlined, so the
  * interface never waits on a request for its logo. `wordmark` adds the
- * lowercase wordmark, "cloudground", in Plex Sans; `product` names a
- * product of the family after it, one word with a dot ("cloudground
- * .quarry"). Running text keeps the capitalised names.
+ * name, "CloudGround", in Plex Sans 600 as the site's navbar sets it;
+ * `product` names a product of the family after it, one word with a dot
+ * ("CloudGround .quarry").
  */
 withDefaults(defineProps<{ wordmark?: boolean, product?: string }>(), { wordmark: false, product: '' })
 </script>
 
 <template>
   <span class="inline-flex min-w-0 items-center gap-2.5">
-    <svg viewBox="0 0 48 48" class="size-7 shrink-0" role="img" aria-hidden="true">
-      <path fill="var(--cg-ink)" d="M14 26A8 8 0 1 1 15.843 10.215A10 10 0 0 1 33.87 14.391A6 6 0 1 1 36 26Z" />
-      <rect x="14" y="30" width="28" height="4.6" rx="1" fill="var(--cg-blue)" />
-      <rect x="6" y="38" width="28" height="4.6" rx="1" fill="var(--cg-logo-orange)" />
+    <svg viewBox="0 0 64 64" class="size-7 shrink-0 text-cg-mark" role="img" aria-hidden="true">
+      <path d="M20.5 28.5 H43.5 A7 7 0 1 0 41.62 14.76 A10 10 0 0 0 22.16 15.72 A6.5 6.5 0 1 0 20.5 28.5 Z M32 28.5 V38 M12 38 H52 M20 47.5 H44 M28 57 H36" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
     </svg>
-    <span v-if="wordmark" class="truncate text-[1.0625rem] leading-none font-semibold tracking-[-0.01em] text-highlighted">cloudground<span v-if="product" class="font-normal text-muted">.{{ product }}</span></span>
+    <span v-if="wordmark" class="truncate text-lg leading-none font-semibold tracking-[-0.01em] text-highlighted">CloudGround<span v-if="product" class="font-normal text-muted">.{{ product }}</span></span>
   </span>
 </template>

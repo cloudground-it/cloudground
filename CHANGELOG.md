@@ -7,6 +7,17 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.3.2
+
+A new logo, and the panel in the colours of cloudground.it. What changes for a person running
+the panel:
+
+- the new CloudGround logo, in the panel, its browser and home-screen icons and the README;
+- the colours match cloudground.it and its documentation: the logo's blue for the main action
+  of a screen, links and focus, cooler greys; every text keeps WCAG AA contrast in both themes;
+- every row of tabs (a site's tools, logs, settings, the new-site wizard) looks and behaves
+  the same, and the top bar has the height and spacing of the site's.
+
 ## v0.3.1
 
 The panel in a new look, and a wizard to create a site. What changes for a person running the panel:

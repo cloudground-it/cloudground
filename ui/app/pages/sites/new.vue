@@ -374,19 +374,19 @@ onBeforeRouteLeave(async () => {
                 v-for="(s, i) in WIZARD_STEPS"
                 :key="s"
                 :aria-current="s === step ? 'step' : undefined"
-                class="flex min-w-0 items-center border-default not-first:border-s"
-                :class="s === step ? 'flex-1 bg-muted font-semibold text-highlighted shadow-[inset_0_-2px_0_var(--cg-ink)]' : 'flex-none text-muted sm:flex-1'"
+                class="flex min-w-0 items-center border-default font-medium transition-colors duration-150 not-first:border-s"
+                :class="s === step ? 'cg-tab-on flex-1 bg-muted' : 'flex-none text-default sm:flex-1'"
               >
                 <component
                   :is="i < stepIndex ? 'button' : 'span'"
                   :type="i < stepIndex ? 'button' : undefined"
-                  class="flex w-full min-w-0 items-center gap-2.5 px-2.5 py-2 text-[13px] sm:px-4 sm:py-2.5 sm:text-sm"
+                  class="flex min-h-11 w-full min-w-0 items-center gap-2.5 px-2.5 text-[13px] sm:px-4 sm:text-[15px]"
                   :class="i < stepIndex ? 'cursor-pointer text-start hover:bg-muted hover:text-highlighted' : ''"
                   @click="i < stepIndex && goTo(s)"
                 >
                   <span
                     class="mono inline-grid size-[22px] shrink-0 place-items-center border text-xs font-semibold"
-                    :class="s === step ? 'border-cg-ink bg-cg-ink text-cg-paper' : i < stepIndex ? 'border-cg-blue text-cg-blue' : 'border-cg-rule-strong'"
+                    :class="s === step ? 'border-cg-primary bg-cg-primary text-cg-on-primary' : i < stepIndex ? 'border-cg-blue text-cg-blue' : 'border-cg-rule-strong'"
                     aria-hidden="true"
                   >
                     <UIcon v-if="i < stepIndex" name="i-cg-check" class="size-3.5" />

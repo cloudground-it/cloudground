@@ -4,19 +4,23 @@
  * a colour value.
  *
  * - Plain controls are the default: a button is paper with a 1px
- *   --rule-strong frame (`neutral` + `outline`). `primary` is the orange,
- *   for the one primary action of a screen (Nuovo sito, Aggiorna ora,
- *   Apri wp-admin, a dialog's confirming action), so it is asked for by
- *   name and never a default.
- * - Blue (`secondary`) carries links, focus, selection and the checked
- *   state of form controls, which therefore default to it.
+ *   --rule-strong frame (`neutral` + `outline`). `primary` is the logo's
+ *   blue (--primary, white text), for the one primary action of a screen
+ *   (Nuovo sito, Aggiorna ora, Apri wp-admin, a dialog's confirming
+ *   action), so it is asked for by name and never a default.
+ * - Blue text (`secondary`, --blue) carries links, selection and the
+ *   checked state of form controls, which therefore default to it; focus
+ *   rings and the active tab's line are --primary.
+ * - Tabs are one style everywhere (main.css, cg-tab): ink text over a 2px
+ *   --primary line, no sliding indicator. A segmented control (UTabs
+ *   `pill`) is one ruled frame with the chosen segment filled in ink.
  * - Panels and tables are ruled with 1px lines and square; controls have
  *   a 3px radius. Status badges are an 8px square and a word.
  * - Plex Sans throughout; mono only for commands, figures, paths and
  *   identifiers, never as a label style.
  */
 const R = 'rounded-[3px]'
-const FOCUS = 'outline-cg-blue focus-visible:outline-2 focus-visible:outline-offset-2'
+const FOCUS = 'outline-cg-primary focus-visible:outline-2 focus-visible:outline-offset-2'
 const POPOVER = `${R} bg-default ring ring-accented shadow-lg`
 const MENU_ITEM = 'text-default data-highlighted:text-highlighted data-[state=open]:text-highlighted data-highlighted:before:bg-accented data-[state=open]:before:bg-accented before:rounded-[2px]'
 // An empty state's sizes, all one (the empty config below).
@@ -30,13 +34,14 @@ const BLUE = { color: 'secondary' as const }
 export default defineAppConfig({
   ui: {
     // The semantic variables (--ui-primary, …) are set from the tokens in
-    // main.css; these palettes only seed Nuxt UI's own scales.
+    // main.css; these palettes (the `brand` and `ground` scales there) only
+    // seed Nuxt UI's own scales.
     colors: {
-      primary: 'orange',
-      secondary: 'blue',
-      neutral: 'stone',
+      primary: 'brand',
+      secondary: 'brand',
+      neutral: 'ground',
       success: 'green',
-      info: 'blue',
+      info: 'brand',
       warning: 'amber',
       error: 'red'
     },
@@ -104,8 +109,8 @@ export default defineAppConfig({
         }
       },
       compoundVariants: [
-        // The one primary action: orange, semibold.
-        { color: 'primary', variant: 'solid', class: `bg-cg-orange text-cg-on-orange font-semibold hover:bg-(--cg-orange-hover) active:bg-(--cg-orange-hover) disabled:opacity-100 aria-disabled:opacity-100 disabled:bg-default aria-disabled:bg-default disabled:text-muted aria-disabled:text-muted disabled:outline-1 disabled:outline-dashed disabled:-outline-offset-1 disabled:outline-accented ${FOCUS}` },
+        // The one primary action: the logo's blue, semibold.
+        { color: 'primary', variant: 'solid', class: `bg-cg-primary text-cg-on-primary font-semibold hover:bg-cg-primary-hover active:bg-cg-primary-hover disabled:opacity-100 aria-disabled:opacity-100 disabled:bg-default aria-disabled:bg-default disabled:text-muted aria-disabled:text-muted disabled:outline-1 disabled:outline-dashed disabled:-outline-offset-1 disabled:outline-accented ${FOCUS}` },
         // The plain button: paper, a --rule-strong frame; dashed when disabled.
         { color: ['primary', 'neutral'], variant: 'outline', class: `ring ring-inset ring-accented bg-default text-highlighted hover:bg-accented active:bg-(--cg-rule) disabled:opacity-100 aria-disabled:opacity-100 disabled:bg-default aria-disabled:bg-default disabled:text-muted aria-disabled:text-muted disabled:ring-0 aria-disabled:ring-0 disabled:outline-1 disabled:outline-dashed disabled:-outline-offset-1 disabled:outline-accented ${FOCUS} focus-visible:ring-accented` },
         { color: 'neutral', variant: 'solid', class: `bg-inverted text-inverted hover:bg-(--cg-text) active:bg-(--cg-text) disabled:bg-inverted aria-disabled:bg-inverted ${FOCUS}` },
@@ -233,10 +238,10 @@ export default defineAppConfig({
           card: { item: `${R} border-accented` }
         }
       },
-      // A chosen tile: blue tint and a 2px blue frame, as the design's
+      // A chosen tile: blue tint and a 2px --primary frame, as the design's
       // type picker.
       compoundVariants: [
-        { variant: 'card', color: 'secondary', class: { item: 'has-data-[state=checked]:border-cg-blue has-data-[state=checked]:bg-cg-blue-tint has-data-[state=checked]:shadow-[inset_0_0_0_1px_var(--cg-blue)]' } }
+        { variant: 'card', color: 'secondary', class: { item: 'has-data-[state=checked]:border-cg-primary has-data-[state=checked]:bg-cg-blue-tint has-data-[state=checked]:shadow-[inset_0_0_0_1px_var(--cg-primary)]' } }
       ],
       defaultVariants: BLUE
     },
@@ -360,23 +365,27 @@ export default defineAppConfig({
         empty: 'py-8 text-center text-sm text-muted'
       }
     },
+    // The one tab style (main.css, cg-tab) and the one segmented control.
+    // The sliding indicator is hidden: the active tab draws its own 2px
+    // line, and nothing moves between tabs.
     tabs: {
       slots: {
         list: 'rounded-none',
-        trigger: 'rounded-none font-medium data-[state=inactive]:text-default',
+        trigger: 'rounded-none font-medium data-[state=inactive]:text-default hover:data-[state=inactive]:not-disabled:text-highlighted transition-colors duration-150',
         leadingIcon: 'size-4',
-        indicator: 'rounded-none'
+        indicator: 'hidden'
       },
       variants: {
         size: {
-          md: { trigger: 'px-3.5 py-2.5 text-[15px] gap-2' }
+          sm: { trigger: 'px-2.5 py-1 min-h-8 text-[13px] gap-1.5' },
+          md: { trigger: 'px-3 py-0 min-h-11 text-[15px] leading-tight gap-2' }
         }
       },
       compoundVariants: [
-        // mb-0: Nuxt UI pulls the list's divider 1px out of its box
-        // (-mb-px), where the side-scrolling wrapper of a tab bar clips it.
-        { variant: 'link', orientation: 'horizontal', class: { list: 'border-b border-default p-0 mb-0', indicator: '-bottom-px h-0.5 bg-inverted', trigger: 'data-[state=active]:text-highlighted data-[state=active]:font-semibold hover:bg-elevated' } },
-        { variant: 'pill', class: { list: `p-0 bg-transparent ring ring-inset ring-accented gap-0 ${R}`, indicator: `inset-y-0 bg-inverted shadow-none ${R}`, trigger: 'data-[state=active]:text-inverted' } }
+        // The divider is an inset shadow, under the tabs: the active line
+        // lies on it, and no scroller around the row can clip it.
+        { variant: 'link', orientation: 'horizontal', class: { list: 'cg-tab-list border-0 p-0 mb-0 gap-0', trigger: 'data-[state=active]:cg-tab-on' } },
+        { variant: 'pill', class: { list: `p-0 bg-transparent ring ring-inset ring-accented gap-0 ${R}`, trigger: `grow-0 ${R} data-[state=active]:bg-inverted data-[state=active]:text-inverted before:hidden` } }
       ],
       defaultVariants: { variant: 'link', color: 'neutral' }
     },
@@ -395,18 +404,14 @@ export default defineAppConfig({
         title: { true: { description: 'mt-1' } }
       }
     },
-    // The site tab bar: the active tab underlined in ink, as the design's
-    // tabs.
+    // The site tab bar (TabBar): the same tab as UTabs, drawn by cg-tab on
+    // the link; the menu's own hover fill and highlight line are off.
     navigationMenu: {
       slots: {
         link: 'before:rounded-[2px] gap-2 text-[15px] whitespace-nowrap',
         linkLeadingIcon: 'size-4',
         linkLabel: 'overflow-visible'
       },
-      compoundVariants: [
-        { orientation: 'horizontal', highlight: true, class: { link: 'after:h-0.5 after:rounded-none after:inset-x-2' } },
-        { orientation: 'horizontal', active: true, variant: 'link', class: { link: 'font-semibold' } }
-      ],
       defaultVariants: { color: 'neutral' }
     },
     breadcrumb: {
@@ -507,11 +512,12 @@ export default defineAppConfig({
         body: 'flex flex-col gap-0 sm:gap-0 flex-1 overflow-y-auto p-0 sm:p-0 pt-5 pb-10 sm:pt-7 sm:pb-12 *:shrink-0'
       }
     },
-    // The top bar: the same height as the sidebar's header
-    // (--ui-header-height).
+    // The top bar, as the site's navbar: 60px and a 1px rule (the height
+    // of the sidebar's header, --ui-header-height), 24px in from the sides,
+    // 36px controls with 20px icons, 15px type.
     dashboardNavbar: {
       slots: {
-        root: 'bg-default px-3 sm:px-6 lg:px-8 gap-3',
+        root: 'bg-default px-4 sm:px-6 gap-3 text-[15px]',
         left: 'gap-2 min-w-0 flex-1',
         right: 'gap-1'
       }
@@ -519,12 +525,14 @@ export default defineAppConfig({
     dashboardSidebar: {
       slots: {
         root: 'bg-elevated',
-        header: 'px-5 sm:px-5',
+        // The logo, aligned with the navbar beside it: the same height
+        // and the same rule under it.
+        header: 'px-6 sm:px-6 border-b border-default',
         body: 'gap-0 p-0 sm:px-0',
         footer: 'p-0 sm:px-0'
       },
       variants: {
-        menu: { true: { header: 'sm:px-0', body: 'sm:px-0', footer: 'sm:px-0' } }
+        menu: { true: { header: 'sm:px-6', body: 'sm:px-0', footer: 'sm:px-0' } }
       }
     }
   }

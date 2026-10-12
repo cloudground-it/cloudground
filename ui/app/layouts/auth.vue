@@ -12,7 +12,7 @@ const quarry = computed(() => isStudioRoute(route.path))
 
 <template>
   <div class="flex min-h-svh flex-col bg-default">
-    <header class="flex h-(--ui-header-height) shrink-0 items-center justify-between gap-3 border-b border-default px-5">
+    <header class="flex h-(--ui-header-height) shrink-0 items-center justify-between gap-3 border-b border-default px-4 sm:px-6">
       <AppLogo wordmark :product="quarry ? 'quarry' : ''" />
       <UButton
         color="neutral"

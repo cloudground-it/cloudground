@@ -54,11 +54,14 @@
   --color-cg-ink: var(--cg-ink);
   --color-cg-text: var(--cg-text);
   --color-cg-muted: var(--cg-muted);
+  --color-cg-brand: var(--cg-brand);
+  --color-cg-mark: var(--cg-mark);
+  --color-cg-primary: var(--cg-primary);
+  --color-cg-primary-hover: var(--cg-primary-hover);
+  --color-cg-on-primary: var(--cg-on-primary);
   --color-cg-blue: var(--cg-blue);
   --color-cg-blue-tint: var(--cg-blue-tint);
-  --color-cg-orange: var(--cg-orange);
-  --color-cg-on-orange: var(--cg-on-orange);
-  --color-cg-stamp: var(--cg-stamp);
+  --color-cg-blue-line: var(--cg-blue-line);
   --color-cg-ok: var(--cg-ok);
   --color-cg-ok-tint: var(--cg-ok-tint);
   --color-cg-warn: var(--cg-warn);
@@ -72,53 +75,86 @@
 }
 
 /*
- * The tokens of the CloudGround design system ("Rapporto di prova",
- * DESIGN.md): warm paper, near-black ink, blue for links, focus, selection
- * and protocol, orange only for the one primary action of a screen and for
- * outcome marks. Every text pair passes WCAG AA in both themes (lowest:
- * muted on paper-3 5.26:1, on-orange on orange 4.80:1); --rule-strong is
- * the 3:1 boundary of form controls (WCAG 1.4.11). Re-check after a change.
- * --logo-orange is the brand orange of the logo's lower bar, a fill only.
+ * The scales Nuxt UI seeds its own colours from (app.config.ts): the
+ * logo's blue as `brand` (500 is the logo, #2F5BFF) and the cool greys of
+ * the paper, rule and ink tokens as `ground`. The interface itself reads
+ * the tokens below, never a step of these scales.
+ */
+@theme static {
+  --color-brand-50: #EBF0FF;
+  --color-brand-100: #DCE4FF;
+  --color-brand-200: #C9D5FF;
+  --color-brand-300: #A9BBFF;
+  --color-brand-400: #8AA2FF;
+  --color-brand-500: #2F5BFF;
+  --color-brand-600: #2549E0;
+  --color-brand-700: #1D3BB8;
+  --color-brand-800: #1A3290;
+  --color-brand-900: #1A2C6E;
+  --color-brand-950: #1A2246;
+  --color-ground-50: #F9FAFC;
+  --color-ground-100: #F1F3F8;
+  --color-ground-200: #E6E9F1;
+  --color-ground-300: #D7DCE7;
+  --color-ground-400: #9AA3B8;
+  --color-ground-500: #7C8396;
+  --color-ground-600: #586074;
+  --color-ground-700: #2A2F3B;
+  --color-ground-800: #1E2330;
+  --color-ground-900: #151923;
+  --color-ground-950: #0E1117;
+}
+
+/*
+ * The tokens of the CloudGround design system (palette v3, from the logo's
+ * blue): cool paper, near-black ink, one blue. --primary fills the one
+ * primary action of a screen, the active tab's 2px line and the focus
+ * ring; --blue is the blue of text (links, accents, selection), darker in
+ * light mode so it reads on every paper; --brand (the logo's #2F5BFF) and
+ * --mark (the mark's stroke, lighter on dark) only draw the logo and its
+ * tile. Every text pair passes WCAG AA in both themes (tests/theme.test.mjs);
+ * --rule-strong is the 3:1 boundary of form controls (WCAG 1.4.11).
  */
 :root {
-  --cg-paper: #FBFAF6;
-  --cg-paper-2: #F3F1EA;
-  --cg-paper-3: #E9E6DC;
-  --cg-rule: #D6D3C8;
-  --cg-rule-strong: #86837A;
-  --cg-ink: #15161A;
-  --cg-text: #2E3036;
-  --cg-muted: #5B5D64;
-  --cg-blue: #2343C2;
-  --cg-blue-tint: #E7EBFA;
-  --cg-orange: #C8471A;
-  --cg-on-orange: #FFFFFF;
-  --cg-stamp: #B13B0C;
-  --cg-ok: #1C7038;
-  --cg-ok-tint: #E5F2E8;
-  --cg-warn: #835400;
-  --cg-warn-tint: #F8EFD9;
-  --cg-err: #B3261E;
-  --cg-err-tint: #FBE9E6;
-  --cg-code-bg: #15161A;
-  --cg-code-fg: #F2F0EA;
-  --cg-code-muted: #A6A59E;
-  --cg-code-rule: #31343C;
-  --cg-logo-orange: #E0612B;
+  --cg-paper: #F9FAFC;
+  --cg-paper-2: #F1F3F8;
+  --cg-paper-3: #E6E9F1;
+  --cg-rule: #D7DCE7;
+  --cg-rule-strong: #7C8396;
+  --cg-ink: #11141C;
+  --cg-text: #2A2F3B;
+  --cg-muted: #586074;
+  --cg-brand: #2F5BFF;
+  --cg-mark: #2F5BFF;
+  --cg-primary: #2F5BFF;
+  --cg-primary-hover: #1F45E0;
+  --cg-on-primary: #FFFFFF;
+  --cg-blue: #2549E0;
+  --cg-blue-tint: #EBF0FF;
+  --cg-blue-line: #C9D5FF;
+  --cg-ok: #18794E;
+  --cg-ok-tint: #E3F4EA;
+  --cg-warn: #8A5A00;
+  --cg-warn-tint: #FBF1DB;
+  --cg-err: #C8302C;
+  --cg-err-tint: #FDECEB;
+  --cg-code-bg: #0E1220;
+  --cg-code-fg: #E8ECF6;
+  --cg-code-muted: #9AA3B8;
+  --cg-code-rule: #262C3D;
   /* Behind a QR code, which a camera reads best dark on white. */
   --cg-qr-ground: #FFFFFF;
   /* Behind a dialog. */
-  --cg-scrim: rgb(21 22 26 / 0.45);
-  /* The primary button under the pointer. */
-  --cg-orange-hover: var(--cg-stamp);
+  --cg-scrim: rgb(14 17 23 / 0.45);
 
   --ui-radius: 0.1875rem;
-  /* The sidebar header and every panel's navbar share this height. */
-  --ui-header-height: 3.5rem;
+  /* The sidebar header and every panel's navbar share this height: the
+     site's navbar, 60px and its 1px rule. */
+  --ui-header-height: 3.8125rem;
   /* Pages use the panel's full width: UContainer only gives the gutters. */
   --ui-container: 100%;
 
-  --ui-primary: var(--cg-orange);
+  --ui-primary: var(--cg-primary);
   --ui-secondary: var(--cg-blue);
   --ui-success: var(--cg-ok);
   --ui-info: var(--cg-blue);
@@ -143,30 +179,28 @@
 }
 
 .dark {
-  --cg-paper: #131418;
-  --cg-paper-2: #1A1C21;
-  --cg-paper-3: #24262D;
-  --cg-rule: #31343C;
-  --cg-rule-strong: #72757E;
-  --cg-ink: #F2F0EA;
-  --cg-text: #D8D6CF;
-  --cg-muted: #A6A59E;
-  --cg-blue: #93A8FF;
-  --cg-blue-tint: #1E2544;
-  --cg-orange: #F07A3E;
-  --cg-on-orange: #131418;
-  --cg-stamp: #FF9360;
-  --cg-ok: #63CF8A;
-  --cg-ok-tint: #16301F;
-  --cg-warn: #F0B54A;
-  --cg-warn-tint: #33280F;
-  --cg-err: #FF8073;
-  --cg-err-tint: #3A1D1B;
-  --cg-code-bg: #0B0C0E;
-  --cg-code-fg: #F2F0EA;
-  --cg-code-muted: #A6A59E;
-  --cg-code-rule: #31343C;
-  --cg-orange-hover: #FF8D55;
+  --cg-paper: #0E1117;
+  --cg-paper-2: #151923;
+  --cg-paper-3: #1E2330;
+  --cg-rule: #2A3040;
+  --cg-rule-strong: #6E7790;
+  --cg-ink: #EEF1F7;
+  --cg-text: #D3D8E4;
+  --cg-muted: #9AA3B8;
+  --cg-mark: #7D97FF;
+  --cg-primary: #3D63F5;
+  --cg-primary-hover: #2F52DE;
+  --cg-blue: #8AA2FF;
+  --cg-blue-tint: #1A2246;
+  --cg-blue-line: #2E3D7A;
+  --cg-ok: #5FD39A;
+  --cg-ok-tint: #12291E;
+  --cg-warn: #F2C063;
+  --cg-warn-tint: #2E2510;
+  --cg-err: #FF8A80;
+  --cg-err-tint: #361818;
+  --cg-code-bg: #090B10;
+  --cg-code-rule: #232838;
   --cg-scrim: rgb(0 0 0 / 0.6);
 }
 
@@ -202,7 +236,7 @@
   }
   /* One visible focus for everything the keyboard reaches. */
   :focus-visible {
-    outline: 2px solid var(--cg-blue);
+    outline: 2px solid var(--cg-primary);
     outline-offset: 2px;
   }
 }
@@ -227,6 +261,38 @@
   &::-webkit-scrollbar {
     display: none;
   }
+}
+/*
+ * The one tab style, for every row of tabs (a site's tools, a page's
+ * sources, the sections of a long page, the wizard's steps): 44px high,
+ * 15px medium in every state, the active one in ink over a 2px line of
+ * --primary that lies on the row's 1px divider (cg-tab-list). Only the
+ * colour changes, without a sliding line. UTabs and the site tab bar take
+ * the same values in app.config.ts.
+ */
+@utility cg-tab-list {
+  box-shadow: inset 0 -1px 0 var(--ui-border);
+}
+@utility cg-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  font-size: 0.9375rem;
+  line-height: 1.25;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--ui-text);
+  transition: color 150ms ease-out;
+  &:hover {
+    color: var(--ui-text-highlighted);
+  }
+}
+@utility cg-tab-on {
+  color: var(--ui-text-highlighted);
+  box-shadow: inset 0 -2px 0 var(--cg-primary);
 }
 /* Commands, figures, paths and identifiers: never as a costume. */
 @utility mono {
@@ -254,7 +320,7 @@
     outline: 1px solid var(--cg-rule);
   }
   & > *:focus-visible {
-    outline: 2px solid var(--cg-blue);
+    outline: 2px solid var(--cg-primary);
     outline-offset: -2px;
   }
 }

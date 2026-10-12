@@ -28,7 +28,7 @@ function toggleTheme() {
 <template>
   <UDashboardNavbar :toggle="{ color: 'neutral', variant: 'ghost', class: 'lg:hidden' }">
     <template #left>
-      <nav :aria-label="t('cg.shell.breadcrumb')" class="flex min-w-0 items-center gap-2 text-sm">
+      <nav :aria-label="t('cg.shell.breadcrumb')" class="flex min-w-0 items-center gap-2 text-[15px]">
         <NuxtLink v-if="crumb.to" :to="crumb.to" class="hidden shrink-0 text-muted hover:text-highlighted sm:inline">{{ crumb.label }}</NuxtLink>
         <span v-else class="hidden shrink-0 text-muted sm:inline">{{ crumb.label }}</span>
         <UIcon name="i-cg-chevron-right" class="hidden size-3.5 shrink-0 text-muted sm:block" aria-hidden="true" />
@@ -42,7 +42,7 @@ function toggleTheme() {
         color="neutral"
         variant="outline"
         class="hidden w-80 md:flex"
-        :ui="{ base: 'min-h-9 justify-start text-sm font-normal text-muted', label: 'truncate', trailing: 'ms-auto' }"
+        :ui="{ base: 'min-h-9 justify-start text-[15px] font-normal text-muted', label: 'truncate', trailing: 'ms-auto' }"
       />
       <UDashboardSearchButton
         :label="t('cg.shell.search')"
