@@ -1253,12 +1253,6 @@
     "customCertWarning": "Este sitio sirve un certificado propio, que puede no cubrir los nuevos alias: instala uno que los cubra."
   },
   "newSite": {
-    "title": "Nuevo",
-    "titleAccent": "sitio.",
-    "kickerForm": "Sitios · crear",
-    "kickerCreating": "Sitios · creando",
-    "kickerDone": "Sitios · creado",
-    "kickerFailed": "Sitios · la creación falló",
     "summaryHint": "Todo lo que necesitas para usar el sitio. La contraseña de la base de datos solo se muestra aquí.",
     "close": "Cerrar",
     "typeHint": {
@@ -1290,7 +1284,6 @@
     "dbPasswordRule": "De 12 a 256 caracteres",
     "dbPasswordSpaces": "No puede empezar ni terminar con un espacio",
     "dbPasswordChars": "No puede contener ', \" ni \\",
-    "willCreate": "creará:",
     "willUser": "un usuario del sistema aislado",
     "willDatabase": "base de datos {name}",
     "willCert": "certificado Let’s Encrypt",
@@ -1326,7 +1319,43 @@
     "closeAnyway": "Cerrar de todos modos",
     "txtTitle": "CloudGround · {domain}",
     "txtSecret": "Este archivo contiene contraseñas. Guárdalo en un lugar seguro y bórralo cuando las hayas guardado en otro sitio.",
-    "nameTaken": "{name} ya se usa en este servidor"
+    "nameTaken": "{name} ya se usa en este servidor",
+    "wizard": {
+      "steps": {
+        "type": "Tipo",
+        "domain": "Dominio",
+        "setup": "Configuración",
+        "database": "Base de datos",
+        "review": "Resumen"
+      },
+      "stepsLabel": "Pasos",
+      "stepOf": "Paso {n} de {total}: {name}",
+      "typeLegend": "¿Qué tipo de sitio?",
+      "typeHint": "El tipo decide cómo se configuran nginx y PHP y si el sitio necesita una base de datos.",
+      "profileLegend": "Perfil de rendimiento",
+      "profileHint": "El perfil decide qué no se guarda nunca en caché y durante cuánto tiempo. Puedes cambiarlo después.",
+      "profileAutoHint": "el perfil adecuado para un sitio {type}",
+      "domainLegend": "¿Qué dominio?",
+      "domainHint": "El nombre que escriben los visitantes, sin https://. El certificado de Let’s Encrypt se emite cuando su DNS apunta a este servidor; los alias se añaden desde la pestaña Resumen del sitio.",
+      "setupLegend": "Configuración",
+      "setupHint": "Lo que necesita un sitio {type} para empezar.",
+      "setupNone": "Un sitio estático no necesita nada más: sube sus archivos por SFTP una vez creado.",
+      "phpHint": "La versión de PHP del sitio. Se cambia después desde la pestaña PHP.",
+      "dbLegend": "Base de datos",
+      "dbNone": "Un reverse proxy no tiene base de datos: la aplicación que hay detrás guarda sus propios datos.",
+      "reviewLegend": "Resumen",
+      "reviewHint": "Revisa todo y luego crea el sitio. Cambiar vuelve al paso y conserva lo que escribiste.",
+      "change": "Cambiar",
+      "changeStep": "Cambiar {step}",
+      "pwSet": "definida, {n} caracteres",
+      "none": "ninguna",
+      "noTitle": "(ninguno)",
+      "willHeading": "{type} creará",
+      "willDatabaseAny": "una base de datos",
+      "draftRestored": "Se ha conservado tu borrador, pero no sus contraseñas: escríbelas o genéralas de nuevo.",
+      "invalid": "Corrige los campos marcados para continuar.",
+      "pageTitle": "Nuevo sitio"
+    }
   },
   "studio": {
     "signInTitle": "Iniciar sesión en @:{'studio.name'}",

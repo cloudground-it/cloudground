@@ -1253,12 +1253,6 @@
     "customCertWarning": "Questo sito usa un certificato personalizzato, che potrebbe non coprire i nuovi alias: installane uno che li copra."
   },
   "newSite": {
-    "title": "Nuovo",
-    "titleAccent": "sito.",
-    "kickerForm": "Siti · crea",
-    "kickerCreating": "Siti · creazione in corso",
-    "kickerDone": "Siti · creato",
-    "kickerFailed": "Siti · creazione non riuscita",
     "summaryHint": "Tutto quello che serve per usare il sito. La password del database si vede solo qui.",
     "close": "Chiudi",
     "typeHint": {
@@ -1290,7 +1284,6 @@
     "dbPasswordRule": "Da 12 a 256 caratteri",
     "dbPasswordSpaces": "Non può iniziare o finire con uno spazio",
     "dbPasswordChars": "Non può contenere ', \" o \\",
-    "willCreate": "creerà:",
     "willUser": "un utente di sistema isolato",
     "willDatabase": "database {name}",
     "willCert": "certificato Let’s Encrypt",
@@ -1326,7 +1319,43 @@
     "closeAnyway": "Chiudi comunque",
     "txtTitle": "CloudGround · {domain}",
     "txtSecret": "Questo file contiene password. Tienilo in un posto sicuro ed eliminalo dopo averle salvate altrove.",
-    "nameTaken": "{name} è già usato su questo server"
+    "nameTaken": "{name} è già usato su questo server",
+    "wizard": {
+      "steps": {
+        "type": "Tipo",
+        "domain": "Dominio",
+        "setup": "Configurazione",
+        "database": "Database",
+        "review": "Riepilogo"
+      },
+      "stepsLabel": "Passi",
+      "stepOf": "Passo {n} di {total}: {name}",
+      "typeLegend": "Che tipo di sito?",
+      "typeHint": "Il tipo decide la configurazione di nginx e PHP e se serve un database.",
+      "profileLegend": "Profilo prestazioni",
+      "profileHint": "Il profilo decide cosa non va mai in cache e per quanto. Si cambia anche dopo.",
+      "profileAutoHint": "il profilo giusto per un sito {type}",
+      "domainLegend": "Quale dominio?",
+      "domainHint": "Il nome che digitano i visitatori, senza https://. Il certificato Let’s Encrypt viene emesso quando il suo DNS punta a questo server; gli alias si aggiungono dalla scheda Panoramica del sito.",
+      "setupLegend": "Configurazione",
+      "setupHint": "Quello che serve a un sito {type} per partire.",
+      "setupNone": "Un sito statico non ha bisogno d’altro: carica i suoi file via SFTP dopo averlo creato.",
+      "phpHint": "La versione di PHP del sito. Si cambia anche dopo dalla scheda PHP.",
+      "dbLegend": "Database",
+      "dbNone": "Un reverse proxy non ha database: l’applicazione dietro tiene i propri dati.",
+      "reviewLegend": "Riepilogo",
+      "reviewHint": "Controlla tutto, poi crea il sito. Modifica torna al passo e conserva quello che hai scritto.",
+      "change": "Modifica",
+      "changeStep": "Modifica {step}",
+      "pwSet": "impostata, {n} caratteri",
+      "none": "nessuno",
+      "noTitle": "(nessuno)",
+      "willHeading": "{type} creerà",
+      "willDatabaseAny": "un database",
+      "draftRestored": "La bozza è stata conservata, ma non le password: scrivile o generale di nuovo.",
+      "invalid": "Correggi i campi evidenziati per continuare.",
+      "pageTitle": "Nuovo sito"
+    }
   },
   "studio": {
     "signInTitle": "Accedi a @:{'studio.name'}",

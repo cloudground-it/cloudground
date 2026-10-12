@@ -7,7 +7,7 @@ const api = useApi()
 const { isAdmin, canManage } = useAuth()
 const { run } = useAction()
 const confirm = useConfirm()
-const { creating, sitesVersion } = useShell()
+const { sitesVersion } = useShell()
 useHead({ title: () => t('nav.sites') })
 
 const { data: sites, error, refresh } = useLive(() => api.get<Site[]>('/api/sites'), { on: { types: ['site.'] }, fallbackMs: 8000 })
@@ -83,7 +83,7 @@ const columns = computed(() => [
         <UPageHeader :title="t('nav.sites')" :description="t('ux.pages.sites', sites?.length ?? 0)">
           <template v-if="isAdmin" #links>
             <!-- On an empty list the empty state's own action is the primary one. -->
-            <UButton v-bind="sites?.length ? { color: 'primary', variant: 'solid' } : {}" icon="i-cg-plus" :label="t('site.new')" @click="creating = true" />
+            <UButton v-bind="sites?.length ? { color: 'primary', variant: 'solid' } : {}" icon="i-cg-plus" :label="t('site.new')" to="/sites/new" />
           </template>
         </UPageHeader>
 
@@ -98,7 +98,7 @@ const columns = computed(() => [
             icon="i-cg-sites"
             :title="t('site.emptyTitle')"
             :description="t('site.emptyHint')"
-            :actions="isAdmin ? [{ label: t('site.createFirst'), icon: 'i-cg-plus', color: 'primary', variant: 'solid', onClick: () => { creating = true } }] : []"
+            :actions="isAdmin ? [{ label: t('site.createFirst'), icon: 'i-cg-plus', color: 'primary', variant: 'solid', to: '/sites/new' }] : []"
           />
         </PanelSection>
 

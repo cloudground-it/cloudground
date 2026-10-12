@@ -1253,12 +1253,6 @@
     "customCertWarning": "Diese Website nutzt ein eigenes Zertifikat, das die neuen Aliase womöglich nicht abdeckt: Installiere eines, das sie abdeckt."
   },
   "newSite": {
-    "title": "Neue",
-    "titleAccent": "Website.",
-    "kickerForm": "Websites · erstellen",
-    "kickerCreating": "Websites · wird erstellt",
-    "kickerDone": "Websites · erstellt",
-    "kickerFailed": "Websites · Erstellung fehlgeschlagen",
     "summaryHint": "Alles, was du für die Website brauchst. Das Datenbankpasswort wird nur hier angezeigt.",
     "close": "Schließen",
     "typeHint": {
@@ -1290,7 +1284,6 @@
     "dbPasswordRule": "12 bis 256 Zeichen",
     "dbPasswordSpaces": "Es darf nicht mit einem Leerzeichen beginnen oder enden",
     "dbPasswordChars": "Es darf weder ', \" noch \\ enthalten",
-    "willCreate": "legt an:",
     "willUser": "einen isolierten Systembenutzer",
     "willDatabase": "Datenbank {name}",
     "willCert": "Let’s-Encrypt-Zertifikat",
@@ -1326,7 +1319,43 @@
     "closeAnyway": "Trotzdem schließen",
     "txtTitle": "CloudGround · {domain}",
     "txtSecret": "Diese Datei enthält Passwörter. Bewahre sie sicher auf und lösche sie, sobald du sie anderswo gespeichert hast.",
-    "nameTaken": "{name} wird auf diesem Server bereits verwendet"
+    "nameTaken": "{name} wird auf diesem Server bereits verwendet",
+    "wizard": {
+      "steps": {
+        "type": "Typ",
+        "domain": "Domain",
+        "setup": "Einrichtung",
+        "database": "Datenbank",
+        "review": "Übersicht"
+      },
+      "stepsLabel": "Schritte",
+      "stepOf": "Schritt {n} von {total}: {name}",
+      "typeLegend": "Welche Art von Website?",
+      "typeHint": "Der Typ bestimmt, wie nginx und PHP eingerichtet werden und ob die Website eine Datenbank braucht.",
+      "profileLegend": "Leistungsprofil",
+      "profileHint": "Das Profil bestimmt, was nie gecacht wird und wie lange. Du kannst es später ändern.",
+      "profileAutoHint": "das passende Profil für eine {type}-Website",
+      "domainLegend": "Welche Domain?",
+      "domainHint": "Der Name, den Besucher eintippen, ohne https://. Das Let’s-Encrypt-Zertifikat wird ausgestellt, sobald ihr DNS auf diesen Server zeigt; Aliase fügst du im Tab Übersicht der Website hinzu.",
+      "setupLegend": "Einrichtung",
+      "setupHint": "Was eine {type}-Website zum Start braucht.",
+      "setupNone": "Eine statische Website braucht nichts weiter: Lade ihre Dateien nach dem Anlegen per SFTP hoch.",
+      "phpHint": "Die PHP-Version der Website. Sie lässt sich später im Tab PHP ändern.",
+      "dbLegend": "Datenbank",
+      "dbNone": "Ein Reverse Proxy hat keine Datenbank: Die Anwendung dahinter verwaltet ihre eigenen Daten.",
+      "reviewLegend": "Übersicht",
+      "reviewHint": "Prüfe alles und lege dann die Website an. Ändern führt zurück zum Schritt und behält deine Eingaben.",
+      "change": "Ändern",
+      "changeStep": "{step} ändern",
+      "pwSet": "gesetzt, {n} Zeichen",
+      "none": "keine",
+      "noTitle": "(keiner)",
+      "willHeading": "{type} legt an",
+      "willDatabaseAny": "eine Datenbank",
+      "draftRestored": "Dein Entwurf wurde behalten, aber nicht seine Passwörter: Gib sie erneut ein oder erzeuge sie neu.",
+      "invalid": "Korrigiere die markierten Felder, um fortzufahren.",
+      "pageTitle": "Neue Website"
+    }
   },
   "studio": {
     "signInTitle": "Bei @:{'studio.name'} anmelden",

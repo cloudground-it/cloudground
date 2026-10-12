@@ -1253,12 +1253,6 @@
     "customCertWarning": "Ce site sert un certificat personnalisé, qui peut ne pas couvrir les nouveaux alias : installez-en un qui les couvre."
   },
   "newSite": {
-    "title": "Nouveau",
-    "titleAccent": "site.",
-    "kickerForm": "Sites · créer",
-    "kickerCreating": "Sites · création en cours",
-    "kickerDone": "Sites · créé",
-    "kickerFailed": "Sites · échec de la création",
     "summaryHint": "Tout ce qu’il faut pour utiliser le site. Le mot de passe de la base de données n’est affiché qu’ici.",
     "close": "Fermer",
     "typeHint": {
@@ -1290,7 +1284,6 @@
     "dbPasswordRule": "De 12 à 256 caractères",
     "dbPasswordSpaces": "Il ne peut pas commencer ni finir par une espace",
     "dbPasswordChars": "Il ne peut pas contenir ', \" ni \\",
-    "willCreate": "va créer :",
     "willUser": "un utilisateur système isolé",
     "willDatabase": "base {name}",
     "willCert": "certificat Let’s Encrypt",
@@ -1326,7 +1319,43 @@
     "closeAnyway": "Fermer quand même",
     "txtTitle": "CloudGround · {domain}",
     "txtSecret": "Ce fichier contient des mots de passe. Conservez-le en lieu sûr et supprimez-le une fois qu’ils sont enregistrés ailleurs.",
-    "nameTaken": "{name} est déjà utilisé sur ce serveur"
+    "nameTaken": "{name} est déjà utilisé sur ce serveur",
+    "wizard": {
+      "steps": {
+        "type": "Type",
+        "domain": "Domaine",
+        "setup": "Configuration",
+        "database": "Base de données",
+        "review": "Récapitulatif"
+      },
+      "stepsLabel": "Étapes",
+      "stepOf": "Étape {n} sur {total} : {name}",
+      "typeLegend": "Quel type de site ?",
+      "typeHint": "Le type décide de la configuration de nginx et de PHP, et du besoin d’une base de données.",
+      "profileLegend": "Profil de performances",
+      "profileHint": "Le profil décide de ce qui n’est jamais mis en cache et pour combien de temps. Vous pourrez le changer ensuite.",
+      "profileAutoHint": "le bon profil pour un site {type}",
+      "domainLegend": "Quel domaine ?",
+      "domainHint": "Le nom que tapent les visiteurs, sans https://. Le certificat Let’s Encrypt est émis dès que son DNS pointe vers ce serveur ; les alias s’ajoutent depuis l’onglet Aperçu du site.",
+      "setupLegend": "Configuration",
+      "setupHint": "Ce dont un site {type} a besoin pour démarrer.",
+      "setupNone": "Un site statique n’a besoin de rien d’autre : envoyez ses fichiers par SFTP une fois créé.",
+      "phpHint": "La version de PHP du site. Elle se change ensuite depuis l’onglet PHP.",
+      "dbLegend": "Base de données",
+      "dbNone": "Un reverse proxy n’a pas de base de données : l’application derrière lui garde ses propres données.",
+      "reviewLegend": "Récapitulatif",
+      "reviewHint": "Vérifiez tout, puis créez le site. Modifier revient à l’étape et garde ce que vous avez saisi.",
+      "change": "Modifier",
+      "changeStep": "Modifier : {step}",
+      "pwSet": "définie, {n} caractères",
+      "none": "aucune",
+      "noTitle": "(aucun)",
+      "willHeading": "{type} va créer",
+      "willDatabaseAny": "une base de données",
+      "draftRestored": "Votre brouillon a été conservé, mais pas ses mots de passe : saisissez-les ou générez-les à nouveau.",
+      "invalid": "Corrigez les champs signalés pour continuer.",
+      "pageTitle": "Nouveau site"
+    }
   },
   "studio": {
     "signInTitle": "Se connecter à @:{'studio.name'}",
