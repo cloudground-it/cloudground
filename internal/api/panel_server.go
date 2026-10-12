@@ -126,6 +126,11 @@ type Server struct {
 	blocks         blocklistState
 	blocklistEvery time.Duration
 	localAddrs     func() []netip.Addr
+
+	// dnsChecks limits the DNS readiness check; dnsLookup resolves its
+	// names (nil: the system resolver; tests replace it) (dns_check.go).
+	dnsChecks dnsGate
+	dnsLookup func(ctx context.Context, network, host string) ([]netip.Addr, error)
 }
 
 // connectorFailures is how many wrong connector tokens an address may send

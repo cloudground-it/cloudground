@@ -83,6 +83,7 @@ internal/api/staging.go                wordpress staging, wordpress safe push, w
 internal/api/site_certs.go             wordpress certificates, wordpress status and drift
 internal/api/site_databases.go         F9b site databases
 internal/api/site_create_db.go         F9b site creation, F9b site databases
+internal/api/dns_check.go              F9b site creation
 internal/agent/ops/db/accounts.go      F9b site databases, SR tenant data, wordpress backups
 internal/agent/ops/db/registry.go      F9b site databases, SR tenant data, wordpress backups
 internal/agent/ops/backup/databases.go F9b site databases, wordpress backups, R-4.3 deploys and backups

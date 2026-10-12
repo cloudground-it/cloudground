@@ -447,12 +447,13 @@ func (a *apiClient) relogin() {
 
 // siteInfo is the part of a site the suite reads.
 type siteInfo struct {
-	ID         int64  `json:"id"`
-	Domain     string `json:"domain"`
-	Type       string `json:"type"`
-	Status     string `json:"status"`
-	SystemUser string `json:"system_user"`
-	StagingOf  int64  `json:"staging_of"`
+	ID         int64    `json:"id"`
+	Domain     string   `json:"domain"`
+	Type       string   `json:"type"`
+	Status     string   `json:"status"`
+	SystemUser string   `json:"system_user"`
+	StagingOf  int64    `json:"staging_of"`
+	Aliases    []string `json:"aliases"`
 	Config     struct {
 		ObjectCache  bool `json:"object_cache"`
 		SFTPEnabled  bool `json:"sftp_enabled"`

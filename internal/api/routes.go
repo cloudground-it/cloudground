@@ -102,6 +102,8 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "the sites the caller may see"},
 		{Method: post, Path: "/api/sites", Policy: policyAdmin, AdminOnly: "create sites", Handle: s.handleCreateSite,
 			Section: secSites, Doc: "create (the database name, user and password may be chosen) — returns `202`, a task and the summary, the only answer with the database password"},
+		{Method: get, Path: "/api/sites/dns-check", Query: "domain=", Policy: policyManage, Handle: s.handleDNSCheck,
+			Section: secSites, Doc: "whether a host name already points at this server (the certificate's readiness): `status` `here`, `partial`, `elsewhere`, `proxied` (a CDN hides the origin), `unresolved` or `unknown`, its A and AAAA `addresses` (a private one unnamed) and the server's public addresses; a lookup only, 3 s at most, 30 a minute per account"},
 		{Method: get, Path: "/api/sites/{id}", Policy: policySignedIn, Load: loadSite, Handle: s.handleGetSite,
 			Section: secSites, Doc: "a site and its settings"},
 		{Method: del, Path: "/api/sites/{id}", Policy: policyAdmin, Load: loadSite, Handle: s.handleDeleteSite,

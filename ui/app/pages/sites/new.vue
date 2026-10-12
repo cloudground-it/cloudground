@@ -6,10 +6,22 @@
  * password is shown here only (the API answers it once, internal/api SPEC
  * §3.2): the summary can be copied or saved as a .txt, and leaving it
  * unsaved asks first. Each step is checked before the next; the draft
- * survives a reload in session storage, without its passwords.
+ * survives a reload in session storage, without its passwords. The Domain
+ * step takes the aliases too, and says per name whether its DNS already
+ * points at this server (GET /api/sites/dns-check, internal/api SPEC
+ * §3.14), without ever stopping Next.
  */
 import type { SiteType, Task } from '~/types'
 import type { FieldProblem, SiteSummary, WizardStep } from '~/utils/newSite'
+
+/** GET /api/sites/dns-check's answer. */
+interface DnsAnswer {
+  domain: string
+  status: 'here' | 'partial' | 'elsewhere' | 'proxied' | 'unresolved' | 'unknown'
+  addresses: { family: number, address?: string, private?: boolean, own: boolean }[]
+  server: string[]
+  cdn?: string
+}
 
 definePageMeta({
   middleware: [() => {
@@ -51,7 +63,7 @@ watch(() => state.domain, (d) => {
   if (!edited.name) state.db_name = proposed
   if (!edited.user) state.db_user = proposed
 })
-watch(() => [state.domain, state.type, state.with_db, state.db_name, state.db_user, state.db_password], () => { serverErrors.value = {} })
+watch(() => [state.domain, state.aliases, state.type, state.with_db, state.db_name, state.db_user, state.db_password], () => { serverErrors.value = {} })
 
 // ---- the choices ----
 // The artboard's order: the PHP applications, then the rest.
@@ -79,6 +91,42 @@ function shownError(field: string): string | undefined {
   // A database name is checked as it is typed.
   if ((field === 'database_name' && state.db_name) || (field === 'database_user' && state.db_user)) return say(p)
   return undefined
+}
+
+// ---- the DNS readiness of each name (never stops Next) ----
+// Per name, for the life of the page: an answer, 'checking' or 'failed'
+// (a refusal, too many checks, the network). Names are asked one at a
+// time, once typing pauses, and only on the Domain step.
+const dns = reactive(new Map<string, DnsAnswer | 'checking' | 'failed'>())
+const dnsNames = computed(() => checkedNames(state))
+const dnsShown = computed(() => dnsNames.value.map(name => ({ name, check: dns.get(name) })))
+let dnsQueue: Promise<void> = Promise.resolve()
+function askDNS(names: string[], again = false) {
+  for (const name of names) {
+    const cur = dns.get(name)
+    if (cur === 'checking' || (cur && !again)) continue
+    dns.set(name, 'checking')
+    dnsQueue = dnsQueue.then(async () => {
+      try {
+        dns.set(name, await api.get<DnsAnswer>(`/api/sites/dns-check?domain=${encodeURIComponent(name)}`))
+      } catch {
+        dns.set(name, 'failed')
+      }
+    })
+  }
+}
+const askSoon = useDebounceFn(() => askDNS(dnsNames.value), 700)
+watch([dnsNames, step], () => { if (step.value === 'domain' && dnsNames.value.length) void askSoon() }, { immediate: true })
+const dnsBusy = computed(() => dnsShown.value.some(x => x.check === 'checking'))
+
+const dnsIcon: Record<string, string> = { here: 'i-cg-check-circle', partial: 'i-cg-alert-triangle', proxied: 'i-cg-alert-triangle', elsewhere: 'i-cg-x-circle', unresolved: 'i-cg-x-circle', unknown: 'i-cg-help', failed: 'i-cg-help', checking: 'i-cg-loader' }
+const dnsColor: Record<string, string> = { here: 'text-cg-ok', partial: 'text-cg-warn', proxied: 'text-cg-warn', elsewhere: 'text-cg-err', unresolved: 'text-cg-err', unknown: 'text-muted', failed: 'text-muted', checking: 'text-muted' }
+const dnsState = (c?: DnsAnswer | 'checking' | 'failed') => !c ? 'checking' : typeof c === 'string' ? c : c.status
+function dnsText(c?: DnsAnswer | 'checking' | 'failed'): string {
+  if (!c || c === 'checking') return t('newSite.wizard.dns.checking')
+  if (c === 'failed') return t('newSite.wizard.dns.failed')
+  const others = c.addresses.filter(a => !a.own).map(a => a.address ?? t('newSite.wizard.dns.private'))
+  return t(`newSite.wizard.dns.${c.status}`, { addrs: [...new Set(others)].join(', '), server: c.server.join(', ') })
 }
 
 // ---- moving between steps ----
@@ -215,7 +263,8 @@ const review = computed<{ step: WizardStep, rows: ReviewRow[] }[]>(() => {
     : [{ label: t('newSite.dbPart'), value: t('newSite.wizard.none') }]
   return [
     { step: 'type', rows: [{ label: t('site.typeLabel'), value: typeName.value }, { label: t('site.profileLabel'), value: profileName.value }] },
-    { step: 'domain', rows: [{ label: t('site.domain'), value: state.domain.trim().toLowerCase(), mono: true }] },
+    { step: 'domain', rows: [{ label: t('site.domain'), value: cleanHost(state.domain), mono: true },
+      ...(state.aliases.length ? [{ label: t('address.aliases'), value: state.aliases.map(cleanHost).join(', '), mono: true }] : [])] },
     ...(setup.length ? [{ step: 'setup' as const, rows: setup }] : []),
     { step: 'database', rows: db }
   ]
@@ -416,6 +465,48 @@ onBeforeRouteLeave(async () => {
                 <UFormField :label="t('site.domain')" required :error="shownError('domain')" class="max-w-[36rem]">
                   <UInput v-model="state.domain" placeholder="example.com" class="w-full" size="lg" :ui="{ base: 'font-mono' }" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url" />
                 </UFormField>
+                <UFormField :label="t('address.aliases')" :help="t('newSite.wizard.aliasesHint')" :error="shownError('aliases')" class="max-w-[36rem]">
+                  <UInputTags
+                    v-model="state.aliases"
+                    :placeholder="`www.${cleanHost(state.domain) || 'example.com'}`"
+                    :max="MAX_ALIASES"
+                    class="w-full font-mono"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    data-testid="site-aliases"
+                  />
+                </UFormField>
+
+                <section v-if="dnsShown.length" class="flex max-w-[48rem] flex-col border border-default" aria-labelledby="ws-dns" data-testid="site-dns">
+                  <div class="flex items-center justify-between gap-3 border-b border-default bg-muted px-4 py-2">
+                    <h3 id="ws-dns" class="m-0 text-[13px] font-semibold text-highlighted">{{ t('newSite.wizard.dns.title') }}</h3>
+                    <UButton
+                      color="secondary"
+                      variant="link"
+                      size="sm"
+                      class="px-0"
+                      icon="i-cg-refresh"
+                      :label="t('newSite.wizard.dns.again')"
+                      :disabled="dnsBusy"
+                      @click="askDNS(dnsNames, true)"
+                    />
+                  </div>
+                  <ul class="m-0 list-none p-0" aria-live="polite">
+                    <li v-for="x in dnsShown" :key="x.name" class="grid grid-cols-[18px_minmax(0,1fr)] items-start gap-3 border-b border-default px-4 py-2.5 last:border-b-0" :data-dns="dnsState(x.check)">
+                      <UIcon
+                        :name="dnsIcon[dnsState(x.check)]!"
+                        class="mt-0.5 size-[18px]"
+                        :class="[dnsColor[dnsState(x.check)], dnsState(x.check) === 'checking' ? 'animate-spin motion-reduce:animate-none' : '']"
+                        aria-hidden="true"
+                      />
+                      <span class="min-w-0">
+                        <span class="mono block text-[13px] text-highlighted [overflow-wrap:anywhere]">{{ x.name }}</span>
+                        <span class="block text-[13px] text-muted">{{ dnsText(x.check) }}</span>
+                      </span>
+                    </li>
+                  </ul>
+                  <p class="m-0 border-t border-default px-4 py-2 text-[13px] text-muted">{{ t('newSite.wizard.dns.hint') }}</p>
+                </section>
               </template>
 
               <!-- 3. What the type needs -->
