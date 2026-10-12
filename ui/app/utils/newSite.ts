@@ -2,7 +2,8 @@
  * The new-site wizard's helpers (pages/sites/new.vue): its steps and their
  * checks, the request it sends, the draft it keeps across a reload, the
  * database names it proposes, the passwords it generates and the summary it
- * shows once the site is created (internal/api SPEC §3.2). The names follow internal/site's rules
+ * shows once the site is created (internal/api SPEC §3.2), and the names
+ * whose DNS the Domain step checks (§3.14). The names follow internal/site's rules
  * (database.go): 3 to 48 lowercase letters, digits and _, starting with a
  * letter, never reserved; the server checks them again.
  */
@@ -128,6 +129,7 @@ export interface SiteDraft {
   type: SiteType
   profile: string
   domain: string
+  aliases: string[]
   php_version: string
   title: string
   admin_email: string
@@ -145,6 +147,7 @@ export function freshDraft(): SiteDraft {
     type: 'wordpress',
     profile: 'auto',
     domain: '',
+    aliases: [],
     php_version: 'auto',
     title: '',
     admin_email: '',
@@ -168,6 +171,21 @@ export const wantsDB = (d: Pick<SiteDraft, 'type' | 'with_db'>) => dbAlways(d.ty
 /** The profile "auto" stands for: the server picks it by type. */
 export const autoProfile = (t: SiteType) => t === 'woocommerce' ? 'commerce' : 'balanced'
 
+/** A host name as the server stores it: trimmed, lowercased, without a final dot. */
+export const cleanHost = (h: string) => h.trim().toLowerCase().replace(/\.$/, '')
+
+/** internal/site's rule for a domain or an alias: dotted labels of a-z, 0-9 and -, at most 253 characters. */
+const HOST_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/
+export const validHost = (h: string) => h.length <= 253 && HOST_RE.test(h)
+
+/** The most aliases a site may have (internal/api, maxAliases). */
+export const MAX_ALIASES = 50
+
+/** The names whose DNS the Domain step checks: the domain and each alias, valid, once each; never an address. */
+export function checkedNames(d: Pick<SiteDraft, 'domain' | 'aliases'>): string[] {
+  return [...new Set([d.domain, ...d.aliases].map(cleanHost).filter(h => validHost(h) && !/^[0-9.]+$/.test(h)))]
+}
+
 /** A problem with a field: an i18n key and its arguments. */
 export interface FieldProblem { key: string, args?: Record<string, unknown> }
 
@@ -183,6 +201,7 @@ export const FIELD_STEP: Record<string, WizardStep> = {
   type: 'type',
   profile: 'type',
   domain: 'domain',
+  aliases: 'domain',
   php_version: 'setup',
   title: 'setup',
   admin_email: 'setup',
@@ -201,7 +220,16 @@ export const FIELD_STEP: Record<string, WizardStep> = {
  */
 export function draftProblems(d: SiteDraft): Record<string, FieldProblem> {
   const e: Record<string, FieldProblem | undefined> = {}
-  if (!d.domain.trim()) e.domain = { key: 'newSite.domainRequired' }
+  const domain = cleanHost(d.domain)
+  if (!domain) e.domain = { key: 'newSite.domainRequired' }
+  else if (!validHost(domain)) e.domain = { key: 'newSite.wizard.hostInvalid', args: { name: domain } }
+  const seen = new Set([domain])
+  for (const a of d.aliases.map(cleanHost)) {
+    if (!validHost(a)) e.aliases ??= { key: 'newSite.wizard.hostInvalid', args: { name: a } }
+    else if (seen.has(a)) e.aliases ??= { key: 'newSite.wizard.aliasTwice', args: { name: a } }
+    seen.add(a)
+  }
+  if (d.aliases.length > MAX_ALIASES) e.aliases = { key: 'newSite.wizard.aliasesMax', args: { n: MAX_ALIASES } }
   if (isWPType(d.type)) {
     if (!/^[^\s@]+@[^\s@]+$/.test(d.admin_email.trim())) e.admin_email = { key: 'newSite.emailRequired' }
     if (!d.admin_user.trim()) e.admin_user = { key: 'newSite.adminUserRequired' }
@@ -232,7 +260,8 @@ export function firstStepOf(fields: string[]): WizardStep | undefined {
 
 /** The body of POST /api/sites: only what the chosen type uses. */
 export function createBody(d: SiteDraft): Record<string, unknown> {
-  const body: Record<string, unknown> = { domain: d.domain.trim().toLowerCase(), type: d.type }
+  const body: Record<string, unknown> = { domain: cleanHost(d.domain), type: d.type }
+  if (d.aliases.length) body.aliases = d.aliases.map(cleanHost)
   if (d.profile !== 'auto') body.profile = d.profile
   if (hasPHPType(d.type) && d.php_version !== 'auto') body.php_version = d.php_version
   if (isWPType(d.type)) Object.assign(body, { title: d.title, admin_email: d.admin_email.trim(), admin_user: d.admin_user.trim(), admin_password: d.admin_password })
@@ -282,6 +311,7 @@ export function readDraft(raw: string | null): StoredDraft | null {
     if (k in src && typeof src[k] === typeof def) draft[k] = src[k]
   }
   if (draft.type !== undefined && !TYPES.includes(draft.type as SiteType)) delete draft.type
+  if (draft.aliases !== undefined && !(Array.isArray(draft.aliases) && draft.aliases.every(a => typeof a === 'string'))) delete draft.aliases
   const step = WIZARD_STEPS.includes(o.step as WizardStep) ? o.step as WizardStep : 'type'
   const e = (o.edited && typeof o.edited === 'object' ? o.edited : {}) as Record<string, unknown>
   return { step, draft: draft as Partial<SiteDraft>, edited: { name: e.name === true, user: e.user === true } }

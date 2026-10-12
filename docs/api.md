@@ -184,6 +184,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | :-- | :-- | :-- | :-- |
 | `GET` | `/api/sites` | auth | the sites the caller may see |
 | `POST` | `/api/sites` | admin | create (the database name, user and password may be chosen) — returns `202`, a task and the summary, the only answer with the database password |
+| `GET` | `/api/sites/dns-check?domain=` | manage | whether a host name already points at this server (the certificate's readiness): `status` `here`, `partial`, `elsewhere`, `proxied` (a CDN hides the origin), `unresolved` or `unknown`, its A and AAAA `addresses` (a private one unnamed) and the server's public addresses; a lookup only, 3 s at most, 30 a minute per account |
 | `GET` | `/api/sites/{id}` | auth | a site and its settings |
 | `DELETE` | `/api/sites/{id}` | admin | delete — returns `202` |
 | `PATCH` | `/api/sites/{id}` | manage | change any of the site's settings in one request (fields below) — returns `202`, the site and one task |

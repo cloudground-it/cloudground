@@ -8,17 +8,21 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 )
 
-// siteCreation (Fase 9b, stream 2): a site is created with the database
+// siteCreation (Fase 9b, stream 2, and #132): a site is created with the database
 // name, user and password its creator chose. WordPress is configured with
 // them and serves; MariaDB accepts the chosen account; a name another site
 // has is 409 naming the field; a static site asked for a database gets
 // one; the creation's answer holds the password and no read ever does;
-// cgctl sites create takes the same flags and prints the summary.
+// cgctl sites create takes the same flags and prints the summary. The
+// wizard's Domain step (#132): the DNS readiness check tells a name that
+// points at this server from one that does not, and aliases given at
+// creation are served from the start.
 func (h *harness) siteCreation(t *testing.T) {
 	c := &creationFx{h: h, tag: fmt.Sprintf("e2e%d", h.pid%100000)}
 	id, ok := c.wordpressWithChosenDB(t)
@@ -29,6 +33,8 @@ func (h *harness) siteCreation(t *testing.T) {
 	}
 	c.staticWithDatabase(t)
 	c.cgctlCreate(t)
+	c.dnsCheck(t)
+	c.withAliases(t)
 }
 
 type creationFx struct {
@@ -266,4 +272,50 @@ func (c *creationFx) cgctlCreate(t *testing.T) {
 		strings.Contains(r.Out, "Name:        "+name) && strings.Contains(r.Out, "Password:    "+pw) && strings.Contains(r.Out, "https://"+dom+"/"),
 		"%s", r)
 	h.assert(t, "F9b/2: the database cgctl asked for is on the server", c.dbExists(name), "%s missing", name)
+}
+
+// dnsCheck (#132): a name that resolves to this server's public address is
+// "here", one that resolves to another public address "elsewhere"; an
+// address literal is refused. Asserts on the server's own answer: the
+// sslip.io names resolve to the address in them.
+func (c *creationFx) dnsCheck(t *testing.T) {
+	h := c.h
+	var ans struct {
+		Status    string   `json:"status"`
+		Server    []string `json:"server"`
+		Addresses []struct {
+			Address string `json:"address"`
+			Own     bool   `json:"own"`
+		} `json:"addresses"`
+	}
+	code, b := h.api.get("/api/sites/dns-check?domain=" + h.dom("dnsready"))
+	_ = json.Unmarshal(b, &ans)
+	h.check(t, "#132: the DNS check of a name pointing here answers", fmt.Sprintf("%d %s", code, ans.Status), "200 here")
+	h.assert(t, "#132: the DNS check lists this server's public address", slices.Contains(ans.Server, h.IP),
+		"server %v, want %s (the API lists its own addresses: AF_NETLINK, #121)", ans.Server, h.IP)
+	ans.Status = ""
+	code, b = h.api.get("/api/sites/dns-check?domain=e2e.192-0-2-1.sslip.io")
+	_ = json.Unmarshal(b, &ans)
+	h.assert(t, "#132: the DNS check of a name pointing elsewhere says so", code == 200 && ans.Status == "elsewhere" &&
+		len(ans.Addresses) == 1 && ans.Addresses[0].Address == "192.0.2.1" && !ans.Addresses[0].Own, "= %d %s", code, head(b, 300))
+	code, _ = h.api.get("/api/sites/dns-check?domain=" + h.IP)
+	h.check(t, "#132: the DNS check refuses an address", fmt.Sprint(code), "400")
+}
+
+// withAliases (#132): aliases given at creation are stored with the site
+// and nginx answers for them once it is provisioned.
+func (c *creationFx) withAliases(t *testing.T) {
+	h := c.h
+	dom, alias := h.dom("f9bal"), h.dom("www-f9bal")
+	code, r, b := c.post(map[string]any{"domain": dom, "type": "static", "aliases": []string{alias}})
+	h.check(t, "#132: a site created with an alias is accepted", fmt.Sprint(code), "202")
+	if r.Site.ID == 0 || h.api.waitActive(r.Site.ID, 4*time.Minute) != "active" {
+		h.fail(t, "#132: the site created with an alias provisions", "%s", head(b, 300))
+		return
+	}
+	h.assert(t, "#132: the alias is stored with the site", slices.Equal(h.api.site(r.Site.ID).Aliases, []string{alias}),
+		"aliases %v", h.api.site(r.Site.ID).Aliases)
+	conf := h.run("nginx", "-T").Out
+	h.assert(t, "#132: nginx answers for the alias given at creation", strings.Contains(conf, "server_name "+dom+" "+alias),
+		"no 'server_name %s %s' in nginx -T", dom, alias)
 }

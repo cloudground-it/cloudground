@@ -120,3 +120,31 @@ test('a stored draft of the wrong shape is dropped, not trusted', () => {
   assert.deepEqual(odd.draft, { title: 'T' })
   assert.deepEqual(odd.edited, { name: false, user: false })
 })
+
+test('#132: the Domain step checks the aliases and Create sends them cleaned', () => {
+  assert.deepEqual(keys(wp({ aliases: ['www.blog.example.com'] }), 'domain'), [])
+  assert.equal(w.stepProblems(wp({ aliases: ['not a host'] }), 'domain').aliases.key, 'newSite.wizard.hostInvalid')
+  assert.equal(w.stepProblems(wp({ aliases: ['Blog.example.com'] }), 'domain').aliases.key, 'newSite.wizard.aliasTwice')
+  assert.equal(w.stepProblems(wp({ aliases: ['a.example.com', 'A.example.com.'] }), 'domain').aliases.key, 'newSite.wizard.aliasTwice')
+  assert.equal(w.stepProblems(wp({ aliases: Array.from({ length: 51 }, (_, i) => `a${i}.example.com`) }), 'domain').aliases.key, 'newSite.wizard.aliasesMax')
+  assert.equal(w.stepProblems(wp({ domain: 'http://blog.example.com' }), 'domain').domain.key, 'newSite.wizard.hostInvalid')
+  assert.equal(w.FIELD_STEP.aliases, 'domain')
+  const body = w.createBody(wp({ domain: ' Blog.Example.com. ', aliases: [' WWW.blog.example.com '] }))
+  assert.equal(body.domain, 'blog.example.com')
+  assert.deepEqual(body.aliases, ['www.blog.example.com'])
+  assert.equal('aliases' in w.createBody(wp()), false)
+})
+
+test('#132: the DNS check asks for each valid name once, never an address', () => {
+  assert.deepEqual(w.checkedNames({ domain: 'Blog.example.com', aliases: ['www.blog.example.com', 'blog.example.com', 'bad name', '192.0.2.1'] }),
+    ['blog.example.com', 'www.blog.example.com'])
+  assert.deepEqual(w.checkedNames({ domain: '', aliases: [] }), [])
+})
+
+test('#132: a reload keeps the aliases, and drops them when they have the wrong shape', () => {
+  const kept = w.readDraft(w.storeDraft('domain', wp({ aliases: ['www.blog.example.com'] }), { name: false, user: false }))
+  assert.deepEqual(kept.draft.aliases, ['www.blog.example.com'])
+  for (const aliases of [null, [1, 2], { a: 1 }]) {
+    assert.equal(w.readDraft(JSON.stringify({ step: 'domain', draft: { aliases } })).draft.aliases, undefined, JSON.stringify(aliases))
+  }
+})

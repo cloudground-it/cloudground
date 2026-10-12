@@ -422,6 +422,7 @@ e2e/signin_review_test.go	lastSeen	R-4.3 sign-in review
 e2e/site_blocking_test.go	harness.siteBlocking	site blocking
 e2e/site_creation_test.go	creationFx.cgctlCreate	F9b site creation
 e2e/site_creation_test.go	creationFx.dbExists	F9b site creation
+e2e/site_creation_test.go	creationFx.dnsCheck	F9b site creation
 e2e/site_creation_test.go	creationFx.passwordNeverReadBack	F9b site creation
 e2e/site_creation_test.go	creationFx.post	ALL
 e2e/site_creation_test.go	creationFx.root	ALL
@@ -429,6 +430,7 @@ e2e/site_creation_test.go	creationFx.signsIn	F9b site creation
 e2e/site_creation_test.go	creationFx.staticWithDatabase	F9b site creation
 e2e/site_creation_test.go	creationFx.takenNamesRefused	F9b site creation
 e2e/site_creation_test.go	creationFx.unquotablePasswordsRefused	F9b site creation
+e2e/site_creation_test.go	creationFx.withAliases	F9b site creation
 e2e/site_creation_test.go	creationFx.wordpressWithChosenDB	F9b site creation
 e2e/site_creation_test.go	harness.siteCreation	F9b site creation
 e2e/sites_test.go	harness.siteLifecycle	R-3.7 site lifecycle

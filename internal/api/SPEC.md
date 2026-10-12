@@ -738,7 +738,7 @@ empty list is `[]`.
 Checks, in this order; the first that fails answers:
 
 1. The body decodes (unknown fields refused) → else 400 `malformed request: <decoder error>`.
-2. `domain`, lowercased and trimmed, is a plain host name → 400 `invalid domain "<d>"`; each alias, lowercased and trimmed, the same.
+2. `domain`, lowercased and trimmed, is a plain host name → 400 `invalid domain "<d>"`; at most 50 `aliases` → 400 `at most 50 aliases` (as a patch's, §3.4); each alias, lowercased and trimmed, the same.
 3. `type` is one of `wordpress`, `woocommerce`, `static`, `php`, `laravel`, `proxy` → 400 `invalid site type`.
 4. `profile` (after its default) is `balanced`, `commerce` or `maximum` → 400 `invalid profile`.
 5. WordPress and WooCommerce: `admin_email` parses as an address → 400 `valid admin email required for WordPress`; `admin_user` non-empty and `admin_password` at least 12 bytes → 400 `admin user and a 12+ character password required`.
@@ -1033,6 +1033,39 @@ remove the rules. Audit `site.blocking`, detail `<n> addresses, <n> user
 agents, countries <codes>|only <codes>|no countries` or `none`. Answer: 200,
 the rules as stored.
 
+### 3.14 DNS readiness (#132, `dns_check.go`)
+
+`GET /api/sites/dns-check?domain=<name>` (manage: admins and operators)
+answers whether a host name already points at this server, so that its
+Let's Encrypt certificate can be issued; the new-site wizard asks it for the
+domain and each alias, and never stops on its answer. It is a lookup, never
+a connection, and not a resolver for anything else:
+
+1. The name, lowercased, trimmed and without a final dot, passes
+   `site.ValidateDomain` and is not an address literal → else 400.
+2. At most 30 checks a minute per account and 120 for the whole panel
+   (`throttle.Window`, in memory) → else **429** `too many DNS checks; try
+   again in a minute`, before any lookup.
+3. A and AAAA are looked up apart with the system resolver, together at most
+   3 seconds; a family that does not exist is an answer, any other failure
+   is not.
+4. The answer is 200 `{domain, status, addresses: [{family, address, private,
+   own}], server: [<this machine's public addresses>], cdn}`. `server` is the
+   public addresses of this machine's interfaces (`ownAddrs`, which needs the
+   unit's `AF_NETLINK`, #121): loopback, private, link-local, shared
+   (100.64/10), multicast and unspecified ones are left out, and a resolved
+   address of those kinds is `private` with no `address` (what the
+   server's resolver knows of inward names is not told).
+   `status`: `here` (every address is the server's), `partial` (some are,
+   some are not: an AAAA left at the old host makes the ACME check fail
+   over IPv6), `proxied` with `cdn: "cloudflare"` (none is, and every one is
+   in Cloudflare's published ranges: its proxy hides the origin, and the
+   HTTP-01 check reaches the origin only through it), `elsewhere`,
+   `unresolved` (no A or AAAA record), `unknown` (the lookup failed, or the
+   server has no public address of its own to compare with, as behind NAT).
+
+Nothing is written or audited.
+
 ### 3.11 Tests
 
 `site_service_test.go` (the services without HTTP: create's defaults and
@@ -1042,7 +1075,7 @@ wrappers' unchanged answers), `sites_review_test.go` (the review of 63e9447: the
 generation, unique names, legacy payloads, the deprecated TTL, refused work
 undone, the PHP budget), `sites_race_test.go`, `sites_rollback_test.go`,
 `capabilities_review_test.go` (staging resolves the root first),
-`site_create_db_test.go` (the chosen database, the toggle, the field
+`dns_check_test.go` (§3.14's verdicts, refusals, roles and limit, and aliases given at creation), `site_create_db_test.go` (the chosen database, the toggle, the field
 problems, 409 for a taken name, the summary and that no read answers the
 password), and the contract tests across the package. The e2e section
 `R-4.3 site settings` applies a patch on a box and reads the result from

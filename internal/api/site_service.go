@@ -148,6 +148,9 @@ func checkNewSite(req *newSite) (state.Site, newSiteDB, error) {
 	if err := site.ValidateDomain(req.Domain); err != nil {
 		return state.Site{}, newSiteDB{}, refuse(probInvalid, err.Error())
 	}
+	if len(req.Aliases) > maxAliases {
+		return state.Site{}, newSiteDB{}, refuse(probInvalid, fmt.Sprintf("at most %d aliases", maxAliases))
+	}
 	for i := range req.Aliases {
 		req.Aliases[i] = cleanHost(req.Aliases[i])
 		a := req.Aliases[i]
