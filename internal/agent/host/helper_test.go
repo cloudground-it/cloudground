@@ -207,7 +207,7 @@ func TestRunSandboxedInTheHelperSlice(t *testing.T) {
 // agentOnly are cloudground-agent.service's lines that are about the agent
 // itself, not the sandbox its helpers inherited.
 var agentOnly = map[string]bool{
-	"Type": true, "EnvironmentFile": true, "Environment": true, "ExecStart": true, "Restart": true, "RestartSec": true,
+	"Type": true, "EnvironmentFile": true, "Environment": true, "ExecStart": true, "ExecStartPre": true, "TimeoutStartSec": true, "Restart": true, "RestartSec": true,
 	"RuntimeDirectory": true, "RuntimeDirectoryMode": true, "RuntimeDirectoryPreserve": true,
 	"MemoryHigh": true, "MemoryMax": true, "OOMPolicy": true,
 }

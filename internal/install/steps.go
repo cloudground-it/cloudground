@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/cloudground-it/cloudground/internal/install/managed"
+	"github.com/cloudground-it/cloudground/internal/syspkg"
 )
 
 // Step is one idempotent piece of the install (SPEC §1).
@@ -70,22 +71,12 @@ var (
 	pinComposer = Pin{ComposerVersion, ComposerURL, ComposerSHA256}
 )
 
-// BasePackages come first: what adding the PPA and the downloads need.
-var BasePackages = []string{"software-properties-common", "curl", "gnupg", "ca-certificates", "bzip2"}
+// BasePackages come first: what adding the PPA and the downloads need. The
+// lists live in internal/syspkg, which the agent reads too (#113).
+var BasePackages = syspkg.Base
 
-// MainPackages is the data plane for PHP version php. redis-server and
-// php-redis are no longer in it (R-6.1): nothing ever turns Redis on; the
-// object cache is APCu only.
-func MainPackages(php string) []string {
-	pkgs := []string{"nginx", "mariadb-server", "certbot", "python3-certbot-dns-cloudflare"}
-	for _, ext := range []string{"fpm", "mysql", "curl", "gd", "intl", "mbstring", "soap", "xml", "zip", "imagick", "bcmath", "apcu"} {
-		pkgs = append(pkgs, "php"+php+"-"+ext)
-	}
-	// cron runs the sites' jobs (/etc/cron.d); minimal images ship without it.
-	// nftables is the block list's (internal/blocklist SPEC §5): ufw drives
-	// netfilter without it, and not every image has the nft command.
-	return append(pkgs, "git", "unzip", "cron", "nftables")
-}
+// MainPackages is the data plane for PHP version php (syspkg.Main).
+func MainPackages(php string) []string { return syspkg.Main(php) }
 
 // The progress groups, in order: the old installer's ten lines.
 const (
