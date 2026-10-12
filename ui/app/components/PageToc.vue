@@ -47,7 +47,7 @@ onBeforeUnmount(() => scroller?.removeEventListener('scroll', update))
 
 <template>
   <nav ref="root" :aria-label="t('ux.toc.label')" class="min-w-0 lg:sticky lg:top-6 lg:self-start">
-    <p class="hud m-0 mb-2 hidden text-muted lg:block">
+    <p class="m-0 mb-2 hidden text-[13px] font-semibold text-muted lg:block">
       {{ t('ux.toc.label') }}
     </p>
     <ul class="scrollbar-none m-0 flex list-none gap-1 overflow-x-auto overflow-y-hidden border-b border-default p-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:border-b-0 lg:border-s">

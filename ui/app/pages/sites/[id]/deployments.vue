@@ -127,7 +127,7 @@ async function createRelease() {
       </UFormField>
       <UFormField v-else :label="t('deploy.folder')" :help="t('deploy.folderHint')">
         <UFieldGroup class="w-full">
-          <UBadge color="neutral" variant="outline" size="lg" class="mono max-w-[45%] shrink-0 truncate tracking-normal normal-case" :label="`${site.root_path}/`" />
+          <UBadge color="neutral" variant="outline" size="lg" class="mono max-w-[45%] shrink-0 truncate" :label="`${site.root_path}/`" />
           <UInput v-model="folder" class="min-w-0 flex-1 font-mono" placeholder="shared/build" />
         </UFieldGroup>
       </UFormField>

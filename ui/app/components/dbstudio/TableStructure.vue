@@ -214,7 +214,7 @@ const fkColumns = computed(() => [
       <template #footer>
         <div class="flex w-full justify-end gap-2">
           <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="colOpen = false" />
-          <UButton :label="t('dbstudio.previewSql')" icon="i-cg-eye" :loading="busy" :disabled="!col.name.trim()" @click="submitColumn" />
+          <UButton color="primary" variant="solid" :label="t('dbstudio.previewSql')" icon="i-cg-eye" :loading="busy" :disabled="!col.name.trim()" @click="submitColumn" />
         </div>
       </template>
     </UModal>

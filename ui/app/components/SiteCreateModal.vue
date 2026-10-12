@@ -264,9 +264,8 @@ function openSite() {
     <template #header>
       <div class="flex w-full items-start justify-between gap-4 px-5 pt-5 pb-4 sm:px-6">
         <div class="flex min-w-0 flex-col gap-1.5">
-          <span class="hud text-muted">{{ phase === 'form' ? t('newSite.kickerForm') : taskState === 'succeeded' ? t('newSite.kickerDone') : taskState === 'failed' ? t('newSite.kickerFailed') : t('newSite.kickerCreating') }}</span>
-          <h2 class="disp m-0 text-[30px] leading-none text-highlighted [overflow-wrap:anywhere]">
-            <template v-if="phase === 'form'">{{ t('newSite.title') }} <span class="ser text-cg-blue">{{ t('newSite.titleAccent') }}</span></template>
+          <h2 class="m-0 text-[1.375rem] leading-tight font-semibold tracking-[-0.015em] text-highlighted [overflow-wrap:anywhere]">
+            <template v-if="phase === 'form'">{{ t('newSite.title') }} {{ t('newSite.titleAccent') }}</template>
             <template v-else>{{ created?.domain }}</template>
           </h2>
           <p class="m-0 text-[13px] leading-normal text-muted">{{ phase === 'form' ? t('site.newHint') : t('newSite.summaryHint') }}</p>
@@ -283,8 +282,8 @@ function openSite() {
         </UFormField>
 
         <div class="flex flex-col gap-2">
-          <span id="ns-type" class="hud text-muted">{{ t('site.typeLabel') }}</span>
-          <div role="radiogroup" aria-labelledby="ns-type" class="grid grid-cols-2 gap-px sm:grid-cols-3 border border-default bg-(--cg-line)">
+          <span id="ns-type" class="text-sm font-medium text-highlighted">{{ t('site.typeLabel') }}</span>
+          <div role="radiogroup" aria-labelledby="ns-type" class="cg-grid grid-cols-2 sm:grid-cols-3">
             <button
               v-for="d in typeDefs"
               :key="d.value"
@@ -292,11 +291,11 @@ function openSite() {
               role="radio"
               :aria-checked="state.type === d.value"
               class="flex min-h-[68px] min-w-0 flex-col items-start gap-1 p-3 text-start transition-colors"
-              :class="state.type === d.value ? 'bg-inverted text-inverted' : 'bg-default text-highlighted hover:bg-accented'"
+              :class="state.type === d.value ? 'bg-cg-blue-tint text-highlighted shadow-[inset_0_0_0_2px_var(--cg-blue)]' : 'bg-default text-highlighted hover:bg-elevated'"
               @click="state.type = d.value"
             >
               <span class="text-sm font-semibold">{{ d.label }}</span>
-              <span class="text-xs opacity-80">{{ d.desc }}</span>
+              <span class="text-[13px] text-muted">{{ d.desc }}</span>
             </button>
           </div>
         </div>
@@ -315,7 +314,7 @@ function openSite() {
         </div>
 
         <section v-if="isWP" class="flex flex-col gap-4 border-t border-default pt-4" :aria-label="t('newSite.wpPart')">
-          <span class="hud text-muted">{{ t('newSite.wpPart') }}</span>
+          <h3 class="m-0 text-[15px] font-semibold text-highlighted">{{ t('newSite.wpPart') }}</h3>
           <UFormField :label="t('site.title')">
             <UInput v-model="state.title" class="w-full" />
           </UFormField>
@@ -340,7 +339,7 @@ function openSite() {
         </section>
 
         <section v-if="state.type !== 'proxy'" class="flex flex-col gap-4 border-t border-default pt-4" :aria-label="t('newSite.dbPart')">
-          <span class="hud text-muted">{{ t('newSite.dbPart') }}</span>
+          <h3 class="m-0 text-[15px] font-semibold text-highlighted">{{ t('newSite.dbPart') }}</h3>
           <USwitch v-if="dbOptional" v-model="state.with_db" :label="t('newSite.withDatabase')" :description="t('newSite.withDatabaseHint')" />
           <p v-else class="m-0 text-[13px] leading-normal text-muted">{{ t('newSite.dbAlways', { type: t(`site.type.${state.type}`) }) }}</p>
           <template v-if="wantsDB">
@@ -373,21 +372,21 @@ function openSite() {
       <div v-else-if="created" class="flex flex-col gap-5 px-5 py-5 sm:px-6" data-testid="site-summary">
         <ol class="cg-list" :aria-label="t('newSite.progress')">
           <li v-for="s in steps" :key="s.n" class="flex items-center gap-3.5 px-0.5 py-2.5">
-            <span class="hud min-w-[22px] text-cg-orange">{{ s.n }}</span>
+            <span class="mono min-w-[22px] text-[13px] text-cg-blue">{{ s.n }}</span>
             <span class="min-w-0 flex-1 text-sm text-highlighted [overflow-wrap:anywhere]">{{ s.what }}</span>
-            <span class="hud shrink-0 text-end" :class="stateColor(s.st)">{{ stateLabel(s.st) }}</span>
+            <span class="shrink-0 text-end text-[13px] font-medium" :class="stateColor(s.st)">{{ stateLabel(s.st) }}</span>
           </li>
           <li v-if="!steps.length" class="flex items-center gap-3.5 px-0.5 py-2.5">
-            <span class="hud min-w-[22px] text-cg-orange">01</span>
+            <span class="mono min-w-[22px] text-[13px] text-cg-blue">01</span>
             <span class="min-w-0 flex-1 text-sm text-highlighted">{{ t('newSite.queued') }}</span>
-            <span class="hud shrink-0 text-cg-blue">{{ stateLabel('running') }}</span>
+            <span class="shrink-0 text-[13px] font-medium text-cg-blue">{{ stateLabel('running') }}</span>
           </li>
         </ol>
         <UAlert v-if="taskState === 'failed'" color="error" variant="subtle" icon="i-cg-x-circle" :title="t('newSite.failed')" :description="task?.error" />
 
-        <dl class="m-0 grid grid-cols-1 gap-px border border-default bg-(--cg-line) sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)]">
+        <dl class="cg-grid m-0 grid-cols-1 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)]">
           <template v-for="(row, i) in rows" :key="i">
-            <dt v-if="row.part" class="hud bg-elevated px-3 py-2 text-muted sm:col-span-2">{{ row.part }}</dt>
+            <dt v-if="row.part" class="bg-elevated px-3 py-2 text-[13px] font-semibold text-highlighted sm:col-span-2">{{ row.part }}</dt>
             <template v-else>
               <dt class="bg-default px-3 pt-2.5 text-[13px] text-muted sm:py-2.5">{{ row.label }}</dt>
               <dd class="m-0 flex min-w-0 items-center gap-2 bg-default px-3 pb-2.5 sm:py-2">
@@ -406,14 +405,14 @@ function openSite() {
     <template #footer>
       <div v-if="phase === 'form'" class="flex w-full flex-wrap justify-end gap-2.5">
         <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="close" />
-        <UButton type="submit" form="create-site" :label="t('site.create')" :loading="busy" />
+        <UButton type="submit" form="create-site" color="primary" variant="solid" :label="t('site.create')" :loading="busy" />
       </div>
       <div v-else class="flex w-full flex-wrap items-center justify-end gap-2.5">
         <UButton color="neutral" variant="outline" icon="i-cg-download" :label="t('newSite.download')" data-testid="summary-download" @click="download" />
         <UButton color="neutral" variant="outline" :icon="copiedAll ? 'i-cg-check' : 'i-cg-copy'" :label="copiedAll ? t('common.copied') : t('common.copy')" data-testid="summary-copy" @click="copyAll" />
         <span class="hidden flex-1 sm:block" />
         <UButton color="neutral" variant="ghost" :label="t('newSite.close')" data-testid="summary-close" @click="close" />
-        <UButton :label="t('newSite.openSite')" trailing-icon="i-cg-arrow-right" @click="openSite" />
+        <UButton color="primary" variant="solid" :label="t('newSite.openSite')" trailing-icon="i-cg-arrow-right" @click="openSite" />
       </div>
     </template>
   </UModal>

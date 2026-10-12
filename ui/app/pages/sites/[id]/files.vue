@@ -281,11 +281,11 @@ const kindLabel = (k: FileKind) => k.binary ? `${t(`files.kind.${k.binary}`)} ·
             {{ editing.path }}
           </p>
           <span v-if="dirty" class="flex shrink-0 items-center gap-1.5 text-xs text-warning" :title="t('editor.unsaved')">
-            <span class="size-2 rounded-full bg-warning" />
+            <span class="size-2 bg-warning" />
             <span class="hidden sm:inline">{{ t('editor.unsaved') }}</span>
           </span>
           <UButton size="sm" color="neutral" variant="ghost" square icon="i-cg-download" :aria-label="t('files.download')" @click="downloadPath(editing.path)" />
-          <UButton size="sm" icon="i-cg-check" :label="t('common.save')" :loading="editor?.saving" :disabled="!dirty" @click="editor?.save()" />
+          <UButton color="primary" variant="solid" size="sm" icon="i-cg-check" :label="t('common.save')" :loading="editor?.saving" :disabled="!dirty" @click="editor?.save()" />
           <UButton size="sm" color="neutral" variant="ghost" square icon="i-cg-x" :aria-label="t('editor.close')" @click="closeEditor" />
         </div>
       </template>
@@ -327,7 +327,7 @@ const kindLabel = (k: FileKind) => k.binary ? `${t(`files.kind.${k.binary}`)} ·
       <template #footer>
         <div class="flex w-full justify-end gap-2">
           <UButton color="neutral" variant="ghost" :label="t('editor.close')" @click="card = null" />
-          <UButton icon="i-cg-download" :label="t('files.download')" @click="card && downloadPath(card.path)" />
+          <UButton color="primary" variant="solid" icon="i-cg-download" :label="t('files.download')" @click="card && downloadPath(card.path)" />
         </div>
       </template>
     </UModal>
@@ -357,7 +357,7 @@ const kindLabel = (k: FileKind) => k.binary ? `${t(`files.kind.${k.binary}`)} ·
       <template #footer>
         <div class="flex w-full justify-end gap-2">
           <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="answer(null)" />
-          <UButton :label="t('common.confirm')" @click="answer(prompt?.value ?? null)" />
+          <UButton color="primary" variant="solid" :label="t('common.confirm')" @click="answer(prompt?.value ?? null)" />
         </div>
       </template>
     </UModal>

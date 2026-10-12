@@ -3,216 +3,219 @@
 
 /*
  * Fonts, self-hosted: the panel's CSP allows font-src 'self' only.
- * All three are SIL OFL 1.1 (licences next to the files), taken from
- * the google/fonts repository and cut down with fonttools:
- *   varLib.instancer Archivo[wdth,wght].ttf wdth=100:125 wght=300:800
- *   subset --unicodes=Latin, Latin-1, Latin Extended-A, general punctuation,
- *     arrows, ⌘ ⋯ ▾ --layout-features='*' --flavor=woff2
- * (GeistMono[wght].ttf and InstrumentSerif-Italic.ttf with the same subset).
+ * IBM Plex Sans (variable, weights 100–700) and IBM Plex Mono (400, 500),
+ * SIL OFL 1.1 (IBMPlex-OFL.txt), the latin and latin-ext woff2 cuts of
+ * @fontsource-variable/ibm-plex-sans 5.3.0 and @fontsource/ibm-plex-mono
+ * 5.3.0. Mono is only for commands, figures, paths and identifiers.
  */
 @font-face {
-  font-family: 'Archivo';
-  src: url('../fonts/archivo.woff2') format('woff2');
-  font-weight: 300 800;
-  font-stretch: 100% 125%;
+  font-family: 'IBM Plex Sans';
+  src: url('../fonts/plex-sans-latin.woff2') format('woff2');
+  font-weight: 100 700;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: 'Geist Mono';
-  src: url('../fonts/geist-mono.woff2') format('woff2');
-  font-weight: 100 900;
+  font-family: 'IBM Plex Sans';
+  src: url('../fonts/plex-sans-latin-ext.woff2') format('woff2');
+  font-weight: 100 700;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: 'Instrument Serif';
-  src: url('../fonts/instrument-serif-italic.woff2') format('woff2');
+  font-family: 'IBM Plex Mono';
+  src: url('../fonts/plex-mono-400.woff2') format('woff2');
   font-weight: 400;
-  font-style: italic;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('../fonts/plex-mono-500.woff2') format('woff2');
+  font-weight: 500 700;
+  font-style: normal;
   font-display: swap;
 }
 
 @theme static {
-  --font-sans: 'Archivo', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-serif: 'Instrument Serif', Georgia, serif;
-
-  /* Brand palettes, kept for the code editor's syntax colours. */
-  --color-stratos-300: #9DB2FF;
-  --color-stratos-700: #2246D6;
-  --color-terra-300: #FFA675;
-  --color-terra-700: #B94A1E;
-  --color-basalt-50: #F4F6FB;
-  --color-basalt-100: #E8ECF4;
-  --color-basalt-200: #D2D9E6;
-  --color-basalt-300: #AEB9CD;
-  --color-basalt-400: #8391AB;
-  --color-basalt-500: #63718C;
-  --color-basalt-600: #4D5972;
-  --color-basalt-700: #3E485D;
-  --color-basalt-800: #283246;
-  --color-basalt-900: #172235;
-  --color-basalt-950: #0E1A2B;
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* The design tokens as Tailwind colours: bg-cg-ok-bg, text-cg-blue, … */
+/* The design tokens as Tailwind colours: bg-cg-paper-2, text-cg-blue, … */
 @theme inline {
-  --color-cg-bg: var(--cg-bg);
-  --color-cg-bg2: var(--cg-bg2);
-  --color-cg-bg3: var(--cg-bg3);
-  --color-cg-line: var(--cg-line);
-  --color-cg-line-strong: var(--cg-line-strong);
+  --color-cg-paper: var(--cg-paper);
+  --color-cg-paper-2: var(--cg-paper-2);
+  --color-cg-paper-3: var(--cg-paper-3);
+  --color-cg-rule: var(--cg-rule);
+  --color-cg-rule-strong: var(--cg-rule-strong);
   --color-cg-ink: var(--cg-ink);
   --color-cg-text: var(--cg-text);
   --color-cg-muted: var(--cg-muted);
-  --color-cg-faint: var(--cg-faint);
-  --color-cg-inv-bg: var(--cg-inv-bg);
-  --color-cg-inv-fg: var(--cg-inv-fg);
-  --color-cg-panel: var(--cg-panel);
-  --color-cg-panel-line: var(--cg-panel-line);
-  --color-cg-panel-text: var(--cg-panel-text);
   --color-cg-blue: var(--cg-blue);
+  --color-cg-blue-tint: var(--cg-blue-tint);
   --color-cg-orange: var(--cg-orange);
+  --color-cg-on-orange: var(--cg-on-orange);
+  --color-cg-stamp: var(--cg-stamp);
   --color-cg-ok: var(--cg-ok);
-  --color-cg-ok-bg: var(--cg-ok-bg);
+  --color-cg-ok-tint: var(--cg-ok-tint);
   --color-cg-warn: var(--cg-warn);
-  --color-cg-warn-bg: var(--cg-warn-bg);
+  --color-cg-warn-tint: var(--cg-warn-tint);
   --color-cg-err: var(--cg-err);
-  --color-cg-err-bg: var(--cg-err-bg);
+  --color-cg-err-tint: var(--cg-err-tint);
+  --color-cg-code-bg: var(--cg-code-bg);
+  --color-cg-code-fg: var(--cg-code-fg);
+  --color-cg-code-muted: var(--cg-code-muted);
+  --color-cg-code-rule: var(--cg-code-rule);
 }
 
 /*
- * Tokens from the panel artboards (ui/design/reference, .t-light / .t-dark).
- * Three light values are a step darker than the artboards so that 11px text
- * passes WCAG AA: --ok (4.3:1 → 5.1:1 on its tint), --orange (4.2:1 →
- * 4.7:1 on paper) and --faint (4.3:1 → 4.9:1 on the sidebar ground).
- * --line-strong is the 3:1 boundary of form controls (WCAG 1.4.11): the
- * hairline alone is 1.3:1.
+ * The tokens of the CloudGround design system ("Rapporto di prova",
+ * DESIGN.md): warm paper, near-black ink, blue for links, focus, selection
+ * and protocol, orange only for the one primary action of a screen and for
+ * outcome marks. Every text pair passes WCAG AA in both themes (lowest:
+ * muted on paper-3 5.26:1, on-orange on orange 4.80:1); --rule-strong is
+ * the 3:1 boundary of form controls (WCAG 1.4.11). Re-check after a change.
+ * --logo-orange is the brand orange of the logo's lower bar, a fill only.
  */
 :root {
-  --cg-bg: #F2F1EC;
-  --cg-bg2: #E9E7E0;
-  --cg-bg3: #E2E0D8;
-  --cg-line: #D6D4CC;
-  --cg-line-strong: #8A887F;
-  --cg-ink: #0F0F12;
-  --cg-text: #1B1B20;
-  --cg-muted: #55555D;
-  --cg-faint: #61616A;
-  --cg-inv-bg: #0F0F12;
-  --cg-inv-fg: #F2F1EC;
-  --cg-panel: #0F0F12;
-  --cg-panel-line: #2A2A30;
-  --cg-panel-text: #B7B6AE;
-  --cg-blue: #2F5BFF;
-  --cg-orange: #B44A1C;
-  --cg-ok: #1A6E3F;
-  --cg-ok-bg: #DCEBDF;
-  --cg-warn: #A8411A;
-  --cg-warn-bg: #F6E0D3;
+  --cg-paper: #FBFAF6;
+  --cg-paper-2: #F3F1EA;
+  --cg-paper-3: #E9E6DC;
+  --cg-rule: #D6D3C8;
+  --cg-rule-strong: #86837A;
+  --cg-ink: #15161A;
+  --cg-text: #2E3036;
+  --cg-muted: #5B5D64;
+  --cg-blue: #2343C2;
+  --cg-blue-tint: #E7EBFA;
+  --cg-orange: #C8471A;
+  --cg-on-orange: #FFFFFF;
+  --cg-stamp: #B13B0C;
+  --cg-ok: #1C7038;
+  --cg-ok-tint: #E5F2E8;
+  --cg-warn: #835400;
+  --cg-warn-tint: #F8EFD9;
   --cg-err: #B3261E;
-  --cg-err-bg: #F4DAD7;
-  /* Secondary text and the orange numerals inside an inverted (hovered) cell. */
-  --cg-inv-muted: #B7B6AE;
-  --cg-orange-inv: #E0612B;
-  /* Text on a blue (hovered) primary button. */
-  --cg-on-blue: #FFFFFF;
-  /* Chart strokes: the same in both themes, on the ink panel. */
-  --cg-wave-blue: #7C9BFF;
-  --cg-wave-orange: #FF8A55;
+  --cg-err-tint: #FBE9E6;
+  --cg-code-bg: #15161A;
+  --cg-code-fg: #F2F0EA;
+  --cg-code-muted: #A6A59E;
+  --cg-code-rule: #31343C;
+  --cg-logo-orange: #E0612B;
+  /* Behind a QR code, which a camera reads best dark on white. */
+  --cg-qr-ground: #FFFFFF;
+  /* Behind a dialog. */
+  --cg-scrim: rgb(21 22 26 / 0.45);
+  /* The primary button under the pointer. */
+  --cg-orange-hover: var(--cg-stamp);
 
-  --ui-radius: 0rem;
+  --ui-radius: 0.1875rem;
   /* The sidebar header and every panel's navbar share this height. */
   --ui-header-height: 3.5rem;
   /* Pages use the panel's full width: UContainer only gives the gutters. */
   --ui-container: 100%;
 
-  --ui-primary: var(--cg-ink);
+  --ui-primary: var(--cg-orange);
   --ui-secondary: var(--cg-blue);
   --ui-success: var(--cg-ok);
   --ui-info: var(--cg-blue);
   --ui-warning: var(--cg-warn);
   --ui-error: var(--cg-err);
 
-  --ui-text-dimmed: var(--cg-faint);
+  --ui-text-dimmed: var(--cg-muted);
   --ui-text-muted: var(--cg-muted);
-  --ui-text-toned: #3B3B42;
+  --ui-text-toned: var(--cg-text);
   --ui-text: var(--cg-text);
   --ui-text-highlighted: var(--cg-ink);
-  --ui-text-inverted: var(--cg-inv-fg);
-  --ui-bg: var(--cg-bg);
-  --ui-bg-muted: var(--cg-bg2);
-  --ui-bg-elevated: var(--cg-bg2);
-  --ui-bg-accented: var(--cg-bg3);
-  --ui-bg-inverted: var(--cg-inv-bg);
-  --ui-border: var(--cg-line);
-  --ui-border-muted: var(--cg-line);
-  --ui-border-accented: var(--cg-line-strong);
+  --ui-text-inverted: var(--cg-paper);
+  --ui-bg: var(--cg-paper);
+  --ui-bg-muted: var(--cg-paper-2);
+  --ui-bg-elevated: var(--cg-paper-2);
+  --ui-bg-accented: var(--cg-paper-3);
+  --ui-bg-inverted: var(--cg-ink);
+  --ui-border: var(--cg-rule);
+  --ui-border-muted: var(--cg-rule);
+  --ui-border-accented: var(--cg-rule-strong);
   --ui-border-inverted: var(--cg-ink);
 }
 
 .dark {
-  --cg-bg: #0F0F12;
-  --cg-bg2: #15151A;
-  --cg-bg3: #1C1C22;
-  --cg-line: #2A2A30;
-  --cg-line-strong: #6A6A72;
-  --cg-ink: #F2F1EC;
-  --cg-text: #E7E6DF;
-  --cg-muted: #A3A29A;
-  --cg-faint: #8A8A92;
-  --cg-inv-bg: #F2F1EC;
-  --cg-inv-fg: #0F0F12;
-  --cg-panel: #08080A;
-  --cg-panel-line: #24242A;
-  --cg-panel-text: #A3A29A;
-  --cg-blue: #7C9BFF;
-  --cg-orange: #FF8A55;
-  --cg-ok: #5CC98A;
-  --cg-ok-bg: #15281D;
-  --cg-warn: #FF9A66;
-  --cg-warn-bg: #2C1A10;
-  --cg-err: #FF7B72;
-  --cg-err-bg: #2D1412;
-  --cg-inv-muted: #55555D;
-  --cg-orange-inv: #B44A1C;
-  /* White on the dark theme's light blue is 2.6:1; ink is 7.3:1. */
-  --cg-on-blue: #0F0F12;
-
-  --ui-text-toned: #CFCEC7;
+  --cg-paper: #131418;
+  --cg-paper-2: #1A1C21;
+  --cg-paper-3: #24262D;
+  --cg-rule: #31343C;
+  --cg-rule-strong: #72757E;
+  --cg-ink: #F2F0EA;
+  --cg-text: #D8D6CF;
+  --cg-muted: #A6A59E;
+  --cg-blue: #93A8FF;
+  --cg-blue-tint: #1E2544;
+  --cg-orange: #F07A3E;
+  --cg-on-orange: #131418;
+  --cg-stamp: #FF9360;
+  --cg-ok: #63CF8A;
+  --cg-ok-tint: #16301F;
+  --cg-warn: #F0B54A;
+  --cg-warn-tint: #33280F;
+  --cg-err: #FF8073;
+  --cg-err-tint: #3A1D1B;
+  --cg-code-bg: #0B0C0E;
+  --cg-code-fg: #F2F0EA;
+  --cg-code-muted: #A6A59E;
+  --cg-code-rule: #31343C;
+  --cg-orange-hover: #FF8D55;
+  --cg-scrim: rgb(0 0 0 / 0.6);
 }
 
 @layer base {
   html {
-    background: var(--cg-bg);
+    background: var(--cg-paper);
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
   body {
     font-family: var(--font-sans);
-    font-feature-settings: 'ss01' off;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    caret-color: var(--cg-blue);
+    scrollbar-color: var(--cg-rule-strong) var(--cg-paper-2);
+  }
+  h1, h2, h3, h4 {
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  code, kbd, pre, samp {
+    font-variant-ligatures: none;
   }
   ::selection {
     background: var(--cg-blue);
-    color: var(--cg-on-blue);
+    color: var(--cg-paper);
   }
   /* One visible focus for everything the keyboard reaches. */
   :focus-visible {
     outline: 2px solid var(--cg-blue);
     outline-offset: 2px;
   }
-  a:focus-visible {
-    outline-offset: 2px;
-  }
 }
 
-/* HUD label: mono, 11px, uppercase, wide. */
-@utility hud {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.35;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  font-weight: 500;
+/* A prose link: blue, underlined at 1px, 2px under the pointer. */
+@utility link {
+  color: var(--cg-blue);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  &:hover {
+    text-decoration-thickness: 2px;
+  }
 }
 /*
  * A scroller without a visible bar (the site tab bar on a narrow screen):
@@ -225,120 +228,91 @@
     display: none;
   }
 }
+/* Commands, figures, paths and identifiers: never as a costume. */
 @utility mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  font-variant-ligatures: none;
 }
-/* Display: Archivo wide. */
-@utility disp {
-  font-family: var(--font-sans);
-  font-stretch: 118%;
-  font-weight: 560;
-  letter-spacing: -0.04em;
+/* A small label over a value or a group: sans, 13px, medium, muted. */
+@utility meta {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  font-weight: 500;
 }
-/* The one serif-italic accent word of a page title. */
-@utility ser {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  font-stretch: 100%;
-}
-/* A hairline grid: cells sit on the line colour, 1px apart. */
+/*
+ * A ruled grid: cells 1px apart, each outlined by a 1px rule that fills the
+ * gap, so adjacent cells share one line and an empty slot stays paper.
+ * Never cards.
+ */
 @utility cg-grid {
   display: grid;
   gap: 1px;
-  background: var(--cg-line);
-  border: 1px solid var(--cg-line);
+  padding: 1px;
+  background: var(--cg-paper);
   & > * {
-    background: var(--cg-bg);
+    outline: 1px solid var(--cg-rule);
   }
-}
-/* An actionable cell: inverts on hover. */
-@utility cell-inv {
-  transition: background-color 0.14s linear, color 0.14s linear;
-  &:hover,
-  &:focus-visible {
-    background: var(--cg-inv-bg);
-    color: var(--cg-inv-fg);
-  }
-  &:hover .cell-inv-muted,
-  &:focus-visible .cell-inv-muted {
-    color: var(--cg-inv-muted);
+  & > *:focus-visible {
+    outline: 2px solid var(--cg-blue);
+    outline-offset: -2px;
   }
 }
 @utility row-hover {
   transition: background-color 0.12s linear;
   &:hover {
-    background: var(--cg-bg2);
+    background: var(--cg-paper-2);
   }
-}
-/* A section ruled in ink above, as the artboards' lists and tables. */
-@utility rule-ink {
-  border-top: 1px solid var(--cg-ink);
 }
 
 /*
- * A plain <table> in the artboards' style: HUD heads over a hairline, rows
- * on hairlines that tint under the pointer. Unlayered on purpose, so it
+ * A plain <table> ruled like the design's tables: a head row on paper-2,
+ * 1px rules, rows that tint under the pointer. Unlayered on purpose, so it
  * wins over the spacing utilities older markup still carries.
  */
 .cg-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
-}
-.cg-table thead {
-  background: transparent;
+  font-size: 0.875rem;
 }
 .cg-table th {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.8125rem;
   line-height: 1.35;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--cg-muted);
+  background: var(--cg-paper-2);
   text-align: start;
-  padding: 10px;
-  border-bottom: 1px solid var(--cg-line);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--cg-rule);
   white-space: nowrap;
 }
 .cg-table td {
-  padding: 12px 10px;
-  border-bottom: 1px solid var(--cg-line);
-}
-.cg-table th:first-child,
-.cg-table td:first-child {
-  padding-inline-start: 4px;
-}
-.cg-table th:last-child,
-.cg-table td:last-child {
-  padding-inline-end: 4px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--cg-rule);
 }
 .cg-table tbody tr {
   transition: background-color 0.12s linear;
 }
 .cg-table tbody tr:hover {
-  background: var(--cg-bg2);
+  background: var(--cg-paper-2);
 }
 .cg-table tbody {
   border: 0;
 }
 
-/* A list ruled like the tables: ink above, hairlines between. */
+/* A list ruled like the tables: a rule above, rules between. */
 .cg-list {
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--cg-ink);
+  border-top: 1px solid var(--cg-rule);
 }
 .cg-list > li {
-  border-bottom: 1px solid var(--cg-line);
+  border-bottom: 1px solid var(--cg-rule);
   transition: background-color 0.12s linear;
 }
 .cg-list > li:hover {
-  background: var(--cg-bg2);
+  background: var(--cg-paper-2);
 }
 
 @keyframes cg-pulse {

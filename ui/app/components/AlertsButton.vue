@@ -24,7 +24,7 @@ useLive(async () => {
     @click="open = true"
   >
     <UIcon name="i-cg-bell" class="size-5" />
-    <span v-if="alerts.length" class="mono absolute -top-0.5 -right-0.5 bg-cg-orange px-1 text-[10px] leading-4 text-white dark:text-cg-ink" aria-hidden="true">{{ alerts.length }}</span>
+    <span v-if="alerts.length" class="mono absolute top-0.5 right-0.5 min-w-4 bg-cg-orange px-1 text-center text-[10px] leading-4 font-medium text-cg-on-orange" aria-hidden="true">{{ alerts.length }}</span>
   </UButton>
   <USlideover v-model:open="open" :title="t('alerts.title')" :description="t('alerts.description')">
     <template #body>

@@ -19,11 +19,11 @@ onScopeDispose(() => clearTimeout(timer))
     <div
       v-if="visible"
       role="status"
-      class="hud pointer-events-none fixed bottom-4 left-1/2 z-50 flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2.5 border border-(--cg-ink) bg-default px-3.5 py-2 text-default shadow-sm lg:left-auto lg:right-6 lg:translate-x-0"
+      class="pointer-events-none fixed bottom-4 left-1/2 z-50 flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2.5 rounded-[3px] border border-cg-warn bg-cg-warn-tint px-3.5 py-2 text-[13px] font-medium text-highlighted shadow-lg lg:left-auto lg:right-6 lg:translate-x-0"
     >
-      <span class="size-2 shrink-0 animate-pulse bg-cg-orange" aria-hidden="true" />
+      <span class="size-2 shrink-0 animate-pulse bg-cg-warn" aria-hidden="true" />
       <span class="truncate">{{ t('stream.down') }}</span>
-      <span class="shrink-0 text-dimmed">· {{ t('stream.retrying') }}</span>
+      <span class="shrink-0 text-muted">· {{ t('stream.retrying') }}</span>
     </div>
   </Transition>
 </template>

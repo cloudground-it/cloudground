@@ -36,7 +36,7 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-6">
-    <PageHeader size="md" :eyebrow="t('studio.name')" :title="t('studio.opening')" :accent="t('studio.openingAccent')" />
+    <PageHeader size="md" :title="t('studio.opening')" :accent="t('studio.openingAccent')" />
     <UAlert v-if="error" color="error" variant="subtle" icon="i-cg-alert-circle" :title="t('studio.handoffFailed')" :description="error" />
     <div v-else class="flex items-center gap-3 text-sm text-muted">
       <UIcon name="i-cg-loader" class="size-4 animate-spin" />
@@ -44,7 +44,7 @@ onMounted(async () => {
     </div>
     <div v-if="error" class="flex flex-wrap gap-2">
       <UButton to="/" color="neutral" variant="outline" icon="i-cg-arrow-left" :label="t('studio.toPanel')" />
-      <UButton :to="home" icon="i-cg-login" :label="t('studio.signInTitle')" />
+      <UButton color="primary" variant="solid" :to="home" icon="i-cg-login" :label="t('studio.signInTitle')" />
     </div>
   </div>
 </template>

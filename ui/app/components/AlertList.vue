@@ -61,12 +61,12 @@ async function dismiss(a: Alert) {
   </p>
   <ul v-else class="m-0 list-none divide-y divide-default p-0">
     <li v-for="a in shown" :key="a.id" class="flex gap-3.5 py-3.5" :class="inset ? 'px-4 sm:px-5' : ''">
-      <UBadge :color="a.level === 'error' ? 'error' : 'warning'" variant="subtle" :label="t(`cg.level.${a.level}`)" class="mt-0.5 self-start" />
+      <UBadge :color="a.level === 'error' ? 'error' : 'warning'" variant="subtle" :label="t(`cg.level.${a.level}`)" class="mt-1 w-20 shrink-0 self-start whitespace-normal sm:w-24" />
       <div class="min-w-0 flex-1">
         <p class="m-0 text-[15px] font-semibold text-highlighted">
           {{ parts(a).title }}
         </p>
-        <p class="mono m-0 mt-0.5 text-xs text-muted">
+        <p class="m-0 mt-0.5 text-[13px] text-muted">
           {{ a.site || t('alerts.server') }}<template v-if="a.at">
             · {{ fmtAgo(a.at, locale) }}
           </template>
@@ -74,7 +74,7 @@ async function dismiss(a: Alert) {
         <p v-if="!open.has(a.id)" class="m-0 mt-1 line-clamp-2 text-[13px] break-words text-muted">
           {{ parts(a).summary }}
         </p>
-        <pre v-else class="mono mt-2 max-h-60 overflow-auto bg-cg-panel p-3 text-xs break-all whitespace-pre-wrap text-cg-panel-text">{{ parts(a).detail }}</pre>
+        <pre v-else class="mono mt-2 max-h-60 overflow-auto bg-cg-code-bg p-3 text-xs break-all whitespace-pre-wrap text-cg-code-fg">{{ parts(a).detail }}</pre>
         <div class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
           <UButton v-if="parts(a).detail.length > parts(a).summary.length" variant="link" size="xs" :label="open.has(a.id) ? t('alerts.hideDetails') : t('alerts.details')" @click="toggle(a.id)" />
           <UButton v-if="a.site_id" variant="link" size="xs" :to="`/sites/${a.site_id}`" :label="t('alerts.open')" />

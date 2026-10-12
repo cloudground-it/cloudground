@@ -60,7 +60,7 @@ async function remove(s: Site) {
   if (ok && await run(() => api.del(`/api/sites/${s.id}`), t('site.deleting'))) await refresh()
 }
 
-const filterTabs = computed(() => filters.value.map(f => ({ label: f.label, value: f.id, badge: { label: String(f.n), color: 'neutral' as const, variant: 'subtle' as const } })))
+const filterTabs = computed(() => filters.value.map(f => ({ label: f.label, value: f.id, badge: { label: String(f.n), color: 'neutral' as const, variant: 'outline' as const, class: 'mono' } })))
 const columns = computed(() => [
   { id: 'site', header: t('cg.col.site') },
   { id: 'status', header: t('cg.col.status') },
@@ -82,7 +82,8 @@ const columns = computed(() => [
       <UContainer class="flex flex-col gap-6">
         <UPageHeader :title="t('nav.sites')" :description="t('ux.pages.sites', sites?.length ?? 0)">
           <template v-if="isAdmin" #links>
-            <UButton icon="i-cg-plus" :label="t('site.new')" @click="creating = true" />
+            <!-- On an empty list the empty state's own action is the primary one. -->
+            <UButton v-bind="sites?.length ? { color: 'primary', variant: 'solid' } : {}" icon="i-cg-plus" :label="t('site.new')" @click="creating = true" />
           </template>
         </UPageHeader>
 
@@ -97,7 +98,7 @@ const columns = computed(() => [
             icon="i-cg-sites"
             :title="t('site.emptyTitle')"
             :description="t('site.emptyHint')"
-            :actions="isAdmin ? [{ label: t('site.createFirst'), icon: 'i-cg-plus', onClick: () => { creating = true } }] : []"
+            :actions="isAdmin ? [{ label: t('site.createFirst'), icon: 'i-cg-plus', color: 'primary', variant: 'solid', onClick: () => { creating = true } }] : []"
           />
         </PanelSection>
 
@@ -110,14 +111,19 @@ const columns = computed(() => [
               <UInput v-model="q" type="search" icon="i-cg-search" :placeholder="t('cg.sites.search')" :aria-label="t('cg.sites.search')" class="min-w-0 flex-[1_1_14rem]" />
             </div>
           </template>
-          <UTable :data="rows" :columns="columns" :empty="t('cg.sites.noMatch')">
+          <UTable
+            :data="rows"
+            :columns="columns"
+            :empty="t('cg.sites.noMatch')"
+            :meta="{ class: { tr: (row: { original: { site: Site } }) => row.original.site.status === 'error' ? 'bg-cg-err-tint hover:bg-cg-err-tint' : '' } }"
+          >
             <template #site-cell="{ row: { original: { site, staging } } }">
               <span class="flex min-w-0 flex-col gap-0.5 whitespace-normal" :class="staging ? 'ps-4' : ''">
-                <NuxtLink :to="`/sites/${site.id}`" class="text-[15px] font-semibold break-all text-highlighted hover:underline">
+                <NuxtLink :to="`/sites/${site.id}`" class="text-[15px] break-all text-highlighted decoration-1 underline-offset-[0.2em] hover:text-cg-blue hover:underline" :class="staging ? 'font-medium' : 'font-semibold'">
                   <span v-if="staging" class="text-dimmed" aria-hidden="true">↳ </span>{{ site.domain }}
                 </NuxtLink>
-                <span class="text-xs break-all text-muted">{{ sub(site) }}</span>
-                <span class="text-xs text-muted md:hidden">{{ site.staging_of ? 'Staging' : t(`site.type.${site.type}`) }}<template v-if="site.php_version"> · PHP {{ site.php_version }}</template></span>
+                <span class="text-[13px] break-all" :class="site.status === 'error' ? 'text-cg-err' : 'text-muted'">{{ sub(site) }}</span>
+                <span class="text-[13px] text-muted md:hidden">{{ site.staging_of ? 'Staging' : t(`site.type.${site.type}`) }}<template v-if="site.php_version"> · PHP {{ site.php_version }}</template></span>
               </span>
             </template>
             <template #status-cell="{ row: { original: { site } } }">

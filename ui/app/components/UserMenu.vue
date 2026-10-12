@@ -74,13 +74,13 @@ const items = computed<DropdownMenuItem[][]>(() => [
   >
     <button
       type="button"
-      class="flex w-full items-center gap-3 px-5 py-3.5 text-start transition-colors hover:bg-accented data-[state=open]:bg-accented"
+      class="flex w-full items-center gap-3 px-5 py-3 text-start transition-colors hover:bg-accented data-[state=open]:bg-accented"
       :aria-label="t('cg.shell.accountMenu', { name: displayName(user) })"
     >
-      <span class="mono grid size-8 shrink-0 place-items-center bg-inverted text-[13px] text-inverted" aria-hidden="true">{{ initials }}</span>
+      <span class="grid size-8 shrink-0 place-items-center rounded-[3px] bg-inverted text-[13px] font-semibold text-inverted" aria-hidden="true">{{ initials }}</span>
       <span class="flex min-w-0 flex-1 flex-col">
         <span class="truncate text-sm font-semibold text-highlighted">{{ displayName(user) }}</span>
-        <span v-if="user" class="hud truncate text-dimmed">{{ t(`roles.${user.role}`) }}</span>
+        <span v-if="user" class="truncate text-[13px] text-muted">{{ t(`roles.${user.role}`) }}</span>
       </span>
       <UIcon name="i-cg-sort" class="size-4 shrink-0 text-muted" />
     </button>

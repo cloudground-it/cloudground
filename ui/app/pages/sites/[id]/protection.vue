@@ -94,7 +94,7 @@ const columns = computed(() => [
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="editing = false" />
-        <UButton icon="i-cg-lock" :label="t('common.save')" :disabled="!pathOK || !userOK || !passwordOK" :loading="busy" @click="save" />
+        <UButton color="primary" variant="solid" icon="i-cg-lock" :label="t('common.save')" :disabled="!pathOK || !userOK || !passwordOK" :loading="busy" @click="save" />
       </div>
     </template>
   </UModal>

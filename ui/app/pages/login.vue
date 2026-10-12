@@ -49,7 +49,6 @@ async function submit() {
     <div class="flex flex-col gap-3">
       <PageHeader
         size="md"
-        :eyebrow="t(`cg.pages.${needTotp ? 'totp' : 'login'}.eyebrow`)"
         :title="t(`cg.pages.${needTotp ? 'totp' : 'login'}.title`)"
         :accent="t(`cg.pages.${needTotp ? 'totp' : 'login'}.accent`)"
       />
@@ -61,7 +60,7 @@ async function submit() {
     <UAlert v-if="needsSetup" color="info" variant="subtle" icon="i-cg-info" :description="t('auth.setupPending')" />
     <UAlert v-if="error" color="error" variant="subtle" icon="i-cg-alert-circle" :title="error" />
 
-    <UForm :state="state" class="space-y-5 border-t border-(--cg-ink) pt-6" @submit="submit">
+    <UForm :state="state" class="space-y-5 border-t border-default pt-6" @submit="submit">
       <template v-if="!needTotp">
         <UFormField :label="t('common.email')" name="email" required>
           <UInput v-model="state.email" type="email" autocomplete="username" class="w-full" autofocus />
@@ -73,7 +72,7 @@ async function submit() {
       <UFormField v-else :label="t('auth.code')" name="totp" required>
         <UInput v-model="state.totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" class="w-full" :ui="{ base: 'text-center font-mono text-lg tracking-[0.4em]' }" autofocus />
       </UFormField>
-      <UButton type="submit" size="lg" :label="needTotp ? t('auth.verify') : t('auth.signIn')" block :loading="loading" />
+      <UButton color="primary" variant="solid" type="submit" size="lg" :label="needTotp ? t('auth.verify') : t('auth.signIn')" block :loading="loading" />
       <UButton v-if="needTotp" color="neutral" variant="link" block :label="t('common.back')" @click="needTotp = false; error = null" />
     </UForm>
   </div>

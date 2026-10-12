@@ -29,5 +29,5 @@ const v = computed(() => props.show === 'cert' ? cert.value : backup.value)
 </script>
 
 <template>
-  <span class="mono text-[13px]" :class="v.tone">{{ v.text }}</span>
+  <span class="text-sm" :class="v.tone">{{ v.text }}</span>
 </template>

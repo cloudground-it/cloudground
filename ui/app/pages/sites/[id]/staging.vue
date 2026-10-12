@@ -179,7 +179,7 @@ async function recreate() {
         </UFieldGroup>
       </UFormField>
       <div v-if="selected.length" class="flex flex-wrap gap-1.5">
-        <UBadge v-for="p in selected" :key="p" color="primary" variant="subtle" class="font-mono normal-case tracking-normal">
+        <UBadge v-for="p in selected" :key="p" color="primary" variant="outline" class="mono">
           {{ p }}
           <UButton size="xs" color="primary" variant="link" icon="i-cg-x" square :aria-label="t('common.remove')" @click="toggle(p, false)" />
         </UBadge>

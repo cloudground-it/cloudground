@@ -156,7 +156,7 @@ async function restore() {
 </script>
 
 <template>
-  <section :aria-label="t('backup.snapshots')" class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+  <section :aria-label="t('backup.snapshots')" class="cg-grid grid-cols-2 lg:grid-cols-4">
     <StatCell :label="t('backup.last')" :value="latest ? fmtWhen(latest.created_at, locale) : t('backup.never')" :note="latest ? `${fmtDateTime(latest.created_at, locale)} · ${fmtBytes(latest.size_bytes)}` : '—'" />
     <StatCell
       :label="t('backup.lastTest')"

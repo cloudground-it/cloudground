@@ -172,7 +172,7 @@ const columns = computed<TableColumn<PanelUser>[]>(() => [
           <template #footer>
             <div class="flex w-full justify-end gap-2">
               <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
-              <UButton type="submit" form="user-form" :label="editing ? t('common.save') : t('users.add')" :loading="busy" :disabled="form.role === 'operator' && !form.site_ids.length" />
+              <UButton color="primary" variant="solid" type="submit" form="user-form" :label="editing ? t('common.save') : t('users.add')" :loading="busy" :disabled="form.role === 'operator' && !form.site_ids.length" />
             </div>
           </template>
         </UModal>
@@ -186,7 +186,7 @@ const columns = computed<TableColumn<PanelUser>[]>(() => [
           <template #footer>
             <div class="flex w-full justify-end gap-2">
               <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="resetFor = null" />
-              <UButton :label="t('users.resetPassword')" :disabled="newPassword.length < 12" :loading="busy" @click="resetPassword" />
+              <UButton color="primary" variant="solid" :label="t('users.resetPassword')" :disabled="newPassword.length < 12" :loading="busy" @click="resetPassword" />
             </div>
           </template>
         </UModal>

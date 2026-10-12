@@ -97,7 +97,7 @@ const details = computed(() => {
 </script>
 
 <template>
-  <section :aria-label="t('cg.site.state')" class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+  <section :aria-label="t('cg.site.state')" class="cg-grid grid-cols-2 lg:grid-cols-4">
     <StatCell v-for="m in stats" :key="m.key" :label="m.label" :value="m.value" :note="m.note" :state="m.state" />
   </section>
 

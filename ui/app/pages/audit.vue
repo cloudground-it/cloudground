@@ -50,7 +50,7 @@ function tone(action: string) {
               {{ e.actor }}
             </template>
             <template #action-cell="{ row: { original: e } }">
-              <UBadge :color="tone(e.action)" variant="subtle" class="font-mono normal-case tracking-normal" :label="e.action" />
+              <UBadge :color="tone(e.action)" variant="outline" class="mono" :label="e.action" />
             </template>
             <template #subject-cell="{ row: { original: e } }">
               {{ e.subject }}

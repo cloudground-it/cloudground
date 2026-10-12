@@ -89,7 +89,7 @@ const autoloadColumns = computed(() => [
         <UAlert v-if="autoloadError" color="error" variant="subtle" :description="autoloadError" />
         <template v-if="autoload">
           <div class="flex flex-wrap items-baseline gap-3">
-            <span class="disp text-[28px] leading-none text-highlighted">{{ fmtBytes(autoload.bytes) }}</span>
+            <span class="text-2xl leading-none font-semibold text-highlighted">{{ fmtBytes(autoload.bytes) }}</span>
             <span class="text-sm text-muted">{{ t('dbstudio.autoloadCount', { n: fmtNumber(autoload.count), table: autoload.table }) }}</span>
           </div>
           <UAlert v-if="autoload.bytes > AUTOLOAD_WARN" color="warning" variant="subtle" icon="i-cg-alert-triangle" :description="t('dbstudio.autoloadWarn')" />

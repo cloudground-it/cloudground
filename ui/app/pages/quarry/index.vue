@@ -52,7 +52,7 @@ async function submit() {
 <template>
   <div class="space-y-6">
     <div class="flex flex-col gap-3">
-      <PageHeader size="md" :eyebrow="t('studio.name')" :title="t('studio.signInTitle')" :accent="t('studio.signInAccent')" />
+      <PageHeader size="md" :title="t('studio.signInTitle')" :accent="t('studio.signInAccent')" />
       <p class="text-sm text-muted">
         {{ t('studio.signInHint') }}
       </p>
@@ -61,7 +61,7 @@ async function submit() {
     <UAlert v-if="ended" color="warning" variant="subtle" icon="i-cg-clock" :title="t('studio.ended')" :description="ended" />
     <UAlert v-if="error" color="error" variant="subtle" icon="i-cg-alert-circle" :title="error" />
 
-    <UForm :state="state" class="space-y-5 border-t border-(--cg-ink) pt-6" :disabled="checking" @submit="submit">
+    <UForm :state="state" class="space-y-5 border-t border-default pt-6" :disabled="checking" @submit="submit">
       <UFormField :label="t('studio.dbUser')" name="user" required>
         <UInput v-model="state.user" autocomplete="username" autocapitalize="off" spellcheck="false" class="w-full font-mono" autofocus />
       </UFormField>
@@ -71,7 +71,7 @@ async function submit() {
       <UFormField :label="t('studio.database')" :hint="t('common.optional')" name="database">
         <UInput v-model="state.database" autocapitalize="off" spellcheck="false" class="w-full font-mono" />
       </UFormField>
-      <UButton type="submit" size="lg" icon="i-cg-login" :label="t('auth.signIn')" block :loading="loading" :disabled="!state.user || !state.password" />
+      <UButton color="primary" variant="solid" type="submit" size="lg" icon="i-cg-login" :label="t('auth.signIn')" block :loading="loading" :disabled="!state.user || !state.password" />
     </UForm>
 
     <p class="m-0 border-t border-default pt-4 text-[13px] leading-snug text-muted">

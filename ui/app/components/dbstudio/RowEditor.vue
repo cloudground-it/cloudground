@@ -101,7 +101,7 @@ function submit() {
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="open = false" />
-        <UButton icon="i-cg-eye" :label="t('dbstudio.previewSql')" :loading="busy" @click="submit" />
+        <UButton color="primary" variant="solid" icon="i-cg-eye" :label="t('dbstudio.previewSql')" :loading="busy" @click="submit" />
       </div>
     </template>
   </UModal>

@@ -19,7 +19,7 @@ const { t } = useI18n()
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="emit('close', false)" />
-        <UButton :color="props.danger ? 'error' : 'primary'" icon="i-cg-play" :label="props.confirmLabel || t('dbstudio.execute')" @click="emit('close', true)" />
+        <UButton variant="solid" :color="props.danger ? 'error' : 'primary'" icon="i-cg-play" :label="props.confirmLabel || t('dbstudio.execute')" @click="emit('close', true)" />
       </div>
     </template>
   </UModal>

@@ -113,11 +113,11 @@ const searchGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
     <UDashboardSidebar
       id="default"
       v-model:open="open"
-      :default-size="15.5"
-      :min-size="15.5"
-      :max-size="15.5"
+      :default-size="15"
+      :min-size="15"
+      :max-size="15"
       toggle-side="right"
-      :ui="{ root: 'border-default', content: 'w-[17rem] max-w-[85vw] bg-elevated', toggle: 'me-3' }"
+      :ui="{ root: 'border-default', content: 'w-[16rem] max-w-[85vw] bg-elevated', toggle: 'me-3' }"
     >
       <template #header>
         <NuxtLink to="/" class="flex h-full flex-1 items-center gap-2.5 text-highlighted" :aria-label="t('cg.shell.home')">
@@ -126,26 +126,27 @@ const searchGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
       </template>
 
       <template #default>
-        <div class="flex flex-col gap-1 border-b border-default px-5 py-3.5">
-          <span class="hud text-dimmed">{{ t('nav.server') }}</span>
-          <span class="mono truncate text-[13px] text-highlighted" :title="host">{{ host || '—' }}</span>
-          <span v-if="version" class="mono text-xs text-muted">{{ version.startsWith('v') ? version : `v${version}` }}</span>
+        <div class="mx-3 mt-1 mb-3 flex flex-col border border-default bg-default px-2.5 py-2 text-[13px] leading-snug">
+          <span class="sr-only">{{ t('nav.server') }}</span>
+          <span class="mono truncate text-sm font-medium text-highlighted" :title="host">{{ host || '—' }}</span>
+          <span v-if="version" class="text-muted">CloudGround <span class="mono">{{ version.startsWith('v') ? version : `v${version}` }}</span></span>
         </div>
 
-        <nav :aria-label="t('cg.shell.navigation')" class="flex flex-col gap-0.5 py-4">
+        <nav :aria-label="t('cg.shell.navigation')" class="flex flex-col px-3 pb-4">
           <template v-for="(g, gi) in groups" :key="g.label">
-            <span class="hud px-[22px] pb-2 text-dimmed" :class="gi ? 'pt-[18px]' : ''">{{ g.label }}</span>
+            <div v-if="gi" class="my-2 h-px bg-(--ui-border)" aria-hidden="true" />
+            <h2 class="sr-only">{{ g.label }}</h2>
             <NuxtLink
               v-for="l in g.links"
               :key="l.to"
               :to="l.to"
               :aria-current="isActive(l) ? 'page' : undefined"
-              class="mx-2 flex min-h-10 items-center gap-3 px-3.5 py-2 text-sm transition-colors duration-100"
-              :class="isActive(l) ? 'bg-inverted font-semibold text-inverted' : 'text-default hover:bg-accented'"
+              class="mb-px flex min-h-9 items-center gap-2.5 rounded-[3px] px-2.5 py-1.5 text-[15px] transition-colors duration-100"
+              :class="isActive(l) ? 'bg-inverted font-medium text-inverted' : 'text-default hover:bg-accented hover:text-highlighted'"
             >
-              <UIcon :name="l.icon" class="size-4 shrink-0" />
+              <UIcon :name="l.icon" class="size-[18px] shrink-0" />
               <span class="min-w-0 flex-1 truncate">{{ l.label }}</span>
-              <span v-if="l.count !== undefined" class="mono text-xs" :class="isActive(l) ? 'text-inverted/70' : 'text-muted'">{{ l.count }}</span>
+              <span v-if="l.count !== undefined" class="mono text-[13px]" :class="isActive(l) ? 'text-inverted' : 'text-muted'">{{ l.count }}</span>
             </NuxtLink>
           </template>
         </nav>

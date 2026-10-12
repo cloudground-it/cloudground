@@ -32,18 +32,18 @@ watch(() => props.source, load, { immediate: true })
 </script>
 
 <template>
-  <div class="overflow-hidden bg-cg-panel">
-    <div class="flex items-center gap-2 border-b border-cg-panel-line ps-3.5">
-      <span class="hud min-w-0 flex-1 truncate text-cg-panel-text">{{ label }}</span>
+  <div class="overflow-hidden bg-cg-code-bg">
+    <div class="flex items-center gap-2 border-b border-cg-code-rule ps-3.5">
+      <span class="mono min-w-0 flex-1 truncate text-xs text-cg-code-muted">{{ label }}</span>
       <button
         type="button"
-        class="hud flex min-h-10 items-center gap-1.5 border-s border-cg-panel-line px-3.5 text-cg-panel-text transition-colors hover:bg-[#F2F1EC] hover:text-[#0F0F12] disabled:opacity-60"
+        class="flex min-h-10 items-center gap-1.5 border-s border-cg-code-rule px-3.5 text-[13px] font-medium text-cg-code-fg transition-colors hover:bg-cg-code-rule focus-visible:-outline-offset-2 disabled:opacity-60"
         :disabled="loading"
         @click="load"
       >
         <UIcon name="i-cg-refresh" class="size-3.5" :class="loading ? 'animate-spin' : ''" />{{ t('common.refresh') }}
       </button>
     </div>
-    <pre ref="pre" class="mono max-h-[65vh] min-h-64 overflow-auto p-3.5 text-xs leading-relaxed whitespace-pre-wrap text-[#D9D8D0]">{{ content }}</pre>
+    <pre ref="pre" class="mono max-h-[65vh] min-h-64 overflow-auto p-3.5 text-xs leading-relaxed whitespace-pre-wrap text-cg-code-fg">{{ content }}</pre>
   </div>
 </template>

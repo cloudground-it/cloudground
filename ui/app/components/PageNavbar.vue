@@ -31,8 +31,8 @@ function toggleTheme() {
       <nav :aria-label="t('cg.shell.breadcrumb')" class="flex min-w-0 items-center gap-2 text-sm">
         <NuxtLink v-if="crumb.to" :to="crumb.to" class="hidden shrink-0 text-muted hover:text-highlighted sm:inline">{{ crumb.label }}</NuxtLink>
         <span v-else class="hidden shrink-0 text-muted sm:inline">{{ crumb.label }}</span>
-        <UIcon name="i-cg-chevron-right" class="hidden size-3.5 shrink-0 text-dimmed sm:block" aria-hidden="true" />
-        <span class="truncate font-semibold text-highlighted" aria-current="page">{{ title }}</span>
+        <UIcon name="i-cg-chevron-right" class="hidden size-3.5 shrink-0 text-muted sm:block" aria-hidden="true" />
+        <span class="truncate font-medium text-highlighted" aria-current="page">{{ title }}</span>
       </nav>
     </template>
 
@@ -41,8 +41,8 @@ function toggleTheme() {
         :label="t('cg.shell.search')"
         color="neutral"
         variant="outline"
-        class="hidden w-72 md:flex"
-        :ui="{ base: 'justify-start font-sans normal-case tracking-normal text-sm font-normal text-muted ring-default', label: 'truncate', trailing: 'ms-auto' }"
+        class="hidden w-80 md:flex"
+        :ui="{ base: 'min-h-9 justify-start text-sm font-normal text-muted', label: 'truncate', trailing: 'ms-auto' }"
       />
       <UDashboardSearchButton
         :label="t('cg.shell.search')"

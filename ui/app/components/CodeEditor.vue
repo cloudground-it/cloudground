@@ -71,23 +71,23 @@ const phrases = Object.fromEntries(Object.entries(phraseKeys).map(([en, key]) =>
 // Colours come from the panel's tokens (see the <style> block), so the
 // editor follows light and dark mode without being rebuilt.
 const highlight = HighlightStyle.define([
-  { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.operatorKeyword, t.definitionKeyword, t.modifier, t.self], color: 'var(--cg-code-keyword)' },
-  { tag: [t.string, t.special(t.string), t.regexp, t.character, t.attributeValue, t.inserted], color: 'var(--cg-code-string)' },
-  { tag: [t.number, t.bool, t.null, t.atom, t.unit, t.constant(t.variableName), t.escape], color: 'var(--cg-code-number)' },
-  { tag: [t.comment, t.lineComment, t.blockComment, t.docComment], color: 'var(--cg-code-comment)', fontStyle: 'italic' },
-  { tag: [t.function(t.variableName), t.function(t.propertyName), t.macroName, t.labelName], color: 'var(--cg-code-function)' },
-  { tag: [t.typeName, t.className, t.namespace, t.standard(t.variableName)], color: 'var(--cg-code-type)' },
-  { tag: [t.propertyName, t.definition(t.propertyName)], color: 'var(--cg-code-property)' },
-  { tag: [t.tagName], color: 'var(--cg-code-tag)' },
-  { tag: [t.attributeName], color: 'var(--cg-code-attribute)' },
-  { tag: [t.special(t.variableName), t.local(t.variableName)], color: 'var(--cg-code-variable)' },
-  { tag: [t.operator, t.punctuation, t.separator, t.bracket, t.angleBracket], color: 'var(--cg-code-punctuation)' },
-  { tag: [t.meta, t.processingInstruction, t.documentMeta, t.annotation], color: 'var(--cg-code-meta)' },
-  { tag: t.heading, color: 'var(--cg-code-function)', fontWeight: '600' },
+  { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.operatorKeyword, t.definitionKeyword, t.modifier, t.self], color: 'var(--cg-syn-keyword)' },
+  { tag: [t.string, t.special(t.string), t.regexp, t.character, t.attributeValue, t.inserted], color: 'var(--cg-syn-string)' },
+  { tag: [t.number, t.bool, t.null, t.atom, t.unit, t.constant(t.variableName), t.escape], color: 'var(--cg-syn-number)' },
+  { tag: [t.comment, t.lineComment, t.blockComment, t.docComment], color: 'var(--cg-syn-comment)', fontStyle: 'italic' },
+  { tag: [t.function(t.variableName), t.function(t.propertyName), t.macroName, t.labelName], color: 'var(--cg-syn-function)' },
+  { tag: [t.typeName, t.className, t.namespace, t.standard(t.variableName)], color: 'var(--cg-syn-type)' },
+  { tag: [t.propertyName, t.definition(t.propertyName)], color: 'var(--cg-syn-property)' },
+  { tag: [t.tagName], color: 'var(--cg-syn-tag)' },
+  { tag: [t.attributeName], color: 'var(--cg-syn-attribute)' },
+  { tag: [t.special(t.variableName), t.local(t.variableName)], color: 'var(--cg-syn-variable)' },
+  { tag: [t.operator, t.punctuation, t.separator, t.bracket, t.angleBracket], color: 'var(--cg-syn-punctuation)' },
+  { tag: [t.meta, t.processingInstruction, t.documentMeta, t.annotation], color: 'var(--cg-syn-meta)' },
+  { tag: t.heading, color: 'var(--cg-syn-function)', fontWeight: '600' },
   { tag: t.strong, fontWeight: '600' },
   { tag: t.emphasis, fontStyle: 'italic' },
   { tag: t.strikethrough, textDecoration: 'line-through' },
-  { tag: [t.link, t.url], color: 'var(--cg-code-function)', textDecoration: 'underline' },
+  { tag: [t.link, t.url], color: 'var(--cg-syn-function)', textDecoration: 'underline' },
   { tag: [t.deleted, t.invalid], color: 'var(--ui-error)' }
 ])
 
@@ -96,10 +96,10 @@ const theme = EditorView.theme({
   '&': { height: '100%', color: 'var(--ui-text)', backgroundColor: 'var(--ui-bg)' },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace', lineHeight: '1.6' },
-  '.cm-content': { caretColor: 'var(--ui-primary)', padding: '6px 0' },
-  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--ui-primary)', borderLeftWidth: '2px' },
-  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': { backgroundColor: mix('var(--ui-primary)', 28) },
-  '.cm-selectionBackground': { backgroundColor: mix('var(--ui-primary)', 18) },
+  '.cm-content': { caretColor: 'var(--ui-secondary)', padding: '6px 0' },
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--ui-secondary)', borderLeftWidth: '2px' },
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': { backgroundColor: mix('var(--ui-secondary)', 28) },
+  '.cm-selectionBackground': { backgroundColor: mix('var(--ui-secondary)', 18) },
   '.cm-gutters': { backgroundColor: 'var(--ui-bg-muted)', color: 'var(--ui-text-dimmed)', borderRight: '1px solid var(--ui-border)' },
   '.cm-lineNumbers .cm-gutterElement': { padding: '0 8px 0 12px' },
   '.cm-activeLine': { backgroundColor: mix('var(--ui-bg-accented)', 45) },
@@ -109,12 +109,12 @@ const theme = EditorView.theme({
   '.cm-nonmatchingBracket, &.cm-focused .cm-nonmatchingBracket': { backgroundColor: mix('var(--ui-error)', 22) },
   '.cm-searchMatch': { backgroundColor: mix('var(--ui-warning)', 28), outline: `1px solid ${mix('var(--ui-warning)', 50)}` },
   '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: mix('var(--ui-warning)', 55) },
-  '.cm-selectionMatch': { backgroundColor: mix('var(--ui-primary)', 12) },
+  '.cm-selectionMatch': { backgroundColor: mix('var(--ui-secondary)', 12) },
   '.cm-foldPlaceholder': { backgroundColor: 'var(--ui-bg-accented)', border: 'none', color: 'var(--ui-text-muted)', padding: '0 6px', borderRadius: '4px' },
   '.cm-specialChar': { color: 'var(--ui-error)' },
   '.cm-tooltip': { backgroundColor: 'var(--ui-bg)', color: 'var(--ui-text)', border: '1px solid var(--ui-border)', borderRadius: '6px', overflow: 'hidden' },
   '.cm-tooltip.cm-tooltip-autocomplete > ul': { fontFamily: 'inherit' },
-  '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'var(--ui-primary)', color: 'var(--ui-bg)' },
+  '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'var(--ui-secondary)', color: 'var(--ui-bg)' },
   '.cm-panels': { backgroundColor: 'var(--ui-bg-muted)', color: 'var(--ui-text)' },
   '.cm-panels.cm-panels-top': { borderBottom: '1px solid var(--ui-border)' },
   '.cm-panels.cm-panels-bottom': { borderTop: '1px solid var(--ui-border)' },
@@ -125,7 +125,7 @@ const theme = EditorView.theme({
     backgroundColor: 'var(--ui-bg)', color: 'var(--ui-text)', border: '1px solid var(--ui-border-accented)',
     borderRadius: '6px', padding: '3px 8px', fontSize: 'inherit', margin: '2px 4px 2px 0'
   },
-  '.cm-textfield:focus': { outline: '2px solid var(--ui-primary)', outlineOffset: '-1px' },
+  '.cm-textfield:focus': { outline: '2px solid var(--ui-secondary)', outlineOffset: '-1px' },
   '.cm-button': {
     backgroundImage: 'none', backgroundColor: 'var(--ui-bg-elevated)', color: 'var(--ui-text)',
     border: '1px solid var(--ui-border)', borderRadius: '6px', padding: '3px 10px', margin: '2px 4px 2px 0', fontSize: '12px'
@@ -261,32 +261,32 @@ defineExpose({ save: doSave, saving })
 <style>
 /* Syntax colours: the panel's palette, one set per colour mode. */
 .cg-code {
-  --cg-code-keyword: var(--color-violet-700);
-  --cg-code-string: var(--color-emerald-700);
-  --cg-code-number: var(--color-amber-700);
-  --cg-code-comment: var(--color-basalt-500);
-  --cg-code-function: var(--color-stratos-700);
-  --cg-code-type: var(--color-terra-700);
-  --cg-code-property: var(--color-sky-700);
-  --cg-code-tag: var(--color-rose-700);
-  --cg-code-attribute: var(--color-amber-800);
-  --cg-code-variable: var(--color-cyan-800);
-  --cg-code-punctuation: var(--color-basalt-600);
-  --cg-code-meta: var(--color-basalt-500);
+  --cg-syn-keyword: var(--color-violet-700);
+  --cg-syn-string: var(--color-emerald-700);
+  --cg-syn-number: var(--color-amber-700);
+  --cg-syn-comment: var(--cg-muted);
+  --cg-syn-function: var(--cg-blue);
+  --cg-syn-type: var(--cg-stamp);
+  --cg-syn-property: var(--color-sky-700);
+  --cg-syn-tag: var(--color-rose-700);
+  --cg-syn-attribute: var(--color-amber-800);
+  --cg-syn-variable: var(--color-cyan-800);
+  --cg-syn-punctuation: var(--cg-muted);
+  --cg-syn-meta: var(--cg-muted);
 }
 .dark .cg-code {
-  --cg-code-keyword: var(--color-violet-300);
-  --cg-code-string: var(--color-emerald-300);
-  --cg-code-number: var(--color-amber-300);
-  --cg-code-comment: var(--color-basalt-400);
-  --cg-code-function: var(--color-stratos-300);
-  --cg-code-type: var(--color-terra-300);
-  --cg-code-property: var(--color-sky-300);
-  --cg-code-tag: var(--color-rose-300);
-  --cg-code-attribute: var(--color-amber-200);
-  --cg-code-variable: var(--color-cyan-300);
-  --cg-code-punctuation: var(--color-basalt-300);
-  --cg-code-meta: var(--color-basalt-400);
+  --cg-syn-keyword: var(--color-violet-300);
+  --cg-syn-string: var(--color-emerald-300);
+  --cg-syn-number: var(--color-amber-300);
+  --cg-syn-comment: var(--cg-muted);
+  --cg-syn-function: var(--cg-blue);
+  --cg-syn-type: var(--cg-stamp);
+  --cg-syn-property: var(--color-sky-300);
+  --cg-syn-tag: var(--color-rose-300);
+  --cg-syn-attribute: var(--color-amber-200);
+  --cg-syn-variable: var(--color-cyan-300);
+  --cg-syn-punctuation: var(--cg-muted);
+  --cg-syn-meta: var(--cg-muted);
 }
 .cg-code .cm-editor { font-size: 13px; }
 /* Under 16px, iOS zooms the page when the editor takes focus. */

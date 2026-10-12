@@ -213,11 +213,11 @@ onBeforeUnmount(() => resize?.disconnect())
       </div>
     </div>
     <div v-if="filters.length || sort.length" class="flex flex-wrap items-center gap-2">
-      <UBadge v-for="(f, i) in filters" :key="`f${i}`" color="neutral" variant="subtle" class="gap-1 font-mono">
+      <UBadge v-for="(f, i) in filters" :key="`f${i}`" color="neutral" variant="outline" class="gap-1 font-mono">
         {{ f.column }} {{ opLabel(f.op) }} <template v-if="!noValue(f.op)">"{{ f.value }}"</template>
         <UButton size="xs" color="neutral" variant="link" icon="i-cg-x" :aria-label="t('common.remove')" class="p-0" @click="removeFilter(i)" />
       </UBadge>
-      <UBadge v-for="s in sort" :key="`s${s.column}`" color="primary" variant="subtle" class="font-mono">
+      <UBadge v-for="s in sort" :key="`s${s.column}`" color="info" variant="outline" class="font-mono">
         {{ s.column }} {{ s.desc ? 'DESC' : 'ASC' }}
       </UBadge>
       <UButton size="xs" color="neutral" variant="link" :label="t('dbstudio.clearAll')" @click="filters = []; sort = []" />

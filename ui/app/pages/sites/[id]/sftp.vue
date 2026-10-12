@@ -139,7 +139,7 @@ const keyColumns = computed(() => [
     </template>
     <div class="grid items-start gap-6 lg:grid-cols-2">
       <div class="flex min-w-0 flex-col gap-2">
-        <h3 class="hud m-0 text-muted">
+        <h3 class="m-0 text-sm font-semibold text-highlighted">
           {{ t('sftp.connection') }}
         </h3>
         <SummaryList :rows="rows.map(r => ({ k: r.k, v: r.v, mono: true, copy: r.copy }))" />
@@ -150,7 +150,7 @@ const keyColumns = computed(() => [
           :legend="t('sftp.signIn')"
           :items="signInItems"
           variant="card"
-          :ui="{ legend: 'hud mb-2 text-muted' }"
+          :ui="{ legend: 'mb-2 text-sm font-medium text-highlighted' }"
         />
         <UFormField v-if="needsKey" :label="t('sftp.publicKey')" :help="t('sftp.firstKeyHint')">
           <UTextarea v-model="firstKey" :rows="2" autoresize class="w-full" :ui="{ base: 'font-mono text-[13px]' }" placeholder="ssh-ed25519 AAAA… developer@laptop" />
@@ -209,18 +209,18 @@ const keyColumns = computed(() => [
           @update:model-value="v => setShell(!!v)"
         />
         <UAlert color="warning" variant="subtle" icon="i-cg-alert-triangle" :description="t('sftp.shellWarning')" />
-        <div class="mono overflow-x-auto bg-cg-panel px-3.5 py-3 text-[12.5px] leading-[1.75] whitespace-nowrap text-cg-panel-text" role="img" :aria-label="t('sftp.shellPreviewLabel')">
-          <div class="hud pb-1.5 text-[#8A8A92]">
+        <div class="mono overflow-x-auto bg-cg-code-bg px-3.5 py-3 text-[12.5px] leading-[1.75] whitespace-nowrap text-cg-code-muted" role="img" :aria-label="t('sftp.shellPreviewLabel')">
+          <div class="pb-1.5 text-cg-code-muted">
             {{ t('sftp.shellPreview') }}
           </div>
-          <div><span class="text-[#7C9BFF]">{{ site.system_user }}@{{ site.domain.split('.')[0] }}</span>:<span class="text-[#5CC98A]">~/current</span>$ wp plugin list --status=active</div>
-          <div class="text-[#8A8A92]">
+          <div><span class="text-cg-code-fg">{{ site.system_user }}@{{ site.domain.split('.')[0] }}</span>:<span class="text-cg-code-fg">~/current</span>$ wp plugin list --status=active</div>
+          <div class="text-cg-code-muted">
             …
           </div>
         </div>
       </div>
       <div class="flex min-w-0 flex-col gap-2">
-        <h3 class="hud m-0 text-muted">
+        <h3 class="m-0 text-sm font-semibold text-highlighted">
           {{ t('sftp.shellFacts') }}
         </h3>
         <ul class="m-0 flex list-disc flex-col gap-1.5 ps-5 text-sm text-default">
@@ -245,7 +245,7 @@ const keyColumns = computed(() => [
           :items="keyTypes.map(kt => ({ value: kt.value, label: kt.label, disabled: kt.disabled }))"
           orientation="horizontal"
           variant="card"
-          :ui="{ legend: 'hud mb-2 text-muted' }"
+          :ui="{ legend: 'mb-2 text-sm font-medium text-highlighted' }"
         />
         <p v-if="!isAdmin" class="m-0 text-[13px] text-muted">
           {{ t('sftp.shellKeyAdminOnly') }}
@@ -256,7 +256,7 @@ const keyColumns = computed(() => [
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="addingKey = false" />
-        <UButton icon="i-cg-plus" :label="t('sftp.addKey')" :disabled="!publicKey.trim()" :loading="busy" @click="addKey" />
+        <UButton color="primary" variant="solid" icon="i-cg-plus" :label="t('sftp.addKey')" :disabled="!publicKey.trim()" :loading="busy" @click="addKey" />
       </div>
     </template>
   </UModal>
