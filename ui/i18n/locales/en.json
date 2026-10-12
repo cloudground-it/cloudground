@@ -1253,12 +1253,6 @@
     "customCertWarning": "This site serves a custom certificate, which may not cover the new aliases: install one that does."
   },
   "newSite": {
-    "title": "New",
-    "titleAccent": "site.",
-    "kickerForm": "Sites · create",
-    "kickerCreating": "Sites · creating",
-    "kickerDone": "Sites · created",
-    "kickerFailed": "Sites · creation failed",
     "summaryHint": "Everything you need to use the site. The database password is shown only here.",
     "close": "Close",
     "typeHint": {
@@ -1290,7 +1284,6 @@
     "dbPasswordRule": "12 to 256 characters",
     "dbPasswordSpaces": "It cannot start or end with a space",
     "dbPasswordChars": "It cannot contain ', \" or \\",
-    "willCreate": "will create:",
     "willUser": "an isolated system user",
     "willDatabase": "database {name}",
     "willCert": "Let’s Encrypt certificate",
@@ -1326,7 +1319,43 @@
     "closeAnyway": "Close anyway",
     "txtTitle": "CloudGround · {domain}",
     "txtSecret": "This file contains passwords. Keep it somewhere safe and delete it once you have stored them elsewhere.",
-    "nameTaken": "{name} is already used on this server"
+    "nameTaken": "{name} is already used on this server",
+    "wizard": {
+      "steps": {
+        "type": "Type",
+        "domain": "Domain",
+        "setup": "Setup",
+        "database": "Database",
+        "review": "Review"
+      },
+      "stepsLabel": "Steps",
+      "stepOf": "Step {n} of {total}: {name}",
+      "typeLegend": "What kind of site?",
+      "typeHint": "The type decides how nginx and PHP are set up and whether the site needs a database.",
+      "profileLegend": "Performance profile",
+      "profileHint": "The profile decides what is never cached and for how long. You can change it later.",
+      "profileAutoHint": "the right profile for a {type} site",
+      "domainLegend": "Which domain?",
+      "domainHint": "The name visitors type, without https://. The Let’s Encrypt certificate is issued once its DNS points at this server; aliases can be added from the site’s Overview tab.",
+      "setupLegend": "Setup",
+      "setupHint": "What a {type} site needs to start.",
+      "setupNone": "A static site needs nothing else: upload its files over SFTP once it is created.",
+      "phpHint": "The PHP version the site runs. It can be changed later from the PHP tab.",
+      "dbLegend": "Database",
+      "dbNone": "A reverse proxy has no database: the application behind it keeps its own data.",
+      "reviewLegend": "Review",
+      "reviewHint": "Check everything, then create the site. Change goes back to a step and keeps what you typed.",
+      "change": "Change",
+      "changeStep": "Change {step}",
+      "pwSet": "set, {n} characters",
+      "none": "none",
+      "noTitle": "(none)",
+      "willHeading": "{type} will create",
+      "willDatabaseAny": "a database",
+      "draftRestored": "Your draft was kept, but not its passwords: type or generate them again.",
+      "invalid": "Fix the highlighted fields to continue.",
+      "pageTitle": "New site"
+    }
   },
   "studio": {
     "signInTitle": "Sign in to @:{'studio.name'}",

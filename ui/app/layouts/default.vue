@@ -6,7 +6,7 @@ const { t } = useI18n()
 const route = useRoute()
 const api = useApi()
 const { user, isAdmin } = useAuth()
-const { sites, creating, sitesVersion, version } = useShell()
+const { sites, sitesVersion, version } = useShell()
 const open = ref(false)
 
 const isOperator = computed(() => user.value?.role === 'operator')
@@ -81,11 +81,6 @@ events.on((ev) => {
 })
 watch(() => route.path, () => { open.value = false })
 
-function onCreated() {
-  sitesVersion.value++
-  if (route.path !== '/sites') void navigateTo('/sites')
-}
-
 const searchGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
   {
     id: 'sites',
@@ -102,7 +97,7 @@ const searchGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
     ? [{
         id: 'actions',
         label: t('cg.shell.actions'),
-        items: [{ label: t('site.new'), icon: 'i-cg-plus', onSelect: () => { creating.value = true } }]
+        items: [{ label: t('site.new'), icon: 'i-cg-plus', to: '/sites/new' }]
       }]
     : [])
 ])
@@ -161,7 +156,6 @@ const searchGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
 
     <slot />
 
-    <SiteCreateModal v-if="isAdmin" v-model:open="creating" @created="onCreated" />
     <StreamStatus />
   </UDashboardGroup>
 </template>

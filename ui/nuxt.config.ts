@@ -63,15 +63,20 @@ export default defineNuxtConfig({
   // (there is no Nitro server to answer /api/_nuxt_icon).
   ui: { fonts: false },
 
-  // Every icon is from the CloudGround set (app/assets/icons/README.md), a
-  // local collection bundled whole into the client. provider 'none' stubs
+  // Every icon is from the CloudGround set (app/assets/icons/README.md) or,
+  // for the software a site type installs, the marks in
+  // app/assets/icons/brand (README there): local collections bundled whole
+  // into the client. provider 'none' stubs
   // Iconify's fetch, so nothing is ever requested from api.iconify.design.
   icon: {
     mode: 'svg',
     provider: 'none',
     fallbackToApi: false,
     serverBundle: false,
-    customCollections: [{ prefix: 'cg', dir: fileURLToPath(new URL('./app/assets/icons/cg', import.meta.url)) }],
+    customCollections: [
+      { prefix: 'cg', dir: fileURLToPath(new URL('./app/assets/icons/cg', import.meta.url)) },
+      { prefix: 'brand', dir: fileURLToPath(new URL('./app/assets/icons/brand', import.meta.url)) }
+    ],
     clientBundle: {
       scan: { globInclude: ['**/*.{vue,ts}'], globExclude: ['node_modules', 'dist', '.nuxt', '.output'] },
       includeCustomCollections: true

@@ -2,12 +2,14 @@ import type { Site, SiteType } from '~/types'
 
 export const SITE_TYPES: SiteType[] = ['wordpress', 'woocommerce', 'static', 'php', 'laravel', 'proxy']
 
+// The software's own mark where there is one (app/assets/icons/brand,
+// monochrome), else the CloudGround icon.
 export const siteTypeIcon: Record<SiteType, string> = {
-  wordpress: 'i-cg-browser',
-  woocommerce: 'i-cg-package',
+  wordpress: 'i-brand-wordpress',
+  woocommerce: 'i-brand-woocommerce',
   static: 'i-cg-file-code',
-  php: 'i-cg-code',
-  laravel: 'i-cg-layers',
+  php: 'i-brand-php',
+  laravel: 'i-brand-laravel',
   proxy: 'i-cg-network'
 }
 

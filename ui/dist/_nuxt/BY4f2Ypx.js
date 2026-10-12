@@ -1,0 +1,1 @@
+import{d as e}from"./CGXWVGLR.js";function t(){return{sites:e(`shell:sites`,()=>null),sitesVersion:e(`shell:sites-version`,()=>0),version:e(`shell:version`,()=>``)}}export{t};

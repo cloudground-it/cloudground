@@ -6,7 +6,7 @@ const { t, locale } = useI18n()
 const api = useApi()
 const { isAdmin, isOperator } = useAuth()
 const { busy, run } = useAction()
-const { sitesVersion, creating } = useShell()
+const { sitesVersion } = useShell()
 useHead({ title: () => t('nav.dashboard') })
 
 // Server-wide capacity is not an operator's: the API refuses it, so it is not asked for.
@@ -137,7 +137,7 @@ function startUpdate() {
           </template>
           <template v-if="isAdmin" #links>
             <!-- The update, when there is one, is the screen's one primary action. -->
-            <UButton v-bind="updateShown ? {} : { color: 'primary', variant: 'solid' }" icon="i-cg-plus" :label="t('site.new')" @click="creating = true" />
+            <UButton v-bind="updateShown ? {} : { color: 'primary', variant: 'solid' }" icon="i-cg-plus" :label="t('site.new')" to="/sites/new" />
           </template>
         </UPageHeader>
 
@@ -190,7 +190,7 @@ function startUpdate() {
             icon="i-cg-sites"
             :title="t('site.emptyTitle')"
             :description="t('site.emptyHint')"
-            :actions="isAdmin ? [{ label: t('site.createFirst'), icon: 'i-cg-plus', onClick: () => { creating = true } }] : []"
+            :actions="isAdmin ? [{ label: t('site.createFirst'), icon: 'i-cg-plus', to: '/sites/new' }] : []"
           />
           <UTable v-else :data="listed" :columns="siteColumns">
             <template #site-cell="{ row: { original: { site, staging } } }">
