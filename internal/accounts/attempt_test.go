@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/cloudground-it/cloudground/internal/throttle"
@@ -148,32 +149,25 @@ func TestDelaysAreSleptOutsideTheQueue(t *testing.T) {
 
 // R-4.3 (S-H3 review): someone hammering one e-mail from one network, as
 // fast and as parallel as the limits let them, slows their own guesses and
-// never keeps the owner out. Time runs fast for the limits and the delays
-// (a minute is 6 s), and the delays are really slept: the owner signs in
-// from another network while the attack runs, each time within a bound,
-// never refused; the attacker's delays have grown; nothing is left behind.
-// The bounds hold on a slow, busy runner: the owner signs in once the
-// attacker's delays have grown, not after a fixed time; the owner's bound
-// has a margin of seconds and stays below the attacker's minute (6 s
-// here); the limits' 15-minute windows are 90 s long; and the guesses are
-// counted against what sequential ones could do in the limits' time the
-// attack really took.
+// never keeps the owner out. The test runs in a synctest bubble: the limits,
+// the delays and the test read one fake clock, which moves only when every
+// goroutine of the attack waits, so a credential check takes no time and a
+// slow, busy machine cannot miss a bound (#110). The delays are really
+// slept, on that clock: the owner signs in from another network while the
+// attack runs, each time within the e-mail's capped delay, never refused;
+// the attacker's delays have grown; its guesses are no more than sequential
+// ones would get in the same time; nothing is left behind.
 func TestAttackerFromOneNetworkCannotKeepTheOwnerOut(t *testing.T) {
 	if testing.Short() {
-		t.Skip("runs an attack for a few seconds")
+		t.Skip("runs an attack of a few minutes of fake time")
 	}
+	synctest.Test(t, attackerCannotKeepTheOwnerOut)
+}
+
+func attackerCannotKeepTheOwnerOut(t *testing.T) {
 	f := newFixture(t)
 	f.user(t, "victim@example.com", "admin")
-
-	// One credential check, timed, for the bound (argon2 under the race
-	// detector is slow, and the box is not this machine).
-	t0 := time.Now()
-	f.sv.Login(bg, SignIn{Email: "someone-else@example.com", Password: "wrong-password", Address: "198.51.100.1"})
-	check := time.Since(t0)
-
-	const speed = 10
-	origin, begun := f.at, time.Now()
-	f.sv.Now = func() time.Time { return origin.Add(time.Since(begun) * speed) }
+	f.sv.Now = time.Now // the bubble's clock
 	for _, w := range []*throttle.Window{f.sv.Limits.Address, f.sv.Limits.Wide, f.sv.Limits.AddressAccount, f.sv.Limits.Codes} {
 		w.WithClock(f.sv.Now)
 	}
@@ -185,20 +179,24 @@ func TestAttackerFromOneNetworkCannotKeepTheOwnerOut(t *testing.T) {
 		slept[partyOf(ctx)] = append(slept[partyOf(ctx)], d)
 		mu.Unlock()
 		select {
-		case <-time.After(d / speed):
+		case <-time.After(d):
 			return nil
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
+	longest := func(party string) time.Duration {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Max(append(slept[party], 0))
+	}
 
+	begun := time.Now()
 	stop := make(chan struct{})
 	var guesses, throttled atomic.Int64
 	var wg sync.WaitGroup
 	for range 2 * AccountQueue {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for {
 				select {
 				case <-stop:
@@ -208,25 +206,20 @@ func TestAttackerFromOneNetworkCannotKeepTheOwnerOut(t *testing.T) {
 				_, err := f.sv.Login(as("attacker"), SignIn{Email: "victim@example.com", Password: "wrong-password", Address: attackerNet})
 				if ref, ok := IsRefusal(err); ok && ref.Kind == Throttled {
 					throttled.Add(1)
-					time.Sleep(time.Millisecond)
+					time.Sleep(100 * time.Millisecond)
 				} else {
 					guesses.Add(1)
 				}
 			}
-		}()
+		})
 	}
 
-	// The owner, once the attack has built its delays up, three times.
-	bound := NameMaxDelay/speed + time.Duration(AccountQueue+2)*check + 2*time.Second
-	// The owner signs in once the attacker's delays have grown, however
-	// long that takes on this box (some two minutes of the limits' time).
-	for deadline := time.Now().Add(time.Minute); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
-		mu.Lock()
-		grown := slices.Max(append(slept["attacker"], 0)) >= 16*time.Second
-		mu.Unlock()
-		if grown {
-			break
-		}
+	// The owner signs in once the attacker's delays have grown (some two
+	// minutes), three times. A check takes no time on this clock, so the
+	// owner waits the e-mail's capped delay and nothing more: the checks
+	// queued ahead are no wait.
+	for time.Since(begun) < 10*time.Minute && longest("attacker") < 16*time.Second {
+		time.Sleep(time.Second)
 	}
 	for i := range 3 {
 		start := time.Now()
@@ -235,34 +228,34 @@ func TestAttackerFromOneNetworkCannotKeepTheOwnerOut(t *testing.T) {
 		if err != nil {
 			t.Fatalf("sign-in %d of the owner during the attack: %v", i+1, err)
 		}
-		if took > bound {
-			t.Fatalf("sign-in %d of the owner took %v, over the bound %v (one check takes %v)", i+1, took, bound, check)
+		if took > NameMaxDelay {
+			t.Fatalf("sign-in %d of the owner took %v, over the e-mail's cap %v", i+1, took, NameMaxDelay)
 		}
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(3 * time.Second)
 	}
 	close(stop)
 	wg.Wait()
-	limitsTime := time.Since(begun) * speed
+	elapsed := time.Since(begun)
 
 	mu.Lock()
-	defer mu.Unlock()
 	for _, d := range slept["owner"] {
 		if d > NameMaxDelay {
 			t.Fatalf("the owner slept %v, over the e-mail's cap", d)
 		}
 	}
-	longest := slices.Max(append(slept["attacker"], 0))
-	t.Logf("%d guesses and %d throttled attempts by the attacker; its longest delay %v; one check %v", guesses.Load(), throttled.Load(), longest, check)
-	if longest < 16*time.Second {
-		t.Fatalf("the attacker's delays stayed at %v, want them grown to 16s or more", longest)
+	mu.Unlock()
+	worst := longest("attacker")
+	t.Logf("%d guesses and %d throttled attempts by the attacker in %v; its longest delay %v", guesses.Load(), throttled.Load(), elapsed, worst)
+	if worst < 16*time.Second {
+		t.Fatalf("the attacker's delays stayed at %v, want them grown to 16s or more", worst)
 	}
 	// Sequential guesses would get five through at once, then one at 1, 3,
 	// 7, 15, 31, 63, 123, 183 s and every minute after: parallel ones are no
 	// faster (the build before let 8 a minute through, the per-pair window,
 	// once every delay had reached its minute). Seven more are allowed for
 	// the attempts in flight at each end.
-	if most := sequentialGuesses(limitsTime) + 7; guesses.Load() > int64(most) {
-		t.Fatalf("%d guesses got through in %v of the limits' time, more than %d", guesses.Load(), limitsTime, most)
+	if most := sequentialGuesses(elapsed) + 7; guesses.Load() > int64(most) {
+		t.Fatalf("%d guesses got through in %v, more than %d", guesses.Load(), elapsed, most)
 	}
 	// Its network's delay outlives the owner's sign-ins.
 	next, err := f.sv.Limits.Delays.Begin("victim@example.com", attackerNet)
@@ -276,8 +269,8 @@ func TestAttackerFromOneNetworkCannotKeepTheOwnerOut(t *testing.T) {
 	if f.sv.turns.Keys() != 0 {
 		t.Fatal("a queue was kept after the attack")
 	}
-	// The e-mail and the attacker's network, and the timed check's two.
-	if failures, inFlight := f.sv.Limits.Delays.Size(); inFlight != 0 || failures > 4 {
+	// The e-mail and the attacker's network.
+	if failures, inFlight := f.sv.Limits.Delays.Size(); inFlight != 0 || failures > 2 {
 		t.Fatalf("after the attack the delays hold %d failure keys and %d in flight", failures, inFlight)
 	}
 }
