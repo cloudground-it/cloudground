@@ -343,6 +343,14 @@ http-level is rendered by the agent into `conf.d` (`internal/engine/nginx`).
     `delaycompress`, `copytruncate` (nginx holds the logs open; renaming would leave it writing to
     an unlinked inode). Check: content. Apply: write, then `logrotate --debug <file>`; a failure is
     logged as a warning, not fatal. A full disk takes every site down: this is availability.
+27a. **`needrestart`** — `/etc/needrestart/conf.d/cloudground.conf` (template
+    `templates/needrestart.conf`), `0644`: `$nrconf{override_rc}` entries (value 0) for the agent's
+    transient units `cg-helper-*`, `cg-restic-*`, `cg-scan-*`, `cg-wp-*`, `cg-malware-signatures-*`,
+    `cg-clamav-install-*`, `cg-apparmor-freshclam-*`, `cg-cron-*` and `cg-apt-*` (the PHP extension
+    and panel package installs), so that needrestart, after a library upgrade, does not restart a
+    command the agent waits for (systemd would run it again from the start). The panel's services
+    and the sites' PHP masters keep its normal handling. Check: content (`cgctl doctor` reports
+    drift). Apply: write. Written also without needrestart installed (nothing reads it).
 28. **`certbot.hook-dir`** — `/etc/letsencrypt/renewal-hooks/deploy` exists, `0755`.
 29. **`certbot.hook`** — `.../deploy/cloudground-reload-nginx.sh` (template
     `templates/renew-hook.sh`), `0755`: reloads nginx after a renewal, which otherwise keeps
@@ -664,7 +672,7 @@ In order:
    failing `sshd -t` fails the action: an sshd that would not restart is the operator's to see);
    `60-cloudground.conf` (the live kernel values stay until a reboot or `sysctl --system`);
    where `nft` is installed, the block list's table `inet cloudground` when it exists (#21; with
-   the agent gone its blocks would stay until a reboot); `logrotate.d/cloudground`; the renewal hook and `cloudground-cloudflare.ini`; the bootstrap
+   the agent gone its blocks would stay until a reboot); `logrotate.d/cloudground`; `needrestart/conf.d/cloudground.conf`; the renewal hook and `cloudground-cloudflare.ini`; the bootstrap
    vhost; **nginx.conf** (below); the default site's link, put back when recorded and its target
    exists; `nginx -t` (a failure fails the action) and `reload nginx` when it runs; the three unit
    files with their `.d` directories and every `cloudground-*` link in a `*.wants` directory, then

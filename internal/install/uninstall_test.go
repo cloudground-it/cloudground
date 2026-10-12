@@ -127,7 +127,7 @@ var removedByDefault = []string{
 	"/etc/systemd/system/user@1001.service",
 	managed.Sysctl, managed.Vhost, managed.SSHD, "/etc/ssh/sshd_config.d/11-cloudground-shell.conf",
 	"/etc/ssh/sshd_config.d/09-cloudground-sftp-keys.conf",
-	managed.Logrotate, managed.RenewHook, nginxPre,
+	managed.Logrotate, managed.Needrestart, managed.RenewHook, nginxPre,
 	"/etc/nginx/sites-enabled/a.test.conf", "/etc/nginx/sites-enabled/cloudground-panel.conf",
 	"/etc/nginx/conf.d/cloudground-cache-1.conf", "/etc/nginx/conf.d/cloudground-global.conf",
 	"/etc/cron.d/cloudground-cg-site-1",

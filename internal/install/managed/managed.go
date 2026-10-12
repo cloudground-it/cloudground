@@ -31,16 +31,17 @@ type File struct {
 
 // The paths, for the steps that name them.
 const (
-	Sysctl     = "/etc/sysctl.d/60-cloudground.conf"
-	NginxConf  = "/etc/nginx/nginx.conf"
-	Vhost      = "/etc/nginx/sites-enabled/cloudground-panel-bootstrap.conf"
-	SSHD       = "/etc/ssh/sshd_config.d/10-cloudground-sftp.conf"
-	Logrotate  = "/etc/logrotate.d/cloudground"
-	RenewHook  = "/etc/letsencrypt/renewal-hooks/deploy/cloudground-reload-nginx.sh"
-	PanelEnv   = "/etc/cloudground/panel.env"
-	AgentUnit  = "/etc/systemd/system/cloudground-agent.service"
-	APIUnit    = "/etc/systemd/system/cloudground-api.service"
-	SocketUnit = "/etc/systemd/system/cloudground-api.socket"
+	Sysctl      = "/etc/sysctl.d/60-cloudground.conf"
+	NginxConf   = "/etc/nginx/nginx.conf"
+	Vhost       = "/etc/nginx/sites-enabled/cloudground-panel-bootstrap.conf"
+	SSHD        = "/etc/ssh/sshd_config.d/10-cloudground-sftp.conf"
+	Logrotate   = "/etc/logrotate.d/cloudground"
+	Needrestart = "/etc/needrestart/conf.d/cloudground.conf"
+	RenewHook   = "/etc/letsencrypt/renewal-hooks/deploy/cloudground-reload-nginx.sh"
+	PanelEnv    = "/etc/cloudground/panel.env"
+	AgentUnit   = "/etc/systemd/system/cloudground-agent.service"
+	APIUnit     = "/etc/systemd/system/cloudground-api.service"
+	SocketUnit  = "/etc/systemd/system/cloudground-api.socket"
 )
 
 // Files is the list, in the order the installer writes them.
@@ -54,6 +55,7 @@ var Files = []File{
 	{Path: SocketUnit, Mode: 0o644, Kind: Rendered, Template: "units/cloudground-api.socket"},
 	{Path: SSHD, Mode: 0o644, Kind: Rendered, Template: "templates/sshd-sftp.conf"},
 	{Path: Logrotate, Mode: 0o644, Kind: Rendered, Template: "templates/logrotate.conf"},
+	{Path: Needrestart, Mode: 0o644, Kind: Rendered, Template: "templates/needrestart.conf"},
 	{Path: RenewHook, Mode: 0o755, Kind: Rendered, Template: "templates/renew-hook.sh"},
 }
 
