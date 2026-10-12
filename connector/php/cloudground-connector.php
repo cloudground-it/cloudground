@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: CloudGround Connector
- * Description: Purges exactly the cached pages a change affects, signs the panel in, reports the object cache, and adds two-factor sign-in when the panel turns it on. Managed by CloudGround.
- * Version: 2.2.0
+ * Description: Purges exactly the cached pages a change affects, signs the panel in, reports the object cache, and adds two-factor sign-in and hardening when the panel turns them on. Managed by CloudGround.
+ * Version: 2.3.0
  * Requires at least: 6.6
  * Requires PHP: 8.2
  * Author: CloudGround
@@ -1566,6 +1566,170 @@ final class TwoFactor
     }
 }
 
+/**
+ * WordPress hardening the panel turns on per site (SPEC 2.12), item by
+ * item, through the PHP master's environment: CLOUDGROUND_HARDENING lists
+ * the items ("xmlrpc", "file_edit", "version"), CLOUDGROUND_LOGIN_PATH
+ * names the sign-in page that replaces wp-login.php. nginx does its half
+ * (internal/engine SPEC 4.8): XML-RPC answered 403 there, readme and
+ * licence files 404, wp-login.php 404 and the new path rewritten to it.
+ */
+final class Hardening
+{
+    /** @return list<string> */
+    public static function items(): array
+    {
+        $v = getenv('CLOUDGROUND_HARDENING');
+        return is_string($v) && $v !== '' ? array_values(array_intersect(explode(',', $v), ['xmlrpc', 'file_edit', 'version'])) : [];
+    }
+
+    /** The sign-in page's path without slashes, "" for wp-login.php. */
+    public static function loginPath(): string
+    {
+        $v = getenv('CLOUDGROUND_LOGIN_PATH');
+        return is_string($v) && preg_match('/\A[a-z0-9][a-z0-9-]{2,63}\z/', $v) === 1 ? $v : '';
+    }
+
+    public static function register(): void
+    {
+        $items = self::items();
+        if (in_array('xmlrpc', $items, true)) {
+            // After every plugin has loaded, so Jetpack can be seen; before
+            // any of them answers the request.
+            add_action('plugins_loaded', [self::class, 'xmlrpcGate'], PHP_INT_MIN);
+            add_filter('wp_headers', [self::class, 'noPingbackHeader']);
+            remove_action('wp_head', 'rsd_link');
+        }
+        if (in_array('file_edit', $items, true)) {
+            add_filter('map_meta_cap', [self::class, 'noFileEdit'], 10, 2);
+        }
+        if (in_array('version', $items, true)) {
+            remove_action('wp_head', 'wp_generator');
+            add_filter('the_generator', '__return_empty_string');
+            add_filter('style_loader_src', [self::class, 'assetVersion']);
+            add_filter('script_loader_src', [self::class, 'assetVersion']);
+        }
+        if (self::loginPath() !== '') {
+            add_filter('site_url', [self::class, 'loginURL'], PHP_INT_MAX);
+            add_filter('network_site_url', [self::class, 'loginURL'], PHP_INT_MAX);
+            add_filter('wp_redirect', [self::class, 'loginRedirect'], PHP_INT_MAX);
+            add_action('init', [self::class, 'hideAdmin'], 0);
+            // /login, /admin and /dashboard would redirect to the new path.
+            remove_action('template_redirect', 'wp_redirect_admin_locations', 1000);
+        }
+    }
+
+    // ------------------------------------------------------- XML-RPC --
+
+    public static function xmlrpcGate(): void
+    {
+        if (!defined('XMLRPC_REQUEST') || !\XMLRPC_REQUEST) {
+            return;
+        }
+        $jetpack = class_exists('Jetpack', false) || class_exists('Automattic\\Jetpack\\Connection\\Manager', false);
+        if (self::xmlrpcAllowed($_GET['for'] ?? null, $_SERVER['CLOUDGROUND_XMLRPC_FROM'] ?? null, $jetpack)) {
+            return;
+        }
+        status_header(403);
+        nocache_headers();
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "XML-RPC is turned off on this site.\n";
+        exit;
+    }
+
+    /**
+     * An address on the site's exception list (nginx says so in a
+     * FastCGI parameter no client can set), or Jetpack's own signed
+     * requests when Jetpack is active: with for=jetpack it serves only its
+     * methods and checks their signature itself. PHP's reading of "for"
+     * is the one Jetpack acts on, so no other spelling gets through.
+     */
+    public static function xmlrpcAllowed($for, $from, bool $jetpack): bool
+    {
+        return $from === '1' || ($jetpack && $for === 'jetpack');
+    }
+
+    /** @param array<string, string> $headers */
+    public static function noPingbackHeader($headers)
+    {
+        if (is_array($headers)) {
+            unset($headers['X-Pingback']);
+        }
+        return $headers;
+    }
+
+    // --------------------------------------------------- file editor --
+
+    /** What DISALLOW_FILE_EDIT does, whatever wp-config.php defines. */
+    public static function noFileEdit($caps, $cap)
+    {
+        if (in_array($cap, ['edit_themes', 'edit_plugins', 'edit_files'], true)) {
+            $caps[] = 'do_not_allow';
+        }
+        return $caps;
+    }
+
+    // ------------------------------------------------------- version --
+
+    /**
+     * A core asset's ?ver= is WordPress's version: replaced with a digest
+     * of it, which still changes with each update (browsers fetch the new
+     * file) without saying which version it is.
+     */
+    public static function assetVersion($src)
+    {
+        $v = (string) get_bloginfo('version');
+        if (!is_string($src) || $v === '') {
+            return $src;
+        }
+        $tag = substr(hash_hmac('sha256', $v, wp_salt('nonce')), 0, 8);
+        return (string) preg_replace('/([?&]ver=)' . preg_quote($v, '/') . '(?=&|#|$)/', '${1}' . $tag, $src);
+    }
+
+    // ---------------------------------------------------- login path --
+
+    /** site_url and network_site_url: wp-login.php becomes the new path. */
+    public static function loginURL($url)
+    {
+        return is_string($url) ? (string) preg_replace('#/wp-login\.php(?=$|[?\#])#', '/' . self::loginPath(), $url) : $url;
+    }
+
+    /** Redirects to wp-login.php on this site (core writes some relative) go to the new path. */
+    public static function loginRedirect($location)
+    {
+        if (!is_string($location)) {
+            return $location;
+        }
+        $host = wp_parse_url($location, PHP_URL_HOST);
+        if ($host !== null && $host !== false && strcasecmp((string) $host, (string) wp_parse_url(home_url('/'), PHP_URL_HOST)) !== 0) {
+            return $location;
+        }
+        return (string) preg_replace('#(^|/)wp-login\.php(?=$|[?\#])#', '${1}' . self::loginPath(), $location);
+    }
+
+    /**
+     * wp-admin for a visitor who is not signed in answers 404, instead of
+     * a redirect that would give the new path away. admin-ajax.php and
+     * admin-post.php stay open: the public pages call them.
+     */
+    public static function hideAdmin(): void
+    {
+        if (!self::adminHidden(is_admin(), (string) ($GLOBALS['pagenow'] ?? ''), wp_doing_ajax(), is_user_logged_in())) {
+            return;
+        }
+        status_header(404);
+        nocache_headers();
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "Not found.\n";
+        exit;
+    }
+
+    public static function adminHidden(bool $admin, string $page, bool $ajax, bool $loggedIn): bool
+    {
+        return $admin && !$ajax && !$loggedIn && !in_array($page, ['admin-ajax.php', 'admin-post.php'], true);
+    }
+}
+
 // --------------------------------------------------------------- wiring --
 
 add_action('muplugins_loaded', [Stats::class, 'handle'], 0);
@@ -1575,6 +1739,7 @@ add_action('wp_login_failed', [AuthFailure::class, 'failed'], 10, 0);
 add_action('application_password_failed_authentication', [AuthFailure::class, 'failed'], 10, 0);
 Events::register();
 TwoFactor::register();
+Hardening::register();
 
 if (defined('CLOUDGROUND_DISABLE_CART_FRAGMENTS') && \CLOUDGROUND_DISABLE_CART_FRAGMENTS) {
     add_action('wp_enqueue_scripts', [CartFragments::class, 'dequeue'], 100);

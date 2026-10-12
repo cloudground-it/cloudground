@@ -301,3 +301,30 @@ func TestValidProtectedPath(t *testing.T) {
 		}
 	}
 }
+
+// #75: the login path and the XML-RPC exceptions are pasted into nginx's
+// configuration and PHP's environment; only what renders as it is passes.
+func TestHardeningInput(t *testing.T) {
+	for p, ok := range map[string]bool{"my-door": true, "a1b": true, "ab": false, "My-Door": false, "-x-y": false,
+		"a/b": false, "wp-admin": false, "login": false, "my-account": false, "x y": false, "door;": false} {
+		if ValidLoginPath(p) != ok {
+			t.Errorf("ValidLoginPath(%q) = %v", p, !ok)
+		}
+	}
+	for in, want := range map[string]string{"192.0.2.1": "192.0.2.1", "192.0.2.7/24": "192.0.2.0/24", "2001:db8::1": "2001:db8::1",
+		"::ffff:192.0.2.1": "192.0.2.1", "2001:db8::/32": "2001:db8::/32", "x": "", "192.0.2.1;": "", "fe80::1%eth0": "", "": ""} {
+		got, err := NormalizeXMLRPCAllow(in)
+		if got != want || (err == nil) != (want != "") {
+			t.Errorf("NormalizeXMLRPCAllow(%q) = %q, %v", in, got, err)
+		}
+	}
+	s := state.Site{}
+	s.Config.WPHardening = state.WPHardening{XMLRPCAllow: []string{"192.0.2.7/24"}}
+	if checkHardening(s) == nil {
+		t.Error("a network not in its canonical form passed")
+	}
+	s.Config.WPHardening = state.WPHardening{XMLRPCAllow: []string{"192.0.2.0/24"}, LoginPath: "my-door"}
+	if err := checkHardening(s); err != nil {
+		t.Error(err)
+	}
+}
