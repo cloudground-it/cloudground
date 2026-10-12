@@ -96,22 +96,25 @@ func TestSocketReader(t *testing.T) {
 		}
 	}
 	c.Close()
+	// The lines may arrive over several reads, and a read empties: add up
+	// what each read gives until the three failures are in.
 	deadline := time.Now().Add(5 * time.Second)
-	var got rpc.BlocklistFailuresResult
-	for time.Now().Before(deadline) {
-		got = o.Failures()
-		if len(got.Failures) > 0 || time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	// The three lines may arrive over two reads.
 	total := 0
-	for _, f := range append(got.Failures, o.Failures().Failures...) {
-		if f.Address != "203.0.113.9" || f.Source != "wordpress" {
-			t.Fatalf("unexpected failure %+v", f)
+	for total < 3 && time.Now().Before(deadline) {
+		for _, f := range o.Failures().Failures {
+			if f.Address != "203.0.113.9" || f.Source != "wordpress" {
+				t.Fatalf("unexpected failure %+v", f)
+			}
+			total += f.Count
 		}
-		total += f.Count
+		if total < 3 {
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+	// Nothing more comes: the loopback line and the garbage never count.
+	time.Sleep(100 * time.Millisecond)
+	for _, f := range o.Failures().Failures {
+		t.Fatalf("unexpected failure %+v", f)
 	}
 	if total != 3 {
 		t.Fatalf("counted %d failures, want 3", total)
