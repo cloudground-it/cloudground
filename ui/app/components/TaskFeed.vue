@@ -22,7 +22,7 @@ const color: Record<Task['status'], 'neutral' | 'info' | 'success' | 'error'> = 
 </script>
 
 <template>
-  <UEmpty v-if="!visible.length" size="sm" icon="i-cg-history" :description="t('tasks.none')" />
+  <UEmpty v-if="!visible.length" icon="i-cg-history" :title="t('tasks.none')" :description="t('tasks.noneHint')" />
   <ol v-else class="m-0 list-none divide-y divide-default p-0">
     <li v-for="task in visible" :key="task.id" class="flex gap-3 px-4 py-3 sm:px-5">
       <span class="mono min-w-14 shrink-0 pt-0.5 text-xs whitespace-nowrap text-muted" :title="fmtDateTime(task.created_at, locale)">{{ fmtWhen(task.created_at, locale) }}</span>

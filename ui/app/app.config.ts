@@ -14,6 +14,8 @@ const HUD = 'font-mono text-[11px] leading-[1.35] uppercase tracking-[0.14em] fo
 const INK_SOLID = 'text-inverted bg-inverted hover:bg-cg-blue hover:text-(--cg-on-blue) active:bg-cg-blue disabled:bg-inverted aria-disabled:bg-inverted disabled:text-inverted outline-cg-blue focus-visible:outline-2 focus-visible:outline-offset-2'
 const INK_LINE = 'ring ring-inset ring-(--cg-ink) text-highlighted bg-transparent hover:bg-inverted hover:text-inverted active:bg-inverted active:text-inverted disabled:bg-transparent aria-disabled:bg-transparent disabled:text-highlighted outline-cg-blue focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:ring-(--cg-ink)'
 const MENU_ITEM = 'text-default data-highlighted:text-highlighted data-[state=open]:text-highlighted data-highlighted:before:bg-accented data-[state=open]:before:bg-accented before:rounded-none'
+// An empty state's sizes, all one (the empty config below).
+const EMPTY = { avatar: 'size-8 text-[28px]', title: 'text-xl', description: 'text-sm' }
 const POPOVER = 'rounded-none bg-default ring ring-(--cg-ink) shadow-[0_18px_40px_-24px_rgb(0_0_0_/_0.45)]'
 
 export default defineAppConfig({
@@ -304,7 +306,9 @@ export default defineAppConfig({
         }
       },
       compoundVariants: [
-        { variant: 'link', orientation: 'horizontal', class: { list: 'border-b border-default p-0', indicator: '-bottom-px h-0.5 bg-cg-blue', trigger: 'data-[state=active]:text-highlighted' } },
+        // mb-0: Nuxt UI pulls the list's divider 1px out of its box
+        // (-mb-px), where the side-scrolling wrapper of a tab bar clips it.
+        { variant: 'link', orientation: 'horizontal', class: { list: 'border-b border-default p-0 mb-0', indicator: '-bottom-px h-0.5 bg-cg-blue', trigger: 'data-[state=active]:text-highlighted' } },
         { variant: 'pill', class: { list: 'p-0 bg-transparent ring ring-inset ring-default gap-0', indicator: 'inset-y-0 rounded-none bg-inverted shadow-none', trigger: 'data-[state=active]:text-inverted' } }
       ],
       defaultVariants: { variant: 'link' }
@@ -379,14 +383,21 @@ export default defineAppConfig({
     },
     empty: {
       // Inside a section's card: centred, one sentence, the one action.
+      // Every size reads the same (one empty state across the panel): the
+      // icon in blue just above a display title, close to the card's top.
       slots: {
-        root: 'rounded-none py-8 sm:py-10',
-        header: 'max-w-md',
-        avatar: 'rounded-none bg-transparent',
-        title: 'disp [font-stretch:108%] text-lg text-highlighted',
+        root: 'rounded-none gap-4 px-4 py-6 sm:px-6 sm:py-7 lg:px-8 lg:py-7',
+        header: 'max-w-md gap-1.5',
+        // The avatar's own neutral colour would draw the icon in paper
+        // on paper.
+        avatar: 'rounded-none bg-transparent mb-1 [&>[data-slot=icon]]:text-cg-blue',
+        title: 'disp [font-stretch:108%] leading-snug text-highlighted',
         description: 'text-pretty text-muted'
       },
       variants: {
+        size: {
+          xs: EMPTY, sm: EMPTY, md: EMPTY, lg: EMPTY, xl: EMPTY
+        },
         variant: {
           outline: { root: 'bg-transparent ring-0' },
           subtle: { root: 'bg-transparent ring-0' },
