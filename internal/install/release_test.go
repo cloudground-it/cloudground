@@ -41,6 +41,10 @@ func TestCheckRelease(t *testing.T) {
 		{"a -N-gHASH suffix is the same release", "v0.4.0-2-gabc123", "v0.4.0", false, []string{"v0.4.0"}, true, ""},
 		{"a beta is not the release it leads to", "v0.5.0-beta.1", "v0.5.0", false, nil, false, "requested"},
 		{"a beta, as requested", "v0.5.0-beta.2", "v0.5.0-beta.2", false, []string{"v0.4.0"}, true, ""},
+		{"a git-describe build installed is not a release", "v0.1.0", "v0.1.0", false, []string{"v0.2.0-11-g85da91c", ""}, true, ""},
+		{"a dirty describe build installed", "v0.1.0", "latest", false, []string{"v0.2.0-11-g85da91c-dirty", ""}, true, ""},
+		{"a describe build still meets the floor", "v0.1.0", "latest", false, []string{"v0.2.0-11-g85da91c", "v0.2.0"}, false, "downgrade"},
+		{"a beta installed counts", "v0.4.0", "latest", false, []string{"v0.5.0-beta.1", ""}, false, "downgrade"},
 		{"a beta is older than its release", "v0.5.0-beta.2", "latest", false, []string{"v0.5.0"}, false, "downgrade"},
 	} {
 		err := CheckRelease(tc.manifest, tc.requested, tc.allow, tc.installed...)

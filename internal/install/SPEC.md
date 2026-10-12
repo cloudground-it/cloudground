@@ -430,8 +430,10 @@ anything is installed:
    `-beta.N` is older than its release and is not the release it leads to): `CLOUDGROUND_VERSION` other than `latest`/empty must parse
    (`CLOUDGROUND_VERSION=<v> is not a vX.Y.Z version`) and equal the manifest's (`the signed
    manifest is for <m>, not the requested <r>: refusing to install`); the manifest must not be
-   older than any parseable installed version — `/usr/local/bin/panel-api --version` (10 s) and
-   `/var/lib/cloudground-agent/highest-release` — unless `CLOUDGROUND_ALLOW_DOWNGRADE=1`
+   older than any installed version that is a release tag (`version.ReleaseTag`; a development
+   build, `git describe`'s `vX.Y.Z-N-gHASH` included, is not, as in step 3a) —
+   `/usr/local/bin/panel-api --version` (10 s) and `/var/lib/cloudground-agent/highest-release` —
+   unless `CLOUDGROUND_ALLOW_DOWNGRADE=1`
    (`release <m> is older than <v>, already installed: refusing to downgrade (set
    CLOUDGROUND_ALLOW_DOWNGRADE=1 to force it)`). The same release may be reinstalled;
 3a. **another release over an installed panel is refused** (R-6.5, `CheckSameRelease`): on an

@@ -136,7 +136,7 @@ func VerifyRelease(r ReleaseRequest) (ver, staged string, err error) {
 
 // CheckRelease decides whether release manifest may be installed: it must
 // name a release; when requested is a version, be that one; and not be older
-// than any installed version that parses, unless allowDowngrade. The same
+// than any installed version that is a release tag, unless allowDowngrade. The same
 // release may be reinstalled. (The self-update's version.CheckUpdate is
 // stricter: it wants a strictly newer release.)
 func CheckRelease(manifest, requested string, allowDowngrade bool, installed ...string) error {
@@ -152,7 +152,10 @@ func CheckRelease(manifest, requested string, allowDowngrade bool, installed ...
 		}
 	}
 	for _, have := range installed {
-		if _, ok := version.Parse(have); !ok {
+		// Only a release counts: a development build, `git describe`'s
+		// v0.2.0-11-g85da91c included, takes any release (SPEC §5 step 3),
+		// as it does for the same-release check (CheckSameRelease).
+		if _, ok := version.ReleaseTag(have); !ok {
 			continue
 		}
 		if version.Newer(have, manifest) && !allowDowngrade {
