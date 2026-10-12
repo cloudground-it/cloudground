@@ -1,5 +1,6 @@
 # Every push to main and every pull request: the gates `make docker-test`,
-# `make docker-nginx-test`, `make docker-install-test`, `make docker-php-test` and the UI build run
+# `make docker-nginx-test`, `make docker-install-test`,
+# `make docker-php-test` and the UI build run
 # locally, plus a release dry run that proves `make release` refuses what is
 # not signed.
 name: CI

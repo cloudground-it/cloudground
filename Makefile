@@ -29,7 +29,7 @@ UI_BUILD_DIR = /tmp/cloudground-ui
 DOCKER_NODE = docker run --rm -v "$(CURDIR)/ui":$(UI_BUILD_DIR) -v cloudground-ui-modules:$(UI_BUILD_DIR)/node_modules -w $(UI_BUILD_DIR) $(NODE_IMAGE)
 
 .PHONY: build ui test vet dist clean e2e-bin e2e-index api-doc \
-	docker-test docker-dist docker-e2e-bin docker-e2e-index docker-api-doc docker-nginx-test docker-install-test docker-upgrade-bundle \
+	docker-test docker-dist docker-e2e-bin docker-e2e-index docker-api-doc docker-nginx-test docker-install-test docker-php-test docker-upgrade-bundle \
 	release release-build release-sign release-verify release-require-key \
 	docker-release docker-release-build docker-release-repro
 
