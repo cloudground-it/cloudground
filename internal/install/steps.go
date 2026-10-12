@@ -567,7 +567,22 @@ func Steps(e *Env, o Options) []Step {
 		}
 		return nil
 	}))
-	// Harmless without needrestart: nothing reads the file.
+	// Harmless without needrestart: nothing reads the file. Without the
+	// package its directory is missing too; the installer records it so
+	// that an uninstall removes it again while it is empty.
+	nrDir := filepath.Dir(managed.Needrestart)
+	nrDirW := want{mode: 0o755}
+	add(Step{ID: "needrestart.dir", Group: gLogs,
+		Check: func(context.Context) (bool, string) {
+			if why := e.dirDiff(nrDir, nrDirW); why != "" {
+				return need(why)
+			}
+			return ok("in place")
+		},
+		Apply: func(context.Context) error {
+			e.recordNewDir(nrDir)
+			return e.ensureDir(nrDir, nrDirW)
+		}})
 	add(r.renderedStep("needrestart", gLogs, managed.Needrestart, nil))
 	hookDir := filepath.Dir(managed.RenewHook)
 	hookDirW := want{mode: 0o755}
