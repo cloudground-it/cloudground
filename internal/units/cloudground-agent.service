@@ -9,6 +9,14 @@ UMask=0027
 EnvironmentFile=-/etc/cloudground/panel.env
 # The agent's restic cache: /root is read-only for this unit (ProtectHome).
 Environment=RESTIC_CACHE_DIR=/var/cache/cloudground/restic
+# The system packages this release needs (internal/syspkg), the missing ones
+# installed through a transient root unit, before the agent starts (#113,
+# ops/panel SPEC §2.6): a self-update gets a package its release added. While
+# an update is applied a failure fails this start and the guard rolls the
+# update back; at any other start the agent starts anyway. It takes at most
+# 100 s, inside the guard's 2-minute wait for the restart.
+ExecStartPre=/usr/local/bin/panel-agent ensure-packages
+TimeoutStartSec=3min
 ExecStart=/usr/local/bin/panel-agent
 Restart=on-failure
 RestartSec=2

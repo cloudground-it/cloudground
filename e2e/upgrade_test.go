@@ -112,6 +112,15 @@ func (h *harness) upgrade(t *testing.T) {
 	}
 	siteOK("R-6.5 v0.1.0")
 
+	// #113: a server from before the block list has no nftables. Take it
+	// away (its table first, while nft is there): the update must bring it
+	// back before the new release starts, and the block list must work.
+	h.run("nft", "delete", "table", "inet", "cloudground")
+	reinstallNft := h.undo("reinstall nftables", func() { h.run("apt-get", "install", "-y", "-qq", "nftables") })
+	defer reinstallNft()
+	r = h.run("env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "remove", "-y", "-qq", "nftables")
+	h.assert(t, "#113: nftables removed before the update", r.OK() && !h.run("nft", "--version").OK(), "%s", r)
+
 	// The shell: --check, then the update.
 	r = h.run("/usr/local/bin/cgctl", "update", "--check")
 	h.assert(t, "R-6.5: cgctl update --check offers v0.2.0", r.OK() && strings.Contains(r.Out, "update available: v0.1.0 -> v0.2.0"), "%s", r)
@@ -124,6 +133,13 @@ func (h *harness) upgrade(t *testing.T) {
 	_, err = os.Stat(filepath.Join(snap, "state.db"))
 	h.assert(t, "R-6.5: the state was snapshotted before v0.2.0 started", snap != "" && err == nil, "snapshot %q: %v", snap, err)
 	siteOK("R-6.5 v0.2.0")
+	h.check(t, "#113: the update installed nftables", h.run("dpkg-query", "-W", "-f=${Status}", "nftables").Out, "install ok installed")
+	const upgradeBlock = "198.51.100.77"
+	c, b := h.api.post("/api/blocklist/blocks", map[string]any{"address": upgradeBlock, "note": "e2e upgrade", "minutes": 5})
+	h.check(t, "#113: a block is accepted after the update", fmt.Sprint(c), "200")
+	set := h.run("nft", "list", "set", "inet", "cloudground", "block4").Out
+	h.assert(t, "#113: the block list is enforced after the update", strings.Contains(set, upgradeBlock), "answer %s; nft list set inet cloudground block4:\n%s", b, set)
+	h.api.do("DELETE", "/api/blocklist/blocks", map[string]string{"address": upgradeBlock})
 
 	r = h.run("/usr/local/bin/cgctl", "update", "--to", "v0.1.0")
 	h.assert(t, "R-6.5: cgctl update refuses a downgrade", r.Code == 1 && strings.Contains(r.Err, "refusing to downgrade"), "%s", r)
@@ -144,7 +160,7 @@ func (h *harness) upgrade(t *testing.T) {
 	// The panel's button.
 	feed.list("v0.1.0", "v0.2.0", "v0.2.1")
 	since := time.Now()
-	c, b := h.api.post("/api/panel/update", map[string]string{"version": "v0.2.1"})
+	c, b = h.api.post("/api/panel/update", map[string]string{"version": "v0.2.1"})
 	h.check(t, "R-6.5: the panel's update to v0.2.1 is accepted", fmt.Sprint(c), "200")
 	res := h.waitUpdateResult(stateDir, since)
 	h.assert(t, "R-6.5: the panel's update to v0.2.1 is healthy", res.OK && res.Version == "v0.2.1", "result %+v, answer %s", res, b)

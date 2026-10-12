@@ -63,7 +63,7 @@ func (o *Ops) checkPHPInstalled(version string) error {
 }
 
 // aptEnv is apt's environment: no question on a terminal, the C locale.
-var aptEnv = []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL=C", "DEBIAN_FRONTEND=noninteractive"}
+var aptEnv = host.AptEnv
 
 // PHPExtensions lists what a PHP version loads (SPEC §9): `php-fpm<v> -m`,
 // the FPM binary the sites' masters run, so the list is what they load, and
@@ -125,20 +125,12 @@ func (o *Ops) InstallPHPExtension(ctx context.Context, p rpc.PHPExtensionInstall
 }
 
 // aptInstallArgs is the systemd-run argv (after the binary) that installs
-// pkg (SPEC §9). apt cannot run in the agent's own sandbox: /usr, dpkg's
-// database and apt's cache are read-only there (ProtectSystem=strict), so
-// apt-get runs as a transient root service, which systemd starts outside
-// it. It waits for its end and passes apt's output and exit status back.
-// RuntimeMaxSec bounds the run even when the agent stops waiting first: a
-// dpkg run is not interrupted by the caller going away. apt waits for a
-// lock another apt holds (unattended-upgrades) instead of failing at once.
+// pkg (SPEC §9), as a transient root service (host.AptUnitArgs): apt cannot
+// run in the agent's own sandbox. apt waits for a lock another apt holds
+// (unattended-upgrades) instead of failing at once.
 func aptInstallArgs(pkg string) []string {
-	a := []string{"--quiet", "--collect", "--wait", "--pipe", "--service-type=exec",
-		"--description=CloudGround: install " + pkg, "-p", "RuntimeMaxSec=720"}
-	for _, kv := range aptEnv {
-		a = append(a, "--setenv="+kv)
-	}
-	return append(a, "--", "apt-get", "-o", "DPkg::Lock::Timeout=120", "install", "-y", "-qq", "--no-install-recommends", pkg)
+	return host.AptUnitArgs("CloudGround: install "+pkg, 720*time.Second,
+		"-o", "DPkg::Lock::Timeout=120", "install", "-y", "-qq", "--no-install-recommends", pkg)
 }
 
 // versionMasters are the units of the site masters that run version: the

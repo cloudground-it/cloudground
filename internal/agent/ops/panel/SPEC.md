@@ -220,6 +220,45 @@ The snapshot runs in the guard, that is in the code of the release being
 replaced (`panel-agent.bak`): an update *to* a release with this section
 snapshots only when the release it starts from has it too.
 
+### 2.6 The system packages a release needs (#113)
+
+A release can need an Ubuntu package the one before did not (nftables for
+the block list, #21). The installer installs them, but neither the
+self-update nor the guard of an older release knows a newer release's list,
+so the new release brings them in itself, before it starts:
+
+- **The list** is `internal/syspkg`: `Release()` is the installer's base and
+  data-plane packages but PHP's (`syspkg.Base` and `syspkg.System()`; the
+  installer's `packages.base` and `packages.main` read the same package, so
+  the lists cannot drift). PHP's packages are left out: a server's PHP
+  versions are its own.
+- **When**: `cloudground-agent.service` runs `panel-agent ensure-packages`
+  as its `ExecStartPre`, on every start of the agent, the one after a
+  self-update included: the self-update installs the new unit with the new
+  binaries (§2.2), the guard reloads systemd and restarts the agent (§2.4
+  steps 4–5), and the check runs before the new agent does.
+- **What**: `dpkg-query -W` of the list; a package not `install ok
+  installed` (or `hold ok installed`) is missing. Nothing missing: nothing
+  else runs (the common start). Otherwise `apt-get install -y -qq` of the
+  missing ones only, as a transient root service (`systemd-run --wait --pipe
+  --collect`, `RuntimeMaxSec=600`, `DEBIAN_FRONTEND=noninteractive`, apt
+  waiting up to 60 s for another apt's lock), the pattern of the PHP
+  extensions (ops/sites SPEC §9): `/usr` and dpkg's database are read-only in
+  the agent's sandbox. A failed install is tried once more after `apt-get
+  update` (package lists older than the archive).
+- **Bound**: 100 s in all (`EnsureBudget`), under the 2-minute wait for the
+  restart job of the guard (of this release and of the ones before it,
+  `host.DefaultJobTimeout`); the unit's `TimeoutStartSec=3min` is above both.
+  An apt run the check stopped waiting for finishes on its own, within its
+  `RuntimeMaxSec`.
+- **A failure** while the guard's unit (`cloudground-update-guard`) is
+  `active` or `activating` exits 1: the agent's start fails, the guard's
+  restart job fails, and the update is **rolled back** like any failed
+  update (§2.4 step 8; the previous release's unit has no such check). At
+  any other start (a boot without the network, say) it is logged as a
+  warning with the `apt-get install` that fixes it, and the agent starts
+  without the package, as before #113.
+
 ## 3. Paths
 
 All from the agent's `Paths` (no hard-coded `/usr/local/bin`,

@@ -92,13 +92,15 @@ owner, a new one is created root-owned (what `install -d -m` does).
    message), then `apt-get update -qq`.
 3. **`packages.main`** — check: each package installed (`dpkg-query` status `install ok
    installed`, or `hold ok installed`: a package the operator put on hold is installed). Apply:
-   `apt-get update -qq`, `apt-get install -y -qq` of the missing ones only. The list, for a new
+   `apt-get update -qq`, `apt-get install -y -qq` of the missing ones only. The list (and
+   `packages.base`'s) is `internal/syspkg`'s, which the agent also reads when it starts, so a
+   self-update installs a package a newer release added (#113, ops/panel SPEC §2.6). For a new
    install:
 
-       nginx mariadb-server certbot python3-certbot-dns-cloudflare
+       nginx mariadb-server certbot python3-certbot-dns-cloudflare git unzip cron nftables
        php<php>-fpm php<php>-mysql php<php>-curl php<php>-gd php<php>-intl
        php<php>-mbstring php<php>-soap php<php>-xml php<php>-zip php<php>-imagick
-       php<php>-bcmath php<php>-apcu git unzip cron nftables
+       php<php>-bcmath php<php>-apcu
 
    **Changed (R-6.1): `redis-server` and `php<php>-redis` are no longer installed.** Redis was
    installed and never enabled, and nothing ever turned it on: install.sh's comment said it stayed
@@ -774,7 +776,9 @@ So both verify, snapshot, restart and roll back with the same code. What happens
    `/var/lib/cloudground-agent/update-snapshots`), start the new release, wait for it to be healthy
    (both units active on new PIDs running the new binaries' inodes, `/healthz` 200 through the API,
    which pings the agent, within 60 s). Unhealthy: the previous binaries, units and the snapshot go
-   back, and the previous release is started and checked again.
+   back, and the previous release is started and checked again. The new agent's unit first
+   installs the system packages the release needs and the server lacks (#113, ops/panel SPEC
+   §2.6); a failed install fails its start, so the update is rolled back.
 5. **The verdict**: `/var/lib/cloudground-agent/update-result.json`. `cgctl update` waits for the
    one whose `started` follows its request (up to `--timeout`) and prints `updated: <a> -> <b>` and
    the snapshot (exit 0), or the failure and `rolled back: <a> runs again, with its state from

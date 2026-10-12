@@ -45,6 +45,12 @@ Configuration: /etc/cloudground/panel.env, then the environment
       cloudground-update-guard.service, after a self-update: restarts both
       services on the new release and rolls back if they do not come up.
 
+  panel-agent ensure-packages
+      Run by systemd before the agent starts (ExecStartPre): installs the
+      system packages this release needs and the server lacks, through a
+      transient root unit. During an update a failure fails the start, and
+      the update guard rolls the update back.
+
   panel-agent malware-signatures
       Run by the agent itself, as a transient unit, before a malware scan:
       updates ClamAV's databases (freshclam) and rebuilds the reduced set
@@ -96,6 +102,11 @@ func run(args []string) int {
 	}
 	if len(args) > 0 && args[0] == "update-guard" {
 		return panel.GuardMain(args[1:], log)
+	}
+	if len(args) > 0 && args[0] == panel.EnsurePackagesName {
+		// The agent unit's ExecStartPre: the system packages this release
+		// needs (ops/panel SPEC §2.6).
+		return panel.EnsureMain(args[1:], log)
 	}
 	if len(args) > 0 && args[0] == malware.RefreshName {
 		// The malware scan's signature update, in the transient unit the
