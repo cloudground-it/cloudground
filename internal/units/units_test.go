@@ -45,3 +45,23 @@ func TestRequiredPaths(t *testing.T) {
 		t.Errorf("RequiredPaths = %v, want %v", got, want)
 	}
 }
+
+// The API lists this machine's addresses (net.InterfaceAddrs, a netlink
+// dump): its sandbox must allow AF_NETLINK, or the list is empty, the own
+// address checks of the block list and the site rules pass anything, and
+// every webhook is refused as "this server's own".
+func TestAPIMayListTheMachinesAddresses(t *testing.T) {
+	b, ok := Get("cloudground-api.service")
+	if !ok {
+		t.Fatal("no cloudground-api.service")
+	}
+	for _, l := range strings.Split(string(b), "\n") {
+		if v, ok := strings.CutPrefix(l, "RestrictAddressFamilies="); ok {
+			if !slices.Contains(strings.Fields(v), "AF_NETLINK") {
+				t.Errorf("the API's RestrictAddressFamilies lacks AF_NETLINK: %s", v)
+			}
+			return
+		}
+	}
+	t.Error("the API's unit has no RestrictAddressFamilies")
+}

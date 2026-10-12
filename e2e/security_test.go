@@ -329,6 +329,18 @@ func (h *harness) webhookRefusedOnSave(t *testing.T) {
 		h.assert(t, "W3: saving the alert webhook "+inward+" is refused with the reason",
 			c == 400 && strings.Contains(string(b), "public address"), "HTTP %d: %s", c, head(b, 300))
 	}
+	// This server's public address is its own: refused too. That needs the
+	// API to list the machine's addresses, which its sandbox once kept it
+	// from doing; it then refused every webhook, a public one included.
+	c, b := h.api.put("/api/settings", map[string]string{"notify_webhook": "https://" + h.IP + "/cg-e2e"})
+	if c == 200 {
+		h.api.put("/api/settings", map[string]string{"notify_webhook": hook})
+	}
+	h.assert(t, "W3: saving the alert webhook to this server's public address is refused",
+		c == 400 && strings.Contains(string(b), "public address"), "HTTP %d: %s", c, head(b, 300))
 	_, after := h.api.get("/api/settings")
 	h.check(t, "W3: the refused webhooks left the setting as it was", jsonField(after, "notify_webhook"), hook)
+	c, b = h.api.put("/api/settings", map[string]string{"notify_webhook": "https://example.com/cg-e2e"})
+	h.api.put("/api/settings", map[string]string{"notify_webhook": hook})
+	h.assert(t, "W3: a webhook on a public address is saved", c == 200, "HTTP %d: %s", c, head(b, 300))
 }

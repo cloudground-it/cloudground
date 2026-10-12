@@ -25,7 +25,11 @@ PrivateTmp=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
-RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# AF_NETLINK (routing, read only without capabilities) lets it list this
+# machine's addresses: a block or a site rule holding them is refused, and
+# a webhook may not post to them. Without it the list was empty, and every
+# webhook was refused as "this server's own".
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
 RestrictNamespaces=yes
 LockPersonality=yes
 MemoryDenyWriteExecute=yes
