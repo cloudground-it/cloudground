@@ -72,6 +72,10 @@ func (h *harness) wpTwoFactor(t *testing.T) {
 	// With an app: the password, then its code.
 	sealed := h.wp(w.user, w.path, "eval", `update_user_meta(1, "cloudground_2fa_secret", \CloudGround\Connector\Seal::close("`+secret+`")); echo "ok";`)
 	h.check(t, "#74: a key is set up for the administrator", sealed.Trim(), "ok")
+	// wp-cli wrote the key past PHP-FPM's object cache (APCu is per
+	// process group), which still holds the user's meta without it: the
+	// flush reaches FPM through the generation file (connector SPEC §3.4).
+	h.wp(w.user, w.path, "cache", "flush", "--skip-plugins", "--skip-themes")
 	jar = NewJar()
 	r = signIn(jar)
 	h.check(t, "#74: an enrolled administrator's password alone is held", fmt.Sprintf("%s %t", r.CodeStr(), loggedIn(jar)), "303 false")
