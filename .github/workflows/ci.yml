@@ -1,5 +1,6 @@
 # Every push to main and every pull request: the gates `make docker-test`,
-# `make docker-nginx-test`, `make docker-install-test` and the UI build run
+# `make docker-nginx-test`, `make docker-install-test`,
+# `make docker-php-test` and the UI build run
 # locally, plus a release dry run that proves `make release` refuses what is
 # not signed.
 name: CI
@@ -119,6 +120,21 @@ jobs:
           if make release-verify RELEASE_TAG=v0.0.0 UPDATE_PUBKEY="$(cat "$RUNNER_TEMP/test.pub")"; then
             echo "::error::an unsigned release verified"; exit 1
           fi
+
+  php:
+    name: connector PHP suites on PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: connector/php/tests in php:${{ matrix.php }}-cli
+        run: make docker-php-test PHP_IMAGES=php:${{ matrix.php }}-cli
 
   shellcheck:
     name: shellcheck

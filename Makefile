@@ -29,7 +29,7 @@ UI_BUILD_DIR = /tmp/cloudground-ui
 DOCKER_NODE = docker run --rm -v "$(CURDIR)/ui":$(UI_BUILD_DIR) -v cloudground-ui-modules:$(UI_BUILD_DIR)/node_modules -w $(UI_BUILD_DIR) $(NODE_IMAGE)
 
 .PHONY: build ui test vet dist clean e2e-bin e2e-index api-doc \
-	docker-test docker-dist docker-e2e-bin docker-e2e-index docker-api-doc docker-nginx-test docker-install-test docker-upgrade-bundle \
+	docker-test docker-dist docker-e2e-bin docker-e2e-index docker-api-doc docker-nginx-test docker-install-test docker-php-test docker-upgrade-bundle \
 	release release-build release-sign release-verify release-require-key \
 	docker-release docker-release-build docker-release-repro
 
@@ -117,6 +117,12 @@ docker-install-test:
 	rm -rf dist/install-test
 	$(DOCKER_GO) sh -c 'mkdir -p dist/install-test && for b in $(BINARIES); do CGO_ENABLED=0 go build -o dist/install-test/$$b ./cmd/$$b || exit 1; done'
 	for img in $(INSTALL_IMAGES); do docker run --rm -v "$(CURDIR)/dist/install-test":/b:ro -v "$(CURDIR)/scripts":/s:ro -v "$(CURDIR)/installer":/i:ro $$img bash /s/install-container-check.sh /b || exit 1; done
+
+# Every connector PHP suite (connector/php/tests/*.php, bar the check.php and
+# wp.php helpers) in each PHP image; a suite exits 1 on any failed check.
+PHP_IMAGES ?= php:8.4-cli php:8.5-cli
+docker-php-test:
+	for img in $(PHP_IMAGES); do docker run --rm -v "$(CURDIR)":/src:ro -w /src $$img sh -c 'for t in connector/php/tests/*.php; do case $$t in */check.php|*/wp.php) continue;; esac; echo "== $$t"; php $$t || exit 1; done' || exit 1; done
 
 # ----------------------------------------------------------------- release --
 #
