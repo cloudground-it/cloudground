@@ -1,4 +1,4 @@
-"""Draw CloudGround's logo, README banners, social card and favicon as SVG.
+"""Draw CloudGround's logo and favicon as SVG.
 
     python3 scripts/brand-assets.py <repository>
 
@@ -7,7 +7,7 @@ fonts in ui/app/assets/fonts (SIL Open Font Licence). Every letter becomes a
 path, so the files need no font to look right.
 
 Output, relative to the repository: docs/media/logo.svg, logo-dark.svg,
-banner-light.svg, banner-dark.svg, og.svg, and the panel's icons:
+and the panel's icons:
 ui/public/favicon.svg and ui/public/app-tile.svg (the tile the PNG icons
 apple-touch-icon.png, icon-192.png and icon-512.png are rendered from, with
 any SVG rasteriser at those sizes).
@@ -18,6 +18,11 @@ a cloud of three circles (radius 6.5 at 20.5,22; 10 at 32,17.5; 7 at
 43.5,21.5) cut straight at y=28.5, a wire down to y=38, and bars 40, 24 and 8
 long at y=38, 47.5 and 57. Its colour is #2F5BFF, #7D97FF on dark grounds.
 At 20 pixels and under it is drawn filled on a 16-pixel grid (FAVICON).
+
+The README banners and the social card (docs/media/banner-light.svg,
+banner-dark.svg, og.svg) are not drawn here: they are exported from the
+brand file in Sketch, together with the copies in the docs and icons
+repositories, so that all three stay identical.
 The app tile is a #2F5BFF square with corners of radius 14 and the mark in
 white, scaled to 0.61 with a 6.6 stroke.
 
@@ -118,57 +123,6 @@ def lockup(faces, dark):
     return svg(total, height, body, "CloudGround")
 
 
-def banner(faces, dark):
-    width, height = 1280, 320
-    c = COLOURS
-    background, text = (c["night"], c["ink-dark"]) if dark else (c["paper"], c["ink"])
-    size, left, gap = 150, 64, 40
-    x = left + size + gap
-    lead = "Hosting che si "
-    lead_width = faces["sans"].width(lead, 34, tracking=-0.01)
-    tag = "Pannello di hosting source-available".upper()
-    tag_width = faces["mono"].width(tag, 11, tracking=0.15)
-    parts = [
-        f'<rect width="{width}" height="{height}" fill="{background}"/>',
-        squares(width, height, c["grid-dark"] if dark else c["grid"]),
-        tile(left, (height - size) / 2, size),
-        path(text, faces["sans"].outline("CloudGround", 92, x, 168, tracking=-0.025)[0]),
-        path(text, faces["sans"].outline(lead, 34, x + 4, 222, tracking=-0.01)[0]),
-        path(c["blue-dark"] if dark else c["blue"],
-             faces["sans"].outline("misura.", 34, x + 4 + lead_width, 222, tracking=-0.01)[0]),
-        path(c["muted-dark"] if dark else c["muted"],
-             faces["mono"].outline(tag, 11, width - 28 - tag_width, height - 22, tracking=0.15)[0]),
-    ]
-    return svg(width, height, "".join(parts), LABEL)
-
-
-def social_card(faces):
-    width, height, margin = 1200, 630, 64
-    c = COLOURS
-    sans, mono = faces["sans"], faces["mono"]
-    site = "CLOUDGROUND.IT"
-    first_width = sans.width("che si ", 132, tracking=-0.03)
-    badge = "SOURCE-AVAILABLE"
-    badge_width = mono.width(badge, 12, tracking=0.15)
-    badge_x = width - margin - badge_width - 20
-    parts = [
-        f'<rect width="{width}" height="{height}" fill="{c["paper"]}"/>',
-        tile(margin, margin, 56),
-        path(c["ink"], sans.outline("CloudGround", 30, margin + 70, margin + 38, tracking=-0.015)[0]),
-        path(c["muted"], mono.outline(site, 13, width - margin - mono.width(site, 13, tracking=0.15),
-                                      margin + 34, tracking=0.15)[0]),
-        path(c["ink"], sans.outline("Hosting", 132, margin - 6, 330, tracking=-0.03)[0]),
-        path(c["ink"], sans.outline("che si ", 132, margin - 6, 444, tracking=-0.03)[0]),
-        path(c["blue"], sans.outline("misura.", 132, margin - 6 + first_width, 444, tracking=-0.03)[0]),
-        f'<rect x="{margin}" y="{height - margin - 30}" width="{width - 2 * margin}" height="1" fill="{c["ink"]}"/>',
-        path(c["muted"], mono.outline("UN COMANDO · UN CLIC PER SITO · BACKUP RIPRISTINATI PER PROVA",
-                                      12, margin, height - margin, tracking=0.15)[0]),
-        f'<rect x="{badge_x}" y="{height - margin - 17}" width="{badge_width + 20}" height="26" fill="{c["ink"]}"/>',
-        path(c["paper"], mono.outline(badge, 12, badge_x + 10, height - margin, tracking=0.15)[0]),
-    ]
-    return svg(width, height, "".join(parts), LABEL)
-
-
 def favicon():
     """The browser tab's icon: the filled 16-pixel mark, lighter on a dark tab strip."""
     c = COLOURS
@@ -190,9 +144,6 @@ def main(repository):
     outputs = {
         "docs/media/logo.svg": lockup(faces, dark=False),
         "docs/media/logo-dark.svg": lockup(faces, dark=True),
-        "docs/media/banner-light.svg": banner(faces, dark=False),
-        "docs/media/banner-dark.svg": banner(faces, dark=True),
-        "docs/media/og.svg": social_card(faces),
         "ui/public/favicon.svg": favicon(),
         "ui/public/app-tile.svg": app_tile(),
     }
