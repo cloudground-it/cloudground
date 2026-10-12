@@ -400,7 +400,7 @@ onBeforeRouteLeave(async () => {
           </nav>
           <p class="sr-only" aria-live="polite">{{ announce }}</p>
 
-          <UAlert v-if="restored" color="info" variant="subtle" icon="i-cg-info" :title="t('newSite.wizard.draftRestored')" :close="{ 'aria-label': t('newSite.close') }" @update:open="restored = false" />
+          <UAlert v-if="restored" color="info" variant="subtle" icon="i-cg-info" :title="t('newSite.wizard.draftRestored')" close @update:open="restored = false" />
 
           <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
             <section class="flex min-w-0 flex-col gap-7" :aria-labelledby="`ws-${step}`">
