@@ -12,7 +12,7 @@ const product = computed(() => isStudioRoute(route.path) ? 'CloudGround Quarry' 
 useHead({
   titleTemplate: title => (title ? `${title} · ${product.value}` : product.value),
   // The paper token of each theme (main.css --cg-paper).
-  meta: [{ key: 'theme-color', name: 'theme-color', content: computed(() => colorMode.value === 'dark' ? '#131418' : '#FBFAF6') }],
+  meta: [{ key: 'theme-color', name: 'theme-color', content: computed(() => colorMode.value === 'dark' ? '#0E1117' : '#F9FAFC') }],
   htmlAttrs: { lang: locale }
 })
 </script>

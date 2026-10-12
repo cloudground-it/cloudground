@@ -1,27 +1,27 @@
-"""Draw CloudGround's README banners and social card as SVG.
+"""Draw CloudGround's logo, README banners, social card and favicon as SVG.
 
-    python3 scripts/brand-assets.py <repository> <font folder>
+    python3 scripts/brand-assets.py <repository>
 
-The font folder holds three fonts from github.com/google/fonts (SIL Open Font
-Licence), saved under these names:
+The type is IBM Plex Sans (600) and IBM Plex Mono (500), the panel's own
+fonts in ui/app/assets/fonts (SIL Open Font Licence). Every letter becomes a
+path, so the files need no font to look right.
 
-    Archivo.ttf                 ofl/archivo/Archivo[wdth,wght].ttf
-    InstrumentSerif-Italic.ttf  ofl/instrumentserif/InstrumentSerif-Italic.ttf
-    GeistMono.ttf               ofl/geistmono/GeistMono[wght].ttf
+Output, relative to the repository: docs/media/logo.svg, logo-dark.svg,
+banner-light.svg, banner-dark.svg, og.svg, and the panel's icons:
+ui/public/favicon.svg and ui/public/app-tile.svg (the tile the PNG icons
+apple-touch-icon.png, icon-192.png and icon-512.png are rendered from, with
+any SVG rasteriser at those sizes).
 
-Output, relative to the repository: docs/media/banner-light.svg,
-docs/media/banner-dark.svg and docs/media/og.svg. The logo (docs/media/logo.svg,
-logo-dark.svg) and the favicon (ui/public/favicon.svg) are the redrawn v2 mark
-(no tile, the cloud in ink over a blue and an orange bar; the favicon keeps an
-ink tile) and are no longer drawn here.
-Every letter becomes a path, so the files need no font to look right.
+The mark, "Messa a terra", is the electrical ground symbol with a cloud at
+the top of its wire, on a 64-unit grid in one stroke 6 wide with round ends:
+a cloud of three circles (radius 6.5 at 20.5,22; 10 at 32,17.5; 7 at
+43.5,21.5) cut straight at y=28.5, a wire down to y=38, and bars 40, 24 and 8
+long at y=38, 47.5 and 57. Its colour is #2F5BFF, #7D97FF on dark grounds.
+At 20 pixels and under it is drawn filled on a 16-pixel grid (FAVICON).
+The app tile is a #2F5BFF square with corners of radius 14 and the mark in
+white, scaled to 0.61 with a 6.6 stroke.
 
-The mark is a 48x48 tile with corners of radius 11. On it, scaled to 0.84 and
-moved by (4, 3): a cloud made of three circles (radius 8 at 14,18; 10 at 24,16;
-6 at 36,20) cut straight at y=26, and below it two bars 4.6 high, the blue one
-8 units right of the orange one.
-
-Needs fontTools (pip install fonttools).
+Needs fontTools and brotli (pip install fonttools brotli).
 """
 import sys
 from pathlib import Path
@@ -31,13 +31,18 @@ from fontTools.pens.transformPen import TransformPen
 from fontTools.ttLib import TTFont
 from fontTools.varLib.instancer import instantiateVariableFont
 
-# The brand colours.
+# Palette v3 (ui/app/assets/css/main.css).
 COLOURS = {
-    "paper": "#F2F1EC", "grid": "#E2E0D8", "grid-dark": "#1E1E24",
-    "ink": "#0F0F12", "muted": "#55555D", "muted-dark": "#B7B6AE", "footer": "#3B3B42",
-    "blue": "#2F5BFF", "blue-dark": "#7C9BFF", "orange": "#E0612B",
+    "paper": "#F9FAFC", "grid": "#E6E9F1", "ink": "#11141C", "muted": "#586074", "blue": "#2549E0",
+    "night": "#0E1117", "grid-dark": "#1E2330", "ink-dark": "#EEF1F7", "muted-dark": "#9AA3B8",
+    "blue-dark": "#8AA2FF", "brand": "#2F5BFF", "mark-dark": "#7D97FF", "white": "#FFFFFF",
 }
-CLOUD = "M14 26A8 8 0 1 1 15.843 10.215A10 10 0 0 1 33.87 14.391A6 6 0 1 1 36 26Z"
+MARK = ("M20.5 28.5 H43.5 A7 7 0 1 0 41.62 14.76 A10 10 0 0 0 22.16 15.72 A6.5 6.5 0 1 0 20.5 28.5 Z "
+        "M32 28.5 V38 M12 38 H52 M20 47.5 H44 M28 57 H36")
+FAVICON = ('<circle cx="5" cy="5.6" r="2.4"/><circle cx="8.2" cy="4.1" r="3.1"/><circle cx="11.1" cy="5.9" r="2.1"/>'
+           '<rect x="5" y="5.5" width="6.2" height="2.5"/><rect x="7" y="7" width="2" height="3"/>'
+           '<rect x="1" y="10" width="14" height="1" rx=".5"/><rect x="4" y="12" width="8" height="1" rx=".5"/>'
+           '<rect x="6" y="14" width="4" height="1" rx=".5"/>')
 LABEL = "CloudGround — Hosting che si misura"
 
 
@@ -68,16 +73,18 @@ class Face:
         return self.outline(text, size, tracking=tracking)[1]
 
 
-def tile(fill, cloud):
-    """The mark on a 48-unit grid: a tile of colour fill with the cloud in cloud."""
-    return "".join([
-        f'<rect width="48" height="48" rx="11" fill="{fill}"/>',
-        '<g transform="translate(4 3) scale(.84)">',
-        f'<path fill="{cloud}" d="{CLOUD}"/>',
-        f'<rect x="14" y="30" width="28" height="4.6" rx="1" fill="{COLOURS["blue"]}"/>',
-        f'<rect x="6" y="38" width="28" height="4.6" rx="1" fill="{COLOURS["orange"]}"/>',
-        "</g>",
-    ])
+def mark(colour, x, y, size, stroke=6):
+    """The mark, size units wide, its 64-unit box's corner at (x, y)."""
+    return (f'<g transform="translate({x:.2f} {y:.2f}) scale({size / 64:.4f})">'
+            f'<path d="{MARK}" fill="none" stroke="{colour}" stroke-width="{stroke}" '
+            'stroke-linecap="round" stroke-linejoin="round"/></g>')
+
+
+def tile(x, y, size):
+    """The app tile: the mark in white on a rounded #2F5BFF square."""
+    return (f'<g transform="translate({x:.2f} {y:.2f}) scale({size / 64:.4f})">'
+            f'<rect width="64" height="64" rx="14" fill="{COLOURS["brand"]}"/>'
+            f'{mark(COLOURS["white"], 12.5, 12.4, 64 * 0.61, stroke=6.6)}</g>')
 
 
 def svg(width, height, body, label=None):
@@ -99,25 +106,36 @@ def squares(width, height, colour, step=40):
             f'<rect width="{width}" height="{height}" fill="url(#g)"/>')
 
 
+def lockup(faces, dark):
+    """The horizontal logo: the mark and the name, 150 high, no ground."""
+    c = COLOURS
+    height, pad, size, gap, type_size = 150, 18, 114, 22, 84
+    x = pad + size + gap
+    name, width = faces["sans"].outline("CloudGround", type_size, x, 106, tracking=-0.015)
+    total = round(x + width + pad)
+    body = mark(c["mark-dark"] if dark else c["brand"], pad, (height - size) / 2, size) + \
+        path(c["ink-dark"] if dark else c["ink"], name)
+    return svg(total, height, body, "CloudGround")
+
+
 def banner(faces, dark):
     width, height = 1280, 320
     c = COLOURS
-    background, text = (c["ink"], c["paper"]) if dark else (c["paper"], c["ink"])
-    mark, left, gap = 150, 64, 40
-    x = left + mark + gap
+    background, text = (c["night"], c["ink-dark"]) if dark else (c["paper"], c["ink"])
+    size, left, gap = 150, 64, 40
+    x = left + size + gap
     lead = "Hosting che si "
-    lead_width = faces["sans"].width(lead, 34, tracking=-0.04)
+    lead_width = faces["sans"].width(lead, 34, tracking=-0.01)
     tag = "Pannello di hosting source-available".upper()
     tag_width = faces["mono"].width(tag, 11, tracking=0.15)
     parts = [
         f'<rect width="{width}" height="{height}" fill="{background}"/>',
         squares(width, height, c["grid-dark"] if dark else c["grid"]),
-        f'<g transform="translate({left} {(height - mark) / 2:.2f}) scale({mark / 48:.4f})">'
-        f'{tile(text, background)}</g>',
-        path(text, faces["sans"].outline("cloudground", 92, x, 168, tracking=-0.045)[0]),
-        path(text, faces["sans"].outline(lead, 34, x + 4, 222, tracking=-0.04)[0]),
+        tile(left, (height - size) / 2, size),
+        path(text, faces["sans"].outline("CloudGround", 92, x, 168, tracking=-0.025)[0]),
+        path(text, faces["sans"].outline(lead, 34, x + 4, 222, tracking=-0.01)[0]),
         path(c["blue-dark"] if dark else c["blue"],
-             faces["serif"].outline("misura.", 38, x + 4 + lead_width, 222, tracking=-0.02)[0]),
+             faces["sans"].outline("misura.", 34, x + 4 + lead_width, 222, tracking=-0.01)[0]),
         path(c["muted-dark"] if dark else c["muted"],
              faces["mono"].outline(tag, 11, width - 28 - tag_width, height - 22, tracking=0.15)[0]),
     ]
@@ -127,40 +145,56 @@ def banner(faces, dark):
 def social_card(faces):
     width, height, margin = 1200, 630, 64
     c = COLOURS
-    sans, serif, mono = faces["sans"], faces["serif"], faces["mono"]
+    sans, mono = faces["sans"], faces["mono"]
     site = "CLOUDGROUND.IT"
-    first_width = sans.width("che si ", 132, tracking=-0.045)
+    first_width = sans.width("che si ", 132, tracking=-0.03)
     badge = "SOURCE-AVAILABLE"
     badge_width = mono.width(badge, 12, tracking=0.15)
     badge_x = width - margin - badge_width - 20
     parts = [
         f'<rect width="{width}" height="{height}" fill="{c["paper"]}"/>',
-        f'<g transform="translate({margin} {margin}) scale({56 / 48:.4f})">{tile(c["ink"], c["paper"])}</g>',
-        path(c["ink"], sans.outline("cloudground", 30, margin + 70, margin + 38, tracking=-0.045)[0]),
+        tile(margin, margin, 56),
+        path(c["ink"], sans.outline("CloudGround", 30, margin + 70, margin + 38, tracking=-0.015)[0]),
         path(c["muted"], mono.outline(site, 13, width - margin - mono.width(site, 13, tracking=0.15),
                                       margin + 34, tracking=0.15)[0]),
-        path(c["ink"], sans.outline("Hosting", 132, margin - 6, 330, tracking=-0.045)[0]),
-        path(c["ink"], sans.outline("che si ", 132, margin - 6, 444, tracking=-0.045)[0]),
-        path(c["blue"], serif.outline("misura.", 150, margin - 6 + first_width, 444, tracking=-0.02)[0]),
+        path(c["ink"], sans.outline("Hosting", 132, margin - 6, 330, tracking=-0.03)[0]),
+        path(c["ink"], sans.outline("che si ", 132, margin - 6, 444, tracking=-0.03)[0]),
+        path(c["blue"], sans.outline("misura.", 132, margin - 6 + first_width, 444, tracking=-0.03)[0]),
         f'<rect x="{margin}" y="{height - margin - 30}" width="{width - 2 * margin}" height="1" fill="{c["ink"]}"/>',
-        path(c["footer"], mono.outline("UN COMANDO · UN CLIC PER SITO · BACKUP RIPRISTINATI PER PROVA",
-                                       12, margin, height - margin, tracking=0.15)[0]),
+        path(c["muted"], mono.outline("UN COMANDO · UN CLIC PER SITO · BACKUP RIPRISTINATI PER PROVA",
+                                      12, margin, height - margin, tracking=0.15)[0]),
         f'<rect x="{badge_x}" y="{height - margin - 17}" width="{badge_width + 20}" height="26" fill="{c["ink"]}"/>',
         path(c["paper"], mono.outline(badge, 12, badge_x + 10, height - margin, tracking=0.15)[0]),
     ]
     return svg(width, height, "".join(parts), LABEL)
 
 
-def main(repository, font_folder):
+def favicon():
+    """The browser tab's icon: the filled 16-pixel mark, lighter on a dark tab strip."""
+    c = COLOURS
+    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">'
+            f'<style>g{{fill:{c["brand"]}}}@media (prefers-color-scheme:dark){{g{{fill:{c["mark-dark"]}}}}}</style>'
+            f'<g>{FAVICON}</g></svg>\n')
+
+
+def app_tile():
+    return svg(64, 64, tile(0, 0, 64))
+
+
+def main(repository):
+    fonts = repository / "ui/app/assets/fonts"
     faces = {
-        "sans": Face(font_folder / "Archivo.ttf", wght=560, wdth=118),
-        "serif": Face(font_folder / "InstrumentSerif-Italic.ttf"),
-        "mono": Face(font_folder / "GeistMono.ttf", wght=500),
+        "sans": Face(fonts / "plex-sans-latin.woff2", wght=600),
+        "mono": Face(fonts / "plex-mono-500.woff2"),
     }
     outputs = {
+        "docs/media/logo.svg": lockup(faces, dark=False),
+        "docs/media/logo-dark.svg": lockup(faces, dark=True),
         "docs/media/banner-light.svg": banner(faces, dark=False),
         "docs/media/banner-dark.svg": banner(faces, dark=True),
         "docs/media/og.svg": social_card(faces),
+        "ui/public/favicon.svg": favicon(),
+        "ui/public/app-tile.svg": app_tile(),
     }
     for name, content in outputs.items():
         target = repository / name
@@ -170,6 +204,6 @@ def main(repository, font_folder):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 2:
         sys.exit(__doc__)
-    main(Path(sys.argv[1]), Path(sys.argv[2]))
+    main(Path(sys.argv[1]))

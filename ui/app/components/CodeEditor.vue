@@ -266,7 +266,7 @@ defineExpose({ save: doSave, saving })
   --cg-syn-number: var(--color-amber-700);
   --cg-syn-comment: var(--cg-muted);
   --cg-syn-function: var(--cg-blue);
-  --cg-syn-type: var(--cg-stamp);
+  --cg-syn-type: var(--color-teal-700);
   --cg-syn-property: var(--color-sky-700);
   --cg-syn-tag: var(--color-rose-700);
   --cg-syn-attribute: var(--color-amber-800);
@@ -280,7 +280,7 @@ defineExpose({ save: doSave, saving })
   --cg-syn-number: var(--color-amber-300);
   --cg-syn-comment: var(--cg-muted);
   --cg-syn-function: var(--cg-blue);
-  --cg-syn-type: var(--cg-stamp);
+  --cg-syn-type: var(--color-teal-300);
   --cg-syn-property: var(--color-sky-300);
   --cg-syn-tag: var(--color-rose-300);
   --cg-syn-attribute: var(--color-amber-200);

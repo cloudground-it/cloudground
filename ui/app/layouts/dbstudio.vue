@@ -59,7 +59,7 @@ const initial = computed(() => (session.value?.user ?? '?').slice(0, 1).toUpperC
       <template #header>
         <UDashboardNavbar :toggle="{ color: 'neutral', variant: 'ghost', class: 'lg:hidden' }">
           <template #left>
-            <nav :aria-label="t('cg.shell.breadcrumb')" class="flex min-w-0 items-center gap-2 text-sm">
+            <nav :aria-label="t('cg.shell.breadcrumb')" class="flex min-w-0 items-center gap-2 text-[15px]">
               <span v-if="session" class="hidden shrink-0 text-muted sm:inline" :title="session.site.domain">{{ session.site.domain }}</span>
               <template v-if="db">
                 <UIcon name="i-cg-chevron-right" class="hidden size-3.5 shrink-0 text-dimmed sm:block" aria-hidden="true" />

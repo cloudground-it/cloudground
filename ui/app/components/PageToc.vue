@@ -50,13 +50,16 @@ onBeforeUnmount(() => scroller?.removeEventListener('scroll', update))
     <p class="m-0 mb-2 hidden text-[13px] font-semibold text-muted lg:block">
       {{ t('ux.toc.label') }}
     </p>
-    <ul class="scrollbar-none m-0 flex list-none gap-1 overflow-x-auto overflow-y-hidden border-b border-default p-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:border-b-0 lg:border-s">
+    <!-- Below lg a row of tabs (main.css, cg-tab); from lg up the docs'
+         "In questa pagina": a ruled column, the section in view marked by a
+         2px --primary line on its left. -->
+    <ul class="scrollbar-none max-lg:cg-tab-list m-0 flex list-none overflow-x-auto overflow-y-hidden p-0 lg:flex-col lg:overflow-visible lg:border-s lg:border-default">
       <li v-for="it in items" :key="it.id" class="shrink-0">
         <a
           :href="`#${it.id}`"
           :aria-current="active === it.id ? 'location' : undefined"
-          class="block px-3 py-2 text-sm whitespace-nowrap transition-colors lg:-ms-px lg:border-s-2 lg:whitespace-normal"
-          :class="active === it.id ? 'font-medium text-highlighted border-cg-blue max-lg:shadow-[inset_0_-2px_0_var(--cg-blue)]' : 'text-muted hover:text-highlighted border-transparent'"
+          class="max-lg:cg-tab lg:-ms-px lg:block lg:border-s-2 lg:px-3 lg:py-1 lg:text-sm lg:transition-colors lg:duration-150"
+          :class="active === it.id ? 'max-lg:cg-tab-on lg:border-cg-primary lg:text-highlighted' : 'lg:border-transparent lg:text-muted lg:hover:text-highlighted'"
           @click="go(it.id, $event)"
         >{{ it.label }}</a>
       </li>

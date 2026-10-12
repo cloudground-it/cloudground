@@ -16,7 +16,13 @@ export default defineNuxtConfig({
     head: {
       title: 'CloudGround',
       meta: [{ name: 'robots', content: 'noindex, nofollow' }],
-      link: [{ rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }]
+      // The mark (scripts/brand-assets.py): filled for the tab, the app tile
+      // for a home screen.
+      link: [
+        { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
+        { rel: 'icon', href: '/icon-192.png', type: 'image/png', sizes: '192x192' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }
+      ]
     }
   },
 

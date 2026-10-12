@@ -1,0 +1,1 @@
+import{Q as e}from"./BbPOJr-r.js";function t(){let t=e()?.vnode?.scopeId;return t?{[t]:``}:{}}export{t};
