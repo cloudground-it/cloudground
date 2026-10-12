@@ -567,6 +567,8 @@ func Steps(e *Env, o Options) []Step {
 		}
 		return nil
 	}))
+	// Harmless without needrestart: nothing reads the file.
+	add(r.renderedStep("needrestart", gLogs, managed.Needrestart, nil))
 	hookDir := filepath.Dir(managed.RenewHook)
 	hookDirW := want{mode: 0o755}
 	add(Step{ID: "certbot.hook-dir", Group: gLogs,

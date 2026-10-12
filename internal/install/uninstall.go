@@ -458,6 +458,7 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 		})
 	}
 	rm("logrotate", managed.Logrotate)
+	rm("needrestart", managed.Needrestart)
 	rm("certbot.hook", managed.RenewHook, "/etc/letsencrypt/cloudground-cloudflare.ini")
 	rm("nginx.bootstrap", managed.Vhost)
 	if e.exists(nginxPre) || e.nginxTuned() {

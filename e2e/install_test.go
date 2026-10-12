@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -84,6 +85,8 @@ func (h *harness) installer(t *testing.T) {
 	}
 	h.check(t, "R-6.1: wp-cli is the pinned build", got, install.WPCLISHA256)
 
+	h.needrestartSkipsHelpers(t)
+
 	// Re-converging applies what it rewrote: a drifted bootstrap vhost is
 	// put back, and nginx is reloaded to serve it.
 	vhost, err := os.ReadFile(managed.Vhost)
@@ -110,6 +113,45 @@ func (h *harness) installer(t *testing.T) {
 	restore()
 
 	h.installerFailsOnADeadAgent(t)
+}
+
+// needrestartSkipsHelpers (#125): needrestart, run after a library upgrade,
+// offers to restart the services still running a replaced binary; the agent's transient
+// units must not be among them (restarted halfway, systemd would run the
+// command again from the start). Two units run a copy of sleep that is then
+// replaced on disk: a helper-named one (cg-helper-test-1) and a control with
+// another name, which must be listed, or the check proves nothing.
+func (h *harness) needrestartSkipsHelpers(t *testing.T) {
+	if _, err := exec.LookPath("needrestart"); err != nil {
+		h.step("needrestart is not installed: its check is skipped")
+		return
+	}
+	_, err := os.Stat(managed.Needrestart)
+	h.assert(t, "#125: the needrestart override is installed", err == nil, "%v", err)
+	dir := "/run/cg-e2e-needrestart"
+	h.assert(t, "#125: make the test binary", h.run("sh", "-c", "mkdir -p "+dir+" && cp /bin/sleep "+dir+"/sleep").OK(), "")
+	defer h.undo("remove the needrestart test units", func() {
+		_ = exec.Command("systemctl", "stop", "cg-helper-test-1.service", "cg-e2e-nr-control.service").Run()
+		_ = os.RemoveAll(dir)
+	})()
+	for _, u := range []string{"cg-helper-test-1", "cg-e2e-nr-control"} {
+		r := h.run("systemd-run", "--quiet", "--unit="+u, dir+"/sleep", "300")
+		h.assert(t, "#125: start "+u, r.OK(), "%s", r)
+	}
+	// Replaced, not edited: the running units keep the old inode, as after a
+	// package upgrade.
+	h.assert(t, "#125: replace the test binary", h.run("sh", "-c", "cp /bin/sleep "+dir+"/new && mv "+dir+"/new "+dir+"/sleep").OK(), "")
+	// List mode, not -b: the batch listing prints every outdated service
+	// before it looks at the overrides, so it would show the helper too.
+	r := h.run("env", "DEBIAN_FRONTEND=noninteractive", "needrestart", "-r", "l")
+	out := r.Out + r.Err // the listing goes to stderr without a terminal
+	restart := ""
+	if _, after, ok := strings.Cut(out, "Services to be restarted:"); ok {
+		restart, _, _ = strings.Cut(after, "\n\n")
+	}
+	h.assert(t, "#125: needrestart offers to restart the control unit (the check can see a unit)", strings.Contains(restart, "cg-e2e-nr-control"), "%s", r)
+	h.assert(t, "#125: needrestart does not offer to restart a helper unit", !strings.Contains(restart, "cg-helper-test-1") &&
+		strings.Contains(out, "cg-helper-test-1"), "%s", r)
 }
 
 // installerFailsOnADeadAgent: an agent that cannot start (here a drop-in

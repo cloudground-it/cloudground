@@ -265,6 +265,7 @@ e2e/helpers_test.go	harness.agentUnit	helper units
 e2e/helpers_test.go	harness.helperUnits	helper units
 e2e/install_test.go	harness.installer	R-6.1 installer
 e2e/install_test.go	harness.installerFailsOnADeadAgent	R-6.1 installer
+e2e/install_test.go	harness.needrestartSkipsHelpers	R-6.1 installer
 e2e/interrupted_create_test.go	harness.interruptedCreate	R-3.13 interrupted create
 e2e/jar.go	Jar.Cookies	wordpress two-factor|wordpress hardening
 e2e/jar.go	Jar.Len	ALL
