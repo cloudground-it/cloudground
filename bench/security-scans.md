@@ -1,7 +1,8 @@
 # A site's security checks: what they cost (issues #31, #76)
 
-**Not measured yet.** This page lists what is to be measured on the reference VPS and how. The
-numbers come with the next run there. Until then, the bounds below are the design's, not measurements.
+**Measured on 2026-10-12** on the reference OVH VPS (2 vCPU, 4 GB, Ubuntu 26.04, CPU parity 2.2 s,
+no steal), main at 85da91c (the v0.3.0 candidate), the bench site of `setup-workload.sh`. The
+bounds below are the design's; the tables under them are the measurements.
 
 ## 1. The WordPress vulnerability check (#31, api SPEC §11.6)
 
@@ -28,12 +29,17 @@ sudo COLD=1 PANEL_EMAIL=... PANEL_PW=... IP=<public-ip> bash bench/security-cost
 
 | | Run 1 (cold cache) | Runs 2–5 (cached) |
 | --- | ---: | ---: |
-| wall time | to measure | to measure |
-| panel-api CPU | to measure | to measure |
-| panel-agent CPU | to measure | to measure |
-| the site slice's CPU (wp-cli) | to measure | to measure |
-| the site slice's memory over its resting level | to measure | to measure |
-| panel-api resident memory after the check (`systemctl show -p MemoryCurrent cloudground-api`) | to measure | — |
+| wall time | 3.79 s | 3.40–3.58 s |
+| panel-api CPU | 80 ms | 34–44 ms |
+| panel-agent CPU | 75 ms | 76–108 ms |
+| the site slice's CPU (wp-cli) | 3,053 ms | 2,802–2,975 ms |
+| the site slice's memory over its resting level | 135 MB | 135–136 MB |
+| panel-api resident memory after the check (`systemctl show -p MemoryCurrent cloudground-api`) | 137 MiB | — |
+
+Almost all of a check is wp-cli loading WordPress and WooCommerce in the site's slice (about 3 s of
+CPU); the lookups themselves cost the panel well under 0.1 s even with a cold cache (WooCommerce,
+its default theme and core: a handful of components). A hundred WordPress sites checked once a day
+cost about 310 s of CPU a day, under the 864 s bound.
 
 The issue's bound is the same as the usage collection's: far under 1 % of the 2-CPU box. That
 is 864 s of CPU a day, so the check must stay under that even with a hundred WordPress sites.
@@ -68,19 +74,36 @@ ps -eo rss,comm | grep -E 'clamd|freshclam|clamscan'   # after the runs: nothing
 
 | | Run 1 (with the signature update) | Runs 2–3 (scan only) |
 | --- | ---: | ---: |
-| wall time | to measure | to measure |
-| panel-agent CPU (the update: freshclam, the set's rebuild) | to measure | to measure |
-| the site slice's CPU (clamscan) | to measure | to measure |
-| clamscan's memory peak (the slice over its rest) | to measure | to measure |
-| files scanned (13,000 entries in the bench tree) | to measure | to measure |
+| wall time | 124.3 s | 119.3 s, 117.9 s |
+| panel-agent CPU | 330 ms | 323 ms, 251 ms |
+| the update (freshclam and the set's rebuild, in its own unit `cg-malware-signatures-*`) | 5.4 s CPU, 5.9 s wall, 25 MB peak | — |
+| the site slice's CPU (clamscan) | 115.3 s | 114.7 s, 115.0 s |
+| the slice's memory over its rest (sampled every 0.1 s) | 188 MB | 100 MB, 200 MB |
+| files scanned | 11,559 | 11,559 |
 
-Also to measure:
+The update ran in a unit of its own, so the agent's CPU does not include it (the journal gives its
+cost); ClamAV's databases were already a day old or newer, so freshclam downloaded nothing.
 
-- the set's size, in signatures (the stamp) and on disk (`du`), against ClamAV's whole
-  databases in `/var/lib/clamav`;
-- `clamscan` with ClamAV's whole databases (`--database=/var/lib/clamav`) on the same tree, for
-  the memory the reduction saves;
-- the uncached scenario of `wrk-suite.sh` during a scan, against without (the scan's priority).
+| | Result |
+| --- | --- |
+| the set | 105,685 signatures in the stamp (106,640 loaded by clamscan, with LMD's PHP rules), 10.2 MB on disk |
+| ClamAV's whole databases (`/var/lib/clamav`) | 110 MB on disk |
+| `clamscan` by hand on the same tree, the set | 112.6 s, peak RSS **109 MiB** |
+| `clamscan` by hand on the same tree, ClamAV's whole databases | 228.6 s, peak RSS **1,007 MiB** |
+| uncached scenario, quiet against during a scan (alternated, two each) | 8.2, 8.2 against 7.3, 7.2 req/s: **−11.3 %** |
+
+**Reading.**
+
+- **The 768 MB bound holds with room to spare**: the scan peaks near 110 MiB with the reduced set
+  (the slice's sampled peak, 100–200 MB over its rest, also holds the page cache of the files it reads). With
+  ClamAV's whole databases the same scan needs a gigabyte and would be killed at the bound: the
+  reduction is what makes the bound possible, and it also halves the scan's time.
+- **CPU:** about 115 s of CPU per scan of this 11,559-file store, once a week per site: 16 s a day
+  per site, 0.01 % of the box. Fifty such sites stay near 0.5 %.
+- **While a scan runs, the site's uncached pages are 11 % slower.** The scan runs in the site's own
+  slice with `CPUWeight=10` against PHP-FPM's 100, so it takes about a tenth of the CPU the site
+  is entitled to when the site is saturated, as designed; cached pages do not go through PHP. The
+  scan lasts two minutes a week per site, at an hour of its own.
 
 The issue's bound is a scan that never keeps ~1 GB resident and whose cost, spread over the
 week, stays far under 1 % of the box.
