@@ -31,18 +31,18 @@ const grid = computed(() => {
 <template>
   <div class="flex min-w-0 flex-col gap-3">
     <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-      <h2 v-if="title" class="disp m-0 text-[22px] leading-tight text-highlighted [font-stretch:108%]">
+      <h2 v-if="title" class="m-0 text-base leading-snug font-semibold text-highlighted">
         {{ title }}
       </h2>
       <div class="flex flex-wrap gap-x-4 gap-y-1" aria-hidden="true">
-        <span v-for="s in series" :key="s.key" class="hud flex items-center gap-2 text-muted">
+        <span v-for="s in series" :key="s.key" class="flex items-center gap-2 text-[13px] text-muted">
           <span class="inline-block h-0.5 w-4" :style="{ background: s.color, opacity: s.dashed ? 0.75 : 1 }" />{{ s.label }}
         </span>
       </div>
     </div>
-    <div role="img" :aria-label="label" class="relative overflow-hidden bg-cg-panel" :style="{ height: `${height}px` }">
+    <div role="img" :aria-label="label" class="relative overflow-hidden border border-default bg-default" :style="{ height: `${height}px` }">
       <svg :viewBox="`0 0 ${W} ${height}`" preserveAspectRatio="none" width="100%" height="100%" class="absolute inset-0" aria-hidden="true">
-        <path :d="grid" stroke="var(--cg-panel-line)" stroke-width="1" fill="none" vector-effect="non-scaling-stroke" />
+        <path :d="grid" stroke="var(--cg-rule)" stroke-width="1" fill="none" vector-effect="non-scaling-stroke" />
         <path
           v-for="s in series"
           :key="s.key"
@@ -55,7 +55,7 @@ const grid = computed(() => {
           vector-effect="non-scaling-stroke"
         />
       </svg>
-      <div class="hud absolute inset-x-3.5 bottom-2.5 flex justify-between text-cg-panel-text" aria-hidden="true">
+      <div class="mono absolute inset-x-3 bottom-2 flex justify-between text-xs text-muted" aria-hidden="true">
         <span v-for="tk in ticks" :key="tk">{{ tk }}</span>
       </div>
       <slot />

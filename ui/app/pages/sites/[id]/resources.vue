@@ -67,8 +67,8 @@ const buckets = computed(() => {
   return out
 })
 const series = computed<ScopeSeries[]>(() => [
-  { key: 'cpu', label: 'CPU', color: 'var(--cg-wave-blue)', values: buckets.value.map(b => b.cpu) },
-  { key: 'mem', label: t('resources.memory'), color: 'var(--cg-wave-orange)', values: buckets.value.map(b => b.mem) }
+  { key: 'cpu', label: 'CPU', color: 'var(--cg-blue)', values: buckets.value.map(b => b.cpu) },
+  { key: 'mem', label: t('resources.memory'), color: 'var(--cg-ink)', values: buckets.value.map(b => b.mem) }
 ])
 const ticks = computed(() => range.value === '24h'
   ? ['-24 h', '-18 h', '-12 h', '-6 h', t('dashboard.now')]
@@ -127,14 +127,14 @@ function saveAlerts() {
   <PanelSection :title="t('resources.title')" :description="t('resources.hint')">
     <template #actions>
       <UFieldGroup>
-        <UButton :color="range === '24h' ? 'primary' : 'neutral'" :variant="range === '24h' ? 'solid' : 'outline'" size="sm" :label="t('resources.range24h')" @click="range = '24h'" />
-        <UButton :color="range === '30d' ? 'primary' : 'neutral'" :variant="range === '30d' ? 'solid' : 'outline'" size="sm" :label="t('resources.range30d')" @click="range = '30d'" />
+        <UButton color="neutral" :variant="range === '24h' ? 'solid' : 'outline'" size="sm" :label="t('resources.range24h')" @click="range = '24h'" />
+        <UButton color="neutral" :variant="range === '30d' ? 'solid' : 'outline'" size="sm" :label="t('resources.range30d')" @click="range = '30d'" />
       </UFieldGroup>
     </template>
     <USkeleton v-if="!usage" class="h-64" />
     <p v-else-if="!latest" class="m-0 text-sm text-muted">{{ t('resources.empty') }}</p>
     <div v-else class="flex flex-col gap-6">
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="cg-grid sm:grid-cols-2 xl:grid-cols-4">
         <StatCell v-for="c in cells" :key="c.key" :label="c.label" :value="c.value" :unit="c.unit" :note="c.note" :bar="c.bar" :bar-tone="c.barTone" />
       </div>
       <ScopeChart :series="series" :ticks="ticks" :label="chartLabel" :height="220" />

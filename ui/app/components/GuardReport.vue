@@ -28,7 +28,7 @@ const pct = (ratio: number) => `${ratio >= 1 ? '+' : ''}${fmtPercent((ratio - 1)
     />
 
     <div v-if="report.paths?.length" class="overflow-x-auto">
-      <table class="cg-table border-t border-(--cg-ink)">
+      <table class="cg-table">
         <thead>
           <tr>
             <th class="py-1.5 pr-3 font-medium">

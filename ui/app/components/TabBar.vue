@@ -37,7 +37,7 @@ onMounted(() => nextTick(reveal))
         variant="link"
         color="neutral"
         highlight
-        highlight-color="secondary"
+        highlight-color="neutral"
         :ui="{ root: 'w-max', item: 'py-1.5', link: 'px-3 py-2.5 after:-bottom-1.5' }"
       />
     </div>
@@ -49,8 +49,8 @@ onMounted(() => nextTick(reveal))
         trailing-icon="i-cg-chevron-down"
         :label="activeMore?.label ?? t('tabs.more')"
         :aria-current="activeMore ? 'page' : undefined"
-        class="relative my-1.5 shrink-0 font-sans text-sm font-medium tracking-normal normal-case after:absolute after:inset-x-2 after:-bottom-1.5 after:h-0.5"
-        :class="activeMore ? 'text-highlighted after:bg-cg-blue' : 'text-muted'"
+        class="relative my-1.5 shrink-0 text-[15px] font-normal after:absolute after:inset-x-2 after:-bottom-1.5 after:h-0.5"
+        :class="activeMore ? 'font-semibold text-highlighted after:bg-inverted' : 'text-default'"
       />
     </UDropdownMenu>
   </nav>

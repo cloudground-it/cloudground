@@ -229,12 +229,12 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
             </UTooltip>
           </span>
           <span class="mt-1 flex flex-wrap gap-1.5 md:hidden">
-            <UBadge v-for="x in accessOf(d.name)" :key="x.user" :color="x.level === 'all' ? 'primary' : 'neutral'" variant="subtle" size="sm" class="font-mono normal-case tracking-normal" :label="`${x.user} · ${levelLabel(x.level)}`" />
+            <UBadge v-for="x in accessOf(d.name)" :key="x.user" :color="x.level === 'all' ? 'info' : 'neutral'" variant="outline" size="sm" class="mono" :label="`${x.user} · ${levelLabel(x.level)}`" />
           </span>
         </template>
         <template #access-cell="{ row: { original: d } }">
           <span v-if="accessOf(d.name).length" class="flex flex-wrap gap-1.5">
-            <UBadge v-for="a in accessOf(d.name)" :key="a.user" :color="a.level === 'all' ? 'primary' : 'neutral'" variant="subtle" class="font-mono normal-case tracking-normal" :label="`${a.user} · ${levelLabel(a.level)}`" />
+            <UBadge v-for="a in accessOf(d.name)" :key="a.user" :color="a.level === 'all' ? 'info' : 'neutral'" variant="outline" class="mono" :label="`${a.user} · ${levelLabel(a.level)}`" />
           </span>
           <span v-else class="text-[13px] text-muted">{{ t('ux.dbs.noUsersOn') }}</span>
         </template>
@@ -284,12 +284,12 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
             </UTooltip>
           </span>
           <span class="mt-1 flex flex-wrap gap-1.5 md:hidden">
-            <UBadge v-for="g in u.grants ?? []" :key="g.database" :color="g.level === 'all' ? 'primary' : 'neutral'" variant="subtle" size="sm" class="font-mono normal-case tracking-normal" :label="`${g.database} · ${levelLabel(g.level)}`" />
+            <UBadge v-for="g in u.grants ?? []" :key="g.database" :color="g.level === 'all' ? 'info' : 'neutral'" variant="outline" size="sm" class="mono" :label="`${g.database} · ${levelLabel(g.level)}`" />
           </span>
         </template>
         <template #grants-cell="{ row: { original: u } }">
           <span v-if="(u.grants ?? []).length" class="flex flex-wrap gap-1.5">
-            <UBadge v-for="g in u.grants ?? []" :key="g.database" :color="g.level === 'all' ? 'primary' : 'neutral'" variant="subtle" class="font-mono normal-case tracking-normal" :label="`${g.database} · ${levelLabel(g.level)}`" />
+            <UBadge v-for="g in u.grants ?? []" :key="g.database" :color="g.level === 'all' ? 'info' : 'neutral'" variant="outline" class="mono" :label="`${g.database} · ${levelLabel(g.level)}`" />
           </span>
           <span v-else class="text-[13px] text-muted">{{ t('dbs.noGrants') }}</span>
         </template>
@@ -315,7 +315,7 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
       <template #footer>
         <div class="flex w-full justify-end gap-2">
           <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="addingDB = false" />
-          <UButton type="submit" form="add-db" icon="i-cg-plus" :label="t('dbs.createDatabase')" :disabled="!NAME_RE.test(newDB)" :loading="busy" />
+          <UButton color="primary" variant="solid" type="submit" form="add-db" icon="i-cg-plus" :label="t('dbs.createDatabase')" :disabled="!NAME_RE.test(newDB)" :loading="busy" />
         </div>
       </template>
     </UModal>
@@ -342,7 +342,7 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
       <template #footer>
         <div class="flex w-full justify-end gap-2">
           <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="addingUser = false" />
-          <UButton type="submit" form="add-user" icon="i-cg-user-plus" :label="t('dbs.createUser')" :disabled="!newUserValid" :loading="busy" />
+          <UButton color="primary" variant="solid" type="submit" form="add-user" icon="i-cg-user-plus" :label="t('dbs.createUser')" :disabled="!newUserValid" :loading="busy" />
         </div>
       </template>
     </UModal>
@@ -362,7 +362,7 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
       <template #footer>
         <div class="flex w-full justify-end gap-2">
           <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="editing = null" />
-          <UButton :label="t('common.save')" :loading="busy" @click="saveGrants" />
+          <UButton color="primary" variant="solid" :label="t('common.save')" :loading="busy" @click="saveGrants" />
         </div>
       </template>
     </UModal>
@@ -381,7 +381,7 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
       <template #footer>
         <div class="flex w-full justify-end gap-2">
           <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="resetting = null" />
-          <UButton :label="t('dbs.resetPassword')" :disabled="!resetValid" :loading="busy" @click="savePassword" />
+          <UButton color="primary" variant="solid" :label="t('dbs.resetPassword')" :disabled="!resetValid" :loading="busy" @click="savePassword" />
         </div>
       </template>
     </UModal>
@@ -395,7 +395,7 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
       </template>
       <template #footer>
         <div class="flex w-full justify-end">
-          <UButton :label="t('dbs.passwordSaved')" @click="shown = null" />
+          <UButton color="primary" variant="solid" :label="t('dbs.passwordSaved')" @click="shown = null" />
         </div>
       </template>
     </UModal>

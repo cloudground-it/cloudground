@@ -107,8 +107,8 @@ function probe(mobile) {
       if ((cs.overflowX === 'hidden' || cs.overflowX === 'clip') && cs.textOverflow !== 'ellipsis') {
         found.push(`text cut: ${where(el)} "${label(el)}" (${el.scrollWidth - el.clientWidth} px)`)
       } else if (cs.overflowX === 'visible' && el.scrollWidth > el.clientWidth + 3) {
-        // A word longer than its box spills over what is next to it (the
-        // HUD's letter-spacing after the last letter is not a finding).
+        // A word longer than its box spills over what is next to it (a few
+        // pixels of letter-spacing after the last letter are not a finding).
         found.push(`text past its box: ${where(el)} "${label(el)}" (${el.scrollWidth - el.clientWidth} px)`)
       }
     }

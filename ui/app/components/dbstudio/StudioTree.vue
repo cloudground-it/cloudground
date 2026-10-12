@@ -49,7 +49,7 @@ const items = (db: string) => {
     <div class="px-3">
       <UInput v-model="filter" size="sm" icon="i-cg-search" :placeholder="t('studio.filterTree')" class="w-full" :aria-label="t('studio.filterTree')" />
     </div>
-    <span class="hud px-4 pt-1 text-dimmed">{{ t('studio.databases') }}</span>
+    <span class="px-4 pt-1 text-[13px] font-semibold text-muted">{{ t('studio.databases') }}</span>
     <p v-if="failed" class="m-0 px-4 text-[13px] text-error">
       {{ failed }}
     </p>
@@ -87,7 +87,7 @@ const items = (db: string) => {
           <template v-else>
             <template v-for="group in (['tables', 'views', 'routines'] as const)" :key="group">
               <template v-if="items(db)[group].length">
-                <span class="hud block pt-1.5 pb-0.5 text-dimmed">{{ t(`studio.group.${group}`) }}</span>
+                <span class="block pt-1.5 pb-0.5 text-[13px] font-semibold text-muted">{{ t(`studio.group.${group}`) }}</span>
                 <ul class="m-0 list-none p-0">
                   <template v-if="group !== 'routines'">
                     <li v-for="x in items(db)[group]" :key="x.name">
@@ -106,7 +106,7 @@ const items = (db: string) => {
                     <li v-for="x in items(db).routines" :key="x.name" class="mono flex min-w-0 items-center gap-2 py-1 pe-3 text-[12.5px] text-muted" :title="t('studio.routineHint')">
                       <UIcon name="i-cg-code" class="size-3.5 shrink-0 opacity-70" />
                       <span class="truncate">{{ x.name }}</span>
-                      <span class="hud ms-auto shrink-0">{{ x.type === 'function' ? 'fn' : 'proc' }}</span>
+                      <span class="mono ms-auto shrink-0 text-xs">{{ x.type === 'function' ? 'fn' : 'proc' }}</span>
                     </li>
                   </template>
                 </ul>

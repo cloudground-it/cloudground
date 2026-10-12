@@ -30,7 +30,7 @@ const pct = (i: UploadItem) => (i.size ? Math.min(100, Math.round((i.loaded / i.
 </script>
 
 <template>
-  <section class="overflow-hidden rounded-lg border border-default bg-default" :aria-label="t('upload.queue')">
+  <section class="overflow-hidden border border-default bg-default" :aria-label="t('upload.queue')">
     <header class="flex items-center gap-2 px-4 py-2">
       <UIcon :name="active ? 'i-cg-upload' : counts.failed ? 'i-cg-alert-circle' : 'i-cg-check-circle'" class="size-4 shrink-0" :class="active ? 'text-primary' : counts.failed ? 'text-error' : 'text-success'" />
       <p class="min-w-0 flex-1 truncate text-sm font-medium text-highlighted" aria-live="polite">

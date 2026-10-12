@@ -151,7 +151,7 @@ const toc = computed(() => [
                   {{ t('security.scan') }}
                 </p>
                 <div class="flex flex-col items-center gap-2">
-                  <img :src="pending.qr_data" :alt="t('security.qr')" class="size-48 rounded-md bg-white p-2">
+                  <img :src="pending.qr_data" :alt="t('security.qr')" class="size-48 bg-(--cg-qr-ground) p-2">
                   <code class="font-mono text-xs break-all text-muted">{{ pending.secret }}</code>
                 </div>
                 <div class="flex items-end gap-2">

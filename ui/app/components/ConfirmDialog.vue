@@ -22,7 +22,7 @@ const ready = computed(() => !props.typed || typedValue.value.trim() === props.t
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="emit('close', false)" />
-        <UButton :color="danger ? 'error' : 'primary'" :label="confirmLabel || t('common.confirm')" :disabled="!ready" @click="emit('close', true)" />
+        <UButton variant="solid" :color="danger ? 'error' : 'primary'" :label="confirmLabel || t('common.confirm')" :disabled="!ready" @click="emit('close', true)" />
       </div>
     </template>
   </UModal>

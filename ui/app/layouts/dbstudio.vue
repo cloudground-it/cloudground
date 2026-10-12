@@ -84,8 +84,8 @@ const initial = computed(() => (session.value?.user ?? '?').slice(0, 1).toUpperC
               @click="colorMode.preference = dark ? 'light' : 'dark'"
             />
             <UDropdownMenu v-if="session" :items="userItems" :content="{ align: 'end' }">
-              <UButton color="neutral" variant="ghost" class="gap-2 px-1.5 font-sans text-sm font-normal tracking-normal normal-case" :aria-label="t('cg.shell.accountMenu', { name: session.user })">
-                <span class="mono grid size-7 shrink-0 place-items-center bg-inverted text-xs text-inverted" aria-hidden="true">{{ initial }}</span>
+              <UButton color="neutral" variant="ghost" class="gap-2 px-1.5 text-sm font-normal" :aria-label="t('cg.shell.accountMenu', { name: session.user })">
+                <span class="grid size-7 shrink-0 place-items-center rounded-[3px] bg-inverted text-xs font-semibold text-inverted" aria-hidden="true">{{ initial }}</span>
                 <span class="mono hidden max-w-56 truncate text-[13px] text-default xl:inline">{{ session.user }}</span>
               </UButton>
             </UDropdownMenu>

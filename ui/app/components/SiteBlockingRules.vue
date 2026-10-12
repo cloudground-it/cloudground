@@ -129,7 +129,7 @@ const columns = computed(() => [
         <UButton color="error" variant="ghost" :label="t('blocklist.site.clear')" :disabled="!form.siteId" :loading="busy" @click="save(true)" />
         <div class="flex gap-2">
           <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="editing = false" />
-          <UButton icon="i-cg-lock" :label="t('common.save')" :disabled="!rulesOK" :loading="busy" @click="save()" />
+          <UButton color="primary" variant="solid" icon="i-cg-lock" :label="t('common.save')" :disabled="!rulesOK" :loading="busy" @click="save()" />
         </div>
       </div>
     </template>

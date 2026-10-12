@@ -132,14 +132,14 @@ const menu = computed<DropdownMenuItem[][]>(() => [[{ label: t('common.delete'),
 
     <template #body>
       <UContainer class="flex flex-col gap-6">
-        <UPageHeader v-if="site" :headline="meta">
+        <UPageHeader v-if="site" :description="meta">
           <template #title>
             <span class="min-w-0">{{ site.domain }}</span>
             <SiteStatusBadge :status="site.status" :staging="!!site.staging_of" size="lg" />
           </template>
           <template #links>
             <UButton :to="`https://${site.domain}`" target="_blank" color="neutral" variant="outline" trailing-icon="i-cg-external-link" :label="t('site.visit')" :aria-label="t('site.visit')" :ui="{ label: 'hidden sm:inline' }" />
-            <UButton v-if="isWordPress(site) && site.status === 'active'" icon="i-cg-login" :label="t('cg.site.wpLogin')" :disabled="!canManage" :loading="busy" @click="wpLogin" />
+            <UButton v-if="isWordPress(site) && site.status === 'active'" color="primary" variant="solid" icon="i-cg-login" :label="t('cg.site.wpLogin')" :disabled="!canManage" :loading="busy" @click="wpLogin" />
             <UDropdownMenu v-if="isAdmin" :items="menu" :content="{ align: 'end' }">
               <UButton icon="i-cg-more-horizontal" color="neutral" variant="outline" square :aria-label="t('common.more')" />
             </UDropdownMenu>

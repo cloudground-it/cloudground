@@ -62,7 +62,7 @@ const fieldError = (name: string) => errors.value[name] ? t('address.refused', {
       </UFormField>
       <UFormField v-if="!isProxy" :label="t('address.publicRoot')" :help="t('address.publicRootHint')" :error="fieldError('public_root')">
         <UFieldGroup class="w-full max-w-md">
-          <UBadge color="neutral" variant="outline" size="lg" class="mono shrink-0 tracking-normal normal-case" label="current/" />
+          <UBadge color="neutral" variant="outline" size="lg" class="mono shrink-0" label="current/" />
           <UInput v-model="form.public_root" placeholder="public" class="w-full font-mono" :disabled="!canManage" />
         </UFieldGroup>
       </UFormField>

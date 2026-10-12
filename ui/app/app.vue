@@ -11,14 +11,15 @@ const route = useRoute()
 const product = computed(() => isStudioRoute(route.path) ? 'CloudGround Quarry' : 'CloudGround')
 useHead({
   titleTemplate: title => (title ? `${title} · ${product.value}` : product.value),
-  meta: [{ key: 'theme-color', name: 'theme-color', content: computed(() => colorMode.value === 'dark' ? '#0F0F12' : '#F2F1EC') }],
+  // The paper token of each theme (main.css --cg-paper).
+  meta: [{ key: 'theme-color', name: 'theme-color', content: computed(() => colorMode.value === 'dark' ? '#131418' : '#FBFAF6') }],
   htmlAttrs: { lang: locale }
 })
 </script>
 
 <template>
   <UApp :locale="uiLocale">
-    <NuxtLoadingIndicator color="var(--ui-primary)" />
+    <NuxtLoadingIndicator color="var(--ui-secondary)" />
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>

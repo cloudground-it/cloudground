@@ -113,7 +113,7 @@ const peak = computed(() => form.php_workers * form.memory_limit_mb)
       variant="card"
       orientation="horizontal"
       :disabled="!canManage"
-      :ui="{ legend: 'hud mb-2 text-muted', fieldset: 'flex-wrap gap-2', item: 'min-w-40 flex-1' }"
+      :ui="{ legend: 'mb-2 text-sm font-medium text-highlighted', fieldset: 'flex-wrap gap-2', item: 'min-w-40 flex-1' }"
     />
     <div class="grid max-w-3xl gap-4 sm:grid-cols-3">
       <UFormField :label="t('php.memory')" hint="64–4096 MB">
@@ -156,7 +156,7 @@ const peak = computed(() => form.php_workers * form.memory_limit_mb)
   <PanelSection v-if="extVersion" :title="t('php.extTitle', { version: extVersion })" :description="t('php.extHint')" flush>
     <USkeleton v-if="!ext" class="m-4 h-24" />
     <template v-else>
-      <ul class="m-0 grid list-none gap-px bg-(--cg-line) p-0 sm:grid-cols-2 lg:grid-cols-3">
+      <ul class="m-0 grid list-none gap-px bg-(--cg-rule) p-0 sm:grid-cols-2 lg:grid-cols-3">
         <li v-for="e in ext.extensions" :key="e.name" class="flex items-center gap-3 bg-default px-4 py-2.5 sm:px-5">
           <UIcon :name="e.installed ? 'i-cg-check-circle' : 'i-cg-minus'" class="size-4 shrink-0" :class="e.installed ? 'text-cg-ok' : 'text-dimmed'" />
           <span class="mono min-w-0 flex-1 text-[13px] text-highlighted">{{ e.name }}</span>

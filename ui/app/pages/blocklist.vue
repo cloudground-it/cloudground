@@ -210,7 +210,7 @@ const blockedColumns = computed(() => [
         <template #footer>
           <div class="flex w-full justify-end gap-2">
             <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="blocking = false" />
-            <UButton icon="i-cg-lock" :label="t('blocklist.block')" :disabled="!addressOK(blockForm.address)" :loading="busy" @click="block" />
+            <UButton color="primary" variant="solid" icon="i-cg-lock" :label="t('blocklist.block')" :disabled="!addressOK(blockForm.address)" :loading="busy" @click="block" />
           </div>
         </template>
       </UModal>

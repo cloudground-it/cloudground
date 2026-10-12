@@ -86,9 +86,9 @@ const buckets = computed(() => {
   return out
 })
 const series = computed<ScopeSeries[]>(() => [
-  { key: 'cpu', label: 'CPU', color: 'var(--cg-wave-blue)', values: buckets.value.map(b => b.cpu) },
-  { key: 'mem', label: t('dashboard.memory'), color: 'var(--cg-wave-orange)', values: buckets.value.map(b => b.mem) },
-  { key: 'disk', label: t('dashboard.disk'), color: 'var(--cg-panel-text)', values: buckets.value.map(b => b.disk), dashed: true }
+  { key: 'cpu', label: 'CPU', color: 'var(--cg-blue)', values: buckets.value.map(b => b.cpu) },
+  { key: 'mem', label: t('dashboard.memory'), color: 'var(--cg-ink)', values: buckets.value.map(b => b.mem) },
+  { key: 'disk', label: t('dashboard.disk'), color: 'var(--cg-muted)', values: buckets.value.map(b => b.disk), dashed: true }
 ])
 const chartLabel = computed(() => {
   const last = buckets.value[buckets.value.length - 1]
@@ -112,6 +112,7 @@ const siteColumns = computed(() => [
   { id: 'cert', header: t('cg.col.cert'), meta: { class: { th: 'hidden md:table-cell', td: 'hidden md:table-cell' } } },
   { id: 'backup', header: t('cg.col.backup'), meta: { class: { th: 'hidden md:table-cell', td: 'hidden md:table-cell' } } }
 ])
+const updateShown = computed(() => !!update.value?.update_available && isAdmin.value)
 const moodBadge = computed(() => ({ ok: 'success', warn: 'warning', err: 'error' } as const)[mood.value])
 
 function startUpdate() {
@@ -135,7 +136,8 @@ function startUpdate() {
             </span>
           </template>
           <template v-if="isAdmin" #links>
-            <UButton icon="i-cg-plus" :label="t('site.new')" @click="creating = true" />
+            <!-- The update, when there is one, is the screen's one primary action. -->
+            <UButton v-bind="updateShown ? {} : { color: 'primary', variant: 'solid' }" icon="i-cg-plus" :label="t('site.new')" @click="creating = true" />
           </template>
         </UPageHeader>
 
@@ -150,11 +152,11 @@ function startUpdate() {
           :description="t('dashboard.updateRunning', { version: update.current })"
           :actions="[
             ...(update.notes_url ? [{ label: t('dashboard.whatsNew'), to: update.notes_url, target: '_blank', color: 'neutral' as const, variant: 'outline' as const, size: 'sm' as const }] : []),
-            { label: t('dashboard.updateNow'), loading: busy, size: 'sm' as const, onClick: startUpdate }
+            { label: t('dashboard.updateNow'), loading: busy, color: 'primary' as const, variant: 'solid' as const, size: 'sm' as const, onClick: startUpdate }
           ]"
         />
 
-        <section :aria-label="t('cg.dashboard.capacity')" class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section :aria-label="t('cg.dashboard.capacity')" class="cg-grid grid-cols-2 lg:grid-cols-4">
           <template v-if="status">
             <StatCell v-for="m in meters" :key="m.key" :label="m.label" :value="m.value" unit="%" :note="m.note" :state="m.state" :bar="m.bar" :bar-tone="m.barTone" />
           </template>
@@ -192,7 +194,7 @@ function startUpdate() {
           />
           <UTable v-else :data="listed" :columns="siteColumns">
             <template #site-cell="{ row: { original: { site, staging } } }">
-              <NuxtLink :to="`/sites/${site.id}`" class="font-semibold break-all text-highlighted hover:underline" :class="staging ? 'ps-4' : ''">
+              <NuxtLink :to="`/sites/${site.id}`" class="break-all text-highlighted decoration-1 underline-offset-[0.2em] hover:text-cg-blue hover:underline" :class="staging ? 'ps-4 font-medium' : 'font-semibold'">
                 <span v-if="staging" class="text-dimmed" aria-hidden="true">↳ </span>{{ site.domain }}
               </NuxtLink>
             </template>
@@ -214,7 +216,7 @@ function startUpdate() {
         <div class="grid gap-6 lg:grid-cols-2">
           <PanelSection v-if="!isOperator" :title="t('cg.dashboard.last24')">
             <ScopeChart :series="series" :ticks="ticks" :label="chartLabel" :height="220">
-              <p v-if="buckets.length < 2" class="hud absolute inset-0 m-0 grid place-items-center px-6 text-center text-cg-panel-text">
+              <p v-if="buckets.length < 2" class="absolute inset-0 m-0 grid place-items-center px-6 text-center text-sm text-muted">
                 {{ t('dashboard.capacityEmpty') }}
               </p>
             </ScopeChart>

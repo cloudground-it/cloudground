@@ -1,4 +1,4 @@
-"""Draw CloudGround's logo, favicon, README banners and social card as SVG.
+"""Draw CloudGround's README banners and social card as SVG.
 
     python3 scripts/brand-assets.py <repository> <font folder>
 
@@ -9,8 +9,11 @@ Licence), saved under these names:
     InstrumentSerif-Italic.ttf  ofl/instrumentserif/InstrumentSerif-Italic.ttf
     GeistMono.ttf               ofl/geistmono/GeistMono[wght].ttf
 
-Output, relative to the repository: docs/media/logo.svg, ui/public/favicon.svg,
-docs/media/banner-light.svg, docs/media/banner-dark.svg and docs/media/og.svg.
+Output, relative to the repository: docs/media/banner-light.svg,
+docs/media/banner-dark.svg and docs/media/og.svg. The logo (docs/media/logo.svg,
+logo-dark.svg) and the favicon (ui/public/favicon.svg) are the redrawn v2 mark
+(no tile, the cloud in ink over a blue and an orange bar; the favicon keeps an
+ink tile) and are no longer drawn here.
 Every letter becomes a path, so the files need no font to look right.
 
 The mark is a 48x48 tile with corners of radius 11. On it, scaled to 0.84 and
@@ -96,11 +99,6 @@ def squares(width, height, colour, step=40):
             f'<rect width="{width}" height="{height}" fill="url(#g)"/>')
 
 
-def logo():
-    # Dark tile, light cloud: legible on light and dark pages, so one file serves both.
-    return svg(48, 48, tile(COLOURS["ink"], COLOURS["paper"]))
-
-
 def banner(faces, dark):
     width, height = 1280, 320
     c = COLOURS
@@ -160,8 +158,6 @@ def main(repository, font_folder):
         "mono": Face(font_folder / "GeistMono.ttf", wght=500),
     }
     outputs = {
-        "docs/media/logo.svg": logo(),
-        "ui/public/favicon.svg": logo(),
         "docs/media/banner-light.svg": banner(faces, dark=False),
         "docs/media/banner-dark.svg": banner(faces, dark=True),
         "docs/media/og.svg": social_card(faces),

@@ -136,7 +136,7 @@ async function runNow(j: CronJob) {
               v-for="p in presets"
               :key="p.value"
               size="sm"
-              :color="form.schedule === p.value ? 'primary' : 'neutral'"
+              color="neutral"
               :variant="form.schedule === p.value ? 'solid' : 'outline'"
               :label="p.label"
               :aria-pressed="form.schedule === p.value"
@@ -155,7 +155,7 @@ async function runNow(j: CronJob) {
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="reset" />
-        <UButton type="submit" form="cron-form" :label="editing ? t('cron.save') : t('cron.add')" :loading="busy" />
+        <UButton color="primary" variant="solid" type="submit" form="cron-form" :label="editing ? t('cron.save') : t('cron.add')" :loading="busy" />
       </div>
     </template>
   </UModal>

@@ -54,8 +54,9 @@ Where things are:
 - `cmd/`: `panel-api`, `panel-agent`, `cgctl`, `cgbench`;
 - `internal/`: the logic, with a `SPEC.md` in each package that has a contract
   (`docs/spec-convention.md`);
-- `ui/`: the Nuxt 4 + Nuxt UI single-page app; its build `ui/dist/` is committed; reference
-  artboards in `ui/design/reference/`, tokens in `ui/app/assets/css/main.css`, translations and
+- `ui/`: the Nuxt 4 + Nuxt UI single-page app; its build `ui/dist/` is committed; the design
+  tokens in `ui/app/assets/css/main.css` and their mapping onto Nuxt UI in `ui/app/app.config.ts`
+  (the design system, DESIGN.md, is kept outside the repository), translations and
   `GLOSSARY.md` in `ui/i18n/`;
 - `installer/`: the bootstrap script, which hands over to `cgctl install` (`internal/install`);
 - `connector/`: the WordPress mu-plugin and object-cache drop-in (`connector/SPEC.md`);
