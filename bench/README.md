@@ -17,6 +17,7 @@ and 6). This folder holds what you need for that. The exact behaviour of each pa
 | `uncached-php.md` | where an uncached render's time goes, and the PHP-FPM candidates A/B (issue #10) |
 | `v0.2.0-rc.md` | the v0.2.0 release candidate: install time, the full e2e, the REST upgrade check, the suites against v0.1.0 |
 | `v0.3.0-rc.md` | the v0.3.0 release candidate: install time, the full e2e and what it found, the suites against v0.2.0 |
+| `v0.3.1-rc.md` | the v0.3.1 release candidate: the update from the v0.3.0 release, the full e2e, the suites against v0.3.0 on the same box |
 | `agent-memory.md`, `agent-memory.sh` | the agent unit's memory limit and its helpers' (issue #66): the values, the measurement that sets them and its first run |
 | `blocklist.md`, `blocklist-cost.sh` | what the block list and the sites' refused visitors cost cached traffic, and the script that measures the netfilter table (issues #21, #25) |
 
