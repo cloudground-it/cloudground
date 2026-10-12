@@ -7,6 +7,18 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.3.1
+
+The panel in a new look, and a wizard to create a site. What changes for a person running the panel:
+
+- the panel has a new visual design;
+- a new site is created with a wizard on its own page, `/sites/new`, in 5 steps, with the logos
+  of the services it offers;
+- the Domain step accepts aliases and checks that the domain's DNS points at the server
+  (`GET /api/sites/dns-check`);
+- fixed: the alert that offers to restore the wizard's saved draft had a close button without
+  a proper label.
+
 ## v0.3.0
 
 Site security. What changes for a person running the panel:
