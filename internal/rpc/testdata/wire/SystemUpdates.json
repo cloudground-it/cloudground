@@ -1,0 +1,33 @@
+{
+  "params": {
+    "full": {
+      "refresh": true
+    },
+    "zero": {}
+  },
+  "result": {
+    "full": {
+      "packages": [
+        {
+          "name": "Name",
+          "from": "From",
+          "to": "To",
+          "origin": "Origin",
+          "security": true,
+          "new": true
+        }
+      ],
+      "security": 7,
+      "reboot_required": true,
+      "reboot_packages": [
+        "RebootPackages"
+      ],
+      "lists_updated_at": "2026-01-02T03:04:05Z"
+    },
+    "zero": {
+      "packages": null,
+      "security": 0,
+      "reboot_required": false
+    }
+  }
+}

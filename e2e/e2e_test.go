@@ -91,6 +91,7 @@ var sections = []section{
 	{name: "R-0.7 reconcile", run: (*harness).reconcile},
 	{name: "R-5.2 reload drain", run: (*harness).reloadDrain},
 	{name: "R-2.4 services", run: (*harness).services},
+	{name: "ubuntu updates", run: (*harness).osUpdates},
 	{name: "R-3.9 certificates and panel", run: (*harness).certsPanel},
 	{name: "R-3.7 site lifecycle", run: (*harness).siteLifecycle},
 	{name: "R-3.13 interrupted create", run: (*harness).interruptedCreate},

@@ -107,6 +107,7 @@ var sessionOnly = map[string]bool{
 	"PUT /api/blocklist/settings":       true,
 	"POST /api/panel/certificate":       true,
 	"POST /api/panel/update":            true,
+	"POST /api/system/updates/apply":    true,
 	// An API token cannot open Quarry.
 	"POST /api/sites/{id}/quarry/handoff": true,
 }
@@ -628,6 +629,7 @@ func TestRouteBodyLimitsArePinned(t *testing.T) {
 		"PUT /api/sites/{id}/wp/updates":               smallBody,
 		"DELETE /api/sites/{id}/protected-paths":       smallBody,
 		"PUT /api/sites/{id}/uptime":                   smallBody,
+		"POST /api/system/updates/apply":               smallBody,
 		"PUT /api/sites/{id}/certificate/custom":       certBody,
 		"PUT /api/sites/{id}/routing":                  routingBody,
 		"POST /api/sites/{id}/files/upload":            fileUploadBody,

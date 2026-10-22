@@ -221,7 +221,50 @@ Params `{expected: path → sha256}`. For every path:
   the check.
 - `Drifted` lists `{path, expected_hash, actual_hash}` where they differ.
 
-## 7. Not here
+## 7. Ubuntu updates (#27)
+
+The server's own packages: what apt would upgrade, security first, and
+whether a reboot is needed; and, on request, the upgrade. Every apt run is a
+transient root service (`host.AptUnitArgs`, named `cg-apt-…`, which
+needrestart leaves alone): the agent's sandbox has apt's and dpkg's state
+read-only. The API names no package: it asks for a list, a refresh, or an
+upgrade of everything or of the security updates, and the agent works out
+the packages itself.
+
+**`SystemUpdates{refresh}`** → `rpc.SystemUpdatesResult`.
+
+1. With `refresh`, `apt-get -o DPkg::Lock::Timeout=60 update -qq` (10 min
+   at most); a failure fails the call.
+2. The pending upgrades: `apt-get -s -q -o Debug::NoLocking=1 upgrade
+   --with-new-pkgs` (a simulation: it changes nothing and takes no lock),
+   one package per `Inst <name> [<installed>] (<candidate> <origins>
+   [<arch>])` line; `<installed>` is absent for a package the upgrade would
+   newly install (a new kernel's). A package is a **security** update when
+   one of its origins is an archive ending in `-security`. Names that are
+   not Debian package names (`^[a-z0-9][a-z0-9+.-]*$`) are skipped. The
+   list is security first, then by name; `security` counts them.
+3. `reboot_required`: `/run/reboot-required` exists; `reboot_packages`: the
+   names in `/run/reboot-required.pkgs` (at most 100, the same name rule).
+4. `lists_updated_at`: the modification time of
+   `/var/lib/apt/periodic/update-success-stamp` (written after every
+   successful `apt-get update`, Ubuntu's daily one included); zero when it
+   is missing.
+
+**`ApplyUpdates{security_only}`** → `rpc.ApplyUpdatesResult{upgraded,
+pending}`. The list of step 2 first; nothing to do (none pending, or no
+security update with `security_only`) answers at once with `upgraded` 0.
+Otherwise, with `-o DPkg::Lock::Timeout=120 -o
+Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold -y -q`
+(a changed configuration file keeps the server's version, and no question
+is asked): `upgrade --with-new-pkgs` for everything, or `install
+--only-upgrade <the security packages already installed>` (their new
+dependencies come with them). 60 minutes at most. `upgraded` is how many
+packages the list had to upgrade; `pending` is `SystemUpdates` after it
+(what is left, and whether a reboot is now needed). A failed run is the
+error, with apt's output in the agent's journal. The agent never reboots
+the server: the panel says a reboot is needed, a person chooses when.
+
+## 8. Not here
 
 `PurgeCache` lives in `ops/cache`. Cron (`ApplyCron`, `RunCron`) lives in
 `ops/cron`.

@@ -266,6 +266,7 @@ Locks as in §3. "Resumable" = has `Run`; "rerun" = `Rerun`.
 | `database.import`, `dbstudio.import`, `migration.import` | site | `site` | no | | |
 | `database.export`, `dbstudio.export`, `cache.warm` | site | — | no | | read the site; nothing to serialise |
 | `panel.certificate` | — | `panel` | no | | |
+| `apt.update`, `apt.upgrade` | — | `apt` | no | | dedup by kind; `apt-get update` and the list, or the upgrade of the server's packages (internal/api/SPEC.md §7.5); a cancel stops an upgrade only before it is sent |
 | `backup.run` | site | `repo` | rerun | | snapshot, then its restore test in the same job |
 | `backup.scheduled` | site | `repo` | rerun | | background; dedup `backup.scheduled:<site>`; canceled before it ran: the site's schedule key is cleared, so the next sweep queues it again |
 | `backup.verify` | site | `repo` | rerun | | payload `{backup_id}`; dedup `backup.verify:<id>`; **cannot be canceled** |
@@ -357,6 +358,6 @@ repository and leaves a partial snapshot or a half-restored site when cut),
 and the kinds that are not resumable and would fail half done: `site.create`,
 `site.delete`, `migration.import`, `staging.database-push`,
 `database.import`, `database.export`, `database.create`, `database.drop`,
-`dbstudio.import`, `dbstudio.export`, `wp.update`, `wp.update.scheduled`. A queued job does not
+`dbstudio.import`, `dbstudio.export`, `wp.update`, `wp.update.scheduled`, `apt.upgrade`. A queued job does not
 block: it waits for the panel to come back. The callers name the job's id
 and kind, so the operator knows what to wait for.

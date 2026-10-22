@@ -214,6 +214,35 @@
       "proxy": "Proxy inverso"
     }
   },
+  "osupdates": {
+    "title": "Actualizaciones de Ubuntu",
+    "hint": "Los paquetes del servidor: lo que apt actualizaría, primero las actualizaciones de seguridad.",
+    "pending": "Actualizaciones pendientes: {n}, de ellas de seguridad: {security}.",
+    "none": "Ubuntu está al día.",
+    "refresh": "Comprobar de nuevo",
+    "refreshStarted": "Actualizando las listas de paquetes",
+    "applySecurity": "Instalar las actualizaciones de seguridad",
+    "applyAll": "Actualizar todo",
+    "securityTitle": "¿Instalar las actualizaciones de seguridad ({n})?",
+    "allTitle": "¿Actualizar todos los paquetes ({n})?",
+    "applyHint": "Los servicios cuyos paquetes se actualizan se reinician, así que los sitios pueden pararse un momento. Un archivo de configuración modificado conserva la versión de este servidor. El servidor no se reinicia.",
+    "applyStarted": "Actualización iniciada",
+    "rebootNeeded": "El servidor necesita reiniciarse",
+    "rebootHint": "Las actualizaciones instaladas por el panel o por el propio Ubuntu solo surten efecto tras un reinicio. Elige un momento tranquilo: los sitios no responden mientras el servidor se reinicia.",
+    "rebootFor": "Lo piden: {list}. Elige un momento tranquilo: los sitios no responden mientras el servidor se reinicia.",
+    "security": "seguridad",
+    "new": "nuevo",
+    "listsUpdated": "Listas de paquetes actualizadas {ago}.",
+    "securityPending": "Actualizaciones de seguridad pendientes: {n}",
+    "securityHint": "Ubuntu instala la mayoría por sí mismo cada día; el resto te espera en la página de servicios.",
+    "open": "Ver las actualizaciones",
+    "col": {
+      "package": "Paquete",
+      "installed": "Instalado",
+      "candidate": "Nueva versión",
+      "origin": "Origen"
+    }
+  },
   "tabs": {
     "backups": "Copias de seguridad",
     "cache": "Caché",

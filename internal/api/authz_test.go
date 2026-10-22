@@ -119,6 +119,9 @@ var routePolicy = map[string]string{
 
 	"GET /api/services":                  "global",
 	"POST /api/services/{name}/restart":  "admin",
+	"GET /api/system/updates":            "global",
+	"POST /api/system/updates/refresh":   "admin",
+	"POST /api/system/updates/apply":     "admin",
 	"GET /api/logs":                      "global",
 	"GET /api/firewall":                  "global",
 	"GET /api/php/{version}/extensions":  "auth",

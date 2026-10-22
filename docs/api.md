@@ -119,6 +119,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/sites/{id}/wp/updates`: 8 KiB
   - `PUT /api/sites/{id}/wp/hardening`: 8 KiB
   - `PUT /api/sites/{id}/wp/two-factor`: 8 KiB
+  - `POST /api/system/updates/apply`: 8 KiB
   - `POST /api/blocklist/blocks`: 8 KiB
   - `DELETE /api/blocklist/blocks`: 8 KiB
   - `POST /api/blocklist/allowed`: 8 KiB
@@ -492,6 +493,9 @@ session (an API token gets 403); an operator adds `"sftp"` keys to its sites.
 | `POST` | `/api/php/{version}/extensions` | admin | install one of the common extensions (`{"extension": "redis"}`) and restart the PHP of the sites on that version; answers the task |
 | `GET` | `/api/services` | global | whether nginx, PHP-FPM, MariaDB and Redis run |
 | `POST` | `/api/services/{name}/restart` | admin | restart that service |
+| `GET` | `/api/system/updates` | global | the server's pending package upgrades, security first, and whether it needs a reboot |
+| `POST` | `/api/system/updates/refresh` | admin | update apt's package lists, then list the pending upgrades again (a task) |
+| `POST` | `/api/system/updates/apply` | admin, session only | upgrade every pending package, or only the security updates (`{"security_only": true}`) (a task) |
 | `GET` | `/api/logs` | global | the last lines of a server log |
 | `GET` | `/api/firewall` | global | the firewall's rules |
 | `POST` | `/api/firewall/rule` | admin, session only | add a firewall rule or take one away |

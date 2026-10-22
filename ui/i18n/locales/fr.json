@@ -214,6 +214,35 @@
       "proxy": "Reverse proxy"
     }
   },
+  "osupdates": {
+    "title": "Mises à jour d’Ubuntu",
+    "hint": "Les paquets du serveur : ce qu’apt mettrait à jour, les mises à jour de sécurité d’abord.",
+    "pending": "Mises à jour en attente : {n}, dont de sécurité : {security}.",
+    "none": "Ubuntu est à jour.",
+    "refresh": "Vérifier à nouveau",
+    "refreshStarted": "Mise à jour des listes de paquets",
+    "applySecurity": "Installer les mises à jour de sécurité",
+    "applyAll": "Tout mettre à jour",
+    "securityTitle": "Installer les mises à jour de sécurité ({n}) ?",
+    "allTitle": "Mettre à jour tous les paquets ({n}) ?",
+    "applyHint": "Les services dont les paquets sont mis à jour redémarrent : les sites peuvent s’interrompre un instant. Un fichier de configuration modifié garde la version de ce serveur. Le serveur n’est pas redémarré.",
+    "applyStarted": "Mise à jour lancée",
+    "rebootNeeded": "Le serveur doit être redémarré",
+    "rebootHint": "Les mises à jour installées par le panneau ou par Ubuntu lui-même ne s’appliquent qu’après un redémarrage. Choisissez un moment calme : les sites ne répondent pas pendant le redémarrage.",
+    "rebootFor": "Demandé par : {list}. Choisissez un moment calme : les sites ne répondent pas pendant le redémarrage.",
+    "security": "sécurité",
+    "new": "nouveau",
+    "listsUpdated": "Listes de paquets mises à jour {ago}.",
+    "securityPending": "Mises à jour de sécurité en attente : {n}",
+    "securityHint": "Ubuntu installe la plupart d’entre elles chaque jour ; les autres vous attendent sur la page des services.",
+    "open": "Voir les mises à jour",
+    "col": {
+      "package": "Paquet",
+      "installed": "Installé",
+      "candidate": "Nouvelle version",
+      "origin": "Source"
+    }
+  },
   "tabs": {
     "backups": "Sauvegardes",
     "cache": "Cache",
