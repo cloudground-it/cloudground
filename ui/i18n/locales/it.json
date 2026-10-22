@@ -1480,6 +1480,32 @@
       "of": "di {n}"
     }
   },
+  "maint": {
+    "title": "Pagina di manutenzione",
+    "hint": "Finché è attiva, i visitatori ricevono una pagina 503 con Retry-After, i motori di ricerca sanno di tornare più tardi e la cache di pagina è saltata. Questo server, gli indirizzi qui sotto e ogni browser che apre l'indirizzo di anteprima vedono comunque il sito.",
+    "on": "Attiva",
+    "off": "Spenta",
+    "pageTitle": "Titolo",
+    "pageTitleHelp": "Testo semplice, fino a 100 caratteri.",
+    "titleDefault": "In manutenzione",
+    "message": "Messaggio",
+    "messageHelp": "Testo semplice, fino a 2000 caratteri. Gli a capo restano.",
+    "messageDefault": "Stiamo facendo alcune modifiche. Torna a trovarci tra poco.",
+    "retry": "Riprova tra",
+    "retryHelp": "minuti, inviati come Retry-After",
+    "retryBad": "Tra 1 e 10080 minuti.",
+    "allow": "Indirizzi che vedono il sito",
+    "allowHelp": "Indirizzi IP o reti, uno per riga.",
+    "allowMe": "Lascia passare il mio indirizzo",
+    "preview": "Indirizzo di anteprima",
+    "previewHelp": "Aprilo in un browser per vedere il sito per otto ore; vale per chiunque lo abbia.",
+    "openPreview": "Apri l'indirizzo di anteprima",
+    "turnOn": "Attiva la manutenzione",
+    "turnOff": "Disattiva",
+    "saved": "Pagina di manutenzione salvata",
+    "turnedOn": "Pagina di manutenzione attiva",
+    "turnedOff": "Pagina di manutenzione disattivata"
+  },
   "protect": {
     "title": "Percorsi protetti",
     "hint": "Percorsi che chiedono un nome utente e una password prima di mostrare qualsiasi cosa, come /wp-admin o una cartella privata. Ogni percorso ha le sue credenziali e copre tutto ciò che contiene.",

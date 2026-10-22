@@ -3,7 +3,7 @@
  * A site's password-protected paths (#26): /wp-admin or a private folder
  * behind its own username and password, asked by nginx before anything
  * else answers (POST/DELETE /api/sites/{id}/protected-paths). Each change
- * is live once saved.
+ * is live once saved. Below it, the maintenance page (#79).
  */
 interface ProtectedPath { path: string, username: string }
 const { t } = useI18n()
@@ -76,6 +76,8 @@ const columns = computed(() => [
       {{ t('protect.ajaxNote') }}
     </p>
   </PanelSection>
+
+  <SiteMaintenance class="mt-6" />
 
   <UModal v-model:open="editing" :title="form.existing ? t('protect.changeTitle', { path: form.path }) : t('protect.add')" :description="t('protect.dialogHint')">
     <template #body>

@@ -127,9 +127,20 @@ func TestStagingServiceWithoutACopy(t *testing.T) {
 		t.Fatal("recreate without a copy")
 	}
 
+	// The original is in maintenance: its copy is not, and has no key.
+	prod, err := s.Store.MutateSite(prod.ID, func(x *state.Site) error {
+		x.Config.Maintenance = state.SiteMaintenance{Enabled: true, Key: "0123456789abcdef0123456789abcdef", Message: "back soon"}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	stg, _, err := st.Create(context.Background(), "test", prod)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if m := stg.Config.Maintenance; m.Enabled || m.Key != "" || m.Message != "back soon" {
+		t.Fatalf("the copy inherited the maintenance mode: %+v", m)
 	}
 	if stg.Domain != "staging.solo.example.com" || stg.StagingOf != prod.ID || stg.Config.StagingAuthHash == "" {
 		t.Fatalf("staging = %+v", stg)

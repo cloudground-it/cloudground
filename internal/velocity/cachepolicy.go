@@ -106,7 +106,9 @@ func siteCookies(site state.Site) []string {
 func PolicyFor(site state.Site) CachePolicy {
 	// Development mode (#80) bypasses the cache until the panel ends it; the
 	// time itself is not read here, so a render does not depend on the clock.
-	if !site.Config.CacheEnabled || !site.Config.DevModeUntil.IsZero() || site.Type == state.SiteStatic || site.Type == state.SiteProxy {
+	// A maintenance page (#79) bypasses it too: whoever is let through is
+	// working on the site.
+	if !site.Config.CacheEnabled || !site.Config.DevModeUntil.IsZero() || site.Config.Maintenance.Enabled || site.Type == state.SiteStatic || site.Type == state.SiteProxy {
 		return CachePolicy{}
 	}
 	times, ok := byProfile[site.Profile]

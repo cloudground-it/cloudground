@@ -105,9 +105,30 @@ type SiteConfig struct {
 	// connector/SPEC.md §2.11): TwoFactorOptional or TwoFactorRequired;
 	// "" is off.
 	WPTwoFactor string `json:"wp_two_factor,omitempty"`
+	// Maintenance is the site's maintenance page (#79, internal/engine SPEC
+	// §4.9): its text is kept while the mode is off.
+	Maintenance SiteMaintenance `json:"maintenance,omitzero"`
 	// WPHardening is a WordPress site's hardening (#75), each item on
 	// its own (internal/engine SPEC §4.8, connector/SPEC.md §2.12).
 	WPHardening WPHardening `json:"wp_hardening,omitzero"`
+}
+
+// SiteMaintenance is a site's maintenance mode: while Enabled, visitors get
+// a 503 page with Retry-After, except the addresses of Allow, this machine's
+// own, and whoever holds the cookie that Key opens. Title and Message
+// are the page's text; empty ones take the default.
+type SiteMaintenance struct {
+	Enabled bool   `json:"enabled,omitempty"`
+	Title   string `json:"title,omitempty"`
+	Message string `json:"message,omitempty"`
+	// RetryAfterSec is the Retry-After the page sends; 0 is an hour.
+	RetryAfterSec int `json:"retry_after_sec,omitempty"`
+	// Allow are the addresses or networks that see the site.
+	Allow []string `json:"allow,omitempty"`
+	// Key opens the site to a browser (internal/engine SPEC §4.9): 32 hex
+	// characters, made when the mode is first turned on. Never in the API's
+	// view of the site (Public).
+	Key string `json:"key,omitempty"`
 }
 
 // WPHardening is the WordPress hardening a site has turned on. The zero
@@ -310,6 +331,7 @@ func (s Site) InternalKey() string {
 // paths' password hashes.
 func (s Site) Public() Site {
 	s.Config.StagingAuthHash = ""
+	s.Config.Maintenance.Key = ""
 	if n := len(s.Config.ProtectedPaths); n > 0 {
 		paths := make([]ProtectedPath, n)
 		for i, p := range s.Config.ProtectedPaths {

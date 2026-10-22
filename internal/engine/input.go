@@ -60,6 +60,11 @@ type Input struct {
 	// logs none.
 	AuthLogSocket string
 
+	// MaintenanceExempt are this machine's addresses, which see a site in
+	// maintenance (#79, SPEC §4.9) as they do any other: the panel's own
+	// checks of the site get through. Loopback needs no listing.
+	MaintenanceExempt []netip.Addr
+
 	// Blocking is who the site refuses (#25, SPEC §4.7); nil is nobody.
 	Blocking *Blocking
 

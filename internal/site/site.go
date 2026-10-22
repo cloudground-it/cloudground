@@ -240,6 +240,9 @@ func Validate(sitesRoot string, s state.Site) (Valid, error) {
 	if err := checkHardening(s); err != nil {
 		return Valid{}, err
 	}
+	if err := CheckMaintenance(s.Config.Maintenance); err != nil {
+		return Valid{}, err
+	}
 	if err := CheckRoot(sitesRoot, s); err != nil {
 		return Valid{}, err
 	}

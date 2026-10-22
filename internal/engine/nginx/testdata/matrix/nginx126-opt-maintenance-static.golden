@@ -1,0 +1,115 @@
+## /etc/nginx/sites-enabled/c211.example.test.conf
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+# Site: c211.example.test (id 211, type static, profile balanced)
+
+geo $cg_mnt_ip_211 {
+    default  0;
+    127.0.0.0/8  1;
+    ::1/128  1;
+}
+map "$cg_mnt_ip_211|$cookie_cg_maint|$uri" $cg_mnt_211 {
+    default  1;
+    "~^1\|"  0;
+    "~^0\|fedcba9876543210fedcba9876543210\|"  0;
+    "~^0\|[^|]*\|/\.cg-maintenance/fedcba9876543210fedcba9876543210$"  0;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name c211.example.test;
+
+    location /.well-known/acme-challenge/ {
+        root /srv/cgt/acme;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name c211.example.test;
+    server_tokens off;
+
+    # The maintenance page (SPEC §4.9): a 503 for everyone but this machine, the
+    # addresses listed and a browser holding the key's cookie. The server rewrite
+    # phase runs before the page cache is read.
+    if ($cg_mnt_211) {
+        return 599;
+    }
+    error_page 599 =503 @cg_maintenance;
+    location @cg_maintenance {
+        default_type text/html;
+        charset utf-8;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options SAMEORIGIN always;
+        add_header Referrer-Policy strict-origin-when-cross-origin always;
+        add_header Retry-After 3600 always;
+        add_header Cache-Control "no-store" always;
+        return 503 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Down for maintenance</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;font:18px/1.6 system-ui,sans-serif;color:#1f2937;background:#f8fafc}main{max-width:34rem;padding:2rem}h1{font-size:1.75rem;margin:0 0 1rem}p{margin:0}@media(prefers-color-scheme:dark){body{color:#e5e7eb;background:#0f172a}}</style></head><body><main><h1>Down for maintenance</h1><p>We are making some changes. Please come back in a little while.</p></main></body></html>';
+    }
+    # Opening this address in a browser sets the cookie that lets it through.
+    location = /.cg-maintenance/fedcba9876543210fedcba9876543210 {
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options SAMEORIGIN always;
+        add_header Referrer-Policy strict-origin-when-cross-origin always;
+        add_header Set-Cookie "cg_maint=fedcba9876543210fedcba9876543210; Path=/; Max-Age=28800; Secure; HttpOnly; SameSite=Lax" always;
+        add_header Cache-Control "no-store" always;
+        return 302 /;
+    }
+
+    # Send small responses at once. With Ubuntu's tcp_nopush and no
+    # tcp_nodelay, the last packet of a kept-alive reply waits for the peer's
+    # delayed ACK (40 ms); measured, that cut cached req/s by about ten times.
+    tcp_nodelay on;
+    tcp_nopush off;
+
+    ssl_certificate /srv/cgt/fallback/cert.pem;
+    ssl_certificate_key /srv/cgt/fallback/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:cg_ssl:10m;
+
+    # Log lines go out in 64 KiB batches, at least once a second.
+    access_log /srv/cgt/log/c211.example.test/access.log cloudground buffer=64k flush=1s;
+    error_log /srv/cgt/log/c211.example.test/error.log warn;
+
+    client_max_body_size 128m;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    root /srv/cgt/sites/c211.example.test/current;
+    index index.php index.html index.htm;
+    disable_symlinks if_not_owner from=$document_root;
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+
+    # Leftovers are never served: backup and editor copies, SQL dumps, copies
+    # of wp-config.php and archives at the top of the root (SPEC §4.4).
+    location ~* (?:\.(?:bak|old|orig|save|swp|swo|sql|sql\.(?:gz|bz2|xz|zst|zip))|~|/wp-config\.php.+|^/[^/]+\.(?:tar|tar\.(?:gz|bz2|xz|zst)|tgz|tbz2|txz|zip|7z|rar))$ {
+        return 404;
+    }
+
+    location ~* \.(css|js|mjs|jpg|jpeg|png|gif|webp|avif|svg|ico|woff|woff2|ttf|eot|otf|mp4|webm|pdf)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+        access_log off;
+        # A deploy writes .gz copies; send those rather than gzip each time.
+        gzip_static on;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html =404;
+    }
+}

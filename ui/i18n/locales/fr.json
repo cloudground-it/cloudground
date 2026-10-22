@@ -1480,6 +1480,32 @@
       "of": "sur {n}"
     }
   },
+  "maint": {
+    "title": "Page de maintenance",
+    "hint": "Tant qu'elle est active, les visiteurs reçoivent une page 503 avec Retry-After, les moteurs de recherche savent qu'il faut revenir et le cache de pages est contourné. Ce serveur, les adresses ci-dessous et tout navigateur qui ouvre l'adresse d'aperçu voient quand même le site.",
+    "on": "Active",
+    "off": "Désactivée",
+    "pageTitle": "Titre",
+    "pageTitleHelp": "Texte brut, 100 caractères au plus.",
+    "titleDefault": "Site en maintenance",
+    "message": "Message",
+    "messageHelp": "Texte brut, 2000 caractères au plus. Les retours à la ligne sont conservés.",
+    "messageDefault": "Nous faisons quelques modifications. Revenez dans un instant.",
+    "retry": "Revenir dans",
+    "retryHelp": "minutes, envoyées dans Retry-After",
+    "retryBad": "Entre 1 et 10080 minutes.",
+    "allow": "Adresses qui voient le site",
+    "allowHelp": "Adresses IP ou réseaux, un par ligne.",
+    "allowMe": "Laisser passer mon adresse",
+    "preview": "Adresse d'aperçu",
+    "previewHelp": "Ouvrez-la dans un navigateur pour voir le site pendant huit heures ; toute personne qui l'a le peut.",
+    "openPreview": "Ouvrir l'adresse d'aperçu",
+    "turnOn": "Activer la maintenance",
+    "turnOff": "La désactiver",
+    "saved": "Page de maintenance enregistrée",
+    "turnedOn": "Page de maintenance activée",
+    "turnedOff": "Page de maintenance désactivée"
+  },
   "protect": {
     "title": "Chemins protégés",
     "hint": "Des chemins qui demandent un nom d’utilisateur et un mot de passe avant de servir quoi que ce soit, comme /wp-admin ou un dossier privé. Chaque chemin a ses propres identifiants et couvre tout ce qu’il contient.",

@@ -22,7 +22,7 @@
 # ------------------------------------------------------------------ groups --
 
 # Every section that sends requests to a hosted site through nginx.
-@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode
+@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page
 # Every section with a PHP site (its own FPM master, pool and slice).
 @php = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, protected paths, wordpress two-factor, wordpress hardening, dev mode
 # Every section with a WordPress site (database, wp-cli, the connector).
@@ -77,6 +77,9 @@ internal/agent/ops_malware.go          malware scan
 internal/api/blocklist.go              blocklist
 internal/api/site_blocking.go          site blocking
 internal/api/site_devmode.go           dev mode
+internal/api/site_maintenance.go       maintenance page
+internal/engine/nginx/maintenance.go   maintenance page
+internal/site/maintenance.go           maintenance page
 internal/api/backup_policy.go          R-4.3 site settings, PHP extensions and backup hour
 internal/api/php_extensions.go         PHP extensions and backup hour
 internal/api/site_settings.go          site resources, R-4.3 site settings, wordpress slow request, R-4.7 capabilities, R-4.2 job queue, wordpress cache, wordpress sftp

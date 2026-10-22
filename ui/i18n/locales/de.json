@@ -1480,6 +1480,32 @@
       "of": "von {n}"
     }
   },
+  "maint": {
+    "title": "Wartungsseite",
+    "hint": "Solange sie aktiv ist, erhalten Besucher eine 503-Seite mit Retry-After, Suchmaschinen wissen, dass sie später wiederkommen sollen, und der Seiten-Cache wird umgangen. Dieser Server, die Adressen unten und jeder Browser, der die Vorschau-Adresse öffnet, sehen die Website weiterhin.",
+    "on": "An",
+    "off": "Aus",
+    "pageTitle": "Titel",
+    "pageTitleHelp": "Einfacher Text, bis zu 100 Zeichen.",
+    "titleDefault": "Wartungsarbeiten",
+    "message": "Nachricht",
+    "messageHelp": "Einfacher Text, bis zu 2000 Zeichen. Zeilenumbrüche bleiben erhalten.",
+    "messageDefault": "Wir nehmen gerade ein paar Änderungen vor. Bitte komm in Kürze wieder.",
+    "retry": "Wiederkommen in",
+    "retryHelp": "Minuten, als Retry-After gesendet",
+    "retryBad": "Zwischen 1 und 10080 Minuten.",
+    "allow": "Adressen, die die Website sehen",
+    "allowHelp": "IP-Adressen oder Netze, eine pro Zeile.",
+    "allowMe": "Meine Adresse durchlassen",
+    "preview": "Vorschau-Adresse",
+    "previewHelp": "Öffne sie in einem Browser, um die Website acht Stunden lang zu sehen; das kann jeder, der sie hat.",
+    "openPreview": "Vorschau-Adresse öffnen",
+    "turnOn": "Wartung einschalten",
+    "turnOff": "Ausschalten",
+    "saved": "Wartungsseite gespeichert",
+    "turnedOn": "Wartungsseite an",
+    "turnedOff": "Wartungsseite aus"
+  },
   "protect": {
     "title": "Geschützte Pfade",
     "hint": "Pfade, die einen Benutzernamen und ein Passwort verlangen, bevor etwas ausgeliefert wird, etwa /wp-admin oder ein privater Ordner. Jeder Pfad hat eigene Zugangsdaten und deckt alles darunter ab.",

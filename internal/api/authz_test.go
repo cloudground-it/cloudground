@@ -153,6 +153,8 @@ var routePolicy = map[string]string{
 	"POST /api/sites/{id}/protected-paths":                       "manage",
 	"PUT /api/sites/{id}/blocking":                               "manage",
 	"PUT /api/sites/{id}/dev-mode":                               "manage",
+	"GET /api/sites/{id}/maintenance":                            "manage",
+	"PUT /api/sites/{id}/maintenance":                            "manage",
 	"DELETE /api/sites/{id}/protected-paths":                     "manage",
 	"POST /api/sites/{id}/certificate":                           "manage",
 	"POST /api/sites/{id}/staging":                               "manage",

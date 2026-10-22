@@ -318,6 +318,31 @@ func matrixCases() []matrixCase {
 			add(fmt.Sprintf("%s-opt-%s", b.name, o.name), b, in)
 		}
 	}
+	// A maintenance page (#79, SPEC §4.9), last for the same reason: a
+	// WordPress site with a text full of characters nginx or HTML would
+	// read, and a static site with the defaults.
+	maintenance := []option{
+		{"maintenance", state.SiteWordPress, func(in *engine.Input) {
+			in.Site.Config.Maintenance = state.SiteMaintenance{
+				Enabled: true, Key: "0123456789abcdef0123456789abcdef", RetryAfterSec: 1800,
+				Title:   `Back at "noon" <b>&</b>`,
+				Message: "We are moving servers.\nNo orders until 14:00 (CET) ${host} 'quoted' \\ {x};\nMerci, à bientôt",
+				Allow:   []string{"198.51.100.0/24", "2001:db8::1"},
+			}
+			in.MaintenanceExempt = []netip.Addr{netip.MustParseAddr("192.0.2.10"), netip.MustParseAddr("2001:db8::10")}
+		}},
+		{"maintenance-static", state.SiteStatic, func(in *engine.Input) {
+			in.Site.Config.Maintenance = state.SiteMaintenance{Enabled: true, Key: "fedcba9876543210fedcba9876543210"}
+		}},
+	}
+	for _, b := range matrixBuilds {
+		for _, o := range maintenance {
+			id++
+			in := matrixInput(id, o.typ, state.ProfileBalanced, o.typ != state.SiteStatic)
+			o.set(&in)
+			add(fmt.Sprintf("%s-opt-%s", b.name, o.name), b, in)
+		}
+	}
 	return cases
 }
 
