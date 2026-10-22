@@ -240,7 +240,17 @@
     "purgeHint": "En WordPress, editar el contenido ya purga las páginas adecuadas. Esto es para todo lo demás.",
     "purgeOne": "Purgar una URL",
     "ttl": "Duración (TTL)",
-    "ttlHint": "segundos, 0 = la del perfil"
+    "ttlHint": "segundos, 0 = la del perfil",
+    "dev": "Modo desarrollo",
+    "devHint": "Salta la caché de página mientras trabajas en el sitio. Se desactiva solo, vacía la caché y la precarga de nuevo.",
+    "devOff": "La caché de página sirve a los visitantes.",
+    "devOn": "La caché de página se salta hasta las {time}.",
+    "devEnding": "Reactivando la caché de página…",
+    "devNone": "Este sitio no tiene una caché de página que saltar.",
+    "devFor": "{n} minutos",
+    "devEnd": "Terminar ahora",
+    "devStarted": "Modo desarrollo activado",
+    "devEnded": "Modo desarrollo terminado"
   },
   "wp": {
     "admin": "Acceso de administrador",

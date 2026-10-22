@@ -313,6 +313,7 @@ func (s *Server) registerJobKinds() {
 		"cache.rewarm":          s.runRewarm,
 		"jobs.prune":            s.runPruneJobs,
 		"security.sweep":        s.runSecuritySweep,
+		"devmode.sweep":         s.runDevModeSweep,
 	} {
 		q.Register(jobs.Kind{Name: name, Quiet: true, Run: run, Rerun: true})
 	}
@@ -340,6 +341,7 @@ func (s *Server) schedules() []jobs.Schedule {
 		every("backup.sweep", 5*time.Minute, jobs.InTick),
 		every("retention.sweep", 5*time.Minute, jobs.InTick),
 		every("security.sweep", 5*time.Minute, jobs.InTick),
+		every("devmode.sweep", time.Minute, jobs.InTick),
 		cert,
 		every("drift.scan", 5*time.Minute, jobs.InTick, jobs.RenderLock),
 		every("alerts.notify", 5*time.Minute, jobs.AfterTick),

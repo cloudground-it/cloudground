@@ -177,6 +177,18 @@ var commands = []command{
 		}
 		return rules, nil
 	})},
+	// Development mode (#80): the page cache bypassed for 15, 30 or 60
+	// minutes, or off now.
+	{words: []string{"devmode"}, args: "<site-id> <15|30|60|off>", min: 2, max: 2, build: call("PUT", "/api/sites/%s/dev-mode", func(a []string) (any, error) {
+		if a[1] == "off" {
+			return map[string]any{"minutes": 0}, nil
+		}
+		m, err := strconv.Atoi(a[1])
+		if err != nil || (m != 15 && m != 30 && m != 60) {
+			return nil, fmt.Errorf("%q is not 15, 30, 60 or off", a[1])
+		}
+		return map[string]any{"minutes": m}, nil
+	})},
 	{words: []string{"blocklist", "block"}, args: "<address-or-cidr> [minutes]", min: 1, max: 2, password: true, build: blockRequest("POST", "/api/blocklist/blocks")},
 	{words: []string{"blocklist", "unblock"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("DELETE", "/api/blocklist/blocks")},
 	{words: []string{"blocklist", "allow"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("POST", "/api/blocklist/allowed")},

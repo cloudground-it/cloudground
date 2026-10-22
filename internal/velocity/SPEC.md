@@ -9,7 +9,7 @@ agent as root through `internal/agent/ops/cache`). The values are pinned by `tes
 
 ### 1.1 When there is no page cache
 
-`Config.CacheEnabled` off, or a static or proxy site (static files are served from disk; proxied
+`Config.CacheEnabled` off, development mode on (`Config.DevModeUntil` set, §1.5), or a static or proxy site (static files are served from disk; proxied
 sites are not cached): `CachePolicy{Enabled: false}` and nothing else set.
 
 ### 1.2 Every cached site
@@ -72,6 +72,13 @@ A WooCommerce site, or a WordPress, WooCommerce or PHP site on the Commerce prof
 above). A Laravel site never gets them, whatever its profile.
 
 A type with no rules has nil lists.
+
+### 1.5 Development mode (#80)
+
+`Config.DevModeUntil` is the end of a site's development mode. While it is set the policy is the
+empty one of §1.1: nginx renders no cache for the site, so every request reaches PHP. The policy
+reads whether the field is set, never the clock, so a render does not change with the time; the
+panel ends the mode by clearing the field and rendering the site again (internal/api SPEC §3.15).
 
 ## 2. Cache entries on disk
 

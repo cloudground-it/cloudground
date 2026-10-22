@@ -240,7 +240,17 @@
     "purgeHint": "On WordPress, content edits already purge the right pages. This is for everything else.",
     "purgeOne": "Purge one URL",
     "ttl": "Lifetime (TTL)",
-    "ttlHint": "seconds, 0 = the profile's"
+    "ttlHint": "seconds, 0 = the profile's",
+    "dev": "Development mode",
+    "devHint": "Bypass the page cache while you work on the site. It switches itself back on, empties the cache and warms it again.",
+    "devOff": "The page cache is serving visitors.",
+    "devOn": "The page cache is bypassed until {time}.",
+    "devEnding": "Switching the page cache back on…",
+    "devNone": "This site has no page cache to bypass.",
+    "devFor": "{n} minutes",
+    "devEnd": "End now",
+    "devStarted": "Development mode on",
+    "devEnded": "Development mode off"
   },
   "wp": {
     "admin": "Admin access",

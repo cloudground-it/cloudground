@@ -240,7 +240,17 @@
     "purgeHint": "Bei WordPress leeren Inhaltsänderungen bereits die richtigen Seiten. Das hier ist für alles andere.",
     "purgeOne": "Eine URL leeren",
     "ttl": "Lebensdauer (TTL)",
-    "ttlHint": "Sekunden, 0 = Wert des Profils"
+    "ttlHint": "Sekunden, 0 = Wert des Profils",
+    "dev": "Entwicklungsmodus",
+    "devHint": "Umgeht den Seiten-Cache, solange du an der Website arbeitest. Er schaltet sich selbst wieder ein, leert den Cache und wärmt ihn erneut vor.",
+    "devOff": "Der Seiten-Cache bedient die Besucher.",
+    "devOn": "Der Seiten-Cache wird bis {time} umgangen.",
+    "devEnding": "Seiten-Cache wird wieder eingeschaltet…",
+    "devNone": "Diese Website hat keinen Seiten-Cache, der umgangen werden könnte.",
+    "devFor": "{n} Minuten",
+    "devEnd": "Jetzt beenden",
+    "devStarted": "Entwicklungsmodus an",
+    "devEnded": "Entwicklungsmodus aus"
   },
   "wp": {
     "admin": "Admin-Zugang",

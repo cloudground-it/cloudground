@@ -53,6 +53,10 @@ type SiteConfig struct {
 	CacheEnabled bool `json:"cache_enabled"`
 	// CacheTTLSec is the page cache lifetime; 0 takes the profile's.
 	CacheTTLSec int `json:"cache_ttl_sec"`
+	// DevModeUntil, when set, is the end of the site's development mode (#80):
+	// until then the page cache is bypassed (internal/velocity SPEC §1.5).
+	// The panel ends it when the time has come (internal/api SPEC §3.15).
+	DevModeUntil time.Time `json:"dev_mode_until,omitzero"`
 	// ObjectCache gives the site its own Redis namespace.
 	ObjectCache bool           `json:"object_cache"`
 	Database    DatabaseConfig `json:"database"`

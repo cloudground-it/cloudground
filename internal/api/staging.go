@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -101,6 +102,8 @@ func (st stagingService) record(prod state.Site, root string) (state.Site, siteS
 			s.Config.Database.User = siteDatabase(s.ID)
 		}
 		s.Config.StagingAuthHash = string(hash)
+		// A copy never inherits the original's development mode (#80).
+		s.Config.DevModeUntil = time.Time{}
 		return nil
 	})
 	if err != nil {

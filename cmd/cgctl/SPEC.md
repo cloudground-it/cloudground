@@ -142,6 +142,14 @@ parse (else a usage error, exit 2): `{"addresses": […], "user_agents": […], 
 "allow_countries_only": false}`; `'{}'` refuses nobody. The answer is the site's rules, printed as
 §3.
 
+## 6.5 devmode (#80)
+
+    cgctl devmode <site-id> <15|30|60|off>
+
+`PUT /api/sites/{id}/dev-mode` (internal/api SPEC §3.15) with `{"minutes": n}`: the page cache is
+bypassed for 15, 30 or 60 minutes, `off` ends it now (`0`). Any other length is a usage error (exit
+2). The answer is `{"dev_mode_until": …}`, printed as §3.
+
 ## 7. update and uninstall (R-6.4, R-6.5)
 
 `cgctl update` and `cgctl uninstall`, like `install` and `doctor`, run as root on the server and

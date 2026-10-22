@@ -40,6 +40,8 @@ export interface Site {
   config: {
     cache_enabled: boolean
     cache_ttl_sec: number
+    /** The end of development mode (#80); the page cache is bypassed until then. */
+    dev_mode_until?: string
     object_cache: boolean
     sftp_enabled: boolean
     sftp_keys_only?: boolean

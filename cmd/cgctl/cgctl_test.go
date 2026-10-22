@@ -355,3 +355,17 @@ func TestSitesBlock(t *testing.T) {
 		t.Fatal("bad JSON accepted")
 	}
 }
+
+// #80: development mode takes 15, 30 or 60 minutes, or off.
+func TestDevMode(t *testing.T) {
+	inv, err := parseArgs([]string{"devmode", "7", "30"})
+	if err != nil || inv.req.method != "PUT" || inv.req.path != "/api/sites/7/dev-mode" || fmt.Sprint(inv.req.body) != "map[minutes:30]" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if inv, err = parseArgs([]string{"devmode", "7", "off"}); err != nil || fmt.Sprint(inv.req.body) != "map[minutes:0]" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if _, err := parseArgs([]string{"devmode", "7", "20"}); err == nil {
+		t.Fatal("20 minutes accepted")
+	}
+}

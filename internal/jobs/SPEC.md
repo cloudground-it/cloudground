@@ -275,6 +275,7 @@ Locks as in §3. "Resumable" = has `Run`; "rerun" = `Rerun`.
 | `backup.sweep` | — | — | rerun | quiet | enqueues the due `backup.scheduled` jobs |
 | `retention.sweep` | — | — | rerun | quiet | enqueues the due `backup.retention` jobs |
 | `security.sweep` | — | — | rerun | quiet | enqueues the due `wp.vulncheck` and `site.malwarescan` jobs (internal/api/SPEC.md §11.6, §11.7) |
+| `devmode.sweep` | — | — | rerun | quiet | ends the development mode of the sites whose time has passed (internal/api/SPEC.md §3.15) |
 | `site.malwarescan` | site | `security:malwarescan` | rerun | | background when the sweep queues it; payload `{site_id}`; dedup `site.malwarescan:<site>`; one at a time on the server; updates the signatures (at most daily), scans the site's tree in its sandbox, changes nothing on it |
 | `wp.vulncheck` | site | `security:vulncheck` | rerun | | background when the sweep queues it; payload `{site_id}`; dedup `wp.vulncheck:<site>`; one at a time on the server; reads the site, changes nothing on it |
 | `certificate.sweep` | — | `panel` | rerun | quiet | reads every certificate's expiry, enqueues `certificate.renew` for the due ones, renews the panel's |
@@ -308,6 +309,7 @@ Recurring work is a schedule that enqueues a job:
 | `backup.sweep` | 5 min | memory (each site's own `backup.site.<id>` decides when it is due: hourly, daily, weekly) | yes |
 | `retention.sweep` | 5 min | memory (each site's `backup.retention.site.<id>`: daily) | yes |
 | `security.sweep` | 5 min | memory (each site's `vulncheck:site:<id>`: daily; `malwarescan:site:<id>`: weekly, at the site's own hour) | yes |
+| `devmode.sweep` | 1 min | memory | yes |
 | `drift.scan` | 5 min | memory | yes |
 | `alerts.notify` | 5 min | memory | yes, after the others |
 | `certificate.sweep` | 12 h | `schedule_state` key `cert.renew` | only when due |
