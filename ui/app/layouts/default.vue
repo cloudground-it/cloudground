@@ -157,5 +157,6 @@ const searchGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
     <slot />
 
     <StreamStatus />
+    <WhatsNewDialog />
   </UDashboardGroup>
 </template>

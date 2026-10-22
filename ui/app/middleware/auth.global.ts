@@ -15,7 +15,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // An admin held for 2FA enrolment can use nothing else until it enrols.
   if (enrolRequired.value && to.path !== '/security') return navigateTo('/security')
   // Operators manage only their own sites: the server pages are not theirs.
-  const operatorPages = ['/', '/sites', '/security']
+  const operatorPages = ['/', '/sites', '/security', '/whats-new']
   if (user.role === 'operator' && !operatorPages.some(p => to.path === p || (p !== '/' && to.path.startsWith(p + '/')))) {
     return navigateTo('/')
   }

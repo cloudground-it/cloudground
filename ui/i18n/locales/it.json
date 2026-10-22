@@ -42,6 +42,19 @@
     "sites": "Siti",
     "users": "Utenti"
   },
+  "whatsnew": {
+    "title": "Novità",
+    "hint": "Cosa è cambiato in ogni versione di CloudGround, dalla più recente. Le note sono in inglese.",
+    "full": "Changelog completo su GitHub",
+    "none": "Nessuna nota di rilascio in questa versione.",
+    "new": "Nuovo",
+    "running": "In uso",
+    "dialogTitle": "Novità di {v}",
+    "dialogHint": "Il pannello è stato aggiornato dall'ultima volta che l'hai aperto.",
+    "skipped": "Una versione dall'ultima volta. | {n} versioni dall'ultima volta.",
+    "all": "Tutte le versioni",
+    "gotIt": "Ho capito"
+  },
   "user": {
     "appearance": "Aspetto",
     "language": "Lingua",

@@ -666,6 +666,29 @@ would hand an attacker 2^64 fresh ones). An IPv6 address also counts
 towards its /48, at a higher bound (§2.3 step 2). `unix` counts as itself.
 The audit log keeps the full address.
 
+### 2.9 What's new (#106, `changelog.go`)
+
+The changelog ships inside the binary (the root package embeds `CHANGELOG.md`, internal/changelog
+SPEC), so it is the one of the running release and works offline.
+
+- `GET /api/changelog` (any signed-in caller, a token too) → 200 `{current, seen, unseen,
+  entries}`: `current` the running release (`version.Version`), `seen` the release the caller's
+  account last saw (`""` for none), `unseen` the versions to tell it about, newest first
+  (internal/changelog SPEC §2; `[]` for a development build), `entries` every release's `version`
+  and `body`, in Markdown, newest first. The bodies are text for the interface to render without
+  HTML.
+- `POST /api/account/whats-new` (session only, body ignored) records the running release as the
+  caller's `seen` (`users.whats_new_seen`, kept per account) → 200 `{"seen": …}`. The release is the
+  one running, never one the body names.
+
+A new account starts with the running release as `seen`: the first administrator set up by the
+installer, an account made with `POST /api/users` and the one host recovery makes are not told about
+a release they were not updated into. Accounts that existed before migration 28 keep `""`, so they see the
+running release's entry after upgrading.
+
+The interface shows an administrator the unseen entries once in a dialog and lists every release at
+`/whats-new`, from the account menu.
+
 ### 2.8 Tests
 
 `internal/accounts`: the RFC 6238 vectors, passwords and their bounds, the
@@ -678,7 +701,7 @@ bound, never refused, and nothing is left behind (`attempt_test.go`).
 `internal/throttle`: the schedules, the delays per network and per name,
 their spacing per network and /48 and the refusal past a minute, the
 queue per key and network.
-`internal/api`: the same flows over HTTP (`api_test.go`, `users_test.go`,
+`internal/api`: `changelog_test.go` (§2.9: what is unseen, the release recorded, per account); the same flows over HTTP (`api_test.go`, `users_test.go`,
 `apitokens_test.go`), the client address and network (`clientaddr_test.go`, `accounts_test.go`). e2e section
 `R-4.3 accounts`: on the box, 2FA on a fresh account leaves no secret in the
 database file or the `users` table, and sign-in with it, its replay refusal

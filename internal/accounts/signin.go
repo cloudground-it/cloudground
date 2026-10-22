@@ -35,6 +35,7 @@ func (sv *Service) Setup(ctx context.Context, email, password, token string) (st
 	if err != nil {
 		return state.User{}, err
 	}
+	markWhatsNewSeen(sv.Store, &u)
 	sv.audit(u.Email, "setup.complete", "panel", "")
 	return u, nil
 }

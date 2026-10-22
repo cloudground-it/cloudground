@@ -179,7 +179,7 @@ e2e/features_test.go	harness.wordpressSlowRequest	wordpress slow request
 e2e/features_test.go	harness.wordpressStaging	wordpress staging
 e2e/features_test.go	harness.wordpressStatusDrift	wordpress status and drift
 e2e/features_test.go	harness.wordpressTeardown	wordpress teardown
-e2e/features_test.go	head	R-6.1 installer|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress cron|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|firewall|site blocking|F9b site databases|migration safety snapshot|F9b site creation|wordpress teardown|migration import|security|wordpress two-factor|wordpress hardening|R-0.7 reconcile|R-3.9 certificates and panel|R-3.7 site lifecycle|R-5.4 routing|R-4.3 accounts|R-4.3 sign-in review|dev mode|maintenance page|SR tenant data|R-10.5 root boundary|R-10.5 agent limits|site resources
+e2e/features_test.go	head	R-6.1 installer|woocommerce|wordpress cache|wordpress staging|wordpress status and drift|wordpress certificates|wordpress cron|wordpress safe push|wordpress releases|wordpress backups|R-4.6 cgctl tokens|R-4.6 backup interruption|helper units|R-4.3 deploys and backups|firewall|site blocking|F9b site databases|migration safety snapshot|F9b site creation|wordpress teardown|migration import|security|wordpress two-factor|wordpress hardening|R-0.7 reconcile|R-3.9 certificates and panel|R-3.7 site lifecycle|R-5.4 routing|R-4.3 accounts|R-4.3 sign-in review|dev mode|maintenance page|whats new|SR tenant data|R-10.5 root boundary|R-10.5 agent limits|site resources
 e2e/features_test.go	logOffset	woocommerce|wordpress cache
 e2e/features_test.go	logSince	woocommerce|wordpress cache
 e2e/features_test.go	newest	wordpress releases|wordpress backups|R-4.3 deploys and backups|F9b site databases|migration safety snapshot
@@ -467,6 +467,7 @@ e2e/upgrade_test.go	upgradeFeed.list	F9b site databases|R-6.5 upgrade
 e2e/upgrade_test.go	upgradeFeed.serve	R-6.5 upgrade
 e2e/uptime_test.go	harness.uptime	uptime
 e2e/vulnerabilities_test.go	harness.wordpressVulnerabilities	wordpress vulnerabilities
+e2e/whats_new_test.go	harness.whatsNew	whats new
 e2e/wp_signin_test.go	harness.wpHardening	wordpress hardening
 e2e/wp_signin_test.go	harness.wpTwoFactor	wordpress two-factor
 e2e/wp_signin_test.go	totpCode	wordpress two-factor

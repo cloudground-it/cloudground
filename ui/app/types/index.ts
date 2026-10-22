@@ -9,6 +9,8 @@ export interface Me {
   last_name: string
   /** Chosen interface language, '' until the user picks one. */
   locale: '' | 'it' | 'en' | 'fr' | 'es' | 'de'
+  /** The release whose changelog entry the account last saw (issue 106), '' for none. */
+  whats_new_seen: string
   disabled: boolean
   role: Role
   site_ids?: number[]

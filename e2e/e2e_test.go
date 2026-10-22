@@ -102,6 +102,7 @@ var sections = []section{
 	{name: "R-4.3 site settings", run: (*harness).siteSettings, lane: "settings"},
 	{name: "dev mode", run: (*harness).devMode, lane: "dev mode"},
 	{name: "maintenance page", run: (*harness).maintenancePage, lane: "maintenance page"},
+	{name: "whats new", run: (*harness).whatsNew, lane: "whats new"},
 	{name: "protected paths", run: (*harness).protectedPaths, lane: "protected paths"},
 	{name: "uptime", run: (*harness).uptime, lane: "uptime"},
 	{name: "malware scan", run: (*harness).malwareScan, lane: "malware"},

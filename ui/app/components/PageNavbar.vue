@@ -15,7 +15,7 @@ const crumb = computed(() => {
   if (props.section) return { label: props.section, to: props.sectionTo }
   const p = route.path
   if (p === '/' || p.startsWith('/sites')) return { label: t('nav.sites'), to: p === '/sites' ? undefined : '/sites' }
-  if (p.startsWith('/security')) return { label: t('cg.shell.account') }
+  if (p.startsWith('/security') || p.startsWith('/whats-new')) return { label: t('cg.shell.account') }
   return { label: t('nav.server') }
 })
 
