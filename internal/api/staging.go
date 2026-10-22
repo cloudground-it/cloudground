@@ -104,6 +104,8 @@ func (st stagingService) record(prod state.Site, root string) (state.Site, siteS
 		s.Config.StagingAuthHash = string(hash)
 		// A copy never inherits the original's development mode (#80).
 		s.Config.DevModeUntil = time.Time{}
+		// Nor the original's maintenance page, nor its key (the text may stay).
+		s.Config.Maintenance.Enabled, s.Config.Maintenance.Key = false, ""
 		return nil
 	})
 	if err != nil {

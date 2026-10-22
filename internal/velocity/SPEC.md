@@ -9,7 +9,7 @@ agent as root through `internal/agent/ops/cache`). The values are pinned by `tes
 
 ### 1.1 When there is no page cache
 
-`Config.CacheEnabled` off, development mode on (`Config.DevModeUntil` set, §1.5), or a static or proxy site (static files are served from disk; proxied
+`Config.CacheEnabled` off, development mode on (`Config.DevModeUntil` set, §1.5), a maintenance page on (`Config.Maintenance.Enabled`, internal/engine SPEC §4.9), or a static or proxy site (static files are served from disk; proxied
 sites are not cached): `CachePolicy{Enabled: false}` and nothing else set.
 
 ### 1.2 Every cached site

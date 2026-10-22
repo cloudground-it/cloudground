@@ -1480,6 +1480,32 @@
       "of": "de {n}"
     }
   },
+  "maint": {
+    "title": "Página de mantenimiento",
+    "hint": "Mientras está activa, los visitantes reciben una página 503 con Retry-After, los buscadores saben que deben volver más tarde y la caché de página se salta. Este servidor, las direcciones de abajo y cualquier navegador que abra la dirección de vista previa siguen viendo el sitio.",
+    "on": "Activa",
+    "off": "Desactivada",
+    "pageTitle": "Título",
+    "pageTitleHelp": "Texto simple, hasta 100 caracteres.",
+    "titleDefault": "En mantenimiento",
+    "message": "Mensaje",
+    "messageHelp": "Texto simple, hasta 2000 caracteres. Se conservan los saltos de línea.",
+    "messageDefault": "Estamos haciendo algunos cambios. Vuelve en un rato.",
+    "retry": "Volver en",
+    "retryHelp": "minutos, enviados como Retry-After",
+    "retryBad": "Entre 1 y 10080 minutos.",
+    "allow": "Direcciones que ven el sitio",
+    "allowHelp": "Direcciones IP o redes, una por línea.",
+    "allowMe": "Dejar pasar mi dirección",
+    "preview": "Dirección de vista previa",
+    "previewHelp": "Ábrela en un navegador para ver el sitio durante ocho horas; sirve a quien la tenga.",
+    "openPreview": "Abrir la dirección de vista previa",
+    "turnOn": "Activar el mantenimiento",
+    "turnOff": "Desactivarlo",
+    "saved": "Página de mantenimiento guardada",
+    "turnedOn": "Página de mantenimiento activada",
+    "turnedOff": "Página de mantenimiento desactivada"
+  },
   "protect": {
     "title": "Rutas protegidas",
     "hint": "Rutas que piden un nombre de usuario y una contraseña antes de servir nada, como /wp-admin o una carpeta privada. Cada ruta tiene sus propias credenciales y cubre todo lo que contiene.",

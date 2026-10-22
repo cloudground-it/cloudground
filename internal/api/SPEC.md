@@ -1092,6 +1092,24 @@ the site in the mode, writes audit `site.devmode_end_failed` and is tried
 again at the next sweep; after a panel restart the first sweep catches up on
 modes that ended meanwhile. The mode is not a settings field: PATCH does not
 take it.
+### 3.16 Maintenance page (#79, `site_maintenance.go`)
+
+`GET /api/sites/{id}/maintenance` and `PUT /api/sites/{id}/maintenance` (manage, the PUT's body at
+most 8 KiB). The settings are `config.maintenance` (`enabled`, `title`, `message`, `retry_after_sec`,
+`allow`, and the key); the page they make is internal/engine SPEC §4.9. The PUT changes the fields it
+names (a field left out keeps its value; `allow: []` empties the list); `allow_my_address` adds the
+caller's own address to the list. Addresses are written in their canonical form, sorted, without
+repeats. Refused (400, the rule's message): `site.CheckMaintenance` and an address that is none. The
+key is made at the first time the mode is turned on and kept; it never appears in `GET /api/sites/{id}`
+(`Public`), only inside the `preview_url` the two routes answer while the mode is on:
+`https://<domain>/.cg-maintenance/<key>`, which a browser opens to be let through.
+
+As the protected paths do: under the site's lock, the agent's `ApplySiteConfig` renders the site
+(the agent adds this machine's addresses), and the settings are stored (`MutateSiteApplied`, files
+recorded) only once nginx has them; an agent refusal stores nothing. Turning the mode off empties
+the site's page cache (the policy bypassed it meanwhile, so it holds pages from before the work) and
+queues the quiet `cache.rewarm` of §6.2. Audit `site.maintenance`, detail `on`, `off` or `text`.
+Answer: 200, `{enabled, title, message, retry_after_sec, allow, preview_url?}`.
 
 ### 3.11 Tests
 
@@ -1103,6 +1121,7 @@ generation, unique names, legacy payloads, the deprecated TTL, refused work
 undone, the PHP budget), `sites_race_test.go`, `sites_rollback_test.go`,
 `capabilities_review_test.go` (staging resolves the root first),
 `site_devmode_test.go` (§3.15: the lengths, the render before the store, the sweep, the purge and the re-warm at the end), `dns_check_test.go` (§3.14's verdicts, refusals, roles and limit, and aliases given at creation), `site_create_db_test.go` (the chosen database, the toggle, the field
+`site_maintenance_test.go` (§3.16: the checks, the key, the render before the store, the cache at the end), `dns_check_test.go` (§3.14's verdicts, refusals, roles and limit, and aliases given at creation), `site_create_db_test.go` (the chosen database, the toggle, the field
 problems, 409 for a taken name, the summary and that no read answers the
 password), and the contract tests across the package. The e2e section
 `R-4.3 site settings` applies a patch on a box and reads the result from

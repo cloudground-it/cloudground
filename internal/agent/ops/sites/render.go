@@ -121,6 +121,9 @@ func (o *Ops) input(ctx context.Context, s state.Site) engine.Input {
 			}
 		}
 	}
+	if s.Config.Maintenance.Enabled {
+		in.MaintenanceExempt = o.localAddrs()
+	}
 	o.probeBuild(ctx)
 	in.HTTP3, in.HTTP2Directive = o.http3, o.http2On
 	if s.Config.Routing != "" {

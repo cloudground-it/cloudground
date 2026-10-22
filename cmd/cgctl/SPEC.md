@@ -149,6 +149,14 @@ parse (else a usage error, exit 2): `{"addresses": […], "user_agents": […], 
 `PUT /api/sites/{id}/dev-mode` (internal/api SPEC §3.15) with `{"minutes": n}`: the page cache is
 bypassed for 15, 30 or 60 minutes, `off` ends it now (`0`). Any other length is a usage error (exit
 2). The answer is `{"dev_mode_until": …}`, printed as §3.
+## 6.6 maintenance (#79)
+
+    cgctl maintenance <site-id> <on|off> [message]
+
+`PUT /api/sites/{id}/maintenance` (internal/api SPEC §3.16) with `{"enabled": true|false}` and, if
+given, `"message"`: the site answers visitors with a 503 page and Retry-After, or stops doing so.
+Anything but `on` or `off` is a usage error (exit 2). The answer is the page's settings, with the
+`preview_url` while it is on, printed as §3.
 
 ## 7. update and uninstall (R-6.4, R-6.5)
 

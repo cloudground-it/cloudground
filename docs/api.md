@@ -103,6 +103,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `DELETE /api/sites/{id}/protected-paths`: 8 KiB
   - `PUT /api/sites/{id}/blocking`: 64 KiB
   - `PUT /api/sites/{id}/dev-mode`: 8 KiB
+  - `PUT /api/sites/{id}/maintenance`: 8 KiB
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
   - `PUT /api/sites/{id}/uptime`: 8 KiB
@@ -193,6 +194,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `DELETE` | `/api/sites/{id}/protected-paths` | manage | stop protecting a path (`{"path": "/wp-admin"}`); answers the site's protected paths |
 | `PUT` | `/api/sites/{id}/blocking` | manage | the visitors the site refuses with 403 (`{"addresses": ["203.0.113.0/24"], "user_agents": ["GPTBot"], "countries": ["CN"], "allow_countries_only": false}`; empty lists refuse nobody); live at once, answers the rules |
 | `PUT` | `/api/sites/{id}/dev-mode` | manage | development mode: the page cache is bypassed for `{"minutes": 15}`, 30 or 60 (again while it runs: the time starts over), then switched back on by the panel, which empties the cache and warms it again; `0` ends it now; answers `dev_mode_until` (null when off); 409 on a site with no page cache |
+| `GET` | `/api/sites/{id}/maintenance` | manage | the maintenance page: `enabled`, `title`, `message`, `retry_after_sec`, `allow` and, while it is on, the `preview_url` that lets a browser through |
+| `PUT` | `/api/sites/{id}/maintenance` | manage | change the maintenance page (a field left out keeps its value; `{"enabled": true, "title": …, "message": …, "retry_after_sec": 3600, "allow": ["203.0.113.0/24"], "allow_my_address": false}`): on, visitors get a 503 with Retry-After and the page cache is bypassed; the addresses in `allow`, this server and a browser that opened `preview_url` still see the site; live at once, answers the settings |
 | `GET` | `/api/sites/{id}/routing` | admin, session only | the site's routing block (`routing`, `default`, `custom`, `editable`) and the panel's vhost around it (`before`, `after`) |
 | `PUT` | `/api/sites/{id}/routing` | admin, session only | replace the routing block (`{"routing": "…"}`, `""` restores the default): checked, then live only if `nginx -t` passes |
 | `GET` | `/api/sites/{id}/certificate` | auth | whether the site has a certificate, its issuer and expiry, and the last renewal error |

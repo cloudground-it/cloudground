@@ -1480,6 +1480,32 @@
       "of": "of {n}"
     }
   },
+  "maint": {
+    "title": "Maintenance page",
+    "hint": "While it is on, visitors get a 503 page with Retry-After, search engines are told to come back, and the page cache is bypassed. This server, the addresses below and any browser that opens the preview address still see the site.",
+    "on": "On",
+    "off": "Off",
+    "pageTitle": "Title",
+    "pageTitleHelp": "Plain text, up to 100 characters.",
+    "titleDefault": "Down for maintenance",
+    "message": "Message",
+    "messageHelp": "Plain text, up to 2000 characters. Line breaks are kept.",
+    "messageDefault": "We are making some changes. Please come back in a little while.",
+    "retry": "Come back in",
+    "retryHelp": "minutes, sent as Retry-After",
+    "retryBad": "Between 1 and 10080 minutes.",
+    "allow": "Addresses that see the site",
+    "allowHelp": "IP addresses or networks, one per line.",
+    "allowMe": "Let my address through",
+    "preview": "Preview address",
+    "previewHelp": "Open it in a browser to see the site for eight hours; anyone with it can.",
+    "openPreview": "Open the preview address",
+    "turnOn": "Turn maintenance on",
+    "turnOff": "Turn it off",
+    "saved": "Maintenance page saved",
+    "turnedOn": "Maintenance page on",
+    "turnedOff": "Maintenance page off"
+  },
   "protect": {
     "title": "Protected paths",
     "hint": "Paths that ask for a username and password before anything is served, such as /wp-admin or a private folder. Each path has its own credentials and covers everything below it.",

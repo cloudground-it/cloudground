@@ -369,3 +369,17 @@ func TestDevMode(t *testing.T) {
 		t.Fatal("20 minutes accepted")
 	}
 }
+
+// #79: maintenance mode on or off, with an optional message.
+func TestMaintenance(t *testing.T) {
+	inv, err := parseArgs([]string{"maintenance", "7", "on", "Back at noon"})
+	if err != nil || inv.req.method != "PUT" || inv.req.path != "/api/sites/7/maintenance" || fmt.Sprint(inv.req.body) != "map[enabled:true message:Back at noon]" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if inv, err = parseArgs([]string{"maintenance", "7", "off"}); err != nil || fmt.Sprint(inv.req.body) != "map[enabled:false]" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if _, err := parseArgs([]string{"maintenance", "7", "maybe"}); err == nil {
+		t.Fatal("maybe accepted")
+	}
+}

@@ -360,6 +360,49 @@ exception that is not an IP address or network in canonical form
   connector's alone, through the PHP master's environment (internal/phpfpm
   SPEC §5.3).
 
+### 4.9 Maintenance page (#79)
+
+A site may answer visitors with a maintenance page: a 503 with `Retry-After`. The settings are the
+panel's (`config.maintenance`, internal/api SPEC §3.16); the vhost file holds everything, no file of
+its own. Refused before anything is rendered: `site.CheckMaintenance` (title at most 100 and message
+at most 2000 characters of plain text, `retry_after_sec` 0 or 60–604800, at most 50 addresses, each
+an address or network in its canonical form, and a 32-hex-digit key while the mode is on).
+
+Before the `server` blocks:
+
+```
+geo $cg_mnt_ip_<id> {
+    default  0;
+    127.0.0.0/8  1;   ::1/128  1;   <each of this machine's addresses>  1;   <each address of the list>  1;
+}
+map "$cg_mnt_ip_<id>|$cookie_cg_maint|$uri" $cg_mnt_<id> {
+    default  1;
+    "~^1\|"  0;                                          # an address let through
+    "~^0\|<key>\|"  0;                                   # a browser holding the key
+    "~^0\|[^|]*\|/\.cg-maintenance/<key>$"  0;           # the address that sets the cookie
+}
+```
+
+In the 443 server, after the refused visitors' `if` (so a refused address is still 403):
+`if ($cg_mnt_<id>) { return 599; }` and `error_page 599 =503 @cg_maintenance;`. 599 is no status a
+backend gives, so only this `if` reaches the page; PHP's own 503 for a visitor let through is not
+replaced. The named location `@cg_maintenance` has `default_type text/html`, `charset utf-8`, the
+security headers (§4.3), `Retry-After` (the setting, an hour by default), `Cache-Control: no-store`,
+and `return 503 '<page>'`. The server rewrite phase runs before the page cache is read, and the
+policy has no cache while the mode is on (internal/velocity SPEC §1.1), so nothing of the site is
+cached meanwhile.
+
+The page is a fixed HTML document with the title and the message. Both are encoded for the quoted
+string and for HTML at once: letters, digits, spaces and `.,:!?()-_/@+%` as they are, a line break
+as `<br>`, every other character as a numeric reference (`${x}` shows as text, `<b>` is not run, a
+quote does not end the string). Empty ones take the defaults ("Down for maintenance", "We are
+making some changes. Please come back in a little while.").
+
+`location = /.cg-maintenance/<key>` sets `cg_maint=<key>` (Secure, HttpOnly, SameSite=Lax, eight
+hours) and redirects to `/`: opening it lets a browser through. The key is a bearer secret kept in
+the root-readable vhost and never in the API's view of the site (`Site.Public`); port 80, which
+only redirects and serves ACME challenges, is not affected.
+
 ## 5. Page-cache policy (`velocity.PolicyFor`)
 
 Off for static and proxy sites and when the site's cache is off. Profiles:

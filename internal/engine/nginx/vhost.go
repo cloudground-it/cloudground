@@ -103,6 +103,9 @@ func prepare(in engine.Input) (*vhost, error) {
 			return nil, err
 		}
 	}
+	if err := site.CheckMaintenance(s.Config.Maintenance); err != nil {
+		return nil, err
+	}
 	v := &vhost{
 		in:       in,
 		php:      in.PHPSocket != "" && s.Type != state.SiteProxy && s.Type != state.SiteStatic,
@@ -244,6 +247,7 @@ func (v *vhost) render() (before, block, after string) {
 	c.putf(0, "# Site: %s (id %d, type %s, profile %s)", s.Domain, s.ID, s.Type, s.Profile)
 	v.protectedMaps(&c)
 	v.xmlrpcMaps(&c)
+	v.maintenanceMaps(&c)
 	if in.BasicAuthFile != "" {
 		c.put(0, "")
 		c.putf(0, "map $http_x_cloudground_internal $cg_staging_realm_%d {", s.ID)
@@ -285,6 +289,7 @@ func (v *vhost) render() (before, block, after string) {
 		c.put(2, "return 403;")
 		c.put(1, "}")
 	}
+	v.maintenanceServer(&c)
 	if in.BasicAuthFile != "" {
 		c.put(1, "",
 			"# A staging copy asks for a password. CloudGround's own requests (guard",

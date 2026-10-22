@@ -48,6 +48,7 @@ PEM, wp-admin, cron** (the syntax), file names and paths.
 | purge (cache) | svuotare | vider | purgar | leeren |
 | cache warming | riscaldamento cache | préchauffage du cache | precarga de la caché | Cache-Vorwärmen |
 | development mode | modalità sviluppo | mode développement | modo desarrollo | Entwicklungsmodus |
+| maintenance page | pagina di manutenzione | page de maintenance | página de mantenimiento | Wartungsseite |
 | staging | staging | staging (m.), *environnement de staging* | staging (m.), *entorno de staging* | Staging (n.) |
 | production | produzione | production | producción | Produktion / Live-Website |
 | release (noun) | rilascio | release (f.) | release (f.) | Release (n.) |

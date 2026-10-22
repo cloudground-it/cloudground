@@ -189,6 +189,22 @@ var commands = []command{
 		}
 		return map[string]any{"minutes": m}, nil
 	})},
+	// A site's maintenance page (#79): on or off, with the text if given.
+	{words: []string{"maintenance"}, args: "<site-id> <on|off> [message]", min: 2, max: 3, build: call("PUT", "/api/sites/%s/maintenance", func(a []string) (any, error) {
+		body := map[string]any{}
+		switch a[1] {
+		case "on":
+			body["enabled"] = true
+		case "off":
+			body["enabled"] = false
+		default:
+			return nil, fmt.Errorf("%q is not on or off", a[1])
+		}
+		if len(a) > 2 {
+			body["message"] = a[2]
+		}
+		return body, nil
+	})},
 	{words: []string{"blocklist", "block"}, args: "<address-or-cidr> [minutes]", min: 1, max: 2, password: true, build: blockRequest("POST", "/api/blocklist/blocks")},
 	{words: []string{"blocklist", "unblock"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("DELETE", "/api/blocklist/blocks")},
 	{words: []string{"blocklist", "allow"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("POST", "/api/blocklist/allowed")},
