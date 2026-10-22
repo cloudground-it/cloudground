@@ -8,6 +8,8 @@ package i18n
 // TestTaskNamesComplete holds every language to the English set.
 var taskNames = map[string]map[string]string{
 	"it": {
+		"apt.update":            "Controllo degli aggiornamenti di Ubuntu",
+		"apt.upgrade":           "Aggiornamento di Ubuntu",
 		"backup.forget":         "Eliminazione backup",
 		"backup.prune":          "Pulizia del repository dei backup",
 		"backup.restore":        "Ripristino",
@@ -54,6 +56,8 @@ var taskNames = map[string]map[string]string{
 		"wp.vulncheck":          "Controllo vulnerabilità",
 	},
 	"en": {
+		"apt.update":            "Ubuntu update check",
+		"apt.upgrade":           "Ubuntu update",
 		"backup.forget":         "Backup deletion",
 		"backup.prune":          "Backup repository cleanup",
 		"backup.restore":        "Restore",
@@ -100,6 +104,8 @@ var taskNames = map[string]map[string]string{
 		"wp.vulncheck":          "Vulnerability check",
 	},
 	"fr": {
+		"apt.update":            "Vérification des mises à jour d’Ubuntu",
+		"apt.upgrade":           "Mise à jour d’Ubuntu",
 		"backup.forget":         "Suppression de sauvegarde",
 		"backup.prune":          "Nettoyage du dépôt de sauvegardes",
 		"backup.restore":        "Restauration",
@@ -146,6 +152,8 @@ var taskNames = map[string]map[string]string{
 		"wp.vulncheck":          "Contrôle des vulnérabilités",
 	},
 	"es": {
+		"apt.update":            "Comprobación de actualizaciones de Ubuntu",
+		"apt.upgrade":           "Actualización de Ubuntu",
 		"backup.forget":         "Eliminación de copia de seguridad",
 		"backup.prune":          "Limpieza del repositorio de copias",
 		"backup.restore":        "Restauración",
@@ -192,6 +200,8 @@ var taskNames = map[string]map[string]string{
 		"wp.vulncheck":          "Comprobación de vulnerabilidades",
 	},
 	"de": {
+		"apt.update":            "Prüfung der Ubuntu-Updates",
+		"apt.upgrade":           "Ubuntu-Update",
 		"backup.forget":         "Backup-Löschung",
 		"backup.prune":          "Bereinigung des Backup-Repositorys",
 		"backup.restore":        "Wiederherstellung",

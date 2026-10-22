@@ -15,7 +15,7 @@ func BlocksPanelChange(kind string) bool {
 	switch kind {
 	case "site.create", "site.delete", "migration.import", "staging.database-push",
 		"database.import", "database.export", "dbstudio.import", "dbstudio.export",
-		"database.create", "database.drop", "wp.update", "wp.update.scheduled":
+		"database.create", "database.drop", "wp.update", "wp.update.scheduled", "apt.upgrade":
 		return true
 	}
 	return false

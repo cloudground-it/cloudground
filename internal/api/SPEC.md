@@ -2136,6 +2136,28 @@ from the server: `cgctl` over the API socket has no address to block
 (`unix`), so `cgctl blocklist unblock <address>` or `cgctl blocklist allow
 <address>` (cgctl SPEC §6.2) undoes it.
 
+### 7.5 Ubuntu updates (#27, `system_updates.go`)
+
+The server's pending package upgrades, security first, whether a reboot is
+needed, and the upgrade itself; the agent does the work (ops/system SPEC
+§7) and takes no package name from the panel.
+
+| Route (policy) | Does |
+| --- | --- |
+| `GET /api/system/updates` (`global`) | the agent's `SystemUpdates` (no refresh): `{packages: [{name, from, to, origin, security, new}], security, reboot_required, reboot_packages, lists_updated_at, checked_at}`. Kept for 5 minutes (the simulation forks apt), and dropped when a refresh or an upgrade ends. An agent failure answers as §1.7 says |
+| `POST /api/system/updates/refresh` (`admin`) | job `apt.update`: `SystemUpdates{refresh}`, `apt-get update` first; 202 `{task}` |
+| `POST /api/system/updates/apply` (`admin`, sessions only) `{security_only}` | job `apt.upgrade`: `ApplyUpdates`; 202 `{task}`; audit `system.updates` (`all` or `security`) |
+
+Both jobs hold the lock `apt` (§7.3's: one apt run of the panel's at a time;
+dpkg's own lock waits for anyone else's) and are deduplicated by kind. An
+upgrade is not resumable and holds off a panel update or uninstall (jobs
+SPEC §11): it restarts the services whose packages it upgrades, and cut, it
+leaves dpkg half done. Its last progress line says how many packages were
+upgraded, what is left and whether a reboot is now needed. The panel never
+reboots the server: "reboot needed" is a notice (the dashboard and the
+services page), and Ubuntu's own daily `apt-get update` and
+unattended-upgrades keep running as they did.
+
 ## 8. Connector purge (R-4.3)
 
 `POST /api/connector/purge` (also on the loopback listener) is called by a

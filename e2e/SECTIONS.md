@@ -97,6 +97,7 @@ Without `CG_E2E_PARALLEL` every section runs alone, in the table's order (the ba
 | `R-5.2 reload drain` | — | — | during the PHP master reload a site creation on another site causes: a 20 s request survives, a concurrent uncached request answers within 35 s (wait logged), a 60 s request is ended at the 30 s cap (process_control_timeout = min(request limit, 30 s)) |
 | `R-6.1 installer` | — | — | `cgctl doctor` finds no drift and `cgctl install --plan` nothing to do; the directories made for the sites' files (/srv/sites, the log, cache and ACME roots, /run/cloudground/php, /etc/cloudground-php) are 0755 root:root; every path the installed units need exists, and the agent and the API are active and not crash-looping; every rendered installer file on disk is the render; nginx.conf tuned; Redis not running; wp-cli the pinned build; with needrestart installed, after a binary is replaced under two running transient units, `needrestart -r l` offers to restart a control unit but not `cg-helper-test-1` (deferred) (#125); with needrestart installed, after a binary is replaced under two running transient units, `needrestart -b -r l` lists a control unit but not `cg-helper-test-1` (#125); a drifted bootstrap vhost is reported by doctor, put back by `cgctl install`, and nginx reloaded; an agent that cannot start (a drop-in naming a missing path) is reported by doctor and fails `cgctl install`, which names the unit and shows its journal |
 | `R-2.4 services` | — | — | the services page reads systemd; a restart returns after the job finished |
+| `ubuntu updates` | — | — | #27: a refresh of the package lists runs as a task; the panel's pending list is what `apt-get -s upgrade --with-new-pkgs` (run by the test) would install, its security updates those from a `-security` archive, listed first; the reboot notice follows `/run/reboot-required`; the security upgrade runs as a task and leaves apt with no security update to install, and the panel's list shows none |
 | `R-3.9 certificates and panel` | — | — | the panel's certificate status is panel.pem; the agent answers the request in flight when stopped |
 | `R-3.7 site lifecycle` | — | — | site slices, a create/delete storm, nothing of a deleted site left |
 | `R-3.13 interrupted create` | — | — | the agent killed mid-create: the site stays listed, its delete removes it all |
@@ -152,6 +153,7 @@ Without `CG_E2E_PARALLEL` every section runs alone, in the table's order (the ba
   are in flight, times a request during the reload, and reads its master's reloads from the journal
   in that window.
 - `R-2.4 services`: restarts nginx. `R-3.9 certificates and panel`: restarts the agent.
+- `ubuntu updates`: upgrades the server's packages, which restarts the services they belong to.
 - `R-3.7 site lifecycle`: a create/delete storm; it asserts on the exact set of its vhosts and on
   processes by uid.
 - `R-3.13 interrupted create`: kills the agent.

@@ -214,6 +214,35 @@
       "proxy": "Reverse Proxy"
     }
   },
+  "osupdates": {
+    "title": "Ubuntu-Updates",
+    "hint": "Die Pakete des Servers: was apt aktualisieren würde, Sicherheitsupdates zuerst.",
+    "pending": "Ausstehende Updates: {n}, davon Sicherheitsupdates: {security}.",
+    "none": "Ubuntu ist auf dem neuesten Stand.",
+    "refresh": "Erneut prüfen",
+    "refreshStarted": "Paketlisten werden aktualisiert",
+    "applySecurity": "Sicherheitsupdates installieren",
+    "applyAll": "Alles aktualisieren",
+    "securityTitle": "Sicherheitsupdates installieren ({n})?",
+    "allTitle": "Alle Pakete aktualisieren ({n})?",
+    "applyHint": "Dienste, deren Pakete aktualisiert werden, starten neu, Websites können also kurz stocken. Eine geänderte Konfigurationsdatei behält die Version dieses Servers. Der Server wird nicht neu gestartet.",
+    "applyStarted": "Update gestartet",
+    "rebootNeeded": "Der Server muss neu gestartet werden",
+    "rebootHint": "Updates, die das Panel oder Ubuntu selbst installiert hat, wirken erst nach einem Neustart. Wähle einen ruhigen Moment: Während des Neustarts antworten die Websites nicht.",
+    "rebootFor": "Angefordert von: {list}. Wähle einen ruhigen Moment: Während des Neustarts antworten die Websites nicht.",
+    "security": "Sicherheit",
+    "new": "neu",
+    "listsUpdated": "Paketlisten aktualisiert {ago}.",
+    "securityPending": "Ausstehende Sicherheitsupdates: {n}",
+    "securityHint": "Die meisten installiert Ubuntu täglich selbst; der Rest wartet auf der Dienste-Seite auf dich.",
+    "open": "Updates öffnen",
+    "col": {
+      "package": "Paket",
+      "installed": "Installiert",
+      "candidate": "Neue Version",
+      "origin": "Quelle"
+    }
+  },
   "tabs": {
     "backups": "Backups",
     "cache": "Cache",

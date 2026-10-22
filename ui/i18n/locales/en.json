@@ -214,6 +214,35 @@
       "proxy": "Reverse proxy"
     }
   },
+  "osupdates": {
+    "title": "Ubuntu updates",
+    "hint": "The server's own packages: what apt would upgrade, security updates first.",
+    "pending": "Updates pending: {n}, of which security: {security}.",
+    "none": "Ubuntu is up to date.",
+    "refresh": "Check again",
+    "refreshStarted": "Updating the package lists",
+    "applySecurity": "Install security updates",
+    "applyAll": "Upgrade everything",
+    "securityTitle": "Install the security updates ({n})?",
+    "allTitle": "Upgrade every package ({n})?",
+    "applyHint": "Services whose packages are upgraded restart, so sites can pause for a moment. A changed configuration file keeps this server's version. The server is not rebooted.",
+    "applyStarted": "Upgrade started",
+    "rebootNeeded": "The server needs a reboot",
+    "rebootHint": "Updates installed by the panel or by Ubuntu itself take effect only after a reboot. Choose a quiet moment: sites are down while the server restarts.",
+    "rebootFor": "Asked for by: {list}. Choose a quiet moment: sites are down while the server restarts.",
+    "security": "security",
+    "new": "new",
+    "listsUpdated": "Package lists updated {ago}.",
+    "securityPending": "Security updates pending: {n}",
+    "securityHint": "Ubuntu installs most of them by itself every day; the rest wait for you on the services page.",
+    "open": "Open updates",
+    "col": {
+      "package": "Package",
+      "installed": "Installed",
+      "candidate": "New version",
+      "origin": "Source"
+    }
+  },
   "tabs": {
     "backups": "Backups",
     "cache": "Cache",

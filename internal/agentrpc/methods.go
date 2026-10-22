@@ -195,6 +195,14 @@ var (
 	ImportMigration   = define[rpc.MigrationParams, rpc.MigrationResult](Spec{Name: "ImportMigration", Timeout: 7 * hrs, Sites: true, Lock: LockLiveSite, Fail: "The migration failed"})
 )
 
+// The server's own packages (internal/agent/ops/system/SPEC.md §7, #27). A
+// refresh writes apt's lists and an upgrade the system, so neither is
+// read-only; the panel names no package.
+var (
+	SystemUpdates = define[rpc.SystemUpdatesParams, rpc.SystemUpdatesResult](Spec{Name: "SystemUpdates", Timeout: 15 * mins, Fail: "Could not read the pending system updates"})
+	ApplyUpdates  = define[rpc.ApplyUpdatesParams, rpc.ApplyUpdatesResult](Spec{Name: "ApplyUpdates", Timeout: 65 * mins, Fail: "Could not apply the system updates"})
+)
+
 // The malware scan (internal/agent/ops/malware/SPEC.md). A scan reads the
 // site's tree in its sandbox and changes nothing; a quarantine moves one
 // file out of it.

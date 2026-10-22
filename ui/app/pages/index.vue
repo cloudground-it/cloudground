@@ -42,6 +42,11 @@ watch(sitesVersion, refreshSites)
 // Checked when someone opens the panel, never on a timer: it is a request to
 // the update server, and installing is the operator's decision.
 const { data: update } = useLoad(() => api.get<UpdateStatus>('/api/system/update'))
+// Ubuntu's own updates (#27): a reboot the server waits for, and security
+// updates not installed yet. The services page has the list.
+const { data: osUpdates } = useLoad(() => isOperator.value
+  ? Promise.resolve(null)
+  : api.get<{ security: number, reboot_required: boolean }>('/api/system/updates').catch(() => null))
 
 const updatedAt = ref(Date.now())
 watch([status, sites], () => { updatedAt.value = Date.now() })
@@ -154,6 +159,16 @@ function startUpdate() {
             ...(update.notes_url ? [{ label: t('dashboard.whatsNew'), to: update.notes_url, target: '_blank', color: 'neutral' as const, variant: 'outline' as const, size: 'sm' as const }] : []),
             { label: t('dashboard.updateNow'), loading: busy, color: 'primary' as const, variant: 'solid' as const, size: 'sm' as const, onClick: startUpdate }
           ]"
+        />
+
+        <UAlert
+          v-if="osUpdates && (osUpdates.reboot_required || osUpdates.security)"
+          color="warning"
+          variant="subtle"
+          icon="i-cg-refresh"
+          :title="osUpdates.reboot_required ? t('osupdates.rebootNeeded') : t('osupdates.securityPending', { n: osUpdates.security })"
+          :description="osUpdates.reboot_required ? t('osupdates.rebootHint') : t('osupdates.securityHint')"
+          :actions="[{ label: t('osupdates.open'), to: '/services#updates', color: 'neutral' as const, variant: 'outline' as const, size: 'sm' as const }]"
         />
 
         <section :aria-label="t('cg.dashboard.capacity')" class="cg-grid grid-cols-2 lg:grid-cols-4">

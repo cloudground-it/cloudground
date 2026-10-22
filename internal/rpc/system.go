@@ -179,3 +179,45 @@ type SelfUpdateResult struct {
 	UpdatedTo string `json:"updated_to"`
 	Restarted bool   `json:"restarted"`
 }
+
+// SystemUpdatesParams asks for the server's pending package upgrades;
+// Refresh runs apt-get update first (ops/system SPEC §7).
+type SystemUpdatesParams struct {
+	Refresh bool `json:"refresh,omitempty"`
+}
+
+// SystemUpdatesResult is what apt would upgrade, security updates first,
+// and whether the server needs a reboot.
+type SystemUpdatesResult struct {
+	Packages []PendingUpdate `json:"packages"`
+	// Security counts the security updates among Packages.
+	Security       int      `json:"security"`
+	RebootRequired bool     `json:"reboot_required"`
+	RebootPackages []string `json:"reboot_packages,omitempty"`
+	// ListsUpdatedAt is the last successful apt-get update (zero: unknown).
+	ListsUpdatedAt time.Time `json:"lists_updated_at,omitzero"`
+}
+
+// PendingUpdate is one package an upgrade would change. From is empty for
+// a package it would newly install (New).
+type PendingUpdate struct {
+	Name     string `json:"name"`
+	From     string `json:"from,omitempty"`
+	To       string `json:"to"`
+	Origin   string `json:"origin,omitempty"`
+	Security bool   `json:"security,omitempty"`
+	New      bool   `json:"new,omitempty"`
+}
+
+// ApplyUpdatesParams upgrades every pending package, or only the security
+// updates.
+type ApplyUpdatesParams struct {
+	SecurityOnly bool `json:"security_only,omitempty"`
+}
+
+// ApplyUpdatesResult is how many packages were to be upgraded, and what is
+// pending after the upgrade.
+type ApplyUpdatesResult struct {
+	Upgraded int                 `json:"upgraded"`
+	Pending  SystemUpdatesResult `json:"pending"`
+}

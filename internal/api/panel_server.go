@@ -131,6 +131,10 @@ type Server struct {
 	// names (nil: the system resolver; tests replace it) (dns_check.go).
 	dnsChecks dnsGate
 	dnsLookup func(ctx context.Context, network, host string) ([]netip.Addr, error)
+
+	// updates is the last list of the server's pending package upgrades
+	// (system_updates.go).
+	sysUpdates updatesCache
 }
 
 // connectorFailures is how many wrong connector tokens an address may send

@@ -35,6 +35,29 @@ async function restart(s: ServiceInfo) {
   }
 }
 
+// Ubuntu's own updates (#27): the agent lists them, security first, and
+// upgrades them; the panel only says when a reboot is needed.
+interface PendingUpdate { name: string, from?: string, to: string, origin?: string, security?: boolean, new?: boolean }
+interface SystemUpdates { packages: PendingUpdate[], security: number, reboot_required: boolean, reboot_packages?: string[], lists_updated_at?: string, checked_at: string }
+const { data: updates, error: updatesError, refresh: refreshUpdates } = useLoad(() => api.get<SystemUpdates>('/api/system/updates'))
+async function refreshLists() {
+  if (await run(() => api.post('/api/system/updates/refresh'), t('osupdates.refreshStarted'))) await refreshUpdates()
+}
+async function upgrade(securityOnly: boolean) {
+  const ok = await confirm({
+    title: securityOnly ? t('osupdates.securityTitle', { n: updates.value?.security ?? 0 }) : t('osupdates.allTitle', { n: updates.value?.packages.length ?? 0 }),
+    description: t('osupdates.applyHint'),
+    confirmLabel: securityOnly ? t('osupdates.applySecurity') : t('osupdates.applyAll')
+  })
+  if (ok) await run(() => api.post('/api/system/updates/apply', { security_only: securityOnly }), t('osupdates.applyStarted'))
+}
+const updateColumns = computed<TableColumn<PendingUpdate>[]>(() => [
+  { accessorKey: 'name', header: t('osupdates.col.package') },
+  { accessorKey: 'from', header: t('osupdates.col.installed'), meta: { class: { th: 'hidden md:table-cell', td: 'hidden md:table-cell' } } },
+  { accessorKey: 'to', header: t('osupdates.col.candidate') },
+  { accessorKey: 'origin', header: t('osupdates.col.origin'), meta: { class: { th: 'hidden lg:table-cell', td: 'hidden lg:table-cell' } } }
+])
+
 const columns = computed<TableColumn<ServiceInfo>[]>(() => [
   { accessorKey: 'name', header: t('services.col.service') },
   { accessorKey: 'state', header: t('services.col.state') },
@@ -98,6 +121,51 @@ const columns = computed<TableColumn<ServiceInfo>[]>(() => [
               </template>
             </template>
           </UTable>
+        </PanelSection>
+
+        <PanelSection
+          id="updates"
+          flush
+          :title="t('osupdates.title')"
+          :description="updates ? (updates.packages.length ? t('osupdates.pending', { n: updates.packages.length, security: updates.security }) : t('osupdates.none')) : t('osupdates.hint')"
+        >
+          <template v-if="isAdmin" #actions>
+            <UButton color="neutral" variant="outline" icon="i-cg-refresh" :label="t('osupdates.refresh')" :disabled="busy" @click="refreshLists" />
+            <UButton v-if="updates?.security" color="neutral" variant="outline" :label="t('osupdates.applySecurity')" :disabled="busy" @click="upgrade(true)" />
+            <UButton v-if="updates?.packages.length" icon="i-cg-download" :label="t('osupdates.applyAll')" :disabled="busy" @click="upgrade(false)" />
+          </template>
+          <div v-if="updates?.reboot_required || updatesError" class="px-4 pt-4">
+            <UAlert v-if="updatesError" color="error" variant="subtle" icon="i-cg-alert-circle" :title="updatesError" />
+            <UAlert
+              v-else
+              color="warning"
+              variant="subtle"
+              icon="i-cg-refresh"
+              :title="t('osupdates.rebootNeeded')"
+              :description="updates?.reboot_packages?.length ? t('osupdates.rebootFor', { list: updates.reboot_packages.join(', ') }) : t('osupdates.rebootHint')"
+            />
+          </div>
+          <UTable :data="updates?.packages ?? []" :columns="updateColumns" :empty="t('osupdates.none')">
+            <template #name-cell="{ row }">
+              <span class="flex items-center gap-2">
+                <span class="mono text-[13px] font-semibold text-highlighted">{{ row.original.name }}</span>
+                <UBadge v-if="row.original.security" color="error" variant="subtle" :label="t('osupdates.security')" />
+                <UBadge v-if="row.original.new" color="neutral" variant="subtle" :label="t('osupdates.new')" />
+              </span>
+            </template>
+            <template #from-cell="{ row }">
+              <span class="mono text-[13px] text-muted">{{ row.original.from || '—' }}</span>
+            </template>
+            <template #to-cell="{ row }">
+              <span class="mono text-[13px]">{{ row.original.to }}</span>
+            </template>
+            <template #origin-cell="{ row }">
+              <span class="text-xs text-muted">{{ row.original.origin }}</span>
+            </template>
+          </UTable>
+          <p v-if="updates?.lists_updated_at" class="m-0 px-4 pb-4 text-xs text-muted">
+            {{ t('osupdates.listsUpdated', { ago: fmtAgo(updates.lists_updated_at, locale) }) }}
+          </p>
         </PanelSection>
       </UContainer>
     </template>

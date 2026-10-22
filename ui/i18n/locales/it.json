@@ -214,6 +214,35 @@
       "proxy": "Reverse proxy"
     }
   },
+  "osupdates": {
+    "title": "Aggiornamenti di Ubuntu",
+    "hint": "I pacchetti del server: cosa aggiornerebbe apt, prima gli aggiornamenti di sicurezza.",
+    "pending": "Aggiornamenti in attesa: {n}, di cui di sicurezza: {security}.",
+    "none": "Ubuntu è aggiornato.",
+    "refresh": "Controlla di nuovo",
+    "refreshStarted": "Aggiornamento degli elenchi dei pacchetti",
+    "applySecurity": "Installa gli aggiornamenti di sicurezza",
+    "applyAll": "Aggiorna tutto",
+    "securityTitle": "Installare gli aggiornamenti di sicurezza ({n})?",
+    "allTitle": "Aggiornare tutti i pacchetti ({n})?",
+    "applyHint": "I servizi i cui pacchetti vengono aggiornati si riavviano, quindi i siti possono fermarsi per un attimo. Un file di configurazione modificato mantiene la versione di questo server. Il server non viene riavviato.",
+    "applyStarted": "Aggiornamento avviato",
+    "rebootNeeded": "Il server deve essere riavviato",
+    "rebootHint": "Gli aggiornamenti installati dal pannello o da Ubuntu stesso hanno effetto solo dopo un riavvio. Scegli un momento tranquillo: i siti non rispondono mentre il server si riavvia.",
+    "rebootFor": "Richiesto da: {list}. Scegli un momento tranquillo: i siti non rispondono mentre il server si riavvia.",
+    "security": "sicurezza",
+    "new": "nuovo",
+    "listsUpdated": "Elenchi dei pacchetti aggiornati {ago}.",
+    "securityPending": "Aggiornamenti di sicurezza in attesa: {n}",
+    "securityHint": "Ubuntu ne installa la maggior parte da solo ogni giorno; gli altri ti aspettano nella pagina dei servizi.",
+    "open": "Apri gli aggiornamenti",
+    "col": {
+      "package": "Pacchetto",
+      "installed": "Installato",
+      "candidate": "Nuova versione",
+      "origin": "Origine"
+    }
+  },
   "tabs": {
     "backups": "Backup",
     "cache": "Cache",
