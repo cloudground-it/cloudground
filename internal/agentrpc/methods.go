@@ -222,6 +222,7 @@ var (
 	DBStudioWPAutoload      = define[rpc.DBStudioSiteParams, rpc.DBStudioAutoloadResult](Spec{Name: "DBStudioWPAutoload", Timeout: 2 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the autoloaded options"})
 	DBStudioWPSearchReplace = define[rpc.DBStudioSearchReplaceParams, rpc.DBStudioSearchReplaceResult](Spec{Name: "DBStudioWPSearchReplace", Timeout: 45 * mins, Sites: true, Lock: LockLiveSite, Fail: "The search and replace failed"})
 	DBStudioWPTransients    = define[rpc.DBStudioTransientsParams, rpc.DBStudioTransientsResult](Spec{Name: "DBStudioWPTransients", Timeout: 15 * mins, Sites: true, Fail: "Could not delete the expired transients"})
+	DBStudioWPCleanup       = define[rpc.DBStudioCleanupParams, rpc.DBStudioCleanupResult](Spec{Name: "DBStudioWPCleanup", Timeout: 30 * mins, Sites: true, Lock: LockLiveSite, Fail: "The database cleanup failed"})
 	DBStudioQuery           = define[rpc.DBStudioQueryParams, rpc.DBQueryResult](Spec{Name: "DBStudioQuery", Timeout: 3 * mins, Sites: true, Fail: "The query failed"})
 	DBStudioSimulate        = define[rpc.DBStudioSimulateParams, rpc.DBStudioSimulateResult](Spec{Name: "DBStudioSimulate", Timeout: 3 * mins, Sites: true, Fail: "The simulation failed"})
 	DBStudioSearch          = define[rpc.DBStudioSearchParams, rpc.DBStudioSearchResult](Spec{Name: "DBStudioSearch", Timeout: 3 * mins, Sites: true, ReadOnly: true, Fail: "The search failed"})

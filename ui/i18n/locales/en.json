@@ -241,6 +241,28 @@
     "velocity": "Velocity Engine",
     "velocityHint": "Full-page cache with request coalescing and stale-while-revalidate."
   },
+  "cleanup": {
+    "title": "Database cleanup",
+    "hint": "Once a week, expired transients are deleted and each post keeps only its newest revisions. The options WordPress loads on every request are measured. The first cleanup of a site is behind a tested snapshot; the results are in the site's logs.",
+    "on": "Scheduled",
+    "off": "Off",
+    "needBackups": "Set up backups in the settings first: the first cleanup of a site takes a tested snapshot.",
+    "weekly": "Clean every week",
+    "weeklyHint": "Off by default. Run a dry run first to see what it would delete.",
+    "next": "Next cleanup: {when}",
+    "keep": "Revisions kept per post",
+    "keepHelp": "The newest ones stay, between 1 and 100.",
+    "keepBad": "Between 1 and 100.",
+    "last": "Last cleanup: {when}",
+    "preview": "Dry run",
+    "now": "Clean now",
+    "saved": "Cleanup settings saved",
+    "started": "Cleanup started",
+    "dryRun": "A cleanup would delete:",
+    "nTransients": "No expired transients | One expired transient | {n} expired transients",
+    "nRevisions": "{n} revisions beyond the newest {keep} of each post",
+    "autoload": "{n} autoloaded options, {size}"
+  },
   "cache": {
     "pageCache": "Page cache",
     "policy": "Cache policy",
@@ -767,6 +789,7 @@
   },
   "logs": {
     "access": "Access",
+    "cleanup": "Cleanup",
     "empty": "(empty)",
     "error": "Errors",
     "hint": "System and service logs. Each site's own logs are on its Logs tab.",

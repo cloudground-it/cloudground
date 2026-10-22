@@ -1133,6 +1133,40 @@ recorded) only once nginx has them; an agent refusal stores nothing. Turning the
 the site's page cache (the policy bypassed it meanwhile, so it holds pages from before the work) and
 queues the quiet `cache.rewarm` of §6.2. Audit `site.maintenance`, detail `on`, `off` or `text`.
 Answer: 200, `{enabled, title, message, retry_after_sec, allow, preview_url?}`.
+### 3.17 Scheduled database cleanup (#78, `site_wpcleanup.go`)
+
+A WordPress or WooCommerce site (else 400 `not a WordPress site`) may have its database cleaned
+once a week: expired transients deleted, each post's revisions trimmed to `keep_revisions` (1–100,
+5 when unset), the autoloaded options measured. Off by default. `config.wp_cleanup` holds
+`enabled` and `keep_revisions`; no rendered file depends on them (`MutateSiteApplied`).
+
+- `GET /api/sites/{id}/wp/cleanup` (any signed-in caller who can see the site) → 200 `{enabled,
+  keep_revisions, last_run, next_run, backups_ready}`: `last_run` the end of the last real
+  cleanup (`schedule_state` key `wpcleanup:done:<id>`), `next_run` the site's next slot while the
+  schedule is on, `backups_ready` whether the off-site repository and its password are set.
+- `PUT /api/sites/{id}/wp/cleanup` (manage) `{enabled?, keep_revisions?}`: a field left out is left
+  alone; none → 400; `keep_revisions` out of 1–100 → 400. Turning it on without the repository →
+  **412** `configure backup_repository and backup_password in settings first: the first cleanup of
+  a site takes a tested snapshot`. Audit `site.wpcleanup`, detail `enabled=… keep_revisions=…`.
+  Answers the view of `GET`.
+- `POST /api/sites/{id}/wp/cleanup/preview` (manage): the agent's dry run (`DBStudioWPCleanup`,
+  internal/agent/ops/dbstudio SPEC §8.4), answered as it is: nothing changes, no snapshot is taken.
+- `POST /api/sites/{id}/wp/cleanup/run` (manage): queues the cleanup now (412 as above) → **202**
+  `{task}`; audit `site.wpcleanup.run`.
+
+**The job** `wp.cleanup` (site lock and the repository's; a second one for a site is joined; not
+resumed after a restart): 1. a dry run, its counts and the autoload size written to the job's
+log; 2. for a site's first cleanup only (no `wpcleanup:snapshot:<id>` key), a safety snapshot
+`pre-cleanup`, restore-tested before anything changes (§5; a failure ends the job, nothing deleted);
+3. a checkpoint, then the cleanup; 4. `wpcleanup:done:<id>` is noted, the audit `site.wpcleanup.done`
+(actor `system` when scheduled) records the counts, and the agent appends the result to the site's
+`cleanup.log` (`GET /api/sites/{id}/logs?source=cleanup`).
+
+**Schedule**: `wpcleanup.sweep`, every five minutes (jobs SPEC §9), queues the job (background) of
+each active WordPress site with the schedule on whose weekly slot, `(id×53+60) mod 168` hours after
+Monday 00:00 UTC, has passed since it was last queued (`wpcleanup:site:<id>`). A site the sweep
+sees for the first time is only noted, as the malware scan does: turning the schedule on does not
+clean at once (Clean now is there for that). A job that fails is an alert, as any task.
 
 ### 3.11 Tests
 
@@ -1145,6 +1179,7 @@ undone, the PHP budget), `sites_race_test.go`, `sites_rollback_test.go`,
 `capabilities_review_test.go` (staging resolves the root first),
 `site_devmode_test.go` (§3.15: the lengths, the render before the store, the sweep, the purge and the re-warm at the end), `dns_check_test.go` (§3.14's verdicts, refusals, roles and limit, and aliases given at creation), `site_create_db_test.go` (the chosen database, the toggle, the field
 `site_maintenance_test.go` (§3.16: the checks, the key, the render before the store, the cache at the end), `dns_check_test.go` (§3.14's verdicts, refusals, roles and limit, and aliases given at creation), `site_create_db_test.go` (the chosen database, the toggle, the field
+`site_wpcleanup_test.go` (§3.17: the settings and their refusals, the dry run, the snapshot before the first cleanup only, the slot), `dns_check_test.go` (§3.14's verdicts, refusals, roles and limit, and aliases given at creation), `site_create_db_test.go` (the chosen database, the toggle, the field
 problems, 409 for a taken name, the summary and that no read answers the
 password), and the contract tests across the package. The e2e section
 `R-4.3 site settings` applies a patch on a box and reads the result from
@@ -1855,7 +1890,7 @@ user, from another, out; and `F4b DB Studio`, through a handoff).
 | `GET /api/services` | `ServiceStatus` | 200, the services array |
 | `POST /api/services/{name}/restart` | the agent's Capabilities must list the service as listed and restartable (→ **400** `unknown service`); `RestartService` | 200, the agent's map; audit `service.restart`; publishes `service.changed {names: [name]}` |
 | `GET /api/logs?source=&site=&lines=` | `TailLog{Source, Site, Lines}`; `lines` not a positive number → 200 | 200 |
-| `GET /api/sites/{id}/logs?source=` | `source` is `access`, `error` or `php` (→ 400 `source must be access, error or php`); `TailLog{Source: "site:<domain>:<kind>", Site: domain}` | 200 |
+| `GET /api/sites/{id}/logs?source=` | `source` is `access`, `error`, `php` or `cleanup` (→ 400 `source must be access, error, php or cleanup`); `TailLog{Source: "site:<domain>:<kind>", Site: domain}` | 200 |
 | `GET /api/firewall` | `FirewallStatus` | 200 |
 | `POST /api/firewall/rule` | the body is `rpc.FirewallRuleParams` (unknown fields → 400); `FirewallRule` | 200, the agent's map; audit `firewall.rule`, subject `<rule>[ from <from>]` |
 | `POST /api/firewall/enable` | the body is `rpc.FirewallEnableParams`, `{"expect": [...]}`: the `plan` of `GET /api/firewall` the operator was shown (empty → 400); `FirewallEnable` (system SPEC §4: allow every rule of the plan, then `ufw --force enable`; a plan that changed since → 409) | 200, the firewall's status; audit `firewall.enable`, subject `ufw`, detail `allowed <rules>` |

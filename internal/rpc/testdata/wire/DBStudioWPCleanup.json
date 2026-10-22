@@ -1,0 +1,41 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "keep_revisions": 7,
+      "dry_run": true
+    },
+    "zero": {
+      "site": "@state.Site",
+      "keep_revisions": 0
+    }
+  },
+  "result": {
+    "full": {
+      "expired_transients": 7,
+      "excess_revisions": 7,
+      "deleted_transients": 7,
+      "deleted_revisions": 7,
+      "autoload_count": 7,
+      "autoload_bytes": 7,
+      "autoload_top": [
+        {
+          "name": "Name",
+          "bytes": 7,
+          "autoload": "Autoload"
+        }
+      ],
+      "executed": true
+    },
+    "zero": {
+      "expired_transients": 0,
+      "excess_revisions": 0,
+      "deleted_transients": 0,
+      "deleted_revisions": 0,
+      "autoload_count": 0,
+      "autoload_bytes": 0,
+      "autoload_top": null,
+      "executed": false
+    }
+  }
+}

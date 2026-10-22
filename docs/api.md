@@ -107,6 +107,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/sites/{id}/maintenance`: 8 KiB
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
+  - `PUT /api/sites/{id}/wp/cleanup`: 8 KiB
   - `PUT /api/sites/{id}/uptime`: 8 KiB
   - `PUT /api/sites/{id}/backups/policy`: 8 KiB
   - `POST /api/sites/{id}/files/upload`: 16 MiB
@@ -207,8 +208,12 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `DELETE` | `/api/sites/{id}/certificate/custom` | manage | remove it and go back to Let's Encrypt: the certificate for the site's current names is requested (`{status, task}`; `{status, warning}` without an ACME e-mail) |
 | `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache |
 | `POST` | `/api/sites/{id}/warm` | manage | fill the page cache from the sitemap |
+| `GET` | `/api/sites/{id}/wp/cleanup` | auth | the scheduled database cleanup of a WordPress site: `enabled`, `keep_revisions`, `last_run`, `next_run` and whether `backups_ready` |
+| `PUT` | `/api/sites/{id}/wp/cleanup` | manage | turn the weekly cleanup (expired transients deleted, revisions trimmed to `keep_revisions` per post, 1–100) on or off (`{"enabled": true, "keep_revisions": 5}`); 412 turning it on without backups configured |
+| `POST` | `/api/sites/{id}/wp/cleanup/preview` | manage | a dry run: how many expired transients and surplus revisions a cleanup would delete, and the autoloaded options; changes nothing |
+| `POST` | `/api/sites/{id}/wp/cleanup/run` | manage | clean the database now (a dry run is logged first, a tested snapshot is taken before a site's first cleanup) — returns `202` and a task; 412 without backups configured |
 | `GET` | `/api/sites/{id}/cache-stats` | auth | APCu hits, misses and memory in use |
-| `GET` | `/api/sites/{id}/logs?source=` | auth | tail one of the site's own logs: `access`, `error` or `php` |
+| `GET` | `/api/sites/{id}/logs?source=` | auth | tail one of the site's own logs: `access`, `error`, `php` or `cleanup` |
 | `POST` | `/api/sites/{id}/migration` | manage | bring in a site from a files archive and a SQL dump |
 | `GET` | `/api/sites/{id}/usage` | auth | the site's resource usage for `range` `24h` (five-minute samples) or `30d` (hourly averages, with the hour's CPU peak): CPU as a share of its allowance, memory, IO and disk; its effective `limits`; the `latest` sample |
 | `GET` | `/api/sites/{id}/vulnerabilities` | auth | a WordPress site's last vulnerability check: `enabled` (the panel's switch), `checked`, `checked_at`, `attempted_at`, `error`, `core`, `components` and the `findings` (`component`, `slug`, `version`, `title`, `severity`, `cve`, `fixed_in`, `unfixed`, `link`); `source` names the database |

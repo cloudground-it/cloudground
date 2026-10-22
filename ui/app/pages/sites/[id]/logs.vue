@@ -5,7 +5,9 @@ const source = ref('access')
 const items = computed(() => [
   { label: t('logs.access'), value: 'access', icon: 'i-cg-activity' },
   { label: t('logs.error'), value: 'error', icon: 'i-cg-alert-triangle' },
-  { label: t('logs.php'), value: 'php', icon: 'i-cg-code' }
+  { label: t('logs.php'), value: 'php', icon: 'i-cg-code' },
+  // The weekly database cleanup writes its results here (WordPress sites).
+  ...(site.value.type === 'wordpress' || site.value.type === 'woocommerce' ? [{ label: t('logs.cleanup'), value: 'cleanup', icon: 'i-cg-purge' }] : [])
 ])
 </script>
 

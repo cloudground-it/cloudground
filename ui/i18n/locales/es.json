@@ -241,6 +241,28 @@
     "velocity": "Velocity Engine",
     "velocityHint": "Caché de página completa con agrupación de peticiones y stale-while-revalidate."
   },
+  "cleanup": {
+    "title": "Limpieza de la base de datos",
+    "hint": "Una vez por semana se eliminan los transients caducados y cada entrada conserva solo sus revisiones más recientes. Se miden las opciones que WordPress carga en cada petición. La primera limpieza de un sitio va precedida de una instantánea verificada; los resultados están en los registros del sitio.",
+    "on": "Programada",
+    "off": "Desactivada",
+    "needBackups": "Configura antes las copias de seguridad en los ajustes: la primera limpieza de un sitio crea una instantánea verificada.",
+    "weekly": "Limpiar cada semana",
+    "weeklyHint": "Desactivada por defecto. Haz antes una simulación para ver qué eliminaría.",
+    "next": "Próxima limpieza: {when}",
+    "keep": "Revisiones conservadas por entrada",
+    "keepHelp": "Se quedan las más recientes, de 1 a 100.",
+    "keepBad": "De 1 a 100.",
+    "last": "Última limpieza: {when}",
+    "preview": "Simulación",
+    "now": "Limpiar ahora",
+    "saved": "Ajustes de limpieza guardados",
+    "started": "Limpieza iniciada",
+    "dryRun": "Una limpieza eliminaría:",
+    "nTransients": "Ningún transient caducado | Un transient caducado | {n} transients caducados",
+    "nRevisions": "{n} revisiones más allá de las {keep} más recientes de cada entrada",
+    "autoload": "{n} opciones con autoload, {size}"
+  },
   "cache": {
     "pageCache": "Caché de página",
     "policy": "Política de caché",
@@ -767,6 +789,7 @@
   },
   "logs": {
     "access": "Accesos",
+    "cleanup": "Limpieza",
     "empty": "(vacío)",
     "error": "Errores",
     "hint": "Registros del sistema y de los servicios. Los registros de cada sitio están en su pestaña Registros.",

@@ -108,6 +108,9 @@ type SiteConfig struct {
 	// Maintenance is the site's maintenance page (#79, internal/engine SPEC
 	// §4.9): its text is kept while the mode is off.
 	Maintenance SiteMaintenance `json:"maintenance,omitzero"`
+	// WPCleanup is a WordPress site's scheduled database cleanup (#78,
+	// internal/api SPEC §3.17).
+	WPCleanup WPCleanup `json:"wp_cleanup,omitzero"`
 	// WPHardening is a WordPress site's hardening (#75), each item on
 	// its own (internal/engine SPEC §4.8, connector/SPEC.md §2.12).
 	WPHardening WPHardening `json:"wp_hardening,omitzero"`
@@ -129,6 +132,16 @@ type SiteMaintenance struct {
 	// characters, made when the mode is first turned on. Never in the API's
 	// view of the site (Public).
 	Key string `json:"key,omitempty"`
+}
+
+// WPCleanup is a WordPress site's scheduled database cleanup: once a week,
+// at the site's own slot, its expired transients are deleted and its
+// revisions trimmed to KeepRevisions per post. Off by default.
+type WPCleanup struct {
+	Enabled bool `json:"enabled,omitempty"`
+	// KeepRevisions is how many revisions of each post stay; 0 is the
+	// default (internal/site, DefaultKeepRevisions).
+	KeepRevisions int `json:"keep_revisions,omitempty"`
 }
 
 // WPHardening is the WordPress hardening a site has turned on. The zero

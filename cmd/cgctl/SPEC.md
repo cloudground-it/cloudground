@@ -157,6 +157,17 @@ bypassed for 15, 30 or 60 minutes, `off` ends it now (`0`). Any other length is 
 given, `"message"`: the site answers visitors with a 503 page and Retry-After, or stops doing so.
 Anything but `on` or `off` is a usage error (exit 2). The answer is the page's settings, with the
 `preview_url` while it is on, printed as §3.
+## 6.7 cleanup (#78)
+
+    cgctl cleanup <site-id> on [keep-revisions]
+    cgctl cleanup <site-id> off
+    cgctl cleanup <site-id> preview
+    cgctl cleanup <site-id> run
+
+`on` and `off` are `PUT /api/sites/{id}/wp/cleanup` (internal/api SPEC §3.17), `on` with how many
+revisions of a post stay (1–100) if given; `preview` is the dry run, `POST …/cleanup/preview`;
+`run` is `POST …/cleanup/run`, which answers a task (`--wait` as for any task). Anything else, or a
+number out of range, is a usage error (exit 2).
 
 ## 7. update and uninstall (R-6.4, R-6.5)
 

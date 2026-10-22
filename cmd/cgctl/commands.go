@@ -80,6 +80,39 @@ func blockRequest(method, path string) func([]string) (request, error) {
 	}
 }
 
+// buildCleanup is cgctl cleanup: the weekly schedule on (with how many
+// revisions of a post stay) or off, a dry run, or a cleanup now.
+func buildCleanup(a []string) (request, error) {
+	n, err := id(a[0])
+	if err != nil {
+		return request{}, err
+	}
+	path := fmt.Sprintf("/api/sites/%s/wp/cleanup", n)
+	switch a[1] {
+	case "preview", "run":
+		if len(a) > 2 {
+			return request{}, fmt.Errorf("%s takes no more arguments", a[1])
+		}
+		return request{method: "POST", path: path + "/" + a[1], body: map[string]any{}}, nil
+	case "off":
+		if len(a) > 2 {
+			return request{}, fmt.Errorf("off takes no more arguments")
+		}
+		return request{method: "PUT", path: path, body: map[string]any{"enabled": false}}, nil
+	case "on":
+		body := map[string]any{"enabled": true}
+		if len(a) > 2 {
+			k, err := strconv.Atoi(a[2])
+			if err != nil || k < 1 || k > 100 {
+				return request{}, fmt.Errorf("%q is not a number of revisions between 1 and 100", a[2])
+			}
+			body["keep_revisions"] = k
+		}
+		return request{method: "PUT", path: path, body: body}, nil
+	}
+	return request{}, fmt.Errorf("%q is not on, off, preview or run", a[1])
+}
+
 var commands = []command{
 	{words: []string{"sites", "list"}, build: get("/api/sites")},
 	{words: []string{"sites", "create"}, args: siteCreateArgs, min: 2, max: -1, build: buildSiteCreate},
@@ -205,6 +238,8 @@ var commands = []command{
 		}
 		return body, nil
 	})},
+	// A WordPress site's scheduled database cleanup (#78).
+	{words: []string{"cleanup"}, args: "<site-id> <on [keep-revisions]|off|preview|run>", min: 2, max: 3, build: buildCleanup},
 	{words: []string{"blocklist", "block"}, args: "<address-or-cidr> [minutes]", min: 1, max: 2, password: true, build: blockRequest("POST", "/api/blocklist/blocks")},
 	{words: []string{"blocklist", "unblock"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("DELETE", "/api/blocklist/blocks")},
 	{words: []string{"blocklist", "allow"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("POST", "/api/blocklist/allowed")},

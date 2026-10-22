@@ -241,6 +241,28 @@
     "velocity": "Velocity Engine",
     "velocityHint": "Cache di pagina con coalescing e stale-while-revalidate."
   },
+  "cleanup": {
+    "title": "Pulizia del database",
+    "hint": "Una volta a settimana vengono eliminati i transient scaduti e ogni articolo conserva solo le revisioni più recenti. Si misurano le opzioni che WordPress carica a ogni richiesta. La prima pulizia di un sito avviene dopo uno snapshot verificato; i risultati sono nei log del sito.",
+    "on": "Pianificata",
+    "off": "Disattivata",
+    "needBackups": "Prima configura i backup nelle impostazioni: la prima pulizia di un sito crea uno snapshot verificato.",
+    "weekly": "Pulisci ogni settimana",
+    "weeklyHint": "Disattivata di default. Prova prima con una simulazione per vedere cosa eliminerebbe.",
+    "next": "Prossima pulizia: {when}",
+    "keep": "Revisioni conservate per articolo",
+    "keepHelp": "Restano le più recenti, da 1 a 100.",
+    "keepBad": "Da 1 a 100.",
+    "last": "Ultima pulizia: {when}",
+    "preview": "Simulazione",
+    "now": "Pulisci ora",
+    "saved": "Impostazioni di pulizia salvate",
+    "started": "Pulizia avviata",
+    "dryRun": "Una pulizia eliminerebbe:",
+    "nTransients": "Nessun transient scaduto | Un transient scaduto | {n} transient scaduti",
+    "nRevisions": "{n} revisioni oltre le {keep} più recenti di ogni articolo",
+    "autoload": "{n} opzioni in autoload, {size}"
+  },
   "cache": {
     "pageCache": "Cache di pagina",
     "policy": "Politica di cache",
@@ -767,6 +789,7 @@
   },
   "logs": {
     "access": "Accessi",
+    "cleanup": "Pulizia",
     "empty": "(vuoto)",
     "error": "Errori",
     "hint": "Log di sistema e dei servizi. I log di ogni sito sono nella sua scheda Log.",
