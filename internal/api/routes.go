@@ -323,7 +323,7 @@ func (s *Server) routeTable() []route {
 		{Method: get, Path: "/api/sites/{id}/wp/plugins", Policy: policySignedIn, Load: loadSite, Handle: s.handleWPPlugins,
 			Section: secWP, Doc: "installed plugins and themes, and their updates"},
 		{Method: post, Path: "/api/sites/{id}/wp/update", Policy: policyManage, Load: loadSite, Handle: s.handleWPUpdate,
-			Section: secWP, Doc: "apply updates to `core`, `plugins`, `themes` or `all`, behind a restore-tested snapshot: the site is measured before and checked after, and restored from the snapshot when the check fails (412 without a backup repository)"},
+			Section: secWP, Doc: "apply updates to `core`, `plugins`, `themes` or `all`, behind a restore-tested snapshot: the site is measured before and checked after, and restored from the snapshot when the check fails (412 without a backup repository, unless `without_snapshot` asks to update with no rollback)"},
 		{Method: put, Path: "/api/sites/{id}/wp/updates", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleWPUpdatePolicy,
 			Section: secWP, Doc: "the update schedule: any of `enabled`, `schedule` (`daily`, `weekly`), `hour` (0–23, the panel's time zone; -1 for none), `what` (`core`, `plugins`, `themes`, `all`); answers the schedule"},
 		{Method: put, Path: "/api/sites/{id}/wp/hardening", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleSetWPHardening,

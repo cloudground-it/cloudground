@@ -45,6 +45,9 @@ type wpUpdatePayload struct {
 	SiteID int64  `json:"site_id"`
 	Domain string `json:"domain,omitempty"`
 	What   string `json:"what"`
+	// WithoutSnapshot: asked for with no backup repository; nothing to
+	// roll back to.
+	WithoutSnapshot bool `json:"without_snapshot,omitempty"`
 }
 
 // wpUpdateLocks are an update's locks: the site's and the repository's
@@ -54,8 +57,10 @@ func wpUpdateLocks(siteID int64, repo string) []string {
 }
 
 // update starts the update of core, plugins, themes or all of them behind
-// a tested snapshot (SPEC.md §6.2.3).
-func (p wordPress) update(site state.Site, what string) (jobs.Task, error) {
+// a tested snapshot (SPEC.md §6.2.3). With no backup repository it runs
+// only when the caller asked for it without a snapshot: checked, but with
+// nothing to roll back to.
+func (p wordPress) update(site state.Site, what string, withoutSnapshot bool) (jobs.Task, error) {
 	s := p.s
 	if !isWordPress(site.Type) {
 		return jobs.Task{}, errNotWordPress
@@ -68,7 +73,14 @@ func (p wordPress) update(site state.Site, what string) (jobs.Task, error) {
 		return jobs.Task{}, stored(err)
 	}
 	if repo == "" || password == "" {
-		return jobs.Task{}, decline(http.StatusPreconditionFailed, msgWPUpdateRepo)
+		if !withoutSnapshot {
+			return jobs.Task{}, decline(http.StatusPreconditionFailed, msgWPUpdateRepo)
+		}
+		return s.runJob(jobReq{kind: "wp.update", siteID: site.ID, locks: siteLocks(site.ID),
+			payload: wpUpdatePayload{SiteID: site.ID, Domain: site.Domain, What: what, WithoutSnapshot: true}},
+			func(ctx context.Context, site state.Site, step func(int, string)) error {
+				return s.safeWPUpdate(ctx, site, what, "", step)
+			})
 	}
 	return s.runJob(jobReq{kind: "wp.update", siteID: site.ID, locks: wpUpdateLocks(site.ID, repo),
 		payload: wpUpdatePayload{SiteID: site.ID, Domain: site.Domain, What: what}},
@@ -80,16 +92,17 @@ func (p wordPress) update(site state.Site, what string) (jobs.Task, error) {
 // safeWPUpdate is an update's steps: the baseline, a tested snapshot, the
 // update, the health check, and the rollback when that fails. A cancel
 // stops it until the update is sent; from there it runs to its end.
-// lockedRepo is the repository whose lock the job holds.
+// lockedRepo is the repository whose lock the job holds; "" is an update
+// asked for without a snapshot: no snapshot, no rollback.
 func (s *Server) safeWPUpdate(ctx context.Context, site state.Site, what, lockedRepo string, step func(int, string)) error {
 	repo, password, err := s.backupRepository()
 	if err != nil {
 		return err
 	}
-	if repo == "" || password == "" {
+	if lockedRepo != "" && (repo == "" || password == "") {
 		return errBackupsOff
 	}
-	if repo != lockedRepo {
+	if lockedRepo != "" && repo != lockedRepo {
 		return errors.New("the backup repository changed while the update waited; nothing was changed, start it again")
 	}
 	ps, err := s.Store.PanelSettings()
@@ -112,11 +125,17 @@ func (s *Server) safeWPUpdate(ctx context.Context, site state.Site, what, locked
 		}
 		return fmt.Errorf("the site could not be measured before the update, so nothing was changed: %w", err)
 	}
-	snap, err := s.safetySnapshot(ctx, site, repo, password, "pre-update", step)
-	if err != nil {
-		return err
+	var snap state.Backup
+	next := "the update"
+	if lockedRepo != "" {
+		if snap, err = s.safetySnapshot(ctx, site, repo, password, "pre-update", step); err != nil {
+			return err
+		}
+		next += " (the snapshot " + snap.SnapshotID + " is kept)"
+	} else {
+		step(-1, "No backup repository: updating without a snapshot, so a broken update cannot be undone automatically")
 	}
-	if err := checkpoint(ctx, step, "the update (the snapshot "+snap.SnapshotID+" is kept)"); err != nil {
+	if err := checkpoint(ctx, step, next); err != nil {
 		return err
 	}
 	// From here the site changes: the health check and a rollback must
@@ -150,6 +169,10 @@ func (s *Server) safeWPUpdate(ctx context.Context, site state.Site, what, locked
 		return nil
 	}
 
+	if lockedRepo == "" {
+		s.audit("system", "wp.update.broken", site.Domain, why)
+		return fmt.Errorf("the update broke the site and there was no snapshot to roll back to: %s", why)
+	}
 	step(80, "The update broke the site ("+why+"); restoring snapshot "+snap.SnapshotID)
 	if err := agentrpc.Into(ctx, s.Agent, agentrpc.RestoreSnapshot, rpc.RestoreParams{
 		Env: s.backupEnv(), Site: site, Repository: snap.Repository, Password: password, SnapshotID: snap.SnapshotID, Mode: "full",

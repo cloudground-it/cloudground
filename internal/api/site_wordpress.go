@@ -120,14 +120,19 @@ func (s *Server) handleWPUpdate(w http.ResponseWriter, r *http.Request, c *call)
 		return
 	}
 	var req struct {
-		What string `json:"what"`
+		What            string `json:"what"`
+		WithoutSnapshot bool   `json:"without_snapshot"`
 	}
 	if !decodeOr400(w, r, &req) {
 		return
 	}
-	task, err := s.wp().update(c.Site, req.What)
+	task, err := s.wp().update(c.Site, req.What, req.WithoutSnapshot)
 	if err == nil {
-		s.audit(c.Actor(), "wp.update", c.Site.Domain, req.What)
+		detail := req.What
+		if req.WithoutSnapshot {
+			detail += " without_snapshot"
+		}
+		s.audit(c.Actor(), "wp.update", c.Site.Domain, detail)
 	}
 	accepted(w, task, err)
 }

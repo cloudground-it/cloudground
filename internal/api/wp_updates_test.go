@@ -135,6 +135,45 @@ func TestWPUpdateRollsBackABrokenSite(t *testing.T) {
 	}
 }
 
+// §6.2.3: with no repository, an update asked for without a snapshot runs
+// checked but with no snapshot; a broken one fails saying there was nothing
+// to roll back to, and nothing is restored.
+func TestWPUpdateWithoutSnapshot(t *testing.T) {
+	s, agent, ts := testServer(t)
+	c := setupAdmin(t, s, ts)
+	site := seedActiveSite(t, s, "nosnap.example.com", state.SiteWordPress, "8.4", 0)
+	p := &fakeProber{verify: guard.Report{Verdict: guard.VerdictPass}}
+	useProber(t, p)
+	run := func() state.Job {
+		resp, body := c.do("POST", fmt.Sprintf("/api/sites/%d/wp/update", site.ID), map[string]any{"what": "plugins", "without_snapshot": true})
+		if resp.StatusCode != http.StatusAccepted {
+			t.Fatalf("update without a snapshot = %d %s", resp.StatusCode, body)
+		}
+		return waitTaskEnd(t, s, taskOf(t, body).ID)
+	}
+	j := run()
+	if j.Status != state.JobSucceeded || !agent.called(agentrpc.WPUpdate.Name()) || agent.called(agentrpc.RunBackup.Name()) {
+		t.Fatalf("healthy = %s %q, calls %v", j.Status, j.Error, agent.calls)
+	}
+	if slices.ContainsFunc(j.Locks, func(l string) bool { return strings.HasPrefix(l, "repo:") }) {
+		t.Fatalf("locks %v: no repository to lock", j.Locks)
+	}
+	p.verify = guard.Report{Verdict: guard.VerdictBlock, Reasons: []string{"BLOCK: /: production now answers HTTP 500 (was HTTP 200)"}}
+	j = run()
+	if j.Status != state.JobFailed || !strings.Contains(j.Error, "no snapshot to roll back to") || !strings.Contains(j.Error, "HTTP 500") ||
+		agent.called(agentrpc.RestoreSnapshot.Name()) {
+		t.Fatalf("broken = %s %q, calls %v", j.Status, j.Error, agent.calls)
+	}
+	// With a repository the flag changes nothing: the snapshot is taken.
+	setBackupRepo(t, s, "/var/backups/repo", "pw")
+	agent.setResult(agentrpc.RunBackup.Name(), rpc.BackupResult{SnapshotID: "5555666677778888", SizeBytes: 9})
+	agent.setResult(agentrpc.VerifyBackup.Name(), rpc.VerifyResult{Passed: true, Detail: "ok"})
+	p.verify = guard.Report{Verdict: guard.VerdictPass}
+	if j := run(); j.Status != state.JobSucceeded || !agent.called(agentrpc.RunBackup.Name()) {
+		t.Fatalf("with a repository = %s %q, calls %v", j.Status, j.Error, agent.calls)
+	}
+}
+
 // §6.2.3: the schedule's refusals, and what it stores.
 func TestWPUpdatePolicy(t *testing.T) {
 	s, _, ts := testServer(t)

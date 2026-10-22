@@ -1638,11 +1638,13 @@ WordPress → 400 `not a WordPress site`; `what` other than `core`,
 `plugins`, `themes` or `all` → 400 `what must be core, plugins, themes or
 all` (it used to reach the agent, which refused it; now it would cost a
 snapshot first); no backup repository or password → **412** `configure
-backup_repository and backup_password in settings first`: the snapshot is
-what a broken update goes back to, and an update that cannot be undone is
-not run. Otherwise job `wp.update` (not resumable), under the site's lock
-and the repository's (`repo:<hash>`, so no other restic process works on
-it meanwhile), payload `{site_id, domain, what}`. The job:
+backup_repository and backup_password in settings first`, unless the body
+also says `"without_snapshot": true` (below): the snapshot is what a broken
+update goes back to, and an update that cannot be undone runs only when
+asked for as such. With a repository, job `wp.update` (not resumable),
+under the site's lock and the repository's (`repo:<hash>`, so no other
+restic process works on it meanwhile), payload `{site_id, domain, what}`;
+`without_snapshot` changes nothing then. The job:
 
 1. **Baseline.** Performance Guard measures the live site (`Measure`,
    internal/guard SPEC §6.1) on `/`, `/?cloudground-probe=uncached` and
@@ -1676,6 +1678,18 @@ it meanwhile), payload `{site_id, domain, what}`. The job:
    is kept; restore it from Backups): <error>`. A rollback brings the
    database back to the snapshot: what the site wrote during the update
    (minutes) is lost, which the panel's page says beside the buttons.
+
+**Without a snapshot.** With no repository and `without_snapshot`, job
+`wp.update` under the site's lock alone, payload `{site_id, domain, what,
+without_snapshot: true}`, audit detail `<what> without_snapshot`: steps 1,
+3, 4 and 5, no step 2 (a log line says the update cannot be undone
+automatically). A health check that blocks, or cannot run, writes the audit
+row `wp.update.broken` (the reasons) and fails the job with `the update
+broke the site and there was no snapshot to roll back to: <reasons>`; the
+site stays as the update left it. A server without off-site backups can
+still apply its (security) updates; the page names the action "Update
+without a snapshot" and says it cannot be undone automatically. Scheduled
+updates always need the repository.
 
 The guard report of each check is a line of the job's log.
 

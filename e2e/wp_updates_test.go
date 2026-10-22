@@ -91,6 +91,16 @@ func (h *harness) wpUpdates(t *testing.T) {
 		if prevRepo == "" {
 			c, b := h.api.post(f.api("/wp/update"), `{"what":"plugins"}`)
 			h.check(t, "#20: an update with no backup repository is refused", fmt.Sprintf("%d %v", c, strings.Contains(string(b), "backup_repository")), "412 true")
+			// Asked for without a snapshot, it runs, checked, with no
+			// snapshot taken.
+			before := len(f.backupsList())
+			c, b = h.api.post(f.api("/wp/update"), `{"what":"plugins","without_snapshot":true}`)
+			id := taskID(b)
+			h.api.waitTask(id, 15*time.Minute)
+			tk := h.api.task(id)
+			h.assert(t, "#20: without a repository, an update asked for without a snapshot runs, with no snapshot",
+				c == 202 && tk.Status == "succeeded" && strings.Contains(tk.Log, "without a snapshot") && len(f.backupsList()) == before,
+				"#20: HTTP %d, task %s %q; backups %d → %d", c, tk.Status, tk.Error, before, len(f.backupsList()))
 		}
 		brepo := fmt.Sprintf("/var/backups/cloudground/e2e-upd-%d", h.pid)
 		raw := make([]byte, 18)
