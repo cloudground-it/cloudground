@@ -114,6 +114,23 @@ type SiteConfig struct {
 	// WPHardening is a WordPress site's hardening (#75), each item on
 	// its own (internal/engine SPEC §4.8, connector/SPEC.md §2.12).
 	WPHardening WPHardening `json:"wp_hardening,omitzero"`
+	// WPUpdates is when a WordPress site's updates run by themselves
+	// (#20, internal/api SPEC §6.2.3); the zero value is never.
+	WPUpdates WPUpdatePolicy `json:"wp_updates,omitzero"`
+}
+
+// WPUpdatePolicy is a WordPress site's scheduled updates. Each runs as the
+// panel's own update does: a tested snapshot first, a health check after,
+// and a rollback when that fails.
+type WPUpdatePolicy struct {
+	Enabled bool `json:"enabled,omitempty"`
+	// Schedule is daily or weekly; empty reads as weekly.
+	Schedule string `json:"schedule,omitempty"`
+	// Hour, 0–23 in the server's time zone; nil runs it a day or a week
+	// after the last one, whatever the time.
+	Hour *int `json:"hour,omitempty"`
+	// What is core, plugins, themes or all; empty reads as all.
+	What string `json:"what,omitempty"`
 }
 
 // SiteMaintenance is a site's maintenance mode: while Enabled, visitors get

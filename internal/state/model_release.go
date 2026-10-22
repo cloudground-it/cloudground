@@ -47,7 +47,7 @@ type Backup struct {
 	Repository string `json:"repository"`
 	SizeBytes  int64  `json:"size_bytes"`
 	// Kind is files, database or full, or what a safety snapshot was
-	// taken before (pre-restore, pre-database-push, pre-migration).
+	// taken before (pre-restore, pre-database-push, pre-migration, pre-update).
 	Kind         string       `json:"kind"`
 	VerifyStatus BackupVerify `json:"verify_status"`
 	VerifiedAt   *time.Time   `json:"verified_at,omitempty"`

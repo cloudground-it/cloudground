@@ -1401,7 +1401,7 @@ restic is a job holding its repository's lock (`repo:<hash>`, jobs SPEC
 
 A record is one snapshot as the panel knows it: site, snapshot ID (full or
 the short form), repository, size, kind (`full`, or `pre-restore`,
-`pre-database-push`, `pre-migration` for a safety snapshot), `verify_status`, the restore
+`pre-database-push`, `pre-migration`, `pre-update` for a safety snapshot), `verify_status`, the restore
 time measured, and `databases`: the names of the databases its snapshot
 holds, from the agent's `RunBackup` (`[]` for none; `null` for a record
 from before they were kept). It is created `pending` whatever the caller says; only a
@@ -1568,7 +1568,8 @@ magic login, the plugin list, the update and the object cache answer **400**
 | --- | --- | --- | --- |
 | `POST wp/login` | `WPMagicLogin` | 200 `{url}` | `wp.magic_login` |
 | `GET wp/plugins` | `WPPlugins` | 200 | — |
-| `POST wp/update {what}` | job `wp.update`, site lock: progress 30 `Updating <what> on <domain>`, `WPUpdate{What}`, then `PurgeCache` of the whole site (best effort: new code changes output), 100 `Update complete` | 202 | `wp.update`, what |
+| `POST wp/update {what}` | job `wp.update`: a tested snapshot, the update, a health check and a rollback when it fails (§6.2.3) | 202 | `wp.update`, what |
+| `PUT wp/updates {…}` | the update schedule (§6.2.3) | 200, the schedule | `wp.update_policy` |
 | `GET cache-stats` | `CacheStats` | 200 | — |
 | `POST warm` | job `cache.warm`, no lock: 30 `Warming <domain> from sitemap`, `WarmCache`, 100 `Warmed <n> pages (<m> now cached)` | 202 | `cache.warm` |
 | `PUT wp/two-factor {mode}` | §6.2.1 | 200 `{mode}` | `wp.two_factor`, mode |
@@ -1626,6 +1627,84 @@ editor off, the version hidden and the readme files: none of them changes
 what a visitor, a WooCommerce customer or Jetpack sees work (to be measured
 on the e2e server, #75). The login path is never part of it: it changes the
 address people sign in at.
+
+#### 6.2.3 Updates with a snapshot and a rollback (#20, `wp_updates.go`)
+
+Before #20 an update ran `WPUpdate` and purged the cache; a site it broke
+stayed broken until someone restored it by hand.
+
+`POST /api/sites/{id}/wp/update` `{what}`, `manage`: a site that is not
+WordPress → 400 `not a WordPress site`; `what` other than `core`,
+`plugins`, `themes` or `all` → 400 `what must be core, plugins, themes or
+all` (it used to reach the agent, which refused it; now it would cost a
+snapshot first); no backup repository or password → **412** `configure
+backup_repository and backup_password in settings first`: the snapshot is
+what a broken update goes back to, and an update that cannot be undone is
+not run. Otherwise job `wp.update` (not resumable), under the site's lock
+and the repository's (`repo:<hash>`, so no other restic process works on
+it meanwhile), payload `{site_id, domain, what}`. The job:
+
+1. **Baseline.** Performance Guard measures the live site (`Measure`,
+   internal/guard SPEC §6.1) on `/`, `/?cloudground-probe=uncached` and
+   `/wp-login.php`, as its own host on the panel's probe target with the
+   site's probe key (uncached, PHP's path). One that cannot run fails the
+   job: nothing changed.
+2. **Snapshot.** The safety snapshot of §5.3, kind `pre-update`,
+   restore-tested before anything changes; one that fails its test stops
+   the update (`safety snapshot … failed; production was not changed`). A
+   cancel up to here stops the job; after the checkpoint below it runs to
+   its end.
+3. **Update.** `WPUpdate{What}` (the agent refreshes the site's caches
+   after it, ops/wp SPEC §4), then `PurgeCache` (best effort). An error
+   from the agent is not by itself a rollback (a download that failed
+   changed nothing): the health check decides, and the job fails with the
+   update's error afterwards when the site is kept.
+4. **Health check.** Guard's check after a promotion (`Verify`, internal/guard
+   SPEC §6) against the baseline: a page whose most common status changed,
+   or whose error rate rose above the threshold, blocks. Latency is not
+   judged: PHP has just reloaded and the cache is cold.
+5. **Kept.** It passed: 100 `Update complete; the health check passed`, the
+   cache re-warmed in the background (§6.2), and the job succeeds (or
+   fails with the agent's error, step 3).
+6. **Rolled back.** It blocked, or could not run: the snapshot of step 2 is
+   restored over the site (`RestoreSnapshot`, mode `full`: files and every
+   database it holds), the cache purged, the audit row `wp.update.rollback`
+   written (detail: the reasons), and the job fails with `the update broke
+   the site and was rolled back to snapshot <id>: <reasons>`, which raises
+   the task alert (§11.1). A restore that fails fails the job with `the
+   update broke the site and the automatic rollback failed (snapshot <id>
+   is kept; restore it from Backups): <error>`. A rollback brings the
+   database back to the snapshot: what the site wrote during the update
+   (minutes) is lost, which the panel's page says beside the buttons.
+
+The guard report of each check is a line of the job's log.
+
+**Schedule.** `config.wp_updates` `{enabled, schedule, hour, what}`
+(`state.WPUpdatePolicy`): `schedule` `daily` or `weekly` (empty reads as
+`weekly`), `hour` 0–23 in the panel's time zone or absent, `what` as above
+(empty reads as `all`). `PUT /api/sites/{id}/wp/updates`, `manage`, takes
+any of the four (a field left out keeps its value; `hour` -1 clears it).
+Refusals, in order: a staging site → 400 `a staging site has no update
+schedule of its own`; not WordPress → 400 `not a WordPress site`; a body
+naming none → 400; an unknown schedule or target, or an hour outside
+-1–23 → 400 with `fields`; turning it on with no backup repository → 412
+as above. Stored with `MutateSiteApplied` (it renders nothing), audited
+`wp.update_policy` (`enabled=<b> schedule=<s> hour=<HH:00|any> what=<w>`),
+answered 200 with the schedule.
+
+The sweep `wp.update.sweep` (quiet, every five minutes and in the tick)
+does nothing while the repository is unset; otherwise, for each active
+production WordPress site whose schedule is on and due (`backupDue`, §5.5:
+the slot rules of a backup at a fixed hour), it queues
+`wp.update.scheduled` (background, deduplicated per site, payload
+`{site_id, what}`, the same locks) and marks the site's key
+`wp.update.site.<id>` at once, so a failure is tried again at the next
+slot, not the next sweep. The scheduled job reads the site again (gone, no
+longer active or WordPress, or the schedule off: skipped, success), skips
+an update of `plugins` or `themes` the inventory (`WPPlugins`) says has
+nothing pending (`Nothing to update`), and otherwise runs the steps above.
+Its failures are one alert per site (§11.1, recurring kinds). A canceled
+one clears the key: it never ran.
 
 ### 6.3 Database console
 
@@ -2155,7 +2234,7 @@ lasts (across days, across a changing detail line), new when it changes.
 | --- | --- | --- | --- | --- | --- |
 | `certificate` | `certificate.renewal:site:<id>` | the error's first line | error | `certificate renewal failed: <first line>` | an active site whose last renewal failed |
 | `certificate` | `certificate.expiry:site:<id>` | the expiry (RFC 3339) and the level | warning; error under 3 days | `certificate expires in <days> days` (refreshed at each evaluation) | an active site whose certificate expires within 14 days; `at` is the expiry |
-| `task` | `task:backup.scheduled:site:<id>` | the error's first line | error | as below | the newest failed scheduled backup of a site: the schedule repeats it, and one alert per run was a new alert every slot (and, before the back-off of §5.3, every five minutes) |
+| `task` | `task:<kind>:site:<id>` for the recurring kinds `backup.scheduled`, `wp.vulncheck`, `site.malwarescan`, `wp.update.scheduled` | the error's first line | error | as below | the newest failed job of such a kind for a site (a scheduled backup, say): the schedule repeats it, and one alert per run was a new alert every slot (and, before the back-off of §5.3, every five minutes) |
 | `task` | `task:<job id>` | — | error | `<the kind's English name> failed: <error's first line>` (the text's first argument is the raw kind, named in the reader's language when read; an alert stored before #13 has the kind with dots as spaces, read the same) | a non-quiet job that failed in the last 24 hours; `at` is its creation. A job of a site that no longer exists (a creation that failed and was rolled back) is a server-wide alert whose `site` is the domain the job recorded (`startJob` stores `{site_id, domain}` as the payload of a function job), or `site #<id>`: admins must see a failed creation |
 | `service` | `service:<name>` | the state | error | `<name> is <state>: <detail>` | a service the agent reports `failed` or `stopped` |
 | `service` | `connector.token_guessing` | the burst's start | error | `<n> invalid connector tokens since <time>: something may be guessing the sites' tokens` | a burst of wrong connector tokens (§8); `at` is its start |

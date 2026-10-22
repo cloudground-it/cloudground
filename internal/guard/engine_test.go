@@ -261,6 +261,28 @@ func TestVerify(t *testing.T) {
 	}
 }
 
+// Measure samples one side as Verify does and judges nothing; a Verify of
+// the same side against what it measured passes, one after a break blocks.
+func TestMeasureThenVerify(t *testing.T) {
+	f := newFake(16, map[string]side{"prod.test": {medianMs: 300, status: 200}})
+	e := &Engine{Target: "https://127.0.0.1", Client: f.client(), Seed: 1}
+	before, err := e.Measure(contextT(), prod, []string{"/", "/wp-login.php"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(before) != 2 || before[0].Requests != verifyRequests || before[0].Status != 200 {
+		t.Fatalf("measured %+v", before)
+	}
+	if r, _ := e.Verify(contextT(), prod, before, []string{"/", "/wp-login.php"}, DefaultThresholds()); r.Verdict != VerdictPass {
+		t.Fatalf("the same side again: %s %v", r.Verdict, r.Reasons)
+	}
+	broken := newFake(17, map[string]side{"prod.test": {medianMs: 300, status: 500}})
+	e.Client = broken.client()
+	if r, _ := e.Verify(contextT(), prod, before, []string{"/"}, DefaultThresholds()); r.Verdict != VerdictBlock {
+		t.Fatalf("after a break: %s %v", r.Verdict, r.Reasons)
+	}
+}
+
 func TestInvalidTargetIsAnError(t *testing.T) {
 	for _, target := range []string{"", "127.0.0.1", "ftp://127.0.0.1", "https://"} {
 		e := &Engine{Target: target}

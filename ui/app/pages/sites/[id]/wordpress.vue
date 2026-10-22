@@ -15,6 +15,38 @@ const pendingUpdates = computed(() => (wp.value?.plugins ?? []).filter(p => p.up
 
 // wp-admin's one-click login is the site header's "Log in to WordPress".
 const update = (what: string) => run(() => api.post(`/api/sites/${site.value.id}/wp/update`, { what }), t('wp.updating', { what }))
+// Automatic updates (#20): the same snapshot, check and rollback as the
+// buttons, at the hour chosen. "Off" keeps the rest for when it is on.
+const caps = useCapabilities()
+const storedSchedule = computed(() => site.value.config.wp_updates ?? {})
+const schedForm = reactive({ frequency: 'off' as 'off' | 'daily' | 'weekly', hour: -1, what: 'all' as 'core' | 'plugins' | 'themes' | 'all' })
+function loadSchedule() {
+  const p = storedSchedule.value
+  schedForm.frequency = p.enabled ? (p.schedule || 'weekly') : 'off'
+  schedForm.hour = p.hour ?? -1
+  schedForm.what = p.what || 'all'
+}
+loadSchedule()
+watch(storedSchedule, loadSchedule, { deep: true })
+const schedFrequencyItems = computed(() => (['off', 'daily', 'weekly'] as const).map(v => ({ label: t(`backup.frequency.${v}`), value: v })))
+const schedHourItems = computed(() => [
+  { label: t('backup.hourAny'), value: -1 },
+  ...Array.from({ length: 24 }, (_, h) => ({ label: `${String(h).padStart(2, '0')}:00`, value: h }))
+])
+const schedWhatItems = computed(() => (['all', 'core', 'plugins', 'themes'] as const).map(v => ({ label: t(`wp.what.${v}`), value: v })))
+const scheduleChanged = computed(() => {
+  const p = storedSchedule.value
+  const enabled = schedForm.frequency !== 'off'
+  return enabled !== !!p.enabled || (enabled && (schedForm.frequency !== (p.schedule || 'weekly') || schedForm.hour !== (p.hour ?? -1) || schedForm.what !== (p.what || 'all')))
+})
+async function saveSchedule() {
+  const enabled = schedForm.frequency !== 'off'
+  const body: Record<string, unknown> = enabled
+    ? { enabled, schedule: schedForm.frequency, hour: schedForm.hour, what: schedForm.what }
+    : { enabled }
+  if (await run(() => api.put(`/api/sites/${site.value.id}/wp/updates`, body), t('wp.scheduleSaved'))) await refresh()
+}
+
 const objectCache = (enable: boolean) => run(() => api.patch(`/api/sites/${site.value.id}`, { object_cache: enable }), enable ? t('wp.ocEnabling') : t('wp.ocDisabling')).then(refresh)
 const warm = () => run(() => api.post(`/api/sites/${site.value.id}/warm`), t('wp.warming'))
 
@@ -80,6 +112,26 @@ const columns = computed(() => [
         <span v-else class="text-dimmed">—</span>
       </template>
     </UTable>
+  </PanelSection>
+
+  <PanelSection :title="t('wp.schedule')" :description="t('wp.safeUpdateHint')">
+    <div v-if="!site.staging_of" class="grid gap-4 sm:grid-cols-3">
+      <UFormField :label="t('backup.frequencyLabel')">
+        <USelect v-model="schedForm.frequency" :items="schedFrequencyItems" class="w-full" :disabled="!canManage" />
+      </UFormField>
+      <UFormField v-if="schedForm.frequency !== 'off'" :label="t('backup.hour')" :help="t('wp.scheduleHourHelp', { zone: caps?.time_zone || 'UTC' })">
+        <USelect v-model="schedForm.hour" :items="schedHourItems" class="w-full" :disabled="!canManage" />
+      </UFormField>
+      <UFormField v-if="schedForm.frequency !== 'off'" :label="t('wp.scheduleWhat')">
+        <USelect v-model="schedForm.what" :items="schedWhatItems" class="w-full" :disabled="!canManage" />
+      </UFormField>
+    </div>
+    <p class="m-0 text-[13px] text-muted">
+      {{ site.staging_of ? t('wp.scheduleStaging') : t('wp.safeUpdateRepo') }}
+    </p>
+    <template v-if="canManage && !site.staging_of" #footer>
+      <UButton :label="t('common.save')" :loading="busy" :disabled="!scheduleChanged" @click="saveSchedule" />
+    </template>
   </PanelSection>
 
   <PanelSection v-if="wp?.themes?.length" :title="t('wp.themes')" flush>

@@ -50,6 +50,7 @@ var taskNames = map[string]map[string]string{
 		"wp.cleanup":            "Pulizia database WordPress",
 		"wp.object_cache":       "Object cache",
 		"wp.update":             "Aggiornamento WordPress",
+		"wp.update.scheduled":   "Aggiornamento WordPress pianificato",
 		"wp.vulncheck":          "Controllo vulnerabilità",
 	},
 	"en": {
@@ -95,6 +96,7 @@ var taskNames = map[string]map[string]string{
 		"wp.cleanup":            "WordPress database cleanup",
 		"wp.object_cache":       "Object cache",
 		"wp.update":             "WordPress update",
+		"wp.update.scheduled":   "Scheduled WordPress update",
 		"wp.vulncheck":          "Vulnerability check",
 	},
 	"fr": {
@@ -140,6 +142,7 @@ var taskNames = map[string]map[string]string{
 		"wp.cleanup":            "Nettoyage de la base WordPress",
 		"wp.object_cache":       "Cache d’objets",
 		"wp.update":             "Mise à jour WordPress",
+		"wp.update.scheduled":   "Mise à jour WordPress planifiée",
 		"wp.vulncheck":          "Contrôle des vulnérabilités",
 	},
 	"es": {
@@ -185,6 +188,7 @@ var taskNames = map[string]map[string]string{
 		"wp.cleanup":            "Limpieza de la base de datos de WordPress",
 		"wp.object_cache":       "Caché de objetos",
 		"wp.update":             "Actualización de WordPress",
+		"wp.update.scheduled":   "Actualización programada de WordPress",
 		"wp.vulncheck":          "Comprobación de vulnerabilidades",
 	},
 	"de": {
@@ -230,6 +234,7 @@ var taskNames = map[string]map[string]string{
 		"wp.cleanup":            "WordPress-Datenbankbereinigung",
 		"wp.object_cache":       "Objekt-Cache",
 		"wp.update":             "WordPress-Update",
+		"wp.update.scheduled":   "Geplantes WordPress-Update",
 		"wp.vulncheck":          "Prüfung auf Sicherheitslücken",
 	},
 }
