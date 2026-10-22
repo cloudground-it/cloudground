@@ -114,6 +114,12 @@ func (s *Server) handleSetWPCleanup(w http.ResponseWriter, r *http.Request, c *c
 		next.Enabled = *req.Enabled
 	}
 	if req.KeepRevisions != nil {
+		// 0 is the stored "unset", never a number the caller may name: keeping
+		// no revision would otherwise turn silently into keeping five.
+		if *req.KeepRevisions == 0 {
+			respondErr(w, http.StatusBadRequest, fmt.Sprintf("keep between %d and %d revisions of each post", site.MinKeepRevisions, site.MaxKeepRevisions))
+			return
+		}
 		next.KeepRevisions = *req.KeepRevisions
 	}
 	if err := site.CheckWPCleanup(next); err != nil {
