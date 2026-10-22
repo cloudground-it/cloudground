@@ -82,8 +82,11 @@ func (h *harness) wpCleanup(t *testing.T) {
 	_ = json.Unmarshal(b, &v)
 	h.assert(t, "#78: the schedule is off by default, with the repository ready", c == 200 && !v.Enabled && v.BackupsReady && v.Keep == 5, "%d %s", c, head(b, 300))
 
-	c, _ = h.api.put(path, map[string]any{"keep_revisions": 0})
-	h.check(t, "#78: keeping no revision is refused", fmt.Sprint(c), "400")
+	// 0 is "the default" (internal/api SPEC §3.17), so the bounds are tried at both ends.
+	c, _ = h.api.put(path, map[string]any{"keep_revisions": 101})
+	h.check(t, "#78: keeping more than 100 revisions is refused", fmt.Sprint(c), "400")
+	c, _ = h.api.put(path, map[string]any{"keep_revisions": -1})
+	h.check(t, "#78: a negative number of revisions is refused", fmt.Sprint(c), "400")
 	c, _ = h.api.put(path, map[string]any{"keep_revisions": 3})
 	h.check(t, "#78: keeping three revisions is accepted", fmt.Sprint(c), "200")
 
