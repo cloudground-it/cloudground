@@ -29,13 +29,13 @@ var Locales = []string{"it", "en", "fr", "es", "de"}
 func ValidLocale(l string) bool { return slices.Contains(Locales, l) }
 
 // userCols are the columns scanUser reads, from users aliased u.
-const userCols = `u.id, u.email, u.password_hash, u.role, u.first_name, u.last_name, u.locale, u.disabled, u.totp_enabled, u.created_at`
+const userCols = `u.id, u.email, u.password_hash, u.role, u.first_name, u.last_name, u.locale, u.whats_new_seen, u.disabled, u.totp_enabled, u.created_at`
 
 // scanUser reads userCols, then whatever extra columns the query adds.
 func scanUser(row interface{ Scan(...any) error }, extra ...any) (User, error) {
 	var u User
 	var created string
-	dest := append([]any{&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.FirstName, &u.LastName, &u.Locale,
+	dest := append([]any{&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.FirstName, &u.LastName, &u.Locale, &u.WhatsNewSeen,
 		&u.Disabled, &u.TOTPEnabled, &created}, extra...)
 	if err := row.Scan(dest...); err != nil {
 		return User{}, err
@@ -284,6 +284,19 @@ func (s *Store) UpdateUserLocale(id int64, locale string) error {
 	}
 	_, err := s.db.Exec(`UPDATE users SET locale = ? WHERE id = ?`, locale, id)
 	return err
+}
+
+// SetUserWhatsNewSeen records the release whose changelog entry an account
+// has seen (#106).
+func (s *Store) SetUserWhatsNewSeen(id int64, release string) error {
+	res, err := s.db.Exec(`UPDATE users SET whats_new_seen = ? WHERE id = ?`, release, id)
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err != nil || n == 0 {
+		return errors.Join(ErrNotFound, err)
+	}
+	return nil
 }
 
 // SetUserPassword replaces an account's password hash, and ends its

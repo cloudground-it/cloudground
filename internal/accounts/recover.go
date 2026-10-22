@@ -87,6 +87,7 @@ func createFirstAdmin(store *state.Store, out io.Writer, email string) error {
 	if err != nil {
 		return fmt.Errorf("creating the account: %w", err)
 	}
+	markWhatsNewSeen(store, &u)
 	_ = store.Audit(recoveryActor, "user.create", email, "first admin created by host recovery")
 	printCredential(out, u.Email, password, "created")
 	return nil

@@ -14,6 +14,9 @@ type User struct {
 	// Locale is the interface language chosen (one of Locales); empty
 	// when the account has not chosen.
 	Locale string `json:"locale"`
+	// WhatsNewSeen is the release whose changelog entry the account last
+	// saw ("v0.3.2"); empty when it has seen none (#106).
+	WhatsNewSeen string `json:"whats_new_seen"`
 	// Disabled accounts cannot sign in, and their sessions are closed.
 	Disabled bool `json:"disabled"`
 	// SiteIDs are an operator's assigned sites.

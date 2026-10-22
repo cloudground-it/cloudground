@@ -32,6 +32,10 @@
 
 # ------------------------------------------------ not what the suite runs --
 
+CHANGELOG.md                           whats new
+changelog.go                           whats new
+internal/changelog/**                  whats new
+internal/api/changelog.go              whats new
 docs/**                                NONE
 bench/**                               NONE
 .github/**                             NONE

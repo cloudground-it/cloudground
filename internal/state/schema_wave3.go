@@ -155,6 +155,12 @@ var stepMalware = schemaStep{version: 26, stmts: []string{
 	`ALTER TABLE panel_settings ADD COLUMN malware_scan INTEGER NOT NULL DEFAULT 0`,
 }}
 
+// stepWhatsNew remembers, per account, the release whose changelog entry it
+// last saw (#106); empty until it has seen one.
+var stepWhatsNew = schemaStep{version: 28, stmts: []string{
+	`ALTER TABLE users ADD COLUMN whats_new_seen TEXT NOT NULL DEFAULT ''`,
+}}
+
 // stepBlocklist keeps the server's block list (#21, blocklist.go): the
 // addresses blocked by hand or for repeated failed sign-ins, the ones never
 // blocked, and the automatic blocking's settings (one JSON row; none is the

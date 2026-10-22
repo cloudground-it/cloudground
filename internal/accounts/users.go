@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/cloudground-it/cloudground/internal/state"
+	"github.com/cloudground-it/cloudground/internal/version"
 )
 
 // User management by an admin (SPEC §2.5). Each method takes the admin
@@ -93,6 +94,7 @@ func (sv *Service) CreateUser(ctx context.Context, actor string, f UserForm) (st
 	case err != nil:
 		return state.User{}, err
 	}
+	markWhatsNewSeen(sv.Store, &u)
 	sv.audit(actor, "user.create", u.Email, f.Role)
 	return u, nil
 }
@@ -188,4 +190,15 @@ func (sv *Service) DeleteUser(me state.User, actor string, id int64) error {
 	}
 	sv.audit(actor, "user.delete", target.Email, "")
 	return nil
+}
+
+// markWhatsNewSeen gives a new account the running release as the one whose
+// changelog it has seen: an account made now was not updated into this
+// release, so it is not greeted with "What's new". Accounts that existed
+// before the column keep "" and see it after upgrading (#106). A failure
+// leaves the dialog to appear once; it is not worth refusing the account.
+func markWhatsNewSeen(store *state.Store, u *state.User) {
+	if err := store.SetUserWhatsNewSeen(u.ID, version.Version); err == nil {
+		u.WhatsNewSeen = version.Version
+	}
 }

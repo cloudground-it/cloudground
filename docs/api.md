@@ -96,6 +96,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `POST /api/account/2fa/begin`: 8 KiB
   - `POST /api/account/2fa/disable`: 8 KiB
   - `PUT /api/account/profile`: 8 KiB
+  - `POST /api/account/whats-new`: 8 KiB
   - `POST /api/users`: 8 KiB
   - `POST /api/users/{id}/password`: 8 KiB
   - `POST /api/tokens`: 8 KiB
@@ -161,6 +162,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `GET` | `/api/account/sessions` | auth, session only | your active sessions |
 | `DELETE` | `/api/account/sessions/{id}` | auth, session only | revoke one |
 | `PUT` | `/api/account/profile` | auth, session only | your first and last name and interface language |
+| `GET` | `/api/changelog` | auth | what changed in each release, from the CHANGELOG.md inside the panel: `current` (the running release), `seen` (the release your account last saw), `unseen` (the versions to tell you about, newest first) and `entries` (`version`, `body` in Markdown), newest first |
+| `POST` | `/api/account/whats-new` | auth, session only | mark the running release's changelog as seen by your account |
 
 ### Accounts
 

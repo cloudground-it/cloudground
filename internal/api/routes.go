@@ -76,6 +76,11 @@ func (s *Server) routeTable() []route {
 		{Method: put, Path: "/api/account/profile", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handleUpdateProfile,
 			Section: secAccount, Doc: "your first and last name and interface language"},
 
+		{Method: get, Path: "/api/changelog", Policy: policySignedIn, Handle: s.handleChangelog,
+			Section: secAccount, Doc: "what changed in each release, from the CHANGELOG.md inside the panel: `current` (the running release), `seen` (the release your account last saw), `unseen` (the versions to tell you about, newest first) and `entries` (`version`, `body` in Markdown), newest first"},
+		{Method: post, Path: "/api/account/whats-new", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handleWhatsNewSeen,
+			Section: secAccount, Doc: "mark the running release's changelog as seen by your account"},
+
 		// Users.
 		{Method: get, Path: "/api/users", Policy: policyGlobal, Handle: plain(s.handleListUsers),
 			Section: secUsers, Doc: "every account"},

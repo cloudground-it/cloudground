@@ -42,6 +42,19 @@
     "sites": "Sites",
     "users": "Users"
   },
+  "whatsnew": {
+    "title": "What's new",
+    "hint": "What changed in each CloudGround release, newest first. The notes are in English.",
+    "full": "Full changelog on GitHub",
+    "none": "No release notes in this build.",
+    "new": "New",
+    "running": "Running",
+    "dialogTitle": "What's new in {v}",
+    "dialogHint": "This panel was updated since you last looked.",
+    "skipped": "One release since you last looked. | {n} releases since you last looked.",
+    "all": "All releases",
+    "gotIt": "Got it"
+  },
   "user": {
     "appearance": "Appearance",
     "language": "Language",

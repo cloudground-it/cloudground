@@ -47,6 +47,7 @@ var schemaSteps = []schemaStep{
 	stepVulnerabilities,   // 25
 	stepMalware,           // 26
 	stepBlocklist,         // 27
+	stepWhatsNew,          // 28
 }
 
 // latestSchema is the version Open brings every database to.

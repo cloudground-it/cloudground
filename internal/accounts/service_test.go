@@ -12,6 +12,7 @@ import (
 
 	"github.com/cloudground-it/cloudground/internal/state"
 	"github.com/cloudground-it/cloudground/internal/throttle"
+	"github.com/cloudground-it/cloudground/internal/version"
 )
 
 type auditLine struct{ actor, action, subject, detail string }
@@ -690,5 +691,34 @@ func TestLoginFailuresReported(t *testing.T) {
 	f.sv.Login(bg, in)
 	if strings.Join(got, " ") != "198.51.100.7 198.51.100.8 198.51.100.10" {
 		t.Fatalf("reported %v", got)
+	}
+}
+
+// #106: an account made now has seen the running release, so a fresh
+// install does not greet its first administrator with "What's new"; one
+// the store made without the service (it predates the column) has not.
+func TestNewAccountsHaveSeenTheRunningRelease(t *testing.T) {
+	saved := version.Version
+	version.Version = "v9.9.9"
+	defer func() { version.Version = saved }()
+	f := newFixture(t)
+	f.st.CreateSetupToken("boot", time.Hour)
+	first, err := f.sv.Setup(bg, "a@example.com", pw, "boot")
+	if err != nil || first.WhatsNewSeen != "v9.9.9" {
+		t.Fatalf("first administrator: %+v %v", first, err)
+	}
+	if got, _ := f.st.GetUser(first.ID); got.WhatsNewSeen != "v9.9.9" {
+		t.Fatalf("stored: %+v", got)
+	}
+	u, err := f.sv.CreateUser(bg, "a@example.com", UserForm{Email: "ops@example.com", Password: pw, Role: "readonly"})
+	if err != nil || u.WhatsNewSeen != "v9.9.9" {
+		t.Fatalf("created user: %+v %v", u, err)
+	}
+	if got, _ := f.st.GetUser(u.ID); got.WhatsNewSeen != "v9.9.9" {
+		t.Fatalf("stored: %+v", got)
+	}
+	old, err := f.st.CreateUser("old@example.com", "hash", "admin")
+	if err != nil || old.WhatsNewSeen != "" {
+		t.Fatalf("old account: %+v %v", old, err)
 	}
 }

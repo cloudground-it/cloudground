@@ -24,6 +24,10 @@ const items = computed<DropdownMenuItem[][]>(() => [
     icon: 'i-cg-lock',
     to: '/security'
   }, {
+    label: t('whatsnew.title'),
+    icon: 'i-cg-release',
+    to: '/whats-new'
+  }, {
     label: t('user.language'),
     icon: 'i-cg-language',
     // Each language in its own name, so it can be found from any other.

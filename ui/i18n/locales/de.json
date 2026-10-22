@@ -42,6 +42,19 @@
     "sites": "Websites",
     "users": "Benutzer"
   },
+  "whatsnew": {
+    "title": "Neuigkeiten",
+    "hint": "Was sich in jeder CloudGround-Version geändert hat, die neueste zuerst. Die Hinweise sind auf Englisch.",
+    "full": "Vollständiges Changelog auf GitHub",
+    "none": "Diese Version enthält keine Release-Hinweise.",
+    "new": "Neu",
+    "running": "Aktiv",
+    "dialogTitle": "Neuigkeiten in {v}",
+    "dialogHint": "Das Panel wurde aktualisiert, seit du zuletzt hier warst.",
+    "skipped": "Eine Version seit deinem letzten Besuch. | {n} Versionen seit deinem letzten Besuch.",
+    "all": "Alle Versionen",
+    "gotIt": "Verstanden"
+  },
   "user": {
     "appearance": "Darstellung",
     "language": "Sprache",
