@@ -25,6 +25,8 @@ const (
 	// The alert webhook URL is a credential: whoever has it can post as the
 	// panel.
 	SecretNotifyWebhook = "notify_webhook"
+	// SecretMailPassword is the server-wide mail relay's (#77).
+	SecretMailPassword = "mail_password"
 )
 
 // Kinds of per-site secret.
@@ -32,6 +34,8 @@ const (
 	SiteSecretDBPassword      = "db_password"
 	SiteSecretConnectorToken  = "connector_token"
 	SiteSecretStagingPassword = "staging_password"
+	// SiteSecretMailPassword is the site's own mail relay's (#77).
+	SiteSecretMailPassword = "mail_password"
 )
 
 // panelSecrets are the panel-wide secret names, also as the settings keys

@@ -183,6 +183,12 @@ path changes.
   `xmlrpc`, `file_edit`, `version` (the readme item is nginx's alone), and
   `env[CLOUDGROUND_LOGIN_PATH]` = the login path when it is one (`^[a-z0-9][a-z0-9-]{2,63}$`);
   nothing when neither applies.
+- Mail (#77, internal/api SPEC §14.2): on a site that is not a staging copy (`StagingOf == 0`)
+  and whose mail is not off (`config.mail.off`), `php_admin_value[sendmail_path] =
+  /usr/local/bin/panel-agent sendmail -t -i`, the client of the panel's mail gate, and, when
+  the site names a sender (`config.mail.from`, a plain address), `env[CLOUDGROUND_MAIL_FROM]`
+  for the connector (connector/SPEC.md §2.13); a staging copy, or a site with mail off, has
+  neither, so its `mail()` fails as it did before.
 - APCu on (`apc.enabled`), sized on the command line (§4). OPcache on, `validate_timestamps = 1`,
   `revalidate_freq = 60` (the JIT mode is on the command line, §4). `apc.enable_cli` and
   `opcache.enable_cli` off.

@@ -397,6 +397,15 @@ do_action('wp_print_footer_scripts');
 check('dequeued again before footer scripts print (widgets enqueue late)', Site::$dequeued, ['wc-cart-fragments']);
 check('staging sends no mail', apply_filters('pre_wp_mail', null, []), true);
 
+section('mail sender');
+putenv('CLOUDGROUND_MAIL_FROM');
+check('no sender in the pool: WordPress keeps its own', apply_filters('wp_mail_from', 'wordpress@example.com'), 'wordpress@example.com');
+putenv('CLOUDGROUND_MAIL_FROM=shop@example.com');
+check("the pool's sender wins", apply_filters('wp_mail_from', 'wordpress@example.com'), 'shop@example.com');
+putenv('CLOUDGROUND_MAIL_FROM=not an address');
+check('a sender that is not an address is ignored', apply_filters('wp_mail_from', 'wordpress@example.com'), 'wordpress@example.com');
+putenv('CLOUDGROUND_MAIL_FROM');
+
 section('failed sign-ins');
 $sent = [];
 AuthFailure::$send = function (string $line) use (&$sent) { $sent[] = $line; };

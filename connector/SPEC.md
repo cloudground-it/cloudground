@@ -43,6 +43,7 @@ the site can edit; wp-cli does not see it:
 | `CLOUDGROUND_2FA` | `optional` or `required`: two-factor sign-in (§2.11). Anything else, or absent, is off. |
 | `CLOUDGROUND_HARDENING` | Comma-separated hardening items: `xmlrpc`, `file_edit`, `version` (§2.12). Unknown items are ignored. |
 | `CLOUDGROUND_LOGIN_PATH` | The sign-in page's path segment instead of `wp-login.php` (§2.12), `^[a-z0-9][a-z0-9-]{2,63}$`; anything else is ignored. |
+| `CLOUDGROUND_MAIL_FROM` | The site's sender address for `wp_mail()` (§2.13); anything that is not an email address is ignored. |
 
 And from nginx, as a FastCGI parameter no client can set:
 `CLOUDGROUND_XMLRPC_FROM` = `1` when the address is on the site's XML-RPC
@@ -445,6 +446,17 @@ Each item on its own, from `CLOUDGROUND_HARDENING` and
   `admin-post.php` (Ajax calls pass too), instead of the redirect that
   would give the new path away. wp-cli does not see the environment: an
   email sent from a wp-cli or system cron run links to `wp-login.php`.
+
+### 2.13 Mail sender (#77)
+
+`wp_mail()` goes out through PHP's `mail()`, which the pool points at the
+panel's mail gate (internal/api SPEC §14.2); the connector only names the
+sender. When `CLOUDGROUND_MAIL_FROM` is an email address (`FILTER_VALIDATE_EMAIL`), the
+`wp_mail_from` filter answers it, at priority 1000, so the relay sees the
+address it was set up for rather than `wordpress@<domain>`; a plugin that
+sets its own sender earlier is overridden, which is the point: the relay
+refuses a sender it does not know. The sender's name (`wp_mail_from_name`)
+is left alone. Staging (§2.9) still sends nothing.
 
 ## 3. The object-cache drop-in
 

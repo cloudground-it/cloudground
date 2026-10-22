@@ -233,6 +233,10 @@ php_admin_value[upload_max_filesize] = 64M
 php_admin_value[post_max_size] = 64M
 php_admin_value[max_execution_time] = 300
 
+; mail() hands the message to the panel's mail gate, which knows the
+; site by its user and sends it through the relay (api SPEC 14.2).
+php_admin_value[sendmail_path] = /usr/local/bin/panel-agent sendmail -t -i
+
 ; Object cache in APCu, shared memory inside PHP itself: no separate
 ; service and no socket on a single server. The master's command line
 ; sets its size.

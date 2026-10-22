@@ -21,6 +21,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/ops/panel"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/config"
+	"github.com/cloudground-it/cloudground/internal/mailgate"
 	"github.com/cloudground-it/cloudground/internal/siteshell"
 	"github.com/cloudground-it/cloudground/internal/version"
 )
@@ -62,7 +63,12 @@ Configuration: /etc/cloudground/panel.env, then the environment
       was lost: rebuilds it from the panel's state (read only) and the
       server's databases and accounts, and prints what it adopted, kept and
       refused (a system or reserved name, one two sites claim, one the
-      server lacks). It creates, drops and grants nothing.`
+      server lacks). It creates, drops and grants nothing.
+
+  panel-agent sendmail [-t] [-i] [recipients]
+      Run by PHP's mail() as a site's user (its pool's sendmail_path): hands
+      the message on standard input to the panel's mail gate, which sends
+      it through the mail relay. It needs no privilege and holds no secret.`
 
 // answerTimeout bounds how long a stopping agent waits to answer the
 // requests in flight (a self-update's reply among them).
@@ -88,6 +94,12 @@ func main() {
 }
 
 func run(args []string) int {
+	if len(args) > 0 && args[0] == mailgate.Name {
+		// PHP's mail() of a site, as the site's user: the client of the
+		// panel's mail gate (internal/api SPEC §14.2). Nothing else of the
+		// agent runs.
+		return mailgate.Main(args[1:], os.Stdin, os.Stderr)
+	}
 	if version.HandleFlag(args, "panel-agent", help) {
 		return 0
 	}

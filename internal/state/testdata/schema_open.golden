@@ -105,7 +105,7 @@ table meta on meta
 table metric_samples on metric_samples
   create table metric_samples(id integer primary key autoincrement,cpu_headroom_pct integer not null,mem_headroom_pct integer not null,disk_headroom_pct integer not null,load1 real not null,sampled_at text not null)
 table panel_settings on panel_settings
-  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')),vulnerability_check integer not null default 1,malware_scan integer not null default 0)
+  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')),vulnerability_check integer not null default 1,malware_scan integer not null default 0,mail text not null default '{}')
 table schedule_state on schedule_state
   create table schedule_state(key text primary key,last_run text not null)
 table schema_migrations on schema_migrations
@@ -323,6 +323,7 @@ columns of panel_settings
   9 | update_channel | TEXT | 1 | 'stable' | 0
   10 | vulnerability_check | INTEGER | 1 | 1 | 0
   11 | malware_scan | INTEGER | 1 | 0 | 0
+  12 | mail | TEXT | 1 | '{}' | 0
 
 columns of schedule_state
   0 | key | TEXT | 0 | - | 1

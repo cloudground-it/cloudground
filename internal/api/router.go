@@ -309,6 +309,17 @@ func (s *Server) ConnectorRoutes() http.Handler {
 	return s.withCommonHeaders(mux)
 }
 
+// MailRoutes is the sites' mail gate (SPEC.md §14.2), served on its own
+// Unix socket: POST /send and nothing else. It is not a route of the
+// panel's: no session, token or policy applies, the caller is the site the
+// kernel says connected (mail_gate.go).
+func (s *Server) MailRoutes() http.Handler {
+	s.Init()
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /send", s.handleGateSend)
+	return mux
+}
+
 // serve is the per-route pipeline (SPEC.md §1.2, steps 3 to 10).
 func (s *Server) serve(rt route) http.Handler {
 	limit := rt.MaxBody

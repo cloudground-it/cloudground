@@ -161,6 +161,12 @@ var stepWhatsNew = schemaStep{version: 28, stmts: []string{
 	`ALTER TABLE users ADD COLUMN whats_new_seen TEXT NOT NULL DEFAULT ''`,
 }}
 
+// stepMail keeps the server-wide mail relay and the alert recipients
+// (#77, api SPEC §14) as one JSON value; the relay's password is a secret.
+var stepMail = schemaStep{version: 29, stmts: []string{
+	`ALTER TABLE panel_settings ADD COLUMN mail TEXT NOT NULL DEFAULT '{}'`,
+}}
+
 // stepBlocklist keeps the server's block list (#21, blocklist.go): the
 // addresses blocked by hand or for repeated failed sign-ins, the ones never
 // blocked, and the automatic blocking's settings (one JSON row; none is the

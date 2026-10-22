@@ -74,6 +74,8 @@ const links = computed(() => {
   )
   const more: Tab[] = [{ label: 'Cron', icon: 'i-cg-cron', to: `${base.value}/cron` }]
   if (s.php_version) more.push({ label: 'PHP', icon: 'i-cg-code', to: `${base.value}/php` })
+  // mail() of a PHP site goes through the panel's relay (#77).
+  if (s.php_version) more.push({ label: t('tabs.mail'), icon: 'i-cg-bell', to: `${base.value}/mail` })
   more.push({ label: t('tabs.resources'), icon: 'i-cg-gauge', to: `${base.value}/resources` })
   more.push(
     { label: t('tabs.sftp'), icon: 'i-cg-key', to: `${base.value}/sftp` },

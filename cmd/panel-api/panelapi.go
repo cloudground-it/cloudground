@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/api"
 	"github.com/cloudground-it/cloudground/internal/config"
+	"github.com/cloudground-it/cloudground/internal/mailgate"
 	"github.com/cloudground-it/cloudground/internal/state"
 	"github.com/cloudground-it/cloudground/internal/version"
 	"github.com/cloudground-it/cloudground/ui"
@@ -134,6 +136,12 @@ func serve(cfg *config.Config, log *slog.Logger) error {
 			log.Error("connector listener failed", "err", err)
 		}
 	}()
+	mailGate := &http.Server{
+		Handler: srv.MailRoutes(), ConnContext: api.MailConnContext,
+		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 60 * time.Second,
+		WriteTimeout: 120 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 64 << 10,
+	}
+	go serveMailGate(mailGate, log)
 	start, err := panelServe(cfg, panel)
 	if err != nil {
 		return err
@@ -159,7 +167,34 @@ func serve(cfg *config.Config, log *slog.Logger) error {
 		log.Warn("second signal: exiting without waiting", "signal", sig.String())
 		os.Exit(1)
 	}()
-	return shutdown(httpShutdownTimeout, cfg.DrainTimeout, stopApp, log, srv, panel, connector)
+	return shutdown(httpShutdownTimeout, cfg.DrainTimeout, stopApp, log, srv, panel, connector, mailGate)
+}
+
+// serveMailGate serves the sites' mail gate (internal/api SPEC §14.2) on
+// its socket in the unit's runtime directory. Every site user may connect
+// (0666): the gate knows each one by its uid. Without the directory (a run
+// outside the unit) there is no gate, and sites' mail() fails as it did
+// before; the panel itself works.
+func serveMailGate(s *http.Server, log *slog.Logger) {
+	if _, err := os.Stat(filepath.Dir(mailgate.Socket)); err != nil {
+		log.Info("no mail gate: its directory is missing", "dir", filepath.Dir(mailgate.Socket))
+		return
+	}
+	_ = os.Remove(mailgate.Socket)
+	ln, err := net.Listen("unix", mailgate.Socket)
+	if err != nil {
+		log.Error("mail gate listener failed", "err", err)
+		return
+	}
+	if err := os.Chmod(mailgate.Socket, 0o666); err != nil {
+		log.Error("mail gate: socket mode", "err", err)
+		_ = ln.Close()
+		return
+	}
+	log.Info("mail gate", "socket", mailgate.Socket)
+	if err := s.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Error("mail gate failed", "err", err)
+	}
 }
 
 // httpShutdownTimeout is how long requests in flight get to finish at a

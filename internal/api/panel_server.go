@@ -135,6 +135,14 @@ type Server struct {
 	// updates is the last list of the server's pending package upgrades
 	// (system_updates.go).
 	sysUpdates updatesCache
+	// Mail (mail_gate.go, mail_relay.go): mailRate counts each site's
+	// messages through the gate; mailSend replaces the SMTP sender,
+	// gateUser the uid → user name lookup and mailTXT the checklist's DNS
+	// (tests).
+	mailRate mailRateGate
+	mailSend mailSender
+	gateUser func(uid uint32) (string, error)
+	mailTXT  func(ctx context.Context, name string) ([]string, error)
 }
 
 // connectorFailures is how many wrong connector tokens an address may send

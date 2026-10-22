@@ -87,6 +87,28 @@ func hardening(site state.Site) (items, login string) {
 	return strings.Join(on, ","), login
 }
 
+// SendmailPath is PHP's sendmail_path on a site that sends mail: the
+// panel's mail gate client, run as the site's user (api SPEC §14.2).
+const SendmailPath = "/usr/local/bin/panel-agent sendmail -t -i"
+
+// mailFromRe is a sender the pool may carry: an address with no space,
+// quote, semicolon or control character, which the pool file could not
+// hold as one value.
+var mailFromRe = regexp.MustCompile(`^[A-Za-z0-9._%+=-]{1,64}@[A-Za-z0-9.-]{1,253}$`)
+
+// mailOut says whether site's mail() goes to the mail gate, and its sender
+// for the connector (SPEC §5.3): never on a staging copy, which keeps
+// sending nothing, nor on a site whose mail is off.
+func mailOut(site state.Site) (sends bool, from string) {
+	if site.StagingOf != 0 || site.Config.Mail.Off {
+		return false, ""
+	}
+	if mailFromRe.MatchString(site.Config.Mail.From) {
+		from = site.Config.Mail.From
+	}
+	return true, from
+}
+
 // RenderPool renders site's master configuration, its pool sized against
 // budgetMB (SPEC §5), and the path it belongs at.
 func RenderPool(site state.Site, budgetMB int) (path, content string, err error) {
@@ -195,6 +217,17 @@ func RenderPool(site state.Site, budgetMB int) (path, content string, err error)
 		}
 		if login != "" {
 			f.add("env[CLOUDGROUND_LOGIN_PATH] = %s", login)
+		}
+		f.add("")
+	}
+	if sends, from := mailOut(site); sends {
+		f.addAll(
+			"; mail() hands the message to the panel's mail gate, which knows the",
+			"; site by its user and sends it through the relay (api SPEC 14.2).",
+		)
+		admin("value", "sendmail_path", SendmailPath)
+		if from != "" {
+			f.add("env[CLOUDGROUND_MAIL_FROM] = %s", from)
 		}
 		f.add("")
 	}

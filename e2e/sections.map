@@ -24,9 +24,9 @@
 # Every section that sends requests to a hosted site through nginx.
 @serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup
 # Every section with a PHP site (its own FPM master, pool and slice).
-@php = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, protected paths, wordpress two-factor, wordpress hardening, dev mode
+@php = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, protected paths, wordpress two-factor, wordpress hardening, dev mode, mail relay
 # Every section with a WordPress site (database, wp-cli, the connector).
-@wordpress = site types, woocommerce, wordpress vulnerabilities, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress updates, wordpress teardown, migration import, woocommerce security, woocommerce teardown, blocklist, wordpress two-factor, wordpress hardening, wordpress cleanup
+@wordpress = site types, woocommerce, wordpress vulnerabilities, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress updates, wordpress teardown, migration import, woocommerce security, woocommerce teardown, blocklist, wordpress two-factor, wordpress hardening, wordpress cleanup, mail relay
 # The object cache and the loopback flush through a site's own FPM pool.
 @objectcache = woocommerce, wordpress cache, wordpress sftp, wordpress backups, migration import
 
@@ -95,11 +95,13 @@ internal/api/dns_check.go              F9b site creation
 internal/agent/ops/db/accounts.go      F9b site databases, SR tenant data, wordpress backups
 internal/agent/ops/db/registry.go      F9b site databases, SR tenant data, wordpress backups
 internal/agent/ops/backup/databases.go F9b site databases, wordpress backups, R-4.3 deploys and backups
-internal/api/alert_service.go          wordpress status and drift, R-4.3 proxies and alerts, R-4.3 deploys and backups
+internal/api/alert_service.go          wordpress status and drift, R-4.3 proxies and alerts, R-4.3 deploys and backups, mail relay
 internal/api/backup_service.go         wordpress backups, R-4.3 deploys and backups, F9b site databases, wordpress updates
 internal/api/backup_routes.go          wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, F9b site databases
 internal/api/backup_retention.go       wordpress backups
-internal/api/panel_settings.go         wordpress backups, R-4.6 backup interruption, R-6.3 release channel, R-10.5 root boundary
+internal/api/panel_settings.go         wordpress backups, R-4.6 backup interruption, R-6.3 release channel, R-10.5 root boundary, mail relay
+internal/api/mail*.go                  mail relay
+internal/mailgate/**                   mail relay
 internal/backuprepo/**                 wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, R-10.5 root boundary
 internal/api/connector_purge.go        woocommerce, wordpress cache, migration import, R-4.3 proxies and alerts
 internal/api/cronjobs.go               wordpress cron, wordpress cache
