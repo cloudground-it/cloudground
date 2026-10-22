@@ -100,13 +100,21 @@ func (h *harness) alerts() []e2eAlert {
 // reading the list asks the agent nothing, so it is a fast database read
 // (before R-4.3 every GET called ServiceStatus on the agent).
 func (h *harness) alertsTable(t *testing.T, f *feat) {
-	what := fmt.Sprintf("cg-e2e-nothing-%d", h.pid)
-	_, b := h.api.post(f.api("/wp/update"), fmt.Sprintf(`{"what":%q}`, what))
-	h.check(t, "R-4.3 control: an update of nothing fails", h.api.waitTask(taskID(b), 120*time.Second), "failed")
+	// A task that fails: the import of a file the site does not have. (It
+	// was an update of an unknown target, which #20 refuses with a 400
+	// before any task: it would cost a snapshot first.) Its alert is the
+	// task alert of the site that was not there before.
+	before := map[string]bool{}
+	for _, a := range h.alerts() {
+		before[a.ID] = true
+	}
+	missing := fmt.Sprintf("shared/cg-e2e-nothing-%d.sql", h.pid)
+	_, b := h.api.post(f.api("/database/import"), fmt.Sprintf(`{"path":%q,"confirm":%q}`, missing, f.fs))
+	h.check(t, "R-4.3 control: an import of nothing fails", h.api.waitTask(taskID(b), 120*time.Second), "failed")
 	var found e2eAlert
 	for end := time.Now().Add(15 * time.Second); time.Now().Before(end) && found.ID == ""; time.Sleep(500 * time.Millisecond) {
 		for _, a := range h.alerts() {
-			if a.Kind == "task" && a.SiteID == f.fid && strings.Contains(a.Message, what) {
+			if a.Kind == "task" && a.SiteID == f.fid && !before[a.ID] {
 				found = a
 			}
 		}

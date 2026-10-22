@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -47,16 +48,55 @@ var instLine = regexp.MustCompile(`^Inst (\S+) (?:\[([^\]]*)\] )?\((\S+) (.*?)(?
 // of a configuration file the package also changed.
 var aptOptions = []string{"-o", "DPkg::Lock::Timeout=120", "-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold", "-y", "-q"}
 
-// apt runs apt-get with args as a transient root service and returns its
-// output.
-func (o *Ops) apt(ctx context.Context, what string, max time.Duration, args ...string) ([]byte, error) {
-	res, err := o.Exec.Run(ctx, host.Cmd{Name: "systemd-run", Args: host.AptUnitArgs("CloudGround: "+what, max, args...),
+// apt runs apt-get with args as a transient root service, with env added
+// to apt's environment, and returns its output.
+func (o *Ops) apt(ctx context.Context, what string, max time.Duration, env []string, args ...string) ([]byte, error) {
+	res, err := o.Exec.Run(ctx, host.Cmd{Name: "systemd-run", Args: withUnitEnv(host.AptUnitArgs("CloudGround: "+what, max, args...), env),
 		Env: host.AptEnv[:2], Timeout: max + time.Minute})
 	if err != nil {
 		o.log().Warn("apt-get failed", "what", what, "err", err, "stdout", tail(res.Stdout, 2000))
 		return res.Stdout, fmt.Errorf("apt-get %s: %w", what, err)
 	}
 	return res.Stdout, nil
+}
+
+// withUnitEnv adds --setenv for each of env to a systemd-run argv, before
+// its "--".
+func withUnitEnv(argv, env []string) []string {
+	if len(env) == 0 {
+		return argv
+	}
+	i := slices.Index(argv, "--")
+	out := append([]string{}, argv[:i]...)
+	for _, kv := range env {
+		out = append(out, "--setenv="+kv)
+	}
+	return append(out, argv[i:]...)
+}
+
+// needrestartScript is needrestart's pass after an upgrade (SPEC §7): the
+// marker apt's hook would act on later is cleared (it would restart the
+// agent in the middle of the next package install), and needrestart
+// restarts what maps an upgraded library, under its own configuration
+// plus one rule: the panel's services are left alone. They are static Go
+// programs; what they would be restarted for is a helper they spawned.
+const needrestartScript = `rm -f /run/needrestart/unpacked
+test -x /usr/sbin/needrestart || exit 0
+printf '%s\n' "do q(/etc/needrestart/needrestart.conf);" '$nrconf{override_rc}->{qr(^cloudground-(agent|api)\.service$)} = 0;' > /run/cloudground/needrestart.conf
+exec /usr/sbin/needrestart -c /run/cloudground/needrestart.conf -r a -b`
+
+// restartServices runs needrestartScript as a transient root service. A
+// failure is logged: the upgrade itself went through.
+func (o *Ops) restartServices(ctx context.Context) {
+	argv := host.AptUnitArgs("CloudGround: restart the services the upgrade reached", aptListMax)
+	i := slices.Index(argv, "--")
+	argv = append(append([]string{}, argv[:i+1]...), "/bin/sh", "-c", needrestartScript)
+	res, err := o.Exec.Run(ctx, host.Cmd{Name: "systemd-run", Args: argv, Env: host.AptEnv[:2], Timeout: aptListMax + time.Minute})
+	if err != nil {
+		o.log().Warn("needrestart after the upgrade failed", "err", err, "stdout", tail(res.Stdout, 2000))
+		return
+	}
+	o.log().Info("needrestart after the upgrade", "stdout", tail(res.Stdout, 2000))
 }
 
 // tail is the end of b, at most n bytes, for the journal.
@@ -71,7 +111,7 @@ func tail(b []byte, n int) string {
 // asked (SPEC §7).
 func (o *Ops) SystemUpdates(ctx context.Context, p rpc.SystemUpdatesParams) (rpc.SystemUpdatesResult, error) {
 	if p.Refresh {
-		if _, err := o.apt(ctx, "update the package lists", aptRefreshMax, "-o", "DPkg::Lock::Timeout=60", "update", "-qq"); err != nil {
+		if _, err := o.apt(ctx, "update the package lists", aptRefreshMax, nil, "-o", "DPkg::Lock::Timeout=60", "update", "-qq"); err != nil {
 			return rpc.SystemUpdatesResult{}, err
 		}
 	}
@@ -81,7 +121,7 @@ func (o *Ops) SystemUpdates(ctx context.Context, p rpc.SystemUpdatesParams) (rpc
 // pendingUpdates is the simulation of the upgrade, the reboot notice and
 // the lists' age.
 func (o *Ops) pendingUpdates(ctx context.Context) (rpc.SystemUpdatesResult, error) {
-	out, err := o.apt(ctx, "list the pending updates", aptListMax, "-s", "-q", "-o", "Debug::NoLocking=1", "upgrade", "--with-new-pkgs")
+	out, err := o.apt(ctx, "list the pending updates", aptListMax, nil, "-s", "-q", "-o", "Debug::NoLocking=1", "upgrade", "--with-new-pkgs")
 	if err != nil {
 		return rpc.SystemUpdatesResult{}, err
 	}
@@ -201,9 +241,14 @@ func (o *Ops) ApplyUpdates(ctx context.Context, p rpc.ApplyUpdatesParams) (rpc.A
 		what = "install the security updates"
 	}
 	o.log().Info("applying system updates", "packages", n, "security_only", p.SecurityOnly)
-	if _, err := o.apt(ctx, what, aptUpgradeMax, args...); err != nil {
+	// needrestart's apt hook is suspended for the upgrade: it would restart
+	// the agent (and the API) while this call is still running, and the
+	// API would lose the answer. Its pass runs right after, with the
+	// panel's own services left alone.
+	if _, err := o.apt(ctx, what, aptUpgradeMax, []string{"NEEDRESTART_SUSPEND=1"}, args...); err != nil {
 		return rpc.ApplyUpdatesResult{}, err
 	}
+	o.restartServices(ctx)
 	after, err := o.pendingUpdates(ctx)
 	if err != nil {
 		return rpc.ApplyUpdatesResult{}, errors.Join(errors.New("the upgrade ran, but the pending updates could not be read again"), err)
