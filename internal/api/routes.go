@@ -118,6 +118,8 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "stop protecting a path (`{\"path\": \"/wp-admin\"}`); answers the site's protected paths"},
 		{Method: put, Path: "/api/sites/{id}/blocking", Policy: policyManage, MaxBody: blockingBody, Load: loadSite, Handle: s.handleSetBlocking,
 			Section: secSites, Doc: "the visitors the site refuses with 403 (`{\"addresses\": [\"203.0.113.0/24\"], \"user_agents\": [\"GPTBot\"], \"countries\": [\"CN\"], \"allow_countries_only\": false}`; empty lists refuse nobody); live at once, answers the rules"},
+		{Method: put, Path: "/api/sites/{id}/dev-mode", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleSetDevMode,
+			Section: secSites, Doc: "development mode: the page cache is bypassed for `{\"minutes\": 15}`, 30 or 60 (again while it runs: the time starts over), then switched back on by the panel, which empties the cache and warms it again; `0` ends it now; answers `dev_mode_until` (null when off); 409 on a site with no page cache"},
 		{Method: get, Path: "/api/sites/{id}/routing", Policy: policyAdmin, SessionOnly: true, Load: loadSite, Handle: s.handleGetRouting,
 			Section: secSites, Doc: "the site's routing block (`routing`, `default`, `custom`, `editable`) and the panel's vhost around it (`before`, `after`)"},
 		{Method: put, Path: "/api/sites/{id}/routing", Policy: policyAdmin, SessionOnly: true, MaxBody: routingBody, Load: loadSite, Handle: s.handleSetRouting,

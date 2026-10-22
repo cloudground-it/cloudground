@@ -1066,6 +1066,33 @@ a connection, and not a resolver for anything else:
 
 Nothing is written or audited.
 
+### 3.15 Development mode (#80, `site_devmode.go`)
+
+`PUT /api/sites/{id}/dev-mode` (manage, body at most 8 KiB) with
+`{"minutes": 15|30|60}` bypasses the site's page cache until `now + minutes`
+(`config.dev_mode_until`, RFC 3339 UTC to the second; internal/velocity SPEC
+§1.5); the same call while the mode runs starts the time over. `{"minutes": 0}`
+ends it now; ending a mode that is off changes nothing. Any other number is
+400; a site with no page cache (static, proxy, or `cache_enabled` off) is 409
+for a start. As the protected paths do: under the site's lock, the agent's
+`ApplySiteConfig` renders the site, and the end is stored (`MutateSiteApplied`,
+files recorded) only once nginx has it; an agent refusal stores nothing.
+Answer: 200, `{"dev_mode_until": <time>|null}`. Audit `site.devmode`, detail
+`<n> minutes` or `ended`. A staging copy never inherits the mode.
+
+**The end.** Ending the mode, by hand or by time, renders the site with the
+cache back, then empties the site's page cache (pages cached before the work
+would be served again) and queues the quiet `cache.rewarm` of §6.2, so the
+cache is refilled without a visitor paying for it.
+
+**Schedule**: `devmode.sweep`, every minute (jobs SPEC §9), reads the sites and
+ends the mode of each active one whose time has passed, re-reading the site
+under its lock first (it may have been extended). A render that fails leaves
+the site in the mode, writes audit `site.devmode_end_failed` and is tried
+again at the next sweep; after a panel restart the first sweep catches up on
+modes that ended meanwhile. The mode is not a settings field: PATCH does not
+take it.
+
 ### 3.11 Tests
 
 `site_service_test.go` (the services without HTTP: create's defaults and
@@ -1075,7 +1102,7 @@ wrappers' unchanged answers), `sites_review_test.go` (the review of 63e9447: the
 generation, unique names, legacy payloads, the deprecated TTL, refused work
 undone, the PHP budget), `sites_race_test.go`, `sites_rollback_test.go`,
 `capabilities_review_test.go` (staging resolves the root first),
-`dns_check_test.go` (§3.14's verdicts, refusals, roles and limit, and aliases given at creation), `site_create_db_test.go` (the chosen database, the toggle, the field
+`site_devmode_test.go` (§3.15: the lengths, the render before the store, the sweep, the purge and the re-warm at the end), `dns_check_test.go` (§3.14's verdicts, refusals, roles and limit, and aliases given at creation), `site_create_db_test.go` (the chosen database, the toggle, the field
 problems, 409 for a taken name, the summary and that no read answers the
 password), and the contract tests across the package. The e2e section
 `R-4.3 site settings` applies a patch on a box and reads the result from

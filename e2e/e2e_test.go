@@ -100,6 +100,7 @@ var sections = []section{
 	{name: "R-4.3 accounts", run: (*harness).accounts},
 	{name: "R-4.3 sign-in review", run: (*harness).signinReview},
 	{name: "R-4.3 site settings", run: (*harness).siteSettings, lane: "settings"},
+	{name: "dev mode", run: (*harness).devMode, lane: "dev mode"},
 	{name: "protected paths", run: (*harness).protectedPaths, lane: "protected paths"},
 	{name: "uptime", run: (*harness).uptime, lane: "uptime"},
 	{name: "malware scan", run: (*harness).malwareScan, lane: "malware"},

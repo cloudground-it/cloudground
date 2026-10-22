@@ -240,7 +240,17 @@
     "purgeHint": "Con WordPress le modifiche ai contenuti svuotano già le pagine giuste. Qui c'è il resto.",
     "purgeOne": "Svuota un URL",
     "ttl": "Durata (TTL)",
-    "ttlHint": "secondi, 0 = quella del profilo"
+    "ttlHint": "secondi, 0 = quella del profilo",
+    "dev": "Modalità sviluppo",
+    "devHint": "Salta la cache di pagina mentre lavori sul sito. Si disattiva da sola, svuota la cache e la riscalda di nuovo.",
+    "devOff": "La cache di pagina serve i visitatori.",
+    "devOn": "La cache di pagina è saltata fino alle {time}.",
+    "devEnding": "Riattivo la cache di pagina…",
+    "devNone": "Questo sito non ha una cache di pagina da saltare.",
+    "devFor": "{n} minuti",
+    "devEnd": "Termina ora",
+    "devStarted": "Modalità sviluppo attiva",
+    "devEnded": "Modalità sviluppo terminata"
   },
   "wp": {
     "admin": "Accesso amministratore",

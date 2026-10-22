@@ -47,6 +47,7 @@ PEM, wp-admin, cron** (the syntax), file names and paths.
 | object cache | object cache | cache d'objets | caché de objetos | Objekt-Cache |
 | purge (cache) | svuotare | vider | purgar | leeren |
 | cache warming | riscaldamento cache | préchauffage du cache | precarga de la caché | Cache-Vorwärmen |
+| development mode | modalità sviluppo | mode développement | modo desarrollo | Entwicklungsmodus |
 | staging | staging | staging (m.), *environnement de staging* | staging (m.), *entorno de staging* | Staging (n.) |
 | production | produzione | production | producción | Produktion / Live-Website |
 | release (noun) | rilascio | release (f.) | release (f.) | Release (n.) |

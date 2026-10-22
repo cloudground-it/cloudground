@@ -240,7 +240,17 @@
     "purgeHint": "Avec WordPress, les modifications de contenu vident déjà les bonnes pages. Ceci sert pour tout le reste.",
     "purgeOne": "Vider une URL",
     "ttl": "Durée de vie (TTL)",
-    "ttlHint": "secondes, 0 = celle du profil"
+    "ttlHint": "secondes, 0 = celle du profil",
+    "dev": "Mode développement",
+    "devHint": "Contourne le cache de pages pendant que vous travaillez sur le site. Il se réactive tout seul, vide le cache et le préchauffe à nouveau.",
+    "devOff": "Le cache de pages sert les visiteurs.",
+    "devOn": "Le cache de pages est contourné jusqu'à {time}.",
+    "devEnding": "Réactivation du cache de pages…",
+    "devNone": "Ce site n'a pas de cache de pages à contourner.",
+    "devFor": "{n} minutes",
+    "devEnd": "Terminer maintenant",
+    "devStarted": "Mode développement activé",
+    "devEnded": "Mode développement terminé"
   },
   "wp": {
     "admin": "Accès administrateur",

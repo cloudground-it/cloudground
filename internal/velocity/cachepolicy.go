@@ -104,7 +104,9 @@ func siteCookies(site state.Site) []string {
 
 // PolicyFor is site's page-cache policy (SPEC §1).
 func PolicyFor(site state.Site) CachePolicy {
-	if !site.Config.CacheEnabled || site.Type == state.SiteStatic || site.Type == state.SiteProxy {
+	// Development mode (#80) bypasses the cache until the panel ends it; the
+	// time itself is not read here, so a render does not depend on the clock.
+	if !site.Config.CacheEnabled || !site.Config.DevModeUntil.IsZero() || site.Type == state.SiteStatic || site.Type == state.SiteProxy {
 		return CachePolicy{}
 	}
 	times, ok := byProfile[site.Profile]
