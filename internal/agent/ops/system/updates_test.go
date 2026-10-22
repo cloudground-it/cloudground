@@ -125,6 +125,23 @@ func TestApplyUpdates(t *testing.T) {
 	if res.Upgraded != 2 || len(runs) != 3 || runs[1] != opts+" install --only-upgrade libc6 linux-image-generic" {
 		t.Fatalf("security only: %d, runs %q", res.Upgraded, runs)
 	}
+	// needrestart's apt hook is suspended for the upgrade (it restarted the
+	// agent mid-call on the e2e box), and its own pass runs after, with the
+	// panel's services left alone.
+	suspended, passes := false, 0
+	for _, c := range f.exec.Calls() {
+		line := c.Line()
+		if strings.Contains(line, " install --only-upgrade ") {
+			suspended = strings.Contains(line, "--setenv=NEEDRESTART_SUSPEND=1 --")
+		}
+		if strings.Contains(line, "-- /bin/sh -c rm -f /run/needrestart/unpacked") && strings.Contains(line, `qr(^cloudground-(agent|api)\.service$)} = 0`) &&
+			strings.Contains(line, "needrestart -c /run/cloudground/needrestart.conf -r a -b") {
+			passes++
+		}
+	}
+	if !suspended || passes != 1 {
+		t.Fatalf("needrestart suspended %v, passes %d: %q", suspended, passes, f.exec.Calls())
+	}
 	f = updatesFixture(t, simulated)
 	res, err = f.ApplyUpdates(context.Background(), rpc.ApplyUpdatesParams{})
 	if err != nil {

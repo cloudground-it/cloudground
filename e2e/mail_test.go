@@ -164,7 +164,7 @@ func (h *harness) mailRelay(t *testing.T) {
 	h.check(t, "#77: the site's sender is accepted", code(h.api.put(f.api("/mail"), fmt.Sprintf(`{"from":%q}`, sender))), "200")
 	pool, _ := os.ReadFile("/etc/cloudground-php/" + f.fsu + ".conf")
 	h.assert(t, "#77: the site's pool points mail() at the gate and carries the sender",
-		strings.Contains(string(pool), "sendmail_path = /usr/local/bin/panel-agent sendmail -t -i") && strings.Contains(string(pool), "env[CLOUDGROUND_MAIL_FROM] = "+sender),
+		strings.Contains(string(pool), "php_admin_value[sendmail_path] = /usr/local/bin/panel-agent sendmail -t -i") && strings.Contains(string(pool), "env[CLOUDGROUND_MAIL_FROM] = "+sender),
 		"#77: pool %s", head(pool, 4000))
 
 	// PHP's mail(), through PHP-FPM.

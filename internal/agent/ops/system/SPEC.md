@@ -259,7 +259,23 @@ Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold -y -q`
 is asked): `upgrade --with-new-pkgs` for everything, or `install
 --only-upgrade <the security packages already installed>` (their new
 dependencies come with them). 60 minutes at most. `upgraded` is how many
-packages the list had to upgrade; `pending` is `SystemUpdates` after it
+packages the list had to upgrade.
+
+**needrestart.** The upgrade runs with `NEEDRESTART_SUSPEND=1`: Ubuntu's
+apt hook would otherwise restart every service that maps an upgraded
+library before apt-get returns, the agent among them (for the `journalctl`
+it spawns), and the API lost the call's answer ("the agent is not
+reachable", seen on the e2e box). Right after it, a transient root service
+does needrestart's pass itself: it removes `/run/needrestart/unpacked` (the
+marker the hook would act on at the next apt run, a PHP extension's
+install say, restarting the agent then) and runs `needrestart -r a -b`
+under a configuration that loads the server's own
+(`/etc/needrestart/needrestart.conf`, its `conf.d` with it) and adds one
+rule: `cloudground-agent` and `cloudground-api` are not restarted (static
+Go programs; only a helper they spawned maps the old library). nginx,
+MariaDB, the sites' PHP masters and the rest are restarted as needrestart
+would have. Without needrestart nothing is done; a failed pass is logged,
+not an error. `pending` is `SystemUpdates` after it
 (what is left, and whether a reboot is now needed). A failed run is the
 error, with apt's output in the agent's journal. The agent never reboots
 the server: the panel says a reboot is needed, a person chooses when.
