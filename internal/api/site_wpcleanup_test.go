@@ -33,7 +33,7 @@ func TestWPCleanup(t *testing.T) {
 	if resp, b := admin.do("GET", fmt.Sprintf("/api/sites/%d/wp/cleanup", static.ID), nil); resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("a static site = %d %s", resp.StatusCode, b)
 	}
-	for _, bad := range []map[string]any{{}, {"keep_revisions": 0, "enabled": "yes"}, {"keep_revisions": 101}, {"keep_revisions": -1}} {
+	for _, bad := range []map[string]any{{}, {"keep_revisions": 0, "enabled": "yes"}, {"keep_revisions": 0}, {"keep_revisions": 101}, {"keep_revisions": -1}} {
 		if resp, b := admin.do("PUT", path, bad); resp.StatusCode != http.StatusBadRequest {
 			t.Errorf("%v = %d %s", bad, resp.StatusCode, b)
 		}
