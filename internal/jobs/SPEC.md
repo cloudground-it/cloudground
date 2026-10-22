@@ -259,9 +259,10 @@ Locks as in §3. "Resumable" = has `Run`; "rerun" = `Rerun`.
 | `deploy.rollback` | site | `site` | yes | | payload `{site_id, target}` (the release chosen at the request); never rerun; interrupted: the site is flagged for a reconcile |
 | `deploy.reconcile` | site | `site` | rerun | | background; dedup `deploy.reconcile:<site>`; queued after recovery for flagged sites and sites with a deployment left promoting or verifying (internal/api/SPEC.md §4.6) |
 | `deploy.safe-push` | production | `site` ×2 | rerun | | payload `{deployment_id, staging_id, only, paths, force}`; a rerun resumes from the deployment's status (measures, promotes or verifies again); a cancel during the measurement stops it before production is touched; after the build it runs to its end (a cut verification would roll back) |
-| `wp.update` | site | `site` | no | | |
 | `wp.cleanup` | site | `site`, and the repository's | no | | background when the schedule queues it; dedup `wp.cleanup:<site>`; a dry run, a tested snapshot before the site's first cleanup, the cleanup (internal/api/SPEC.md §3.17) |
 | `wpcleanup.sweep` | — | — | rerun | quiet | enqueues the due `wp.cleanup` jobs |
+| `wp.update` | site | `site`, `repo` | no | | payload `{site_id, domain, what}`; a tested snapshot, the update, a health check and a rollback when it fails (internal/api/SPEC.md §6.2.3); a cancel stops it before the update |
+| `wp.update.scheduled` | site | `site`, `repo` (the repository as configured when it starts) | yes | | background; payload `{site_id, domain, what}`; dedup `wp.update.scheduled:<site>`; as `wp.update`; never rerun (the next slot is); canceled before it ran: the site's schedule key is cleared |
 | `database.import`, `dbstudio.import`, `migration.import` | site | `site` | no | | |
 | `database.export`, `dbstudio.export`, `cache.warm` | site | — | no | | read the site; nothing to serialise |
 | `panel.certificate` | — | `panel` | no | | |
@@ -278,6 +279,7 @@ Locks as in §3. "Resumable" = has `Run`; "rerun" = `Rerun`.
 | `retention.sweep` | — | — | rerun | quiet | enqueues the due `backup.retention` jobs |
 | `security.sweep` | — | — | rerun | quiet | enqueues the due `wp.vulncheck` and `site.malwarescan` jobs (internal/api/SPEC.md §11.6, §11.7) |
 | `devmode.sweep` | — | — | rerun | quiet | ends the development mode of the sites whose time has passed (internal/api/SPEC.md §3.15) |
+| `wp.update.sweep` | — | — | rerun | quiet | enqueues the due `wp.update.scheduled` jobs (internal/api/SPEC.md §6.2.3) |
 | `site.malwarescan` | site | `security:malwarescan` | rerun | | background when the sweep queues it; payload `{site_id}`; dedup `site.malwarescan:<site>`; one at a time on the server; updates the signatures (at most daily), scans the site's tree in its sandbox, changes nothing on it |
 | `wp.vulncheck` | site | `security:vulncheck` | rerun | | background when the sweep queues it; payload `{site_id}`; dedup `wp.vulncheck:<site>`; one at a time on the server; reads the site, changes nothing on it |
 | `certificate.sweep` | — | `panel` | rerun | quiet | reads every certificate's expiry, enqueues `certificate.renew` for the due ones, renews the panel's |
@@ -313,6 +315,7 @@ Recurring work is a schedule that enqueues a job:
 | `security.sweep` | 5 min | memory (each site's `vulncheck:site:<id>`: daily; `malwarescan:site:<id>`: weekly, at the site's own hour) | yes |
 | `devmode.sweep` | 1 min | memory | yes |
 | `wpcleanup.sweep` | 5 min | memory (each site's `wpcleanup:site:<id>`: weekly, at the site's own slot) | yes |
+| `wp.update.sweep` | 5 min | memory (each site's `wp.update.site.<id>`: daily or weekly, at the site's hour) | yes |
 | `drift.scan` | 5 min | memory | yes |
 | `alerts.notify` | 5 min | memory | yes, after the others |
 | `certificate.sweep` | 12 h | `schedule_state` key `cert.renew` | only when due |
@@ -354,6 +357,6 @@ repository and leaves a partial snapshot or a half-restored site when cut),
 and the kinds that are not resumable and would fail half done: `site.create`,
 `site.delete`, `migration.import`, `staging.database-push`,
 `database.import`, `database.export`, `database.create`, `database.drop`,
-`dbstudio.import`, `dbstudio.export`, `wp.update`. A queued job does not
+`dbstudio.import`, `dbstudio.export`, `wp.update`, `wp.update.scheduled`. A queued job does not
 block: it waits for the panel to come back. The callers name the job's id
 and kind, so the operator knows what to wait for.

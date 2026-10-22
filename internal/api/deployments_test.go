@@ -323,6 +323,15 @@ func (f *fakeProber) Verify(_ context.Context, _ guard.Endpoint, baseline []guar
 	return f.verify, nil
 }
 
+// Measure answers the baseline of a change in place: one sample per path.
+func (f *fakeProber) Measure(_ context.Context, _ guard.Endpoint, paths []string) ([]guard.Sample, error) {
+	out := make([]guard.Sample, len(paths))
+	for i, p := range paths {
+		out[i] = guard.Sample{Path: p, Requests: 20, Status: 200}
+	}
+	return out, nil
+}
+
 func useProber(t *testing.T, p prober) {
 	old := newProber
 	newProber = func(string, int) prober { return p }

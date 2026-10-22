@@ -116,6 +116,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `POST /api/quarry/handoff`: 8 KiB
   - `POST /api/quarry/db/{db}/tables/{table}/edit`: 16 MiB
   - `POST /api/quarry/import/upload`: 8 MiB
+  - `PUT /api/sites/{id}/wp/updates`: 8 KiB
   - `PUT /api/sites/{id}/wp/hardening`: 8 KiB
   - `PUT /api/sites/{id}/wp/two-factor`: 8 KiB
   - `POST /api/blocklist/blocks`: 8 KiB
@@ -428,7 +429,8 @@ audited redacted.
 | :-- | :-- | :-- | :-- |
 | `POST` | `/api/sites/{id}/wp/login` | manage | a sign-in link for wp-admin, valid once for 5 minutes |
 | `GET` | `/api/sites/{id}/wp/plugins` | auth | installed plugins and themes, and their updates |
-| `POST` | `/api/sites/{id}/wp/update` | manage | apply updates to `core`, `plugins`, `themes` or `all` |
+| `POST` | `/api/sites/{id}/wp/update` | manage | apply updates to `core`, `plugins`, `themes` or `all`, behind a restore-tested snapshot: the site is measured before and checked after, and restored from the snapshot when the check fails (412 without a backup repository, unless `without_snapshot` asks to update with no rollback) |
+| `PUT` | `/api/sites/{id}/wp/updates` | manage | the update schedule: any of `enabled`, `schedule` (`daily`, `weekly`), `hour` (0–23, the panel's time zone; -1 for none), `what` (`core`, `plugins`, `themes`, `all`); answers the schedule |
 | `PUT` | `/api/sites/{id}/wp/hardening` | manage | WordPress hardening, each item on its own: `{"xmlrpc_off", "xmlrpc_allow": [addresses or networks], "file_edit_off", "hide_version", "block_readme", "login_path"}`; answers the hardening |
 | `PUT` | `/api/sites/{id}/wp/two-factor` | manage | two-factor sign-in for the site's accounts: `{"mode": "off"}`, `optional` (each account can set it up) or `required` (also compulsory for administrators and shop managers); answers the mode |
 

@@ -47,10 +47,12 @@ type rollbackPayload struct {
 	Target string `json:"target"`
 }
 
-// prober is Performance Guard as the safe push uses it.
+// prober is Performance Guard as the safe push and a WordPress update
+// (wp_updates.go) use it.
 type prober interface {
 	Compare(ctx context.Context, baseline, candidate guard.Endpoint, paths []string, t guard.Thresholds) (guard.Report, error)
 	Verify(ctx context.Context, production guard.Endpoint, baseline []guard.Sample, paths []string, t guard.Thresholds) (guard.Report, error)
+	Measure(ctx context.Context, ep guard.Endpoint, paths []string) ([]guard.Sample, error)
 }
 
 // newProber is the paired engine (tests replace it).

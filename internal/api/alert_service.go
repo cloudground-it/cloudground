@@ -140,7 +140,7 @@ func taskConditions(list []state.Job, exists map[int64]bool, now time.Time) []st
 
 // recurring are the job kinds a schedule queues again and again: their
 // failures are one alert per site, not one per run.
-var recurring = map[string]bool{"backup.scheduled": true, "wp.vulncheck": true, "site.malwarescan": true}
+var recurring = map[string]bool{"backup.scheduled": true, "wp.vulncheck": true, "site.malwarescan": true, "wp.update.scheduled": true}
 
 // jobDomain is the domain of the site a job was about, as its payload
 // recorded it (startJob), or "site #<id>" when it recorded none.

@@ -293,6 +293,14 @@ func (s *Server) registerJobKinds() {
 	q.Register(jobs.Kind{Name: "backup.prune", Run: s.runPrune, Rerun: true, Quiet: true,
 		ResolveLocks: s.repoLocks, RerunDelay: repoRerunDelay})
 	s.registerDeployKinds(q)
+	// A scheduled WordPress update changes the site: interrupted, it is
+	// not run again (the next slot is). Canceled before it ran, the
+	// schedule asks again at its next sweep.
+	q.Register(jobs.Kind{Name: "wp.update.scheduled", Run: s.runScheduledWPUpdate, ResolveLocks: s.wpUpdateJobLocks,
+		Canceled: func(j state.Job) {
+			s.logIfErr(s.Store.ClearScheduleRun(wpUpdateScheduleKey(j.SiteID)), "ClearScheduleRun")
+		},
+	})
 	// A check is a read and a lookup: run again after a restart.
 	q.Register(jobs.Kind{Name: "wp.vulncheck", Run: s.runVulnCheck, Rerun: true})
 	// A scan reads the site; run again after a restart. Canceled before it
@@ -315,6 +323,7 @@ func (s *Server) registerJobKinds() {
 		"security.sweep":        s.runSecuritySweep,
 		"devmode.sweep":         s.runDevModeSweep,
 		"wpcleanup.sweep":       s.runWPCleanupSweep,
+		"wp.update.sweep":       s.runWPUpdateSweep,
 	} {
 		q.Register(jobs.Kind{Name: name, Quiet: true, Run: run, Rerun: true})
 	}
@@ -344,6 +353,7 @@ func (s *Server) schedules() []jobs.Schedule {
 		every("security.sweep", 5*time.Minute, jobs.InTick),
 		every("devmode.sweep", time.Minute, jobs.InTick),
 		every("wpcleanup.sweep", 5*time.Minute, jobs.InTick),
+		every("wp.update.sweep", 5*time.Minute, jobs.InTick),
 		cert,
 		every("drift.scan", 5*time.Minute, jobs.InTick, jobs.RenderLock),
 		every("alerts.notify", 5*time.Minute, jobs.AfterTick),

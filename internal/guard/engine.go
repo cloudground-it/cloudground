@@ -173,6 +173,13 @@ func (e *Engine) Verify(ctx context.Context, production Endpoint, baseline []Sam
 	return rep, nil
 }
 
+// Measure samples one side the way Verify does, judging nothing: the
+// baseline a later Verify of the same side compares with (SPEC.md §6.1).
+func (e *Engine) Measure(ctx context.Context, ep Endpoint, paths []string) ([]Sample, error) {
+	rep, err := e.Verify(ctx, ep, nil, paths, Thresholds{})
+	return rep.Candidate, err
+}
+
 func judgeLive(rep *Report, b, l Sample, t Thresholds) {
 	if b.Status != 0 && l.Status != 0 && b.Status != l.Status {
 		rep.raise(VerdictBlock, "%s: production now answers HTTP %d (was HTTP %d)", l.Path, l.Status, b.Status)

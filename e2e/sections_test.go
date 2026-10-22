@@ -595,7 +595,7 @@ func TestAffectedScript(t *testing.T) {
 	if got := run("docs/api.md", "bench/README.md", "internal/api/maintenance_test.go"); got != "" {
 		t.Errorf("docs and unit tests select %q, want nothing", got)
 	}
-	if got := run("internal/guard/guard.go"); got != `^TestE2E$/^(wordpress_safe_push)$` {
+	if got := run("internal/guard/guard.go"); got != `^TestE2E$/^(wordpress_safe_push|wordpress_updates)$` {
 		t.Errorf("internal/guard: %q", got)
 	}
 	if got := run("internal/agent/ops/db/provision.go"); !strings.Contains(got, "woocommerce_teardown") || !strings.Contains(got, "site_types") {

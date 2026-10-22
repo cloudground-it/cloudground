@@ -207,6 +207,14 @@ the baseline's most common status. Per path, in order:
 A path the baseline does not have is skipped. Block asks the caller to roll
 back; anything else keeps the release.
 
+### 6.1 Measure (before a change in place)
+
+`Engine.Measure(ctx, side, paths)` is §6's sampling with no baseline: per
+path the same warm-up and 20 requests, nothing judged, the samples
+returned. It is the baseline of a change made in place, where there is no
+second site to compare with: a WordPress update (internal/api SPEC §6.2.3)
+measures the site before it and `Verify`s it after against those samples.
+
 ## 7. Probe key
 
 `ProbeKeyFor(token)` = lowercase hex of HMAC-SHA256 with the site's

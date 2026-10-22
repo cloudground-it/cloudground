@@ -46,23 +46,8 @@ func (p wordPress) plugins(ctx context.Context, site state.Site) (rpc.WPPluginsR
 	return agentrpc.Call(ctx, p.s.Agent, agentrpc.WPPlugins, rpc.WPParams{Site: site})
 }
 
-// update starts the update of core, plugins, themes or all of them, and
-// empties the page cache after it: new code renders new pages.
-func (p wordPress) update(site state.Site, what string) (jobs.Task, error) {
-	if !isWordPress(site.Type) {
-		return jobs.Task{}, errNotWordPress
-	}
-	agent := p.s.Agent
-	return p.s.runJob(jobReq{kind: "wp.update", siteID: site.ID, locks: siteLocks(site.ID)}, func(ctx context.Context, site state.Site, step func(int, string)) error {
-		step(30, "Updating "+what+" on "+site.Domain)
-		if err := agentrpc.Into(ctx, agent, agentrpc.WPUpdate, rpc.WPParams{Site: site, What: what}, nil); err != nil {
-			return err
-		}
-		_ = agentrpc.Into(ctx, agent, agentrpc.PurgeCache, rpc.PurgeParams{Site: site}, nil) // best effort
-		step(100, "Update complete")
-		return nil
-	})
-}
+// The update (behind a tested snapshot, with its health check and
+// rollback) is in wp_updates.go.
 
 // The object-cache switch is a site setting: object_cache in PATCH
 // /api/sites/{id} (site_settings.go).
@@ -135,14 +120,19 @@ func (s *Server) handleWPUpdate(w http.ResponseWriter, r *http.Request, c *call)
 		return
 	}
 	var req struct {
-		What string `json:"what"`
+		What            string `json:"what"`
+		WithoutSnapshot bool   `json:"without_snapshot"`
 	}
 	if !decodeOr400(w, r, &req) {
 		return
 	}
-	task, err := s.wp().update(c.Site, req.What)
+	task, err := s.wp().update(c.Site, req.What, req.WithoutSnapshot)
 	if err == nil {
-		s.audit(c.Actor(), "wp.update", c.Site.Domain, req.What)
+		detail := req.What
+		if req.WithoutSnapshot {
+			detail += " without_snapshot"
+		}
+		s.audit(c.Actor(), "wp.update", c.Site.Domain, detail)
 	}
 	accepted(w, task, err)
 }

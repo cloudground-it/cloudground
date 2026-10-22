@@ -67,6 +67,8 @@ export interface Site {
     uptime?: { enabled: boolean, path?: string }
     wp_two_factor?: 'optional' | 'required'
     wp_hardening?: WPHardening
+    /** Scheduled WordPress updates (#20); absent: never. */
+    wp_updates?: { enabled?: boolean, schedule?: 'daily' | 'weekly', hour?: number | null, what?: 'core' | 'plugins' | 'themes' | 'all' }
   }
   created_at: string
 }
