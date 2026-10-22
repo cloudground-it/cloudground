@@ -114,6 +114,8 @@ const columns = computed(() => [
     </PanelSection>
   </div>
 
+  <SiteWPCleanup />
+
   <PanelSection :title="t('wp.hardening')" :description="t('wp.hardeningHint')">
     <template #actions>
       <UButton color="neutral" variant="outline" icon="i-cg-lock" :label="t('wp.hRecommended')" :disabled="!canManage || busy" @click="recommended" />

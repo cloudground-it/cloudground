@@ -369,6 +369,29 @@ type DBStudioTransientsResult struct {
 	Executed bool  `json:"executed"`
 }
 
+// DBStudioCleanupParams cleans a WordPress database (#78): the expired
+// transients are deleted and each post keeps its KeepRevisions newest
+// revisions. With DryRun nothing changes: the result counts what a run would
+// delete.
+type DBStudioCleanupParams struct {
+	Site          state.Site `json:"site"`
+	KeepRevisions int        `json:"keep_revisions"`
+	DryRun        bool       `json:"dry_run,omitempty"`
+}
+
+// DBStudioCleanupResult counts what was found before, what was deleted, and
+// the autoloaded options after (before, for a dry run).
+type DBStudioCleanupResult struct {
+	ExpiredTransients int64              `json:"expired_transients"`
+	ExcessRevisions   int64              `json:"excess_revisions"`
+	DeletedTransients int64              `json:"deleted_transients"`
+	DeletedRevisions  int64              `json:"deleted_revisions"`
+	AutoloadCount     int64              `json:"autoload_count"`
+	AutoloadBytes     int64              `json:"autoload_bytes"`
+	AutoloadTop       []DBAutoloadOption `json:"autoload_top"`
+	Executed          bool               `json:"executed"`
+}
+
 func (p *DBStudioTablesParams) Sites() []*state.Site        { return []*state.Site{&p.Site} }
 func (p *DBStudioOpenParams) Sites() []*state.Site          { return []*state.Site{&p.Site} }
 func (p *DBStudioLoginParams) Sites() []*state.Site         { return []*state.Site{&p.Site} }
@@ -388,6 +411,7 @@ func (p *DBStudioDeleteParams) Sites() []*state.Site        { return []*state.Si
 func (p *DBStudioImportCSVParams) Sites() []*state.Site     { return []*state.Site{&p.Site} }
 func (p *DBStudioSearchReplaceParams) Sites() []*state.Site { return []*state.Site{&p.Site} }
 func (p *DBStudioTransientsParams) Sites() []*state.Site    { return []*state.Site{&p.Site} }
+func (p *DBStudioCleanupParams) Sites() []*state.Site       { return []*state.Site{&p.Site} }
 
 // Validate requires sql or csv, and exactly one table for csv.
 func (p *DBStudioExportParams) Validate() error {

@@ -241,6 +241,28 @@
     "velocity": "Velocity Engine",
     "velocityHint": "Full-Page-Cache mit Request Coalescing und Stale-while-revalidate."
   },
+  "cleanup": {
+    "title": "Datenbankbereinigung",
+    "hint": "Einmal pro Woche werden abgelaufene Transients gelöscht, und jeder Beitrag behält nur seine neuesten Revisionen. Die Optionen, die WordPress bei jeder Anfrage lädt, werden gemessen. Vor der ersten Bereinigung einer Website steht ein geprüfter Snapshot; die Ergebnisse stehen in den Logs der Website.",
+    "on": "Geplant",
+    "off": "Aus",
+    "needBackups": "Richte zuerst Backups in den Einstellungen ein: Die erste Bereinigung einer Website erstellt einen geprüften Snapshot.",
+    "weekly": "Jede Woche bereinigen",
+    "weeklyHint": "Standardmäßig aus. Mach zuerst einen Testlauf, um zu sehen, was gelöscht würde.",
+    "next": "Nächste Bereinigung: {when}",
+    "keep": "Behaltene Revisionen pro Beitrag",
+    "keepHelp": "Die neuesten bleiben, zwischen 1 und 100.",
+    "keepBad": "Zwischen 1 und 100.",
+    "last": "Letzte Bereinigung: {when}",
+    "preview": "Testlauf",
+    "now": "Jetzt bereinigen",
+    "saved": "Bereinigungseinstellungen gespeichert",
+    "started": "Bereinigung gestartet",
+    "dryRun": "Eine Bereinigung würde löschen:",
+    "nTransients": "Keine abgelaufenen Transients | Ein abgelaufener Transient | {n} abgelaufene Transients",
+    "nRevisions": "{n} Revisionen über die neuesten {keep} jedes Beitrags hinaus",
+    "autoload": "{n} Autoload-Optionen, {size}"
+  },
   "cache": {
     "pageCache": "Seiten-Cache",
     "policy": "Cache-Richtlinie",
@@ -767,6 +789,7 @@
   },
   "logs": {
     "access": "Zugriffe",
+    "cleanup": "Bereinigung",
     "empty": "(leer)",
     "error": "Fehler",
     "hint": "System- und Dienst-Logs. Die Logs jeder Website findest du in ihrem Tab „Logs“.",

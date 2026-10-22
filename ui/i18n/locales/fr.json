@@ -241,6 +241,28 @@
     "velocity": "Velocity Engine",
     "velocityHint": "Cache de pages avec regroupement des requêtes et stale-while-revalidate."
   },
+  "cleanup": {
+    "title": "Nettoyage de la base de données",
+    "hint": "Une fois par semaine, les transients expirés sont supprimés et chaque article ne garde que ses révisions les plus récentes. Les options que WordPress charge à chaque requête sont mesurées. Le premier nettoyage d'un site est précédé d'un instantané vérifié ; les résultats sont dans les journaux du site.",
+    "on": "Planifié",
+    "off": "Désactivé",
+    "needBackups": "Configurez d'abord les sauvegardes dans les réglages : le premier nettoyage d'un site crée un instantané vérifié.",
+    "weekly": "Nettoyer chaque semaine",
+    "weeklyHint": "Désactivé par défaut. Faites d'abord un essai à blanc pour voir ce qui serait supprimé.",
+    "next": "Prochain nettoyage : {when}",
+    "keep": "Révisions conservées par article",
+    "keepHelp": "Les plus récentes restent, entre 1 et 100.",
+    "keepBad": "Entre 1 et 100.",
+    "last": "Dernier nettoyage : {when}",
+    "preview": "Essai à blanc",
+    "now": "Nettoyer maintenant",
+    "saved": "Réglages du nettoyage enregistrés",
+    "started": "Nettoyage lancé",
+    "dryRun": "Un nettoyage supprimerait :",
+    "nTransients": "Aucun transient expiré | Un transient expiré | {n} transients expirés",
+    "nRevisions": "{n} révisions au-delà des {keep} plus récentes de chaque article",
+    "autoload": "{n} options en autoload, {size}"
+  },
   "cache": {
     "pageCache": "Cache de pages",
     "policy": "Politique de cache",
@@ -767,6 +789,7 @@
   },
   "logs": {
     "access": "Accès",
+    "cleanup": "Nettoyage",
     "empty": "(vide)",
     "error": "Erreurs",
     "hint": "Journaux du système et des services. Les journaux de chaque site sont dans son onglet Journaux.",

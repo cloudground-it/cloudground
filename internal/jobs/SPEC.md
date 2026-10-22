@@ -260,6 +260,8 @@ Locks as in §3. "Resumable" = has `Run`; "rerun" = `Rerun`.
 | `deploy.reconcile` | site | `site` | rerun | | background; dedup `deploy.reconcile:<site>`; queued after recovery for flagged sites and sites with a deployment left promoting or verifying (internal/api/SPEC.md §4.6) |
 | `deploy.safe-push` | production | `site` ×2 | rerun | | payload `{deployment_id, staging_id, only, paths, force}`; a rerun resumes from the deployment's status (measures, promotes or verifies again); a cancel during the measurement stops it before production is touched; after the build it runs to its end (a cut verification would roll back) |
 | `wp.update` | site | `site` | no | | |
+| `wp.cleanup` | site | `site`, and the repository's | no | | background when the schedule queues it; dedup `wp.cleanup:<site>`; a dry run, a tested snapshot before the site's first cleanup, the cleanup (internal/api/SPEC.md §3.17) |
+| `wpcleanup.sweep` | — | — | rerun | quiet | enqueues the due `wp.cleanup` jobs |
 | `database.import`, `dbstudio.import`, `migration.import` | site | `site` | no | | |
 | `database.export`, `dbstudio.export`, `cache.warm` | site | — | no | | read the site; nothing to serialise |
 | `panel.certificate` | — | `panel` | no | | |
@@ -310,6 +312,7 @@ Recurring work is a schedule that enqueues a job:
 | `retention.sweep` | 5 min | memory (each site's `backup.retention.site.<id>`: daily) | yes |
 | `security.sweep` | 5 min | memory (each site's `vulncheck:site:<id>`: daily; `malwarescan:site:<id>`: weekly, at the site's own hour) | yes |
 | `devmode.sweep` | 1 min | memory | yes |
+| `wpcleanup.sweep` | 5 min | memory (each site's `wpcleanup:site:<id>`: weekly, at the site's own slot) | yes |
 | `drift.scan` | 5 min | memory | yes |
 | `alerts.notify` | 5 min | memory | yes, after the others |
 | `certificate.sweep` | 12 h | `schedule_state` key `cert.renew` | only when due |

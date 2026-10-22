@@ -227,7 +227,7 @@ func (s *Server) registerJobKinds() {
 	// Kinds whose work is a function of the request (not resumable).
 	for _, name := range []string{
 		"certificate.issue", "staging.database-push",
-		"wp.update", "cache.warm",
+		"wp.update", "cache.warm", "wp.cleanup",
 		"database.export", "database.import", "dbstudio.export", "dbstudio.import",
 		"database.create", "database.drop",
 		"migration.import", "panel.certificate", "backup.restore", "php.extension",
@@ -314,6 +314,7 @@ func (s *Server) registerJobKinds() {
 		"jobs.prune":            s.runPruneJobs,
 		"security.sweep":        s.runSecuritySweep,
 		"devmode.sweep":         s.runDevModeSweep,
+		"wpcleanup.sweep":       s.runWPCleanupSweep,
 	} {
 		q.Register(jobs.Kind{Name: name, Quiet: true, Run: run, Rerun: true})
 	}
@@ -342,6 +343,7 @@ func (s *Server) schedules() []jobs.Schedule {
 		every("retention.sweep", 5*time.Minute, jobs.InTick),
 		every("security.sweep", 5*time.Minute, jobs.InTick),
 		every("devmode.sweep", time.Minute, jobs.InTick),
+		every("wpcleanup.sweep", 5*time.Minute, jobs.InTick),
 		cert,
 		every("drift.scan", 5*time.Minute, jobs.InTick, jobs.RenderLock),
 		every("alerts.notify", 5*time.Minute, jobs.AfterTick),

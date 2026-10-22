@@ -14,6 +14,7 @@ func (a *Agent) dbStudioHandlers() *dbstudio.Ops {
 			WP:      a.wpHandlers().Run,
 			Refresh: a.refreshSiteState,
 			Log:     a.log(),
+			LogRoot: a.Paths.LogRoot,
 		}
 	})
 	return a.dbStudio

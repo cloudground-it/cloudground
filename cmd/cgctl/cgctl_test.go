@@ -383,3 +383,27 @@ func TestMaintenance(t *testing.T) {
 		t.Fatal("maybe accepted")
 	}
 }
+
+// #78: the database cleanup's schedule, dry run and run.
+func TestCleanupCommands(t *testing.T) {
+	for _, c := range []struct {
+		args               []string
+		method, path, body string
+	}{
+		{[]string{"cleanup", "7", "on"}, "PUT", "/api/sites/7/wp/cleanup", "map[enabled:true]"},
+		{[]string{"cleanup", "7", "on", "3"}, "PUT", "/api/sites/7/wp/cleanup", "map[enabled:true keep_revisions:3]"},
+		{[]string{"cleanup", "7", "off"}, "PUT", "/api/sites/7/wp/cleanup", "map[enabled:false]"},
+		{[]string{"cleanup", "7", "preview"}, "POST", "/api/sites/7/wp/cleanup/preview", "map[]"},
+		{[]string{"cleanup", "7", "run"}, "POST", "/api/sites/7/wp/cleanup/run", "map[]"},
+	} {
+		inv, err := parseArgs(c.args)
+		if err != nil || inv.req.method != c.method || inv.req.path != c.path || fmt.Sprint(inv.req.body) != c.body {
+			t.Errorf("%v: %+v %v", c.args, inv.req, err)
+		}
+	}
+	for _, bad := range [][]string{{"cleanup", "7", "maybe"}, {"cleanup", "7", "on", "0"}, {"cleanup", "7", "on", "101"}, {"cleanup", "7", "on", "x"}, {"cleanup", "7", "run", "now"}, {"cleanup", "x", "run"}} {
+		if _, err := parseArgs(bad); err == nil {
+			t.Errorf("%v was accepted", bad)
+		}
+	}
+}

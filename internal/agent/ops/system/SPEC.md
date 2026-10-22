@@ -95,6 +95,7 @@ Params `{source, site, lines}`; `lines` outside 1..2000 becomes 200.
 | `site:<domain>:access` | `<LogRoot>/<domain>/access.log` | the path |
 | `site:<domain>:error` | `<LogRoot>/<domain>/error.log` | the path |
 | `site:<domain>:php` | `<LogRoot>/<domain>/php-error.log` | the path |
+| `site:<domain>:cleanup` | `<LogRoot>/<domain>/cleanup.log` (the scheduled database cleanup's results, #78) | the path |
 
 Anything else is `invalid`. For a site source the domain is the one in the
 source; `site`, when given, must name the same domain (the API passes both).

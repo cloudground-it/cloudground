@@ -38,6 +38,7 @@ account exists.
 | `DBStudioWPAutoload` | `{Site}` → `{Table, Count, Bytes, Top}` | read-only, 2 min |
 | `DBStudioWPSearchReplace` | `{Site, From, To, DryRun, ReadOnly}` → `{Replacements, Executed}` | `LockLiveSite`, 45 min |
 | `DBStudioWPTransients` | `{Site, DryRun, ReadOnly}` → `{Expired, Deleted, Executed}` | 15 min |
+| `DBStudioWPCleanup` | `{Site, KeepRevisions, DryRun}` → `{ExpiredTransients, ExcessRevisions, DeletedTransients, DeletedRevisions, AutoloadCount, AutoloadBytes, AutoloadTop, Executed}` | `LockLiveSite`, 30 min (§8.4) |
 | `DBStudioQuery` | `{Site, Database, Login?, SQL, ReadOnly}` → `DBQueryResult` | 3 min |
 | `DBStudioSimulate` | `{Site, Database, Login?, SQL, ReadOnly}` → `{Kind, Affected, Preview?, PreviewSQL?, Refused?, Message?, RolledBack}` | 3 min (§12) |
 | `DBStudioSearch` | `{Site, Database, Login?, Term, Tables}` → `{Tables: [{Table, Matches}], Searched, Truncated}` | read-only, 3 min |
@@ -233,6 +234,28 @@ The site must be WordPress (`wordpress` or `woocommerce`); else `invalid`.
   `_site_transient_timeout_%` older than now) in a read-only session; a
   real run is `wp transient delete --expired`, which also clears an
   object cache, then the count again, and a refresh.
+
+### 8.4 Cleanup (#78)
+
+`DBStudioWPCleanup`, for the scheduled cleanup of internal/api SPEC §3.17: `KeepRevisions` is 1–100
+(else `invalid`; it goes into the statement as a number), the site must be WordPress.
+
+1. **Revisions**, in a read-only session on `<prefix>posts`: those beyond the newest `KeepRevisions`
+   of each post, ranked per parent (`ROW_NUMBER() OVER (PARTITION BY post_parent ORDER BY post_date
+   DESC, ID DESC)`, `post_type = 'revision'`, rank above the number kept), counted.
+2. **Transients**: as §8, a dry run or the real deletion.
+3. **Deletion of revisions** (not on a dry run): the IDs of 500 surplus revisions at a time, as the
+   server answers, go to `wp post delete <ids> --force` (wp-cli removes a revision's meta and terms
+   with it, and runs the site's hooks), until none is left or 100 batches have run (50 000
+   revisions; a larger backlog goes on at the next run). `DeletedRevisions` is the difference
+   between the count before and after, not the number asked for. The site's caches are refreshed.
+4. **Autoload**: the options WordPress loads on every request, measured as §8 after the deletions
+   (before, on a dry run); `AutoloadTop` keeps the five largest.
+5. A real run appends one line (time, what was deleted, the autoload size) to
+   `<LogRoot>/<domain>/cleanup.log`, written by the agent as root with `O_NOFOLLOW`
+   (0640, in the root-owned log directory a site user cannot write); the panel's site log
+   viewer reads it as the `cleanup` kind. A line that cannot be written is logged and does not fail
+   the cleanup.
 
 ## 9. Timeouts
 

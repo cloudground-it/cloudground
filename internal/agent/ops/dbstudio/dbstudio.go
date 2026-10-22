@@ -31,6 +31,9 @@ type Ops struct {
 	// Refresh makes a change to the site's database visible to the live
 	// site (ops/wp Refresh).
 	Refresh func(ctx context.Context, s state.Site) error
+	// LogRoot is where each site's logs are, <LogRoot>/<domain>/: a cleanup
+	// writes its result to cleanup.log there ("" writes none).
+	LogRoot string
 	// MaxFileBytes caps an export or an upload (0 means 16 GiB).
 	MaxFileBytes int64
 	Log          *slog.Logger
@@ -56,6 +59,7 @@ func (o *Ops) Register(s *agentrpc.Server) {
 	agentrpc.Handle(s, agentrpc.DBStudioWPAutoload, o.Autoload)
 	agentrpc.Handle(s, agentrpc.DBStudioWPSearchReplace, o.SearchReplace)
 	agentrpc.Handle(s, agentrpc.DBStudioWPTransients, o.Transients)
+	agentrpc.Handle(s, agentrpc.DBStudioWPCleanup, o.Cleanup)
 	agentrpc.Handle(s, agentrpc.DBStudioQuery, o.Query)
 	agentrpc.Handle(s, agentrpc.DBStudioSimulate, o.Simulate)
 	agentrpc.Handle(s, agentrpc.DBStudioSearch, o.Search)
