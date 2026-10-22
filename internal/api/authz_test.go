@@ -150,6 +150,10 @@ var routePolicy = map[string]string{
 	"POST /api/sites/{id}/malware/findings/{finding}/quarantine": "manage",
 	"GET /api/sites/{id}/usage":                                  "auth",
 	"PUT /api/sites/{id}/uptime":                                 "manage",
+	"GET /api/sites/{id}/mail":                                   "auth",
+	"PUT /api/sites/{id}/mail":                                   "admin",
+	"GET /api/sites/{id}/mail/checks":                            "auth",
+	"POST /api/sites/{id}/mail/test":                             "manage",
 	"POST /api/sites/{id}/purge":                                 "manage",
 	"PUT /api/sites/{id}/wp/hardening":                           "manage",
 	"PUT /api/sites/{id}/wp/two-factor":                          "manage",
@@ -212,6 +216,7 @@ var routePolicy = map[string]string{
 	"GET /api/audit":                      "global",
 	"GET /api/settings":                   "global",
 	"PUT /api/settings":                   "admin",
+	"POST /api/settings/mail/test":        "admin",
 }
 
 var policyAllows = map[string]map[string]bool{

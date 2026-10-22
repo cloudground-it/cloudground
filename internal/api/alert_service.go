@@ -445,7 +445,8 @@ const webhookPosts = 4
 func (s *Server) notifyAlerts(ctx context.Context) {
 	hook, err := s.Store.Secret(state.SecretNotifyWebhook)
 	s.logIfErr(err, "Secret")
-	if hook == "" {
+	relay, password, recipients := s.alertMail()
+	if hook == "" && len(recipients) == 0 {
 		return
 	}
 	due, err := s.Store.AlertsToNotify(time.Now().Add(-notifyEvery))
@@ -453,26 +454,83 @@ func (s *Server) notifyAlerts(ctx context.Context) {
 		s.logIfErr(err, "AlertsToNotify")
 		return
 	}
-	lang, client := s.notifyLocale(), s.webhookHTTP()
-	slots := make(chan struct{}, webhookPosts)
-	var wg sync.WaitGroup
-	for _, a := range due {
-		wg.Add(1)
-		slots <- struct{}{}
-		go func(a state.Alert) {
-			defer func() { <-slots; wg.Done() }()
-			if err := postWebhook(ctx, client, hook, webhookBody(a, lang)); err != nil {
-				// err never carries the URL: it is a credential, and the
-				// panel's journal is readable by read-only accounts.
-				if s.Log != nil {
-					s.Log.Warn("alert webhook failed", "alert", a.ID, "err", err)
+	lang := s.notifyLocale()
+	// An alert is notified once every channel delivered it (SPEC.md
+	// §14.4): the webhook alert by alert, the email in one message.
+	posted := make([]bool, len(due))
+	if hook != "" {
+		client := s.webhookHTTP()
+		slots := make(chan struct{}, webhookPosts)
+		var wg sync.WaitGroup
+		for i, a := range due {
+			wg.Add(1)
+			slots <- struct{}{}
+			go func(i int, a state.Alert) {
+				defer func() { <-slots; wg.Done() }()
+				if err := postWebhook(ctx, client, hook, webhookBody(a, lang)); err != nil {
+					// err never carries the URL: it is a credential, and the
+					// panel's journal is readable by read-only accounts.
+					if s.Log != nil {
+						s.Log.Warn("alert webhook failed", "alert", a.ID, "err", err)
+					}
+					return
 				}
-				return
-			}
-			s.logIfErr(s.Store.MarkAlertsNotified([]string{a.ID}), "MarkAlertsNotified")
-		}(a)
+				posted[i] = true
+			}(i, a)
+		}
+		wg.Wait()
 	}
-	wg.Wait()
+	mailed := len(recipients) == 0
+	if !mailed {
+		subject, body := alertMailText(due, lang)
+		msg := plainMessage(relay.From, recipients, subject, body, time.Now())
+		if err := s.sendMail(ctx, outgoing{relay: relay, password: password, from: relay.From, to: recipients, msg: msg}); err != nil {
+			if s.Log != nil {
+				s.Log.Warn("alert email failed", "alerts", len(due), "err", err)
+			}
+		} else {
+			mailed = true
+		}
+	}
+	var done []string
+	for i, a := range due {
+		if (hook == "" || posted[i]) && mailed {
+			done = append(done, a.ID)
+		}
+	}
+	if len(done) > 0 {
+		s.logIfErr(s.Store.MarkAlertsNotified(done), "MarkAlertsNotified")
+	}
+}
+
+// alertMail is the relay the alerts are emailed through and their
+// recipients; none when the relay is not configured or nobody is named.
+func (s *Server) alertMail() (state.MailRelay, string, []string) {
+	ps, err := s.Store.PanelSettings()
+	if err != nil {
+		s.logIfErr(err, "PanelSettings")
+		return state.MailRelay{}, "", nil
+	}
+	if !ps.Mail.Configured() || len(ps.AlertEmailList()) == 0 {
+		return state.MailRelay{}, "", nil
+	}
+	pw, err := s.Store.Secret(state.SecretMailPassword)
+	s.logIfErr(err, "Secret")
+	return ps.Mail, pw, ps.AlertEmailList()
+}
+
+// alertMailText is the subject and the body of the alerts' email: the
+// alert's own line for one, a count for more; a line per alert.
+func alertMailText(due []state.Alert, lang string) (subject, body string) {
+	lines := make([]string, len(due))
+	for i, a := range due {
+		lines[i] = alertText(a, lang)
+	}
+	subject = lines[0]
+	if len(due) > 1 {
+		subject = i18n.T(lang, "alert.mailSubject", len(due))
+	}
+	return firstLine(subject), strings.Join(lines, "\n\n")
 }
 
 // alertText is the webhook's line for a: its level, its site and its text.

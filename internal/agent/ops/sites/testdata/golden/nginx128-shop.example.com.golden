@@ -3,7 +3,7 @@
 /ROOT/nginx/conf.d/cloudground-global.conf
 /ROOT/nginx/sites-enabled/shop.example.com.conf
 /ROOT/php-masters/cg-site-5.conf
-/ROOT/srv/shop.example.com/current/wp-content/mu-plugins/cloudground-connector.php 176dc0f3df2f40b68a9e9fa4be79f327534e55f4128d580fbd0b7306b5483449
+/ROOT/srv/shop.example.com/current/wp-content/mu-plugins/cloudground-connector.php b30fc700d75f6057b587e7b9419497d4fc4c3716e1e093da6a719cbba478bcee
 /ROOT/systemd/cg-site-5.slice
 /ROOT/systemd/cloudground-php-cg-site-5.service
 ## /ROOT/nginx/conf.d/cloudground-cache-5.conf -rw-r--r--
@@ -293,6 +293,10 @@ php_admin_value[memory_limit] = 512M
 php_admin_value[upload_max_filesize] = 64M
 php_admin_value[post_max_size] = 64M
 php_admin_value[max_execution_time] = 120
+
+; mail() hands the message to the panel's mail gate, which knows the
+; site by its user and sends it through the relay (api SPEC 14.2).
+php_admin_value[sendmail_path] = /usr/local/bin/panel-agent sendmail -t -i
 
 ; Object cache in APCu, shared memory inside PHP itself: no separate
 ; service and no socket on a single server. The master's command line

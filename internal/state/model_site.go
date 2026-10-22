@@ -117,6 +117,36 @@ type SiteConfig struct {
 	// WPUpdates is when a WordPress site's updates run by themselves
 	// (#20, internal/api SPEC §6.2.3); the zero value is never.
 	WPUpdates WPUpdatePolicy `json:"wp_updates,omitzero"`
+	// Mail is how the site's mail leaves (#77, internal/api SPEC §14).
+	Mail SiteMail `json:"mail,omitzero"`
+}
+
+// MailRelay is an SMTP relay mail is handed to (internal/api SPEC §14.1).
+// Its password is a secret.
+type MailRelay struct {
+	Host string `json:"host,omitempty"`
+	// Port 0 takes the security's (587, 465, 25).
+	Port int `json:"port,omitempty"`
+	// Security is starttls (also ""), tls or none.
+	Security string `json:"security,omitempty"`
+	Username string `json:"username,omitempty"`
+	// From is the envelope sender, and the From of a message with none.
+	From string `json:"from,omitempty"`
+}
+
+// Configured reports whether mail can be handed to the relay.
+func (r MailRelay) Configured() bool { return r.Host != "" && r.From != "" }
+
+// SiteMail is a site's mail. The zero value sends through the server's
+// relay, from the relay's address.
+type SiteMail struct {
+	Off bool `json:"off,omitempty"`
+	// From is the site's sender, the relay's when empty.
+	From string `json:"from,omitempty"`
+	// DKIMSelector names the DKIM record the checklist looks for.
+	DKIMSelector string `json:"dkim_selector,omitempty"`
+	// Relay is the site's own relay; nil takes the server's.
+	Relay *MailRelay `json:"relay,omitempty"`
 }
 
 // WPUpdatePolicy is a WordPress site's scheduled updates. Each runs as the

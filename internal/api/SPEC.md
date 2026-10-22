@@ -2608,10 +2608,14 @@ use it). Each key is a field of `state.PanelSettings` or a secret.
   stable or beta`; the release check and `POST /api/panel/update` follow
   it), `vulnerability_check` (`""` on, `"0"` off, as `update_check`; the
   WordPress vulnerability check of §11.6), `malware_scan` (`"1"` on, `""` off, as
-  `require_2fa_admin`; the weekly malware scan of §11.7, whose first run installs ClamAV), and the read-only
-  `panel_domain`.
-- Secrets: `backup_password`, `backup_s3_secret_key`, `cloudflare_api_token`
-  show `••••••••` when set and `""` when not; `notify_webhook` is shown in
+  `require_2fa_admin`; the weekly malware scan of §11.7, whose first run installs ClamAV), the
+  server-wide mail relay of §14 (`mail_host`, a host name or address;
+  `mail_port`, `""` or 1–65535; `mail_security`, `starttls`, `tls` or
+  `none`, `""` meaning starttls; `mail_username`; `mail_from`, one address;
+  `alert_emails`, up to 10 addresses separated by commas or spaces; each
+  else 400 `<key>: …`), and the read-only `panel_domain`.
+- Secrets: `backup_password`, `backup_s3_secret_key`, `cloudflare_api_token`,
+  `mail_password` show `••••••••` when set and `""` when not; `notify_webhook` is shown in
   full to an admin and as `<scheme>://<host>/••••••••` to anyone else.
 - `GET` (global): the map. 500 `could not read the settings`.
 - `PUT` (admin), a partial map. With an API token (§1.2.1), first: a key
@@ -2662,3 +2666,113 @@ sentinels), or the agent call's error. `fail` answers them: the refusal as
 it says, `respondJobErr`, **500** `the panel could not complete the request`
 (the text only in the journal), and `errorReply` for the agent's, which
 never trusts the text of an error that is not the agent's own type.
+
+## 14. Mail (#77, `mail.go`, `mail_gate.go`, `mail_relay.go`)
+
+Before #77 a site had no path for its mail: PHP's `mail()` called a
+`sendmail` the server does not have, so WooCommerce orders and password
+resets went nowhere, and the panel's alerts had only the webhook. The
+panel does not run a mail server: it hands mail to a **relay** (an SMTP
+service: a provider's, Amazon SES, Postmark, a mailbox's own SMTP), and
+the relay's password never leaves the panel.
+
+### 14.1 The relay
+
+A relay is `{host, port, security, username, from}` (`state.MailRelay`)
+and a password (a sealed secret). `security` is `starttls` (the default,
+port 587), `tls` (implicit TLS, 465) or `none` (25); a port of 0 takes the
+security's. `from` is the envelope sender, and the `From` of a message
+that has none. A relay is **configured** when it has a host and a from.
+
+- **Server-wide**: settings keys (§12) `mail_host`, `mail_port`,
+  `mail_security`, `mail_username`, `mail_from`, `alert_emails` (alert
+  recipients, §14.4) and the secret `mail_password`; stored as the JSON
+  column `panel_settings.mail`.
+- **Per site**: `config.mail` (`state.SiteMail`) `{off, from,
+  dkim_selector, relay}`: `off` sends nothing; `from` is the site's sender
+  (the relay's otherwise); `relay`, when set, is the site's own relay
+  (password `site.<id>.mail_password`), else the server's applies.
+
+The **effective relay** of a site is its own, else the server's; none when
+the site is `off`, is a staging copy, or neither is configured.
+
+**Sending** (`sendMail`): a TCP connection (15 s to connect, 60 s for the
+whole exchange), TLS from the start for `tls` (the host's certificate is
+verified), `STARTTLS` required for `starttls` (a relay that does not offer
+it is an error, never a fallback to plain text), `AUTH PLAIN` when a
+username is set (Go's `smtp.PlainAuth`, which refuses to send a password
+over a connection that is not TLS unless the relay is this machine), then
+`MAIL FROM:<from>`, one `RCPT TO` per recipient, the message, `QUIT`. On
+failure the error is the relay's answer, which names no password. Only an
+administrator sets a relay: it is a host and port the panel connects to.
+
+### 14.2 How a site's mail reaches the relay
+
+The pool of every PHP site that is not a staging copy and whose mail is not
+`off` sets `sendmail_path = /usr/local/bin/panel-agent sendmail -t -i`
+(internal/phpfpm SPEC §5.3), so PHP's `mail()`, and with it WordPress's
+`wp_mail()` (PHPMailer's default transport), runs the **mail gate client**
+as the site's user, inside the site's sandbox, with no privilege. It reads
+the message from its standard input (at most 10 MiB) and posts it to the
+panel's **mail gate**, the Unix socket `/run/cloudground-api/mail.sock`
+(mode 0666, in the API unit's `RuntimeDirectory`): `POST /send`, the
+recipients named on its command line as `to` query values. It exits 0 when
+the panel answers 200, and 75 (`EX_TEMPFAIL`) with the panel's message on
+standard error otherwise, so `mail()` returns false.
+
+The gate (`mail_gate.go`, `MailRoutes`) knows the sender from the kernel,
+not from anything it says: the uid of the connecting process
+(`SO_PEERCRED`), that uid's user name in the system's accounts, and the
+site whose system user that is. In order:
+
+1. no site has that user → **403** `this user is not a site's`;
+2. a staging copy → **403** `a staging copy sends no mail`; a site whose
+   mail is `off` → **403** `mail is turned off for this site`;
+3. no effective relay → **412** `no mail relay is configured`;
+4. more than 200 messages from the site in the last hour → **429** `too
+   many messages from this site; try again later`;
+5. the message is read (more than 10 MiB → 413) and parsed as RFC 5322
+   (unreadable headers → 400); the recipients are the `to` values and,
+   with `t=1` (the client's `-t`), the `To`, `Cc` and `Bcc` addresses
+   (none → 400 `no recipient`, more than 50 → 400); the `Bcc` header is
+   removed; a message without `From` gets the site's sender, one without
+   `Date` the time now; bare line feeds become CRLF;
+6. `sendMail` through the effective relay, envelope sender the site's
+   `from` or the relay's. Its failure → **502** with the relay's message.
+   200 `{"sent": <recipients>}`.
+
+Every message from a site (sent or refused) is a line in the panel's
+journal: the site, the number of recipients and the result, never the
+content or the addresses.
+
+WordPress: the connector reads `CLOUDGROUND_MAIL_FROM` from the pool (the
+site's `from`, when set) and makes it `wp_mail()`'s sender
+(connector/SPEC.md §2.13). A **staging copy keeps blocking mail**: its pool
+has no `sendmail_path`, the connector's `pre_wp_mail` still answers success
+and sends nothing (connector/SPEC.md §2.9), and the gate refuses its user
+(step 2).
+
+### 14.3 Routes
+
+| Route (policy) | Does |
+| --- | --- |
+| `GET /api/sites/{id}/mail` (`signedIn`) | `{off, from, dkim_selector, relay: {host, port, security, username, password_set} or null, effective: "site", "server" or "none", sender}` |
+| `PUT /api/sites/{id}/mail` (`admin`) | any of `off`, `from`, `dkim_selector`, `relay` (an object `{host, port, security, username, from, password}`, its `from` the site's when left empty; `null` drops the site's own relay; its `password` as a secret of §12: `••••••••` or left out keeps it, `""` clears it). A staging copy → 400 `a staging copy sends no mail`; a bad address, host, port, security or selector → 400 with `fields`. A change of `off` or `from` renders the site (its pool) and is stored once the agent applied it, as §6.2.1 does; the rest is stored at once. Audit `mail.site` (`off=<b> from=<addr> relay=<host or server>`). Answers as `GET` |
+| `GET /api/sites/{id}/mail/checks` (`signedIn`) | the sender's domain in DNS: `{domain, spf: {found, record}, dmarc: {found, record}, dkim: {selector, found}}`, from the TXT records of `<domain>` (the one starting `v=spf1`), `_dmarc.<domain>` (`v=DMARC1`) and, with a selector, `<selector>._domainkey.<domain>`, 3 s each; a failed lookup reads as not found. The relay's provider says what the records must hold; the panel says whether they are there |
+| `POST /api/sites/{id}/mail/test` (`manage`) `{to}` | one test message through the site's effective relay, from its sender, now: 200 `{"sent": 1}`, 412 `no mail relay is configured`, 502 with the relay's error. Audit `mail.test` |
+| `POST /api/settings/mail/test` (`admin`) `{to}` | the same through the server-wide relay |
+
+`to` must be one address (400 `to must be one email address`). The test
+message's subject and body are in the caller's language.
+
+### 14.4 Email alerts
+
+With a configured server-wide relay and `alert_emails` (up to 10
+addresses), email is a notification channel beside the webhook (§11.3):
+the `alerts.notify` job sends the alerts it is about to notify in **one
+message** per run (subject: the alert's line when there is one, else `<n>
+CloudGround alerts`; one line per alert in the body), in the admins'
+language. An alert is marked notified once **every** configured channel
+delivered it: a channel that failed sends it again at the next run on
+every channel, so nobody misses it, at the cost of a repeat on the channel
+that had worked.

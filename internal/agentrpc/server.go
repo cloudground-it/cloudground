@@ -422,3 +422,8 @@ func UIDOf(name string) (uint32, error) {
 	}
 	return uint32(n), nil
 }
+
+// PeerUID is the uid of the process at the other end of a Unix socket
+// connection, as the kernel recorded it when it connected: what the API's
+// mail gate knows a site by (internal/api SPEC §14.2).
+func PeerUID(c net.Conn) (uint32, error) { return kernelPeerUID(c) }

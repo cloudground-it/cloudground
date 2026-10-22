@@ -14,6 +14,10 @@ ExecStart=/usr/local/bin/panel-api
 Sockets=cloudground-api.socket
 Restart=on-failure
 RestartSec=2
+# The sites' mail gate (internal/api SPEC 14.2): a socket every site user
+# may connect to; the API knows each by its uid.
+RuntimeDirectory=cloudground-api
+RuntimeDirectoryMode=0755
 
 # The API faces the browser, so it gets no privilege at all: anything that
 # needs root is a request to the agent over its socket.

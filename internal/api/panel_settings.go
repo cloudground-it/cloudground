@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
@@ -102,6 +103,60 @@ var settingFields = map[string]setting{
 	// it be typed would let the panel claim a domain it has no certificate
 	// for.
 	"panel_domain": {show: func(p state.PanelSettings) string { return p.PanelDomain }},
+
+	// The server-wide mail relay and who gets the alerts by email (§14).
+	"mail_host": {
+		show: func(p state.PanelSettings) string { return p.Mail.Host },
+		parse: func(p *state.PanelSettings, v string) error {
+			if err := checkMailHost(v); err != nil {
+				return err
+			}
+			p.Mail.Host = v
+			return nil
+		},
+	},
+	"mail_port": {
+		show: func(p state.PanelSettings) string {
+			if p.Mail.Port == 0 {
+				return ""
+			}
+			return strconv.Itoa(p.Mail.Port)
+		},
+		parse: func(p *state.PanelSettings, v string) error {
+			n, err := parseMailPort(v)
+			p.Mail.Port = n
+			return err
+		},
+	},
+	"mail_security": {
+		show: func(p state.PanelSettings) string { return p.Mail.Security },
+		parse: func(p *state.PanelSettings, v string) error {
+			if err := checkMailSecurity(v); err != nil {
+				return err
+			}
+			p.Mail.Security = v
+			return nil
+		},
+	},
+	"mail_username": textSetting(func(p *state.PanelSettings) *string { return &p.Mail.Username }),
+	"mail_from": {
+		show: func(p state.PanelSettings) string { return p.Mail.From },
+		parse: func(p *state.PanelSettings, v string) error {
+			if v != "" && !plainAddress(v) {
+				return errors.New("must be one email address")
+			}
+			p.Mail.From = v
+			return nil
+		},
+	},
+	"alert_emails": {
+		show: func(p state.PanelSettings) string { return p.AlertEmails },
+		parse: func(p *state.PanelSettings, v string) error {
+			list, err := parseAlertEmails(v)
+			p.AlertEmails = strings.Join(list, ", ")
+			return err
+		},
+	},
 }
 
 // secretKeys are the keys kept in the secret store. The webhook is a
@@ -109,6 +164,7 @@ var settingFields = map[string]setting{
 // it, see it in full.
 var secretKeys = []string{
 	state.SecretBackupPassword, state.SecretBackupS3SecretKey, state.SecretCloudflareToken, state.SecretNotifyWebhook,
+	state.SecretMailPassword,
 }
 
 // repoPasswordRe finds the password of a URL's userinfo, as in

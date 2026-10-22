@@ -1730,6 +1730,27 @@ final class Hardening
     }
 }
 
+// ----------------------------------------------------------------- mail --
+
+/**
+ * The sender of wp_mail() (SPEC §2.13). The mail itself leaves through
+ * PHP's mail(), which the pool points at the panel's mail gate; the relay
+ * behind it accepts only the sender it was set up for, so the site's
+ * sender, CLOUDGROUND_MAIL_FROM in the PHP master's environment, wins over
+ * wordpress@<domain> and over a plugin's own.
+ */
+final class Mail
+{
+    public static function from($current)
+    {
+        $v = getenv('CLOUDGROUND_MAIL_FROM');
+        if (is_string($v) && filter_var($v, FILTER_VALIDATE_EMAIL) !== false) {
+            return $v;
+        }
+        return $current;
+    }
+}
+
 // --------------------------------------------------------------- wiring --
 
 add_action('muplugins_loaded', [Stats::class, 'handle'], 0);
@@ -1740,6 +1761,7 @@ add_action('application_password_failed_authentication', [AuthFailure::class, 'f
 Events::register();
 TwoFactor::register();
 Hardening::register();
+add_filter('wp_mail_from', [Mail::class, 'from'], 1000);
 
 if (defined('CLOUDGROUND_DISABLE_CART_FRAGMENTS') && \CLOUDGROUND_DISABLE_CART_FRAGMENTS) {
     add_action('wp_enqueue_scripts', [CartFragments::class, 'dequeue'], 100);

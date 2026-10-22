@@ -68,6 +68,7 @@ var sections = []section{
 	{name: "wordpress releases", run: (*harness).wordpressReleases, fixtures: []string{fxFeatureSite}, lane: "feature"},
 	{name: "wordpress backups", run: (*harness).wordpressBackups, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
 	{name: "wordpress updates", run: (*harness).wpUpdates, fixtures: []string{fxFeatureSite}},
+	{name: "mail relay", run: (*harness).mailRelay, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
 	{name: "R-4.6 cgctl tokens", run: (*harness).cgctlTokens, fixtures: []string{fxFeatureSite}},
 	{name: "R-4.6 backup interruption", run: (*harness).backupInterruption, fixtures: []string{fxFeatureSite}},
 	{name: "helper units", run: (*harness).helperUnits, fixtures: []string{fxFeatureSite}},

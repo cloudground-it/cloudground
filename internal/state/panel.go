@@ -3,8 +3,10 @@ package state
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudground-it/cloudground/internal/api/events"
@@ -38,6 +40,26 @@ type PanelSettings struct {
 	// MalwareScan turns on the scheduled malware scan of every site (api
 	// SPEC §11.7); off by default, since it installs ClamAV.
 	MalwareScan bool
+	// Mail is the server-wide mail relay (api SPEC §14.1; its password is
+	// the secret SecretMailPassword) and AlertEmails who gets the alerts
+	// by email (§14.4), addresses joined by ", " so the settings stay
+	// comparable. Both are the JSON column mail.
+	Mail        MailRelay
+	AlertEmails string
+}
+
+// AlertEmailList is AlertEmails one address each.
+func (p PanelSettings) AlertEmailList() []string { return splitEmails(p.AlertEmails) }
+
+// splitEmails reads addresses separated by commas or spaces.
+func splitEmails(v string) []string {
+	return strings.FieldsFunc(v, func(r rune) bool { return r == ',' || r == ' ' || r == '\n' || r == '\t' })
+}
+
+// panelMail is the JSON of the mail column.
+type panelMail struct {
+	Relay       MailRelay `json:"relay,omitzero"`
+	AlertEmails []string  `json:"alert_emails,omitempty"`
 }
 
 // EffectiveProbeTarget is ProbeTarget, or the default when unset.
@@ -48,13 +70,22 @@ func (p PanelSettings) EffectiveProbeTarget() string {
 	return p.ProbeTarget
 }
 
-const panelCols = `acme_email, panel_domain, probe_target, backup_repository, backup_s3_access_key, backup_s3_region, require_2fa_admin, update_check, update_channel, vulnerability_check, malware_scan`
+const panelCols = `acme_email, panel_domain, probe_target, backup_repository, backup_s3_access_key, backup_s3_region, require_2fa_admin, update_check, update_channel, vulnerability_check, malware_scan, mail`
 
 func scanPanel(row interface{ Scan(...any) error }) (PanelSettings, error) {
 	var p PanelSettings
+	var mail string
 	err := row.Scan(&p.ACMEEmail, &p.PanelDomain, &p.ProbeTarget, &p.BackupRepository,
-		&p.BackupS3AccessKey, &p.BackupS3Region, &p.Require2FAAdmin, &p.UpdateCheck, &p.UpdateChannel, &p.VulnerabilityCheck, &p.MalwareScan)
-	return p, err
+		&p.BackupS3AccessKey, &p.BackupS3Region, &p.Require2FAAdmin, &p.UpdateCheck, &p.UpdateChannel, &p.VulnerabilityCheck, &p.MalwareScan, &mail)
+	if err != nil {
+		return p, err
+	}
+	var m panelMail
+	if err := json.Unmarshal([]byte(mail), &m); err != nil {
+		return p, fmt.Errorf("panel settings: the mail column: %w", err)
+	}
+	p.Mail, p.AlertEmails = m.Relay, strings.Join(m.AlertEmails, ", ")
+	return p, nil
 }
 
 // PanelSettings returns the panel's configuration.
@@ -88,10 +119,14 @@ func (s *Store) UpdatePanelSettings(fn func(*PanelSettings) error) (PanelSetting
 		if err != nil {
 			return err
 		}
+		mail, err := json.Marshal(panelMail{Relay: p.Mail, AlertEmails: splitEmails(p.AlertEmails)})
+		if err != nil {
+			return err
+		}
 		if _, err := conn.ExecContext(ctx, `UPDATE panel_settings SET acme_email=?, panel_domain=?, probe_target=?,
-			backup_repository=?, backup_s3_access_key=?, backup_s3_region=?, require_2fa_admin=?, update_check=?, update_channel=?, vulnerability_check=?, malware_scan=? WHERE id=1`,
+			backup_repository=?, backup_s3_access_key=?, backup_s3_region=?, require_2fa_admin=?, update_check=?, update_channel=?, vulnerability_check=?, malware_scan=?, mail=? WHERE id=1`,
 			p.ACMEEmail, p.PanelDomain, p.ProbeTarget, repo, p.BackupS3AccessKey, p.BackupS3Region,
-			p.Require2FAAdmin, p.UpdateCheck, p.UpdateChannel, p.VulnerabilityCheck, p.MalwareScan); err != nil {
+			p.Require2FAAdmin, p.UpdateCheck, p.UpdateChannel, p.VulnerabilityCheck, p.MalwareScan, string(mail)); err != nil {
 			return fmt.Errorf("update panel settings: %w", err)
 		}
 		out = p

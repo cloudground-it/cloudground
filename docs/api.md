@@ -109,6 +109,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
   - `PUT /api/sites/{id}/wp/cleanup`: 8 KiB
   - `PUT /api/sites/{id}/uptime`: 8 KiB
+  - `PUT /api/sites/{id}/mail`: 8 KiB
+  - `POST /api/sites/{id}/mail/test`: 8 KiB
   - `PUT /api/sites/{id}/backups/policy`: 8 KiB
   - `POST /api/sites/{id}/files/upload`: 16 MiB
   - `POST /api/quarry/login`: 8 KiB
@@ -125,6 +127,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `POST /api/blocklist/allowed`: 8 KiB
   - `DELETE /api/blocklist/allowed`: 8 KiB
   - `PUT /api/blocklist/settings`: 8 KiB
+  - `POST /api/settings/mail/test`: 8 KiB
 - The endpoints that run a database statement while the request waits take at most
   2 at once per account and 4 per site; beyond, **`429`**
   `too many database statements are running: wait for one to finish`:
@@ -225,6 +228,10 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `POST` | `/api/sites/{id}/malware/findings/{finding}/quarantine` | manage | move an open finding's file out of the site into the agent's quarantine; 200 with the finding |
 | `GET` | `/api/sites/{id}/uptime` | auth | the site's uptime check: `enabled`, `path`, `url`, `interval_seconds` and the `last` result (`up`, `status`, `latency_ms`, `error`, `down_since`) |
 | `PUT` | `/api/sites/{id}/uptime` | manage | turn the uptime check on or off (`enabled`) and choose the path it requests (`path`, default `/`) |
+| `GET` | `/api/sites/{id}/mail` | auth | how the site's mail leaves: `off`, `from`, `dkim_selector`, its own `relay` (no password) or null, the `effective` relay (`site`, `server`, `none`) and the `sender` |
+| `PUT` | `/api/sites/{id}/mail` | admin | change any of `off`, `from`, `dkim_selector`, `relay` (`{host, port, security, username, from, password}`, null for the server's); answers as GET |
+| `GET` | `/api/sites/{id}/mail/checks` | auth | the sender domain's SPF, DMARC and DKIM records, as DNS has them |
+| `POST` | `/api/sites/{id}/mail/test` | manage | send a test message through the site's relay: `{"to"}` |
 
 `PATCH /api/sites/{id}` takes any of these fields; only the fields sent change, and one task applies
 them all:
@@ -509,6 +516,7 @@ session (an API token gets 403); an operator adds `"sftp"` keys to its sites.
 | `GET` | `/api/audit` | global | the audit log: actor, action, address |
 | `GET` | `/api/settings` | global | the panel's settings |
 | `PUT` | `/api/settings` | admin | change the panel's settings (an API token may change only `acme_email` and `probe_target`) |
+| `POST` | `/api/settings/mail/test` | admin | send a test message through the server-wide mail relay: `{"to"}` |
 | `POST` | `/api/panel/certificate` | admin, session only | give the panel its own certificate |
 | `POST` | `/api/panel/update` | admin, session only | record an update request for the panel |
 

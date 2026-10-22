@@ -113,11 +113,24 @@ const channels = computed(() => [
   { label: t('settings.updateChannelBeta'), value: 'beta' }
 ])
 
+// The mail relay (#77): sites' mail() and the alerts' email go through it.
+const MAIL_KEYS = ['mail_host', 'mail_port', 'mail_security', 'mail_username', 'mail_password', 'mail_from', 'alert_emails']
+const mailSecurity = computed({
+  get: () => form.value.mail_security || 'starttls',
+  set: (v: string) => { form.value.mail_security = v }
+})
+const securityItems = computed(() => (['starttls', 'tls', 'none'] as const).map(v => ({ value: v, label: t(`mail.security.${v}`) })))
+const testTo = ref('')
+async function testMail() {
+  await run(() => api.post('/api/settings/mail/test', { to: testTo.value }), t('mail.testSent'))
+}
+
 // The page's index (PageToc), in the order of the sections.
 const toc = computed(() => [
   { id: 'backups', label: t('settings.backups') },
   { id: 'panel-domain', label: t('settings.panelDomain') },
   { id: 'certificates', label: t('settings.certificates') },
+  { id: 'mail', label: t('mail.title') },
   { id: 'notifications', label: t('settings.notifications') },
   { id: 'access', label: t('settings.access') },
   { id: 'updates', label: t('settings.updates') }
@@ -261,6 +274,39 @@ async function selfUpdate() {
               </div>
               <template v-if="isAdmin" #footer>
                 <UButton :label="t('common.save')" :loading="busy" @click="save(['acme_email', 'cloudflare_api_token'])" />
+              </template>
+            </PanelSection>
+
+            <PanelSection id="mail" :title="t('mail.title')" :description="t('mail.serverHint')" icon="i-cg-bell">
+              <div class="grid gap-4 sm:grid-cols-2">
+                <UFormField :label="t('mail.host')">
+                  <UInput v-model="form.mail_host" placeholder="smtp.example.com" class="w-full font-mono" :disabled="!isAdmin" />
+                </UFormField>
+                <div class="grid grid-cols-2 gap-4">
+                  <UFormField :label="t('mail.securityLabel')">
+                    <USelect v-model="mailSecurity" :items="securityItems" class="w-full" :disabled="!isAdmin" />
+                  </UFormField>
+                  <UFormField :label="t('mail.port')" :help="t('mail.portHelp')">
+                    <UInput v-model="form.mail_port" inputmode="numeric" class="w-full font-mono" :disabled="!isAdmin" />
+                  </UFormField>
+                </div>
+                <UFormField :label="t('mail.username')">
+                  <UInput v-model="form.mail_username" autocomplete="off" class="w-full font-mono" :disabled="!isAdmin" />
+                </UFormField>
+                <UFormField :label="t('mail.password')">
+                  <UInput v-model="form.mail_password" type="password" autocomplete="off" class="w-full font-mono" :disabled="!isAdmin" />
+                </UFormField>
+                <UFormField :label="t('mail.from')" :help="t('mail.fromHelp')">
+                  <UInput v-model="form.mail_from" placeholder="noreply@example.com" class="w-full font-mono" :disabled="!isAdmin" />
+                </UFormField>
+                <UFormField :label="t('mail.alertEmails')" :help="t('mail.alertEmailsHelp')">
+                  <UInput v-model="form.alert_emails" placeholder="ops@example.com" class="w-full font-mono" :disabled="!isAdmin" />
+                </UFormField>
+              </div>
+              <template v-if="isAdmin" #footer>
+                <UButton :label="t('common.save')" :loading="busy" @click="save(MAIL_KEYS)" />
+                <UInput v-model="testTo" placeholder="test@example.com" class="w-full font-mono sm:w-64" />
+                <UButton color="neutral" variant="outline" :label="t('mail.test')" :disabled="busy || !testTo || !saved.mail_host" @click="testMail" />
               </template>
             </PanelSection>
 
