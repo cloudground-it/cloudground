@@ -74,7 +74,12 @@ func (h *harness) maintenancePage(t *testing.T) {
 		if fromClient {
 			args = append([]string{"ip", "netns", "exec", mpNS}, args...)
 		}
-		return h.run(args[0], args[1:]...).Out
+		r := h.run(args[0], args[1:]...)
+		if r.Out == "" {
+			// Nothing came back: say why (curl's own words, its exit code).
+			return fmt.Sprintf("(no answer: curl exit %d: %s)", r.Code, strings.TrimSpace(r.Err))
+		}
+		return r.Out
 	}
 	status := func(out string) string {
 		f := strings.Fields(out)
@@ -87,7 +92,16 @@ func (h *harness) maintenancePage(t *testing.T) {
 		return h.api.put(fmt.Sprintf("/api/sites/%d/maintenance", id), body)
 	}
 
-	h.check(t, "#79: control: the client gets the site", status(get(true, "/")), "200")
+	// The namespace is new: give the path to the site a minute to carry
+	// traffic before the control, and say what it saw if it never does.
+	var first string
+	for deadline := time.Now().Add(time.Minute); time.Now().Before(deadline); time.Sleep(2 * time.Second) {
+		if first = get(true, "/"); status(first) == "200" {
+			break
+		}
+	}
+	h.assert(t, "#79: control: the client gets the site", status(first) == "200", "%s\nroute: %s\nping: %s",
+		head([]byte(first), 400), h.run("ip", "netns", "exec", mpNS, "ip", "route").Out, h.run("ip", "netns", "exec", mpNS, "ping", "-c1", "-W2", mpHost).Out)
 	c, b := put(map[string]any{"enabled": true, "title": "Back <soon>", "retry_after_sec": 1800,
 		"message": "cg79 ${host} <b>markup</b>\nsecond line"})
 	h.check(t, "#79: turning the page on is accepted", fmt.Sprint(c), "200")
