@@ -1,0 +1,1 @@
+import{c as e,o as t}from"./D1kfWz9N.js";import{i as n,n as r}from"./DPEZW2G8.js";var i=t(async()=>{let{session:t,load:i}=n();if(t.value||await i(),!t.value)return e(r)});export{i as default};
