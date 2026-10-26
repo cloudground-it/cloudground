@@ -1,0 +1,1 @@
+import{d as e}from"./CBjr5dWa.js";function t(){let t=e().ui?.prefix;return e=>!t||!e?e:e.split(/\s+/).filter(Boolean).map(e=>`${t}:${e}`).join(` `)}export{t};

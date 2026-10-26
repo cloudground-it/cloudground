@@ -1,1 +1,0 @@
-import{lt as e}from"./BbPOJr-r.js";var t=Symbol(`current-site`);function n(){let n=e(t);if(!n)throw Error(`useCurrentSite outside a site page`);return n}export{n,t};
