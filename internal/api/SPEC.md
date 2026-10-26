@@ -133,7 +133,7 @@ Before this list (R-4.3 review) a token could do every one of the last seven.
 | Policy | Docs marker | Allowed | Refused with |
 | --- | --- | --- | --- |
 | `open` | open | anyone | — |
-| `token` | site token | the handler authenticates a per-site bearer token itself | — (the connector's own 401/429) |
+| `token` | site token | the handler authenticates a per-site bearer token or signature itself | — (the connector's own 401/429; the git webhook's 401/429, §15.3) |
 | `signedIn` | auth | every signed-in account | 401 only |
 | `global` | global | `admin`, `readonly` (server-wide data; never an operator, whose view is its own sites) | 403 `server-wide access required` |
 | `manage` | manage | `admin`, `operator` (an operator only on its assigned sites, §1.4) | 403 `site management access required` |
@@ -194,7 +194,8 @@ Non-browser clients (cgctl, curl) send neither header and are unaffected.
 
 Default 4 MiB. Rows that differ: setup, sign-in, every route that takes a
 password (change, 2FA enrolment and disable, user creation, password reset)
-and the profile (8 KiB), a custom certificate (256 KiB), a Quarry edit batch
+and the profile (8 KiB), a site's git deploy settings (8 KiB), the git webhook
+(1 MiB), a custom certificate (256 KiB), a Quarry edit batch
 (16 MiB), a file upload (16 MiB), a Quarry upload chunk (8 MiB).
 
 **Read deadlines.** The panel's `http.Server` (`NewHTTPServer`) gives the
@@ -1245,6 +1246,7 @@ only from `created`, `superseded`, `rolled_back` or `promoted`.
 | deploy | `POST /api/sites/{id}/deployments` (`manage`) `{"source_dir"}` | 400 `source_dir required`, `source_dir must be absolute`, `source_dir must be inside the site's directory <root>` | `deploy.create` |
 | promote | `POST /api/deployments/{id}/promote` (`manage`) | **409** when the release is not promotable (never built, or a job is on it) | `deploy.promote` |
 | rollback | `POST /api/sites/{id}/rollback` (`manage`) `{"deployment_id"?}` | 404 for a deployment of another site; **409** when there is no earlier live release, when the one named is the live one, and when the target was never live or was rolled back for a regression | `deploy.rollback` |
+| git push | `POST /hooks/git/{hook}` (signature, §15.3) and `POST /api/sites/{id}/git-deploy/run` (`manage`) | 401, 429 (§15.3); 409 `git deploy is off` | `deploy.git` (§15.4) |
 | safe push | `POST /api/sites/{id}/safe-push` (`manage`) `{"paths", "only", "force"}` | 412 without a staging copy, 400 for bad probe paths or a malformed body, 500 when the settings cannot be read | `deploy.safe-push` |
 | cancel | `POST /api/tasks/{id}/cancel` (as every task) | 409 once finished | — |
 
@@ -2776,3 +2778,160 @@ language. An alert is marked notified once **every** configured channel
 delivered it: a channel that failed sends it again at the next run on
 every channel, so nobody misses it, at the cost of a repeat on the channel
 that had worked.
+
+## 15. Git deploy (#24, `git_deploy.go`, `git_hook.go`)
+
+A site can build a release from a branch of a git repository each time the forge says the branch
+moved: a per-site webhook for GitHub, GitLab and Gitea (and Forgejo, which speaks Gitea's
+dialect). The release is the one of §4: the same ULID, the same states, promotion and rollback.
+This section adds how a push becomes a deployment; it builds nothing itself.
+
+### 15.1 What is stored
+
+Table `site_git_deploys` (migration 30, internal/state SPEC), one row per site that ever turned it
+on: `enabled`, `repo`, `branch`, `build_command`, `hook_id` (UNIQUE: 24 characters of lower-case
+base32, 120 random bits, the unguessable part of the URL), `public_key` (the deploy key's public
+half, OpenSSH format with the comment `cloudground-site-<id>`). Two sealed secrets
+(`site.<id>.git_webhook_secret`: 64 hex characters, `site.<id>.git_deploy_key`: the OpenSSH private
+key, ed25519); deleting the site deletes both (they have the site's prefix). Table
+`site_git_deliveries`: the newest 30 per site, each `at`, `forge`, `event`, `ref`, `commit`,
+`outcome`, `detail`, `deployment_id` (NULL when none), `task_id` (0 when none); an insert prunes
+the older ones.
+
+Rules the API holds before it stores a setting (`site.CheckGitDeploy`, shared with the agent):
+
+- `repo`: one line of at most 512 characters, no blank or control character, not starting with
+  `-`, in one of four forms: `https://<host>/<path>` (no user or password: a private repository
+  is read with the deploy key, never with a token in the address), `ssh://<user>@<host>[:port]/<path>`,
+  `<user>@<host>:<path>` (scp style), or `file:///<path>` **inside the site's own directory**
+  (a repository kept in the site's tree; any other local path is refused: the fetch sees only the
+  site, §15.5). `http://`, `git://` and every other scheme are refused (`400`).
+- `branch`: 1–100 characters of `A-Za-z0-9._/-`, not starting with `-`, `/` or `.`, not ending
+  with `/`, `.` or `.lock`, no `..` or `//`. Default `main`.
+- `build_command`: empty (none), else one line of at most 1 024 characters
+  (`cronjob.ValidateCommand`'s rule).
+
+### 15.2 Routes
+
+| Route (policy) | Does |
+| --- | --- |
+| `GET /api/sites/{id}/git-deploy` (`manage`) | `{enabled, repo, branch, build_command, webhook_path, secret, public_key, deliveries}` (`webhook_path` is `/hooks/git/<hook_id>`; `secret` is empty until it is first turned on; `deliveries` the newest 30, each with the status of its deployment). Never returns the private key. |
+| `PUT /api/sites/{id}/git-deploy` (`manage`) `{enabled?, repo?, branch?, build_command?}` | a field left out is left alone; none → 400. Turning it on needs `repo` (400 `give the repository the site is deployed from`) and, the first time, makes the hook id, the secret and the deploy key. Audit `site.gitdeploy`, detail `enabled=… branch=…` (never the repository's text, never a secret). Answers the view of `GET`. |
+| `POST /api/sites/{id}/git-deploy/secret` (`manage`) | a new secret **and** a new hook id (the URL changes): the old URL stops answering at once. Audit `site.gitdeploy.secret`. Answers the view. 409 while it was never turned on. |
+| `POST /api/sites/{id}/git-deploy/key` (`manage`) | a new deploy key; the old public half stops working once it is removed from the forge. Audit `site.gitdeploy.key`. Answers the view. 409 while it was never turned on. |
+| `POST /api/sites/{id}/git-deploy/run` (`manage`) | a deploy of the branch's tip now, as a push would queue it (§15.4): `202 {task, release_id, deployment_id}`; 409 `git deploy is off`. Audit `site.gitdeploy.run`. |
+| `POST /hooks/git/{hook}` (`token`: the signature) | the webhook (§15.3). Not `Loopback`: served on the panel's public listener and its socket. |
+
+All are session or API-token routes (an API token is an admin who can already run code as the
+site, §1.2.1). The panel's address is not known to the API (it may be reached by name or by IP), so
+the view gives the path; the UI and `cgctl` put the address in front.
+
+### 15.3 The webhook
+
+The body is read to at most 1 MiB (`MaxBody`; more → 413). The request is judged in this order and
+**every refusal before step 4 is the same `401 {"error":"unauthorized"}`**, whatever the reason,
+so the answer never says whether a site or a hook id exists, whether the hook is off, or which
+header was wrong:
+
+1. **Rate limit.** Per client address (`clientIP`): at most 20 deliveries that failed
+   authentication a minute (`gitHookFailLimiter`; over it, **429** `too many requests`, before
+   anything is looked up), and at most 120 deliveries of any kind a minute (`gitHookLimiter`).
+2. **The site.** `hook_id` is looked up in `site_git_deploys` (indexed, one read). A row that is
+   missing, or `enabled = 0`, is treated as a secret that matches nothing: the check of step 3 still
+   runs against a fixed dummy secret, so the time taken does not tell it apart.
+3. **The signature**, by the first of these headers the request carries, computed over the exact
+   body with the site's secret and compared in constant time (`hmac.Equal`,
+   `subtle.ConstantTimeCompare`):
+
+   | Forge | Header | Value |
+   | --- | --- | --- |
+   | GitHub (and Gitea, Forgejo, which send it too) | `X-Hub-Signature-256` | `sha256=<hex HMAC-SHA256>` |
+   | Gitea | `X-Gitea-Signature` | `<hex HMAC-SHA256>` |
+   | Forgejo | `X-Forgejo-Signature` | `<hex HMAC-SHA256>` |
+   | GitLab | `X-Gitlab-Token` | the secret itself |
+
+   The SHA-1 header (`X-Hub-Signature`) is not accepted. A request with none of the headers, or
+   whose value is not well formed, fails like a wrong one. A failure counts for the limiter of
+   step 1. There is no timestamp in these signatures, so a delivery captured on the wire can be
+   replayed: its only effect is one more deploy of the branch's tip, which §15.4 coalesces and
+   step 1 limits.
+
+From here the request is the forge's. The answers are `200` unless said:
+
+4. **The event**: GitHub's `X-GitHub-Event` (Gitea and Forgejo send their own `X-Gitea-Event` /
+   `X-Forgejo-Event` and also GitHub's), GitLab's `X-Gitlab-Event`. `ping` → `{"status":"pong"}`.
+   Anything that is not a push (GitLab: `Push Hook`) → `{"status":"ignored","reason":"event"}`.
+5. **The ref.** The JSON body's `ref` must be `refs/heads/<branch>` for the site's configured
+   branch; another ref (a tag, another branch) → `ignored`, reason `branch`. A push that deletes
+   the branch (`deleted: true`, or `after` all zeros) → `ignored`, reason `deleted`. A body that
+   is not JSON, or has no `ref` → `ignored`, reason `payload`. (The webhook must be sent as
+   `application/json`; the `application/x-www-form-urlencoded` form GitHub offers is read as no
+   payload.)
+6. A push of the configured branch queues a deployment (§15.4) → **202** `{"status":"queued",
+   "deployment_id", "release_id", "task"}`, or, when one is already waiting, `{"status":"queued",
+   "coalesced":true, "deployment_id", "release_id"}`. 503 while the panel drains.
+
+Every request that passed step 3 is recorded as a delivery (`forge`, `event`, `ref`, the pushed
+`after` commit, `outcome` `ping`, `ignored`, `queued` or `coalesced`, and `detail`) and, for
+`queued`, audited as `git.deploy` by actor `git webhook (<forge>)`, subject the site's domain,
+detail the branch and the short commit. A request that failed step 3 is **not** recorded in the
+audit log or the deliveries (anyone on the internet could fill them); it is a line in the
+panel's log (the address, never the secret).
+
+### 15.4 The queue and the job `deploy.git`
+
+A delivery for the configured branch, or `POST …/run`, makes a deployment `pending` (§4.2) with a
+new release ID and queues `deploy.git` with the site's lock (`siteLocks`): deploys of one site
+run one at a time, and wait behind any other job of the site. **A site has at most one deploy
+waiting**: `gitQueue` (in memory, per site) holds the deployment of the `deploy.git` job that has
+been queued and has not started. A delivery that finds one there records `coalesced` pointing at
+that deployment and queues nothing: when the waiting job runs it fetches the branch as it is
+then, so it already holds what the later push announced. A delivery that finds none while a job
+runs queues exactly one more. The entry is cleared when the job starts, is canceled before it
+starts, or is settled by the queue; a restart empties it (a `deploy.git` is never rerun).
+
+The job runs **from its payload** (`deployment_id`, `branch`; never a secret) and reads the site
+and its git settings again when it starts (a setting changed meanwhile applies; one turned off
+fails the job `git deploy is off`):
+
+1. a checkpoint (a cancel stops here, the deployment is `canceled`), then the agent's `GitSync`
+   (internal/agent/ops/gitdeploy SPEC): fetch the branch **as the site user**, export its tree to a
+   fresh directory of the site, run the `build_command` there as the site user. The deploy key is
+   read from the store now and travels only in that call. The deployment stays `pending`. A
+   failed fetch or build → the deployment `failed`, **nothing else changes: the live release
+   stays live**; the job's log carries the tail of the output, and the task is an alert like any
+   failed task;
+2. the release is built from the exported directory by the machinery of §4.3 (`pending → building →
+   created`, `DeployRelease` with `SourceDir` the export), not by a second copy of it; the commit
+   the sync reported is written to the job's log and to the delivery;
+3. it is promoted by the code `deploy.promote` runs (`rollback_to` recorded, `PromoteRelease`,
+   `promoted`, page cache purged and warmed); a promote the agent refuses leaves the release
+   `created`, as there, and fails the job.
+
+Rollback is the existing one (§4.3): the release is an ordinary deployment, its `rollback_to` the
+release live before it.
+
+Cancel, drain and restart follow the deploy kinds (§4.3): canceled before it runs, `canceled`;
+interrupted while `pending` or `building`, `failed` (the reconcile of §4.6 removes a build a restart
+cut short); interrupted while `promoting`, the site is flagged for a reconcile.
+
+### 15.5 Who runs what
+
+The panel never runs `git`. Everything that touches the repository or runs a build is the agent's
+`GitSync` (internal/agent/ops/gitdeploy SPEC): a transient service **as the site user**, in the
+site's slice and the site's run sandbox. The only thing root does is the existing `DeployRelease`,
+which copies the exported tree through `sitefs` and runs nothing of it (ops/sftp SPEC §5.6). The
+deploy key's private half is held sealed by the panel, handed to the agent per call, and written
+by the agent only to the sandbox's private `/tmp` for the length of the fetch.
+
+### 15.6 Tests
+
+`git_deploy_test.go`: the settings and their refusals (§15.1), turning on makes the secret, key
+and URL and never returns the private key, regenerating the secret changes the URL and the old URL
+answers 401. `git_hook_test.go`: each forge's signature accepted; a wrong, missing, malformed,
+SHA-1-only and a body-altered signature all `401` with the same answer as an unknown hook id and a
+disabled hook; the 429 after the failures; ping; a tag, a deleted branch and another branch
+ignored; a push queues a deployment whose job calls `GitSync` then `DeployRelease` then
+`PromoteRelease` in that order; a failing build leaves the live release and the deployment
+`failed`; a second push while one waits is `coalesced`, one while one runs queues exactly one.
+State: `internal/state/git_deploy_test.go`. e2e: `git deploy webhook`.

@@ -67,7 +67,7 @@ is `401`; with one whose role the marker does not allow, `403`.
 | Marker | Who may call |
 | :-- | :-- |
 | **open** | anyone; no session needed |
-| **site token** | the site's connector token, in place of a session |
+| **site token** | the site's connector token, or the signature of a git webhook, in place of a session |
 | **auth** | every signed-in role |
 | **global** | `admin` and `readonly`; server-wide data is closed to `operator` |
 | **manage** | `admin`, or an `operator` on a site assigned to it |
@@ -108,6 +108,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
   - `PUT /api/sites/{id}/wp/cleanup`: 8 KiB
+  - `PUT /api/sites/{id}/git-deploy`: 8 KiB
+  - `POST /hooks/git/{hook}`: 1 MiB
   - `PUT /api/sites/{id}/uptime`: 8 KiB
   - `PUT /api/sites/{id}/mail`: 8 KiB
   - `POST /api/sites/{id}/mail/test`: 8 KiB
@@ -299,6 +301,12 @@ curl -sk --cookie cookies https://panel.example.com/api/sites \
 | `POST` | `/api/sites/{id}/deployments` | manage | create a release from `source_dir`, which must be inside the site's own directory |
 | `POST` | `/api/deployments/{id}/promote` | manage | promote a built release (`created`, `superseded`, `rolled_back` or the live one); 409 for any other status |
 | `POST` | `/api/sites/{id}/rollback` | manage | roll back to the release that was live before the current one, or to `deployment_id` (one that was live); 409 when there is none |
+| `GET` | `/api/sites/{id}/git-deploy` | manage | the site's git deploy: `enabled`, `repo`, `branch`, `build_command`, the webhook's `webhook_path` and `secret`, the deploy key's `public_key` and the latest `deliveries` |
+| `PUT` | `/api/sites/{id}/git-deploy` | manage | turn git deploy on or off and set the repository (`https://`, `ssh://`, `user@host:path` or a `file://` path inside the site), the `branch` (default `main`) and an optional `build_command` run as the site user; the first time on makes the webhook URL, its secret and the deploy key |
+| `POST` | `/api/sites/{id}/git-deploy/secret` | manage | make a new webhook secret and a new webhook URL; the old URL stops answering; 409 when git deploy was never turned on |
+| `POST` | `/api/sites/{id}/git-deploy/key` | manage | make a new deploy key and return its public half; 409 when git deploy was never turned on |
+| `POST` | `/api/sites/{id}/git-deploy/run` | manage | deploy the branch's tip now, as a push would (`202`, `task`, `release_id`, `deployment_id`; `coalesced` when a deploy was already waiting); 409 when git deploy is off |
+| `POST` | `/hooks/git/{hook}` | site token | the git webhook of GitHub, GitLab and Gitea: authenticated by `X-Hub-Signature-256`, `X-Gitea-Signature` or `X-Gitlab-Token`, answers `401` to anything else (an unknown hook and a wrong signature alike) and `429` after too many failures; a push to the site's branch queues a release and its promotion, a ping answers `pong`, anything else is `ignored` |
 | `POST` | `/api/sites/{id}/staging` | manage | make a staging copy of the site |
 | `POST` | `/api/sites/{id}/staging/recreate` | manage | delete the staging copy and clone production again |
 | `GET` | `/api/sites/{id}/staging/credentials` | manage | the staging copy's URL and the user and password protecting it |
