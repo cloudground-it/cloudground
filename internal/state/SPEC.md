@@ -9,7 +9,8 @@ it is derived from the system except the observations named below
 
 | Entity | Table | Notes |
 | --- | --- | --- |
-| Users, sessions, setup tokens, site assignments | `users`, `sessions`, `setup_tokens`, `user_sites` | see Accounts below; `users.locale` (migration 12) holds the chosen interface language; `users.whats_new_seen` (migration 28, #106, `SetUserWhatsNewSeen`) the release whose changelog entry the account last saw, `''` until one; migration 16 dropped `totp_secret` and `totp_pending` |
+| Users, sessions, setup tokens, site assignments | `users`, `sessions`, `setup_tokens`, `user_sites` | see Accounts below; `users.locale` (migration 12) holds the chosen interface language; `users.whats_new_seen` (migration 28, #106, `SetUserWhatsNewSeen`) the release whose changelog entry the account last saw, `''` until one; migration 16 dropped `totp_secret` and `totp_pending`; migration 30 (#156) added `users.password_signin` (default 1) and `users.webauthn_id` (the account's random WebAuthn user handle, NULL until its first passkey) |
+| Passkeys, recovery codes | `user_passkeys`, `user_recovery_codes` | migration 30 (#156, `passkeys.go`, api SPEC §2.10–2.11): a passkey row per credential (`credential_id` unique across the panel, COSE `public_key`, `sign_count`, `aaguid`, `transports`, `backup_eligible`, `backup_state`, `rp_id`, `name`, `created_at`, `last_used_at`); a recovery code row per code (`code_hash` the hex SHA-256, `used_at` NULL while unused); both go with their account (cascade) |
 | Sites | `sites` | desired config (JSON `config` column, unchanged) plus `desired_generation`, `applied_generation`, `last_apply_error` |
 | Jobs (the tasks of the UI) | `jobs` | migration 15 replaced `tasks` (R-4.2): status, bounded log, payload, locks, dedup key; see internal/jobs/SPEC.md. `error_key`, `error_args` (added to `tasks` by migration 14, carried over): a failure's translation key and its values (JSON), when the error was a `KeyedError` (an agent error with a key), beside the English `error` |
 | Deployments | `deployments` | a state machine (R-4.3, `deployments.go`; the statuses and moves are internal/api/SPEC.md §4.2): `MoveDeployment(id, from, to, update)` takes a deployment from one of `from` to `to` in one `BEGIN IMMEDIATE` transaction and refuses (`*StateError`, `ErrDeploymentState`) a move the table lacks or a deployment no longer in `from`; becoming `promoted` (and `CreateDeployment` of a live record) makes the site's other promoted deployment `superseded` in the same transaction; `RecordRollback(site, release)` makes the live one `rolled_back` and the record of `release` `promoted`, refusing (`ErrNeverLive`) a release whose record was never live or is `regressed`; `RecordInitialRelease(site, status)` (a record of provisioning's release `initial` when the site has none, checked and inserted in one transaction; a site names each release once, `UNIQUE (site_id, release_id)` since the first schema), `RollbackTarget` (the live one's `rollback_to`, else the newest superseded), `SyncLive(site, release)` (the records follow what the server serves), `DeploymentMeta` (`rollback_to`, `regressed`, `note`). Migration 18: at most one `promoted` row per site (`idx_deployments_live`, unique, partial); of the rows promoted before it the newest stays, the others become `superseded`; a `guarding` row the old panel left becomes `created` (it had built its release) or `failed` (none); columns `rollback_to`, `regressed`, `note` |
@@ -93,6 +94,8 @@ it is derived from the system except the observations named below
    with a default, lets SQLite enforce types, and maps directly onto sqlc
    later. A JSON blob would bring back the untyped bag we are removing.
    Defaults: empty strings, `require_2fa_admin = false`,
+   `require_2fa_all = false` (migration 30: the two make the requirement
+   `off`, `admins` or `all`, api SPEC §1.2 step 7),
    `update_check = true`, `update_channel = 'stable'` (migration 21; a CHECK
    keeps it `stable` or `beta`). An empty `probe_target` means the built-in
    `https://127.0.0.1`.
@@ -308,10 +311,27 @@ them are in `internal/api/SPEC.md` §2.
   secret); `UserTOTP` returns the active
   secret and whether 2FA is on: on with no readable secret is an error, never
   "off"; `DisableUserTOTP` turns it off, deletes both secrets and the
-  account's API tokens; `MarkTOTPStepUsed` moves the replay watermark
+  account's API tokens, and its recovery codes when it has no passkey; `MarkTOTPStepUsed` moves the replay watermark
   forward only, and reports whether the step was fresh. All but
   `DisableUserTOTP`, `MarkTOTPStepUsed` and the enabled flag need the key
   (`ErrNoSecretKey`).
+- **Passkeys and recovery codes** (#156). `User` carries `PasswordSignIn`,
+  `Passkeys` and `RecoveryCodesLeft`, read with the account. `WebAuthnID`
+  makes the account's user handle on first use (32 random bytes, kept);
+  `UserByWebAuthnID`. `AddPasskey` (refuses a credential id already stored:
+  `ErrPasskeyTaken`), `Passkeys(user)`, `PasskeyByCredentialID`,
+  `RecordPasskeyUse(id, counter)`, `RemovePasskey(user, id)` (`ErrNotFound`
+  for one of another account; `ErrLastPasskey` for the last one while
+  password sign-in is off; when no factor is left, the recovery codes and
+  API tokens go in the same transaction). `ReplaceRecoveryCodes(user,
+  hashes)` swaps the whole set in one transaction; `SpendRecoveryCode(user,
+  hash)` is one `UPDATE … WHERE used_at IS NULL` and reports whether it
+  spent one. `SetPasswordSignIn(user, on)` (off refuses an account without
+  a passkey: `ErrNoPasskey`). `ResetSecondFactors(user)` removes TOTP,
+  passkeys and recovery codes, turns password sign-in on and ends the
+  account's sessions and API tokens; it needs no key, so host recovery can
+  run it. `SetUserPassword` also turns password sign-in on. None of these
+  needs the secret key: nothing in them is secret.
 - **Events.** Every change to an account publishes `user.changed` and
   `session.revoked` for it (its open streams re-check their session);
   ending sessions publishes `session.revoked`.

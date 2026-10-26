@@ -22,7 +22,7 @@ on a row without a policy, a handler or a valid loader.
 | `Load` | the resource loader (§1.4): what `{id}` names, loaded once and checked against the caller. |
 | `Body` | how a state-changing request's body may be typed (§1.5). |
 | `MaxBody` | the most bytes of request body the handler can read; 0 is the default, 4 MiB. |
-| `Enrol` | the route stays open to an admin the 2FA requirement holds back (§1.3). |
+| `Enrol` | the route stays open to an account the 2FA requirement holds back (§1.2 step 7). |
 | `SessionOnly` | a signed-in session only: a request authenticated with an API token gets 403 (§1.2 step 6). Only on a row whose policy signs the caller in. |
 | `SameOriginRead` | a read (GET) is refused from another origin too, as writes are (§1.5). |
 | `Loopback` | also served on the plaintext loopback listener (§1.8). |
@@ -79,14 +79,18 @@ For every request, in this order; the first step that refuses answers.
    with `"access": "shell"` with **403** `only an administrator, signed in
    with a session, can add a shell key` to anyone but an admin's session:
    a shell key is a shell for whoever holds it.
-7. Second factor (S-C9): when `require_2fa_admin` is on, an `admin` account
-   without TOTP is refused on every row except those marked `Enrol`
-   (`POST /api/logout`, `GET /api/account/sessions`, the enrolment page's one read, `POST /api/account/2fa/begin`, `POST
-   /api/account/2fa/confirm`) → **403** `two-factor authentication is required
-   for admin accounts: enrol in Security before continuing`. An unreadable
-   setting counts as on (fail closed). Only admins are held; the check comes
-   before the role check, so it applies to every policy, and to a token
-   exactly as to the session of its owner.
+7. Second factor (S-C9, #156): the panel's requirement (`require_2fa`,
+   §12) is `off`, `admins` or `all`. An account it covers (an `admin` under
+   `admins`; every account under `all`) that has no second factor (neither
+   TOTP nor a passkey, §2.1) is refused on every row except those marked
+   `Enrol` (`POST /api/logout`, `GET /api/account/sessions`, the enrolment
+   page's reads, `POST /api/account/2fa/begin`, `POST
+   /api/account/2fa/confirm`, `GET /api/account/passkeys`, `POST
+   /api/account/passkeys/begin`, `POST /api/account/passkeys/finish`) →
+   **403** `two-factor authentication is required for this account: set it
+   up in Security before continuing`. An unreadable setting counts as `all`
+   (fail closed). The check comes before the role check, so it applies to
+   every policy, and to a token exactly as to the session of its owner.
 8. Policy (§1.3) → **403** with the policy's message.
 9. Loader (§1.4).
 10. The handler.
@@ -116,7 +120,7 @@ panel itself (§1.2 step 6):
 | --- | --- |
 | accounts, users, tokens, sessions, 2FA | it would mint another token or a new admin and outlive its own revocation |
 | a site's shell and routing | a shell is a login on the server; the routing block is nginx configuration |
-| `require_2fa_admin` | it would take the second factor away from every admin |
+| `require_2fa`, `require_2fa_admin` | it would take the second factor away from every account the requirement covers |
 | `backup_repository`, `backup_password`, the S3 keys and region | it would send every backup, with the key that opens it, to a store of its choosing |
 | `notify_webhook` | it would receive every alert |
 | `cloudflare_api_token` | it is the DNS credential of the panel's certificates |
@@ -324,7 +328,9 @@ statuses one to one:
 A body the decoder refuses (bad JSON, an unknown field, over the row's
 `MaxBody`) is **400** `malformed request` on every route here. Error bodies
 are `{"error": "..."}`; a sign-in refusal about the second factor adds
-`"totp_required": true`.
+`"totp_required": true` (the name predates passkeys: it means "a second
+factor is required"), `factors` and, when the account has passkeys for this
+address, `passkey` (§2.3 step 7).
 
 ### 2.1 Accounts and their fields
 
@@ -332,6 +338,14 @@ Roles: `admin`, `operator`, `readonly` (§1.3). An account has an e-mail (its
 sign-in name, unique), an argon2id password, a first and last name, an
 interface locale, a disabled flag, a two-factor state and, for an operator,
 its assigned sites.
+
+- **Second factor.** An account *has two-factor* when TOTP is on or it has
+  at least one passkey (§2.10). Recovery codes (§2.11) stand in for either
+  at sign-in but are not a factor of their own: they exist only while one of
+  the two does. The account as the API shows it carries `totp_enabled`,
+  `passkeys` (how many), `recovery_codes_left` and `password_signin`
+  (whether its password signs in; on unless the owner turned it off,
+  §2.10), never a key, a code or a hash.
 
 - **E-mail.** One normaliser for setup, user creation and host recovery. The
   value is trimmed. It must parse as a bare address identical to itself: no
@@ -386,10 +400,14 @@ its assigned sites.
   address (§2.7) it signed in from.
 - **What ends sessions.** A password change or reset ends all of the
   account's sessions; a change from Security then opens a fresh one for the
-  device that made it. Turning 2FA on or off ends the *other* sessions.
-  Disabling the account ends all. Deleting it deletes them.
+  device that made it. Turning TOTP on or off, adding or removing a passkey
+  and turning password sign-in off or on end the *other* sessions. An
+  admin's reset of the account's two-factor (§2.5), disabling the account
+  and host recovery end all. Deleting it deletes them.
 - **What revokes API tokens** (`apitokens.go`): a password change or reset,
-  turning 2FA off, disabling, demotion from admin, deletion, host recovery.
+  turning TOTP off, removing the account's last second factor, an admin's
+  two-factor reset, disabling, demotion
+  from admin, deletion, host recovery.
 
 ### 2.3 Setup and sign-in
 
@@ -407,9 +425,11 @@ its assigned sites.
 4. the first `admin` is created, `setup.complete` audited, a session started
    → **201** with the account.
 
-`POST /api/login` `{email, password, totp?}`, in this order:
+`POST /api/login` `{email, password, totp?, recovery_code?, passkey?}`, in
+this order (an empty `totp` or `recovery_code` counts as absent):
 1. an e-mail over 254 or a password over 1024 bytes → **400** `malformed
-   request`, before any hashing;
+   request`, before any hashing; more than one of `totp`, `recovery_code`
+   and `passkey` → **400** `give one second factor at a time`;
 2. **limits (S-H2):** 30 password checks a minute per client network (§2.7:
    an IPv4 address, an IPv6 /64), whatever e-mail they name, 120 a minute per
    IPv6 /48, and 8 sign-ins a minute per network and e-mail → **429** `too
@@ -482,19 +502,38 @@ its assigned sites.
 6. a disabled account, refused only now so the answer does not say which
    addresses exist: `login.disabled` → **403** `this account is disabled — ask
    an administrator`;
-7. second factor, when enrolled, reached only with the right password:
+   - password sign-in turned off for the account (§2.10), also only now and
+     not a failure: `login.password_off` → **403** `password sign-in is
+     turned off for this account — sign in with a passkey`;
+7. second factor, when the account has two-factor (§2.1), reached only with
+   the right password:
    - the account's code cap reached (below) → **429** `too many wrong
      two-factor codes for this account — try again in an hour`, whatever the
-     code;
-   - no code → **401** `two-factor code required` (not a failure);
-   - a wrong code → a failure counted, one towards the cap,
-     `login.totp_failed`, **401** `invalid two-factor code`;
-   - a code whose time step is not after the last one accepted for this
-     account → `login.totp_replay`, **401** `that two-factor code has already
-     been used — wait for the next one`;
-   - all four carry `"totp_required": true`. A secret that cannot be read
-     (no key, a damaged row) → **500**: a second factor that cannot be checked
-     lets nobody in;
+     factor;
+   - no factor given → **401** `two-factor code required` (not a failure);
+   - `totp`: a wrong code → a failure counted, one towards the cap,
+     `login.totp_failed`, **401** `invalid two-factor code`; a code whose time
+     step is not after the last one accepted for this account →
+     `login.totp_replay`, **401** `that two-factor code has already been used
+     — wait for the next one`; with TOTP off, any code is wrong;
+   - `recovery_code` (§2.11): one of the account's unused codes is spent,
+     audited `login.recovery_code` (detail the address and how many are
+     left); otherwise a failure counted, one towards the cap,
+     `login.recovery_failed`, **401** `invalid recovery code`;
+   - `passkey` (§2.10): an assertion that answers a challenge this step
+     issued for this account, valid and unused, from one of its passkeys,
+     with user presence; otherwise a failure counted, one towards the cap,
+     `login.passkey_failed`, **401** `the passkey could not be verified`;
+   - every refusal of this step carries `"totp_required": true` and
+     `factors`, the ones the account can answer with: `totp` when TOTP is
+     on, `passkey` when it has a passkey for the address it is reached at
+     (§2.10), `recovery_code` when codes are left. With `passkey` the body
+     also holds `passkey`, WebAuthn request options (`{"publicKey": …}`)
+     with a fresh challenge, the account's credentials for that relying
+     party and user verification `preferred`; the challenge is valid 5
+     minutes for one second factor of this account. A secret that cannot be
+     read (no key, a damaged row) → **500**: a second factor that cannot be
+     checked lets nobody in;
    - **code cap:** 10 wrong codes for one account within an hour, at sign-in,
      enrolment and disabling, from anywhere. At the cap no code is checked for
      the account (429 here, on enrolment and on disabling) until the hour has
@@ -505,15 +544,47 @@ its assigned sites.
    of this network (and /48) are cleared; another network's failures, and
    the code cap, are not (an attacker's network keeps its delay when the
    owner signs in from elsewhere). `login.success` audited, a session
-   started → **200** with the account.
+   started → **200** with the account and `enrol_required` (§2.3, `GET
+   /api/session`): the UI sends an account the requirement holds straight
+   to its two-factor setup.
 
 What the answers tell. Before the password is right they are the same for
 every e-mail: 401 `invalid credentials`, after the same delay. With the right
 password, an account with 2FA answers 401 `two-factor code required`: the UI
 must know to ask for a code. That confirms the password to whoever guessed
 it, which the delay (password guesses) and the code cap (code guesses, after
-it) make acceptable. A disabled account answers 403 only with the right
-password.
+it) make acceptable. A disabled account, and one whose password sign-in is
+off, answer 403 only with the right password.
+
+**Signing in with a passkey alone** (#156). Any account with a passkey may
+sign in with it and nothing else, whether or not its password signs in: a
+passkey with user verification (a PIN or biometrics on the device) is two
+factors in one, and it cannot be phished.
+
+- `POST /api/login/passkey/begin` (body ignored): one password check
+  against the network and /48 limits of step 2 → 429; the panel reached by
+  an address that is not a domain name (§2.10) → **400** `passkeys need the
+  panel reached by its domain name over HTTPS`; → 200 `{"publicKey": …}`:
+  WebAuthn request options with a fresh challenge, no credential list (the
+  browser offers the passkeys it holds for the domain) and user
+  verification `required`. A challenge is valid 5 minutes, for one
+  sign-in; at most 1024 wait across the panel, and past that → **429** `too
+  many passkey sign-ins at once — try again in a minute`.
+- `POST /api/login/passkey` `{credential}` (the `PublicKeyCredential` as
+  JSON): the network and /48 limits → 429; the assertion must answer one
+  of those challenges (spent by its first use, right or wrong), name a
+  passkey by its credential id, carry that account's user handle, be signed
+  by the passkey's key for this relying party and origin, with user
+  presence **and user verification**, and its signature counter, when the
+  authenticator keeps one, must have moved forward. Otherwise
+  `login.passkey_failed` (actor the account's e-mail when the passkey is
+  known, else `unknown passkey`; a counter that went backwards is
+  `login.passkey_cloned`) → **401** `the passkey could not be verified`. A
+  disabled account → `login.disabled`, 403 as step 6. Success records the
+  passkey's counter and last use, audits `login.passkey` (detail its name
+  and the address), starts a session → **200** with the account and
+  `enrol_required`. These failures count towards no e-mail's delay and not
+  towards the block list: an assertion cannot be guessed.
 
 `POST /api/logout` deletes the session and expires the cookie → 200
 `{"status": "logged out"}`. A session that cannot be deleted → **500**
@@ -545,11 +616,31 @@ codes for this account — try again in an hour` instead of checking one.
   1024 characters`. Success ends every session and API token of the account,
   audits `password.change`, starts a fresh session → 200 `{"status":
   "password changed"}`.
-- `POST /api/account/2fa/begin` `{password, code?}`: a wrong password → **403**
-  `password is incorrect`. With 2FA already on, a current code is needed too,
-  and is spent → otherwise **403** `enter a code from your current
-  authenticator to replace it` (a failure, and one towards the cap, as when
-  disabling). A new random 20-byte secret (base32, no
+**Confirming it is you** (#156). The routes that change how the account
+signs in take a *proof* in their body, `{password?, code?, recovery_code?,
+passkey?}`, checked in one turn as above:
+
+1. while the account's password signs in, `password` must be right → **403**
+   `password is incorrect`; with password sign-in off it is ignored and
+   `passkey` is required, with user verification → **403** `confirm with one
+   of your passkeys`;
+2. when the account has two-factor, one of its factors must pass too, and
+   is spent: `code` (TOTP), `recovery_code` (audited
+   `recovery_code.used`, detail the route's purpose and how many are left)
+   or `passkey`, an assertion answering a challenge from `POST
+   /api/account/passkeys/challenge` (§2.10). None, or one that fails → **403**
+   with the route's message (below); a wrong code or recovery code is a
+   failure and one towards the cap, as at sign-in, and a code already used
+   is a failure. More than one factor → **400** `give one second factor at a
+   time`.
+
+So a stolen session alone cannot change a factor, and someone who has lost
+their phone signs in with a recovery code and replaces it with another one.
+
+- `POST /api/account/2fa/begin` `{password, code?, recovery_code?, passkey?}`
+  (a proof): with 2FA already on, the factor's refusal is **403** `enter a
+  code from your current authenticator to replace it`. A new random 20-byte
+  secret (base32, no
   padding) becomes the *pending* secret, beside the active one, which keeps
   working: starting an enrolment never turns 2FA off → 200 `{"secret", "uri",
   "qr_data"}`: the secret, its `otpauth://totp/CloudGround:<email>?…` URI
@@ -559,15 +650,17 @@ codes for this account — try again in an hour` instead of checking one.
   enrollment first`; a code that does not match it → **400** `code did not
   match — check your device clock`. Success makes the pending secret the
   active one, sets the replay watermark to the confirming code's step (that code is spent: it used to sign in once more, the watermark being reset to 0), ends the other sessions, audits
-  `2fa.enabled` → 200 `{"status": "two-factor enabled"}`. The secret switched
+  `2fa.enabled` → 200 `{"status": "two-factor enabled"}`, with
+  `recovery_codes` (§2.11) when the account had no two-factor before. The secret switched
   on is exactly the one the code was checked against: when another enrolment
   replaced it in between, **409** `another enrolment was started meanwhile:
   confirm with a code from the newest secret`, and 2FA stays as it was.
-- `POST /api/account/2fa/disable` `{password, code}`: a wrong password →
-  **403** `password is incorrect`; 2FA on and no fresh current code → a
-  failure counted (and, for a wrong one, one towards the cap), **403** `enter a code from your authenticator to turn it
-  off`. Success removes both secrets, ends the other sessions and every API
-  token, audits `2fa.disabled` → 200 `{"status": "two-factor disabled"}`.
+- `POST /api/account/2fa/disable` `{password, code?, recovery_code?,
+  passkey?}` (a proof; the factor's refusal is **403** `enter a code from
+  your authenticator to turn it off`). Success removes both secrets, ends
+  the other sessions and every API token, and the recovery codes when no
+  passkey is left, audits `2fa.disabled` → 200 `{"status": "two-factor
+  disabled"}`.
 - `GET /api/account/sessions` → 200, newest first, the account's sessions
   that still work (neither expired nor idle past the 2 hours): `id` (the first 12 hex digits of the token's hash), `current` (the
   caller's), `created_at`, `expires_at`, `last_seen`, `browser` and `os`
@@ -618,12 +711,22 @@ encrypted secret store (`internal/state/SPEC.md`, invariant 1), never in the
 - `POST /api/users/{id}/password` `{password}`: a bad id → 400; out of bounds
   → 400; the caller's own id → **400** `change your own password from
   Security`; no such account → **404** `user not found`. Ends its sessions and
-  tokens, audits `user.password_reset` (subject the id) → 200 `{"status":
-  "password reset"}`.
+  tokens and turns its password sign-in back on (the way back in for
+  someone who lost their passkeys), audits `user.password_reset` (subject the
+  id) → 200 `{"status": "password reset"}`.
+- `POST /api/users/{id}/2fa/reset` (#156; body ignored): a bad id → 400; the
+  caller's own id → **400** `manage your own two-factor from Security`; no
+  such account → **404** `user not found`. Removes the account's TOTP
+  secrets, passkeys and recovery codes, turns its password sign-in back on,
+  ends its sessions and API tokens, audits `user.2fa_reset` (subject the
+  e-mail) → 200 `{"status": "two-factor reset"}`. The account signs in
+  with its password alone next, and is held to set two-factor up again
+  where the requirement covers it. This is how an admin helps someone who
+  lost every factor; for an admin who did, it is host recovery (§2.6).
 - `DELETE /api/users/{id}`: a bad id → 400; the caller's own → **400** `you
   cannot delete your own account`; the admin rule → 400; none → **404** `user
-  not found`. Its sessions, tokens, site assignments and 2FA secrets go with
-  it. Audits `user.delete` (subject the deleted e-mail) → 200 `{"status":
+  not found`. Its sessions, tokens, site assignments, 2FA secrets, passkeys
+  and recovery codes go with it. Audits `user.delete` (subject the deleted e-mail) → 200 `{"status":
   "deleted"}`.
 
 ### 2.6 Host recovery (`panel-api recover-admin`)
@@ -642,8 +745,11 @@ never a secret.
   `--email`. It never guesses.
 - An unknown address is refused, naming it.
 - Otherwise it resets the account's password, which ends its sessions and
-  revokes its API tokens. `--disable-2fa` also turns 2FA off and says whether
-  it was on; without it, it warns when 2FA is still on. A disabled admin is
+  revokes its API tokens, and turns its password sign-in back on (saying so
+  when it was off). `--disable-2fa` also removes every second factor (TOTP,
+  passkeys, recovery codes) and says which there were; without it, it warns
+  when the account still has two-factor. It is the way back in when every
+  factor is lost. A disabled admin is
   re-enabled when no admin is enabled (the new password would open nothing,
   and nobody else could); any other disabled account stays disabled, and it
   says so. It says when the account is not an admin, and when no enabled
@@ -689,11 +795,116 @@ running release's entry after upgrading.
 The interface shows an administrator the unseen entries once in a dialog and lists every release at
 `/whats-new`, from the account menu.
 
+### 2.10 Passkeys (#156, `internal/accounts/passkeys.go`)
+
+WebAuthn credentials, through `github.com/go-webauthn/webauthn` (the
+ceremonies' parsing and signature checks; the panel keeps the records and
+the rules).
+
+- **Relying party.** A passkey belongs to a domain. The panel's relying
+  party is the host name the request reached it at (`Host`, without the
+  port) when that is a domain name (`localhost` included), not an IP
+  address; the origin is the request's `Origin` (which §1.5 holds to that
+  host) or, without one, `https://<Host>`. Taking them from the request
+  weakens nothing: the browser writes the real origin into what the
+  authenticator signs and the panel checks it, and an authenticator offers
+  a passkey only to the domain it was made for, which is what makes a
+  passkey unphishable. So passkeys work on the panel's own domain
+  (`panel_domain`, with its certificate) and not at `https://<ip>:8443`,
+  where browsers offer none (an IP is no relying party, a certificate
+  warning no secure context); there every passkey route answers **400**
+  `passkeys need the panel reached by its domain name over HTTPS`. A
+  passkey keeps the relying party it was made for and is offered and
+  accepted only there.
+- **Records** (`user_passkeys`): the credential id, the COSE public key, the
+  signature counter, the AAGUID, the transports, the backup flags, the
+  relying party, a name, when it was made and last used. None of it is
+  secret: a public key opens nothing. Each account has a random 32-byte
+  user handle (`users.webauthn_id`, made with its first passkey) that names
+  it to authenticators, never its id or e-mail. Attestation `none` is asked
+  for and the authenticator's make is not checked: a panel for one server
+  has no fleet of approved keys to hold passkeys to.
+- **Ceremonies.** A challenge is 32 random bytes, valid 5 minutes, kept in
+  the API's memory (a restart forgets it), bound to its purpose (sign-in, a
+  second factor, a proof, adding a passkey) and its account, and spent by
+  its first use, right or wrong. At most 1024 wait at once, and 5 per
+  account and purpose (a sixth drops the oldest); one registration per
+  account (a new one replaces it).
+
+Routes (sessions only; the proof is §2.4's, and the factor's refusal on
+these is **403** `confirm with a code, a passkey or a recovery code`):
+
+- `GET /api/account/passkeys` (`Enrol`) → 200, oldest first: `id`, `name`,
+  `rp_id`, `created_at`, `last_used_at` (absent before the first use),
+  `backed_up` (a synced passkey, such as iCloud Keychain's or Google
+  Password Manager's).
+- `POST /api/account/passkeys/begin` (`Enrol`) `{proof…}`: 20 passkeys
+  already → **400** `an account can have at most 20 passkeys`; → 200
+  `{"publicKey": …}`, creation options for this relying party: the
+  account's user handle, its e-mail and name, the algorithms ES256, EdDSA
+  and RS256, resident key `required` (a passkey the browser offers by
+  itself, so it can sign in without the e-mail), user verification
+  `preferred`, attestation `none`, and the account's passkeys excluded.
+- `POST /api/account/passkeys/finish` (`Enrol`) `{name, credential}`: a name
+  of 1 to 64 bytes without control characters, trimmed → else **400**
+  `name the passkey: up to 64 characters`; no registration waiting → **400**
+  `start adding the passkey again`; an attestation that does not verify
+  (challenge, relying party, origin, user presence, an algorithm offered)
+  → **400** `the passkey could not be verified`; a credential already
+  registered → **409** `this passkey is already registered`. Success stores
+  it, ends the other sessions, audits `passkey.added` (detail the name) →
+  **201** `{"passkey": …}`, with `recovery_codes` (§2.11) when the account
+  had no two-factor before.
+- `POST /api/account/passkeys/challenge` (body ignored) → 200
+  `{"publicKey": …}`, request options for a proof: the account's passkeys
+  for this relying party, user verification `required` while password
+  sign-in is off, else `preferred`; none here → **400** `you have no passkey
+  for this address`.
+- `POST /api/account/passkeys/{id}/remove` `{proof…}`: not one of the
+  account's → **404** `passkey not found`; its last passkey while password
+  sign-in is off → **400** `this is your last passkey and password sign-in
+  is off: turn password sign-in on first`. Removes it and ends the other
+  sessions; when it was the account's last second factor, also its
+  recovery codes and API tokens (two-factor is off). Audits
+  `passkey.removed` (detail the name) → 200 `{"status": "removed"}`.
+- `PUT /api/account/password-signin` `{enabled, proof…}`: turning it off
+  needs a passkey (none → **400** `add a passkey before turning password
+  sign-in off`) and a proof whose factor is a passkey with user
+  verification → else **403** `confirm with one of your passkeys`. Either
+  way a change ends the other sessions and audits `password_signin.off` or
+  `password_signin.on` → 200 with the account; asking for what is already
+  so changes nothing. With it off the password still exists (an admin's
+  reset and host recovery turn it on again) but signs in nowhere (§2.3
+  step 6).
+
+### 2.11 Recovery codes (#156)
+
+- Ten codes, each 16 characters of Crockford's base32 (80 random bits),
+  shown as `xxxx-xxxx-xxxx-xxxx`. They are typed in any case, with or
+  without dashes and spaces; `o` reads as `0`, `i` and `l` as `1`. Only their
+  SHA-256 is stored (`user_recovery_codes`), with when each was used: 80
+  bits leave a copy of the database no shortcut.
+- Made when the account gets its first factor (the answer that turns it on
+  carries them, once) and on demand: `POST /api/account/recovery-codes`
+  `{proof…}` (§2.4; the factor's refusal **403** `confirm with a code, a
+  passkey or a recovery code`): no two-factor → **400** `turn on two-factor
+  sign-in first`; → 200 `{"recovery_codes": [...]}`, and the earlier codes
+  stop working; audits `recovery_codes.generated`.
+- A code is spent by one update of a row still unused, so two requests
+  with one code cannot both pass. Each use is audited: `login.recovery_code`
+  at sign-in, `recovery_code.used` in a proof, with how many are left.
+- They go with the account's last factor, an admin's two-factor reset and
+  host recovery's `--disable-2fa`.
+
 ### 2.8 Tests
 
 `internal/accounts`: the RFC 6238 vectors, passwords and their bounds, the
 argon2 limit, the e-mail normaliser, the limiter, every sign-in step,
 enrolment, disabling, user changes and host recovery against a real store;
+passkeys with a software authenticator (registration, second factor, alone,
+a spent or foreign challenge, another key's signature, a counter going
+back, user verification required), recovery codes (format, single use,
+the proof), password sign-in off (`passkeys_test.go`, `recovery_test.go`);
 the delays slept outside the queue, and an attacker hammering one e-mail
 from one network, as fast and as parallel as the limits allow, no faster
 than sequential guesses, while the owner signs in from another within a
@@ -709,7 +920,18 @@ and turning it off work; four wrong passwords in flight from one address do
 not keep the owner, from another, out (`X-Real-IP` over the API socket
 stands for the addresses). `R-4.3 sign-in review`: parallel attempts from one
 network each wait their own delay, one after the other, and one more is
-not refused.
+not refused. `panel passkeys` (#156): a passkey made by a software
+authenticator in the suite (ES256, attestation `none`, the panel reached by
+a domain name over the API socket) is added with the password and answers
+with ten recovery codes; it is then a second factor after the password, and
+signs in alone with user verification; a challenge is not accepted twice,
+and an assertion signed by another key is refused; a recovery code signs
+in once and is refused the second time, in the audit log; password sign-in
+turned off refuses the right password (403) while the passkey still signs
+in; under `require_2fa` `all`, an account without two-factor signs in held
+(`enrol_required`), is refused elsewhere (403) but reaches the passkey
+routes, and adding a passkey frees it; `recover-admin --disable-2fa` takes
+every factor away and the new password signs in alone.
 
 ## 3. Sites and staging (R-4.3)
 
@@ -2600,9 +2822,15 @@ use it). Each key is a field of `state.PanelSettings` or a secret.
 
 - Fields: `acme_email`, `backup_repository` (a password in the URL's
   userinfo is shown as `••••••••`), `probe_target`, `backup_s3_access_key`,
-  `backup_s3_region`, `require_2fa_admin` (`"1"` on, `""` off; accepts
-  `1`/`true`/`""`/`0`/`false`, else 400 `require_2fa_admin: must be 1 or
-  empty`), `update_check` (`""` on, `"0"` off; accepts `""`/`1`/`true`/`0`/
+  `backup_s3_region`, `require_2fa` (#156: `off`, `admins` or `all`, who
+  must have two-factor, §1.2 step 7; `""` means `off`; else 400
+  `require_2fa: must be off, admins or all`), `require_2fa_admin` (the
+  older form of the same setting, kept for scripts: shown `"1"` when the
+  requirement covers admins (`admins` or `all`), `""` when `off`; writing
+  `1`/`true` makes an `off` requirement `admins` and leaves `all` alone,
+  writing `""`/`0`/`false` makes it `off`; else 400 `require_2fa_admin: must
+  be 1 or empty`; sent together with `require_2fa` → 400 `require_2fa:
+  send require_2fa or require_2fa_admin, not both`), `update_check` (`""` on, `"0"` off; accepts `""`/`1`/`true`/`0`/
   `false`, else 400 `update_check: must be 0 or empty`), `update_channel`
   (`stable` or `beta`, `""` meaning stable; else 400 `update_channel: must be
   stable or beta`; the release check and `POST /api/panel/update` follow
@@ -2614,6 +2842,9 @@ use it). Each key is a field of `state.PanelSettings` or a secret.
   `none`, `""` meaning starttls; `mail_username`; `mail_from`, one address;
   `alert_emails`, up to 10 addresses separated by commas or spaces; each
   else 400 `<key>: …`), and the read-only `panel_domain`.
+- A requirement that would hold the caller itself is accepted: the
+  caller is then held like anyone else, on the Security page, until it sets
+  up a factor.
 - Secrets: `backup_password`, `backup_s3_secret_key`, `cloudflare_api_token`,
   `mail_password` show `••••••••` when set and `""` when not; `notify_webhook` is shown in
   full to an admin and as `<scheme>://<host>/••••••••` to anyone else.
