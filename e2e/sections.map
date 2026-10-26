@@ -22,7 +22,7 @@
 # ------------------------------------------------------------------ groups --
 
 # Every section that sends requests to a hosted site through nginx.
-@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup
+@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup, git deploy webhook
 # Every section with a PHP site (its own FPM master, pool and slice).
 @php = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, protected paths, wordpress two-factor, wordpress hardening, dev mode, mail relay
 # Every section with a WordPress site (database, wp-cli, the connector).
@@ -107,7 +107,14 @@ internal/api/connector_purge.go        woocommerce, wordpress cache, migration i
 internal/api/cronjobs.go               wordpress cron, wordpress cache
 internal/api/site_database.go          woocommerce security, F9b site databases
 internal/api/deployments.go            wordpress safe push, wordpress releases, R-4.3 deploys and backups, R-4.5 site shell, security
-internal/api/deployflow.go             wordpress safe push, wordpress releases, R-4.3 deploys and backups, R-4.5 site shell, security
+internal/api/deployflow.go             wordpress safe push, wordpress releases, R-4.3 deploys and backups, R-4.5 site shell, security, git deploy webhook
+internal/api/git_deploy.go             git deploy webhook
+internal/api/git_hook.go               git deploy webhook
+internal/agent/ops/gitdeploy/**        git deploy webhook
+internal/agent/ops_gitdeploy.go        git deploy webhook
+internal/rpc/gitdeploy.go              git deploy webhook
+internal/state/git_deploy.go           git deploy webhook
+internal/site/gitdeploy.go             git deploy webhook
 internal/api/site_filemanager.go       security, wordpress staging
 internal/api/sitessh.go                wordpress sftp, R-4.5 site shell, R-4.6 cgctl tokens
 internal/api/routing.go                R-5.4 routing
@@ -258,7 +265,7 @@ cmd/cgctl/statepeek.go                 R-6.5 upgrade
 # container run (make docker-install-test).
 cmd/cgctl/uninstall.go                 NONE
 cmd/cgctl/sitecreate.go                F9b site creation
-cmd/cgctl/commands.go                  R-4.6 cgctl tokens, F9b site creation, F9b site databases
+cmd/cgctl/commands.go                  R-4.6 cgctl tokens, F9b site creation, F9b site databases, git deploy webhook
 cmd/cgctl/**                           R-4.6 cgctl tokens
 cmd/cg-site-shell/**                   R-4.5 site shell, R-10.5 root boundary
 cmd/**                                 ALL
