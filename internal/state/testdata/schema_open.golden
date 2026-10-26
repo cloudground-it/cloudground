@@ -38,6 +38,8 @@ index idx_sites_staging_of on sites
   create index idx_sites_staging_of on sites(staging_of)
 index idx_user_sites_site on user_sites
   create index idx_user_sites_site on user_sites(site_id)
+index site_git_deliveries_site on site_git_deliveries
+  create index site_git_deliveries_site on site_git_deliveries(site_id,id)
 index sqlite_autoindex_alerts_1 on alerts
   
 index sqlite_autoindex_alerts_2 on alerts
@@ -67,6 +69,8 @@ index sqlite_autoindex_site_databases_1 on site_databases
 index sqlite_autoindex_site_db_grants_1 on site_db_grants
   
 index sqlite_autoindex_site_db_users_1 on site_db_users
+  
+index sqlite_autoindex_site_git_deploys_1 on site_git_deploys
   
 index sqlite_autoindex_site_malware_findings_1 on site_malware_findings
   
@@ -124,6 +128,10 @@ table site_db_grants on site_db_grants
   create table site_db_grants(user_id integer not null references site_db_users(id)on delete cascade,database_id integer not null references site_databases(id)on delete cascade,level text not null check(level in('all','read')),primary key(user_id,database_id))
 table site_db_users on site_db_users
   create table site_db_users(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,name text not null unique,secret text not null,created_at text not null)
+table site_git_deliveries on site_git_deliveries
+  create table site_git_deliveries(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,at text not null,forge text not null,event text not null default '',ref text not null default '',commit_sha text not null default '',outcome text not null,detail text not null default '',deployment_id integer references deployments(id)on delete set null,task_id integer not null default 0)
+table site_git_deploys on site_git_deploys
+  create table site_git_deploys(site_id integer primary key references sites(id)on delete cascade,enabled integer not null default 0,repo text not null default '',branch text not null default 'main',build_command text not null default '',public_key text not null default '',hook_id text not null unique)
 table site_malware_findings on site_malware_findings
   create table site_malware_findings(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,path text not null,signature text not null,status text not null check(status in('open','quarantined','gone')),first_seen text not null,last_seen text not null,quarantined_at text not null default '',quarantine_id text not null default '',unique(site_id,path,signature))
 table site_malware_scans on site_malware_scans
@@ -395,6 +403,33 @@ columns of site_db_users
   fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
   index idx_site_db_users_site unique=0 origin=c partial=0 on 0:1:site_id
   index sqlite_autoindex_site_db_users_1 unique=1 origin=u partial=0 on 0:2:name
+
+columns of site_git_deliveries
+  0 | id | INTEGER | 0 | - | 1
+  1 | site_id | INTEGER | 1 | - | 0
+  2 | at | TEXT | 1 | - | 0
+  3 | forge | TEXT | 1 | - | 0
+  4 | event | TEXT | 1 | '' | 0
+  5 | ref | TEXT | 1 | '' | 0
+  6 | commit_sha | TEXT | 1 | '' | 0
+  7 | outcome | TEXT | 1 | - | 0
+  8 | detail | TEXT | 1 | '' | 0
+  9 | deployment_id | INTEGER | 0 | - | 0
+  10 | task_id | INTEGER | 1 | 0 | 0
+  fk 0 | 0 | deployments | deployment_id | id | NO ACTION | SET NULL | NONE
+  fk 1 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index site_git_deliveries_site unique=0 origin=c partial=0 on 0:1:site_id, 1:0:id
+
+columns of site_git_deploys
+  0 | site_id | INTEGER | 0 | - | 1
+  1 | enabled | INTEGER | 1 | 0 | 0
+  2 | repo | TEXT | 1 | '' | 0
+  3 | branch | TEXT | 1 | 'main' | 0
+  4 | build_command | TEXT | 1 | '' | 0
+  5 | public_key | TEXT | 1 | '' | 0
+  6 | hook_id | TEXT | 1 | - | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index sqlite_autoindex_site_git_deploys_1 unique=1 origin=u partial=0 on 0:6:hook_id
 
 columns of site_malware_findings
   0 | id | INTEGER | 0 | - | 1

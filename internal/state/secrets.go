@@ -36,6 +36,10 @@ const (
 	SiteSecretStagingPassword = "staging_password"
 	// SiteSecretMailPassword is the site's own mail relay's (#77).
 	SiteSecretMailPassword = "mail_password"
+	// The site's git deploy (#24): the webhook's secret, and the deploy
+	// key's private half.
+	SiteSecretGitWebhook = "git_webhook_secret"
+	SiteSecretGitKey     = "git_deploy_key"
 )
 
 // panelSecrets are the panel-wide secret names, also as the settings keys
