@@ -108,6 +108,14 @@ func (s *Server) capabilities(ctx context.Context) (rpc.Capabilities, error) {
 	return f.val, nil
 }
 
+// staleCapabilities has the next capabilities() ask the agent again: what
+// it reports changed (a runtime installed).
+func (s *Server) staleCapabilities() {
+	s.caps.mu.Lock()
+	s.caps.at = time.Time{}
+	s.caps.mu.Unlock()
+}
+
 // askCapabilities runs one flight. It does not take any caller's context:
 // a caller that gives up must not fail the others (the method table bounds
 // the call).
@@ -216,6 +224,8 @@ type capabilitiesView struct {
 	// TimeZone is the panel's own zone ("UTC", "CEST"), the one a backup
 	// policy's hour is in.
 	TimeZone string `json:"time_zone"`
+	// Runtimes are the Node.js and Python versions installed (§3.21).
+	Runtimes rpc.RuntimesResult `json:"runtimes"`
 }
 
 // timeZoneName is now's zone abbreviation, or its offset when the zone has
@@ -251,5 +261,6 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 		SitesRoot:   c.Paths.SitesRoot,
 		HTTP3:       c.Features.HTTP3,
 		TimeZone:    timeZoneName(time.Now()),
+		Runtimes:    c.Runtimes,
 	})
 }

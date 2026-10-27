@@ -25,6 +25,9 @@ rewrite).
 | `PHPExtensions` | `PHPExtensionsParams{Version}` → `PHPExtensionsResult{Version, Modules, Extensions}` | read-only, 1 min (§9) |
 | `PHPExtensionInstall` | `PHPExtensionInstallParams{Version, Extension}` → `PHPExtensionsResult` | 15 min (§9) |
 | `SetCloudflareRanges` | `CloudflareRangesParams{V4, V6}` → `CloudflareRangesResult{Changed}` | 2 min (§10) |
+| `SetAppEnv` | `AppEnvParams{Site, Env}` → none | Sites, `LockLiveSite`, 2 min (§11) |
+| `AppStatus` | `SiteRef{Site}` → `AppStatusResult` | Sites, read-only, 30 s (§11) |
+| `AppControl` | `AppControlParams{Site, Action}` → `AppStatusResult` | Sites, `LockLiveSite`, 2 min (§11) |
 
 `CheckDocRoot` (R-4.3) answers `invalid` when a component of the site's
 public root beneath the live release (`current`) is a symbolic link or not a
@@ -389,3 +392,43 @@ exists (a site behind Cloudflare was rendered here), the `geo` is rendered
 and, when it differs, written, nginx tested and reloaded, the old file put
 back on a failure. Without the file nothing is written: a server with no
 site behind Cloudflare never reloads nginx for a ban.
+## 11. Managed apps (#28)
+
+A `node` or `python` site (internal/api SPEC §3.21) has no PHP master; its app is the unit of
+internal/runtimes SPEC §3.
+
+### 11.1 Create and render
+
+- **Bootstrap** (§5): the first release gets a small app that answers every path with a page naming
+  the site and the runtime's version: Node `server.js` (the `http` module, listening on
+  `process.env.PORT`), Python `app.py` (a WSGI `app`) and `requirements.txt` (`gunicorn`). Then
+  the dependency step (ops/runtimes SPEC §3) in it.
+- **Render**: instead of step 4's PHP master, the unit `cloudground-app-<user>.service` is written
+  (0644) in the systemd directory with the site's slice, then daemon-reload when it changed; then
+  `enable` and, when the unit changed or without `ReloadOnlyIfChanged`, `restart`, else `start` (a
+  no-op on a running app). The vhost's input has `AppUpstream` (internal/engine SPEC §4.12). A
+  failure restores the unit and the previous app state like the PHP master's (§4 step 6).
+- **Delete** (§6): the unit is stopped, disabled and removed, and so is the environment file.
+- `ReloadPHP` and `RestartPHP`, which releases, restores and staging call, restart a managed app's
+  unit (it has no reload: an app reads its code when it starts).
+- The log viewer's source `app` is `<LogRoot>/<domain>/app.log` (the unit's output).
+- Drift covers the unit (`cloudground-app-cg-site-<id>.service`); the environment file is not a
+  managed file (it holds secrets and changes with them).
+
+### 11.2 SetAppEnv
+
+Validates the names and values (`runtimes.CheckEnv`) and writes
+`/etc/cloudground-app/<user>.env` (the directory root's 0700, the file root's 0600, atomic), then
+restarts the app when the content changed and the unit exists. An empty environment writes an
+empty file.
+
+### 11.3 AppStatus and AppControl
+
+**AppStatus**: the unit's `ActiveState`, `SubState`, `ActiveEnterTimestamp` (`since`),
+`NRestarts` (`restarts`) and `ExecMainStatus` (`last_exit`), from `systemctl show`; then the health
+probe: `GET <health_path>` with `Host: <domain>` to the socket (or the port), 5 seconds, from the
+agent: `status` the HTTP status (0 when none came), `ms`, `error` the transport's (connection
+refused, timeout). An app is healthy when it is active and answers under 500.
+
+**AppControl**: `start`, `stop` or `restart` the unit (another action is `invalid`), then the
+status.

@@ -32,6 +32,9 @@ type RoutingContext struct {
 	// Resolve looks a proxy host name up; nil leaves names unchecked (the
 	// panel's quick check: the agent's is the one that counts).
 	Resolve func(host string) ([]netip.Addr, error)
+	// AppUpstream is a managed app's own upstream name (cg_app_<id>, SPEC
+	// §4.12): the one host name proxy_pass may take, as this machine's.
+	AppUpstream string
 }
 
 // reservedPorts are the ports a local proxy target may never use: nginx
@@ -385,6 +388,9 @@ func (g *guard) target(d *directive) (bool, error) {
 		return false, refuse(d.line, "proxy_pass: %q is not an http:// or https:// URL with a host", raw)
 	}
 	host := u.Hostname()
+	if g.AppUpstream != "" && host == g.AppUpstream && u.Port() == "" && u.Scheme == "http" {
+		return true, nil // the site's own app (SPEC §4.12)
+	}
 	if strings.EqualFold(host, "unix") || strings.HasPrefix(strings.ToLower(u.Host), "unix:") {
 		return false, refuse(d.line, "proxy_pass: a unix: socket is not allowed")
 	}

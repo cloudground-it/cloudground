@@ -26,6 +26,8 @@ type Capabilities struct {
 	// codes (a locked repository, a wrong password); an older one backs up,
 	// but its failures all read the same.
 	ResticSupported bool `json:"restic_supported"`
+	// Runtimes are the Node.js and Python versions installed (#28).
+	Runtimes RuntimesResult `json:"runtimes"`
 }
 
 // HasPHP reports whether version is installed. An empty list (the agent

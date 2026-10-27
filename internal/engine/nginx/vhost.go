@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/engine"
+	"github.com/cloudground-it/cloudground/internal/runtimes"
 	"github.com/cloudground-it/cloudground/internal/site"
 	"github.com/cloudground-it/cloudground/internal/state"
 )
@@ -109,9 +110,12 @@ func prepare(in engine.Input) (*vhost, error) {
 	if err := site.CheckRedirects(s.Config.Redirects, append([]string{s.Domain}, s.Aliases...)); err != nil {
 		return nil, err
 	}
+	if s.Type.IsApp() != (in.AppUpstream != "") || (in.AppUpstream != "" && !appUpstreamRe.MatchString(in.AppUpstream)) {
+		return nil, fmt.Errorf("invalid app upstream %q", in.AppUpstream)
+	}
 	v := &vhost{
 		in:       in,
-		php:      in.PHPSocket != "" && s.Type != state.SiteProxy && s.Type != state.SiteStatic,
+		php:      in.PHPSocket != "" && !proxied(s) && s.Type != state.SiteStatic,
 		skipVar:  "$cg_skip_" + strconv.FormatInt(s.ID, 10),
 		zoneName: "cg_" + strconv.FormatInt(s.ID, 10),
 	}
@@ -166,8 +170,11 @@ func RoutingContextOf(in engine.Input) RoutingContext {
 		SiteRoot: in.Site.RootPath, Domains: append([]string{in.Site.Domain}, in.Site.Aliases...),
 		SystemPorts: in.SystemPorts, LocalAddrs: in.LocalAddrs, Resolve: in.Resolve,
 	}
-	if in.Site.Type != state.SiteProxy {
+	if !proxied(in.Site) {
 		rc.DocRoot = in.DocRoot
+	}
+	if in.Site.Type.IsApp() {
+		rc.AppUpstream = runtimes.UpstreamName(in.Site.ID)
 	}
 	return rc
 }
@@ -254,6 +261,12 @@ func (v *vhost) render() (before, block, after string) {
 	v.protectedMaps(&c)
 	v.xmlrpcMaps(&c)
 	v.maintenanceMaps(&c)
+	if in.AppUpstream != "" {
+		c.put(0, "", "# The site's own app (SPEC §4.12).")
+		c.putf(0, "upstream %s {", runtimes.UpstreamName(s.ID))
+		c.put(1, "server "+in.AppUpstream+";")
+		c.put(0, "}")
+	}
 	if in.BasicAuthFile != "" {
 		c.put(0, "")
 		c.putf(0, "map $http_x_cloudground_internal $cg_staging_realm_%d {", s.ID)
@@ -374,7 +387,7 @@ func (v *vhost) render() (before, block, after string) {
 
 	v.redirectServer(&c)
 
-	if s.Type != state.SiteProxy {
+	if !proxied(s) {
 		c.put(1, "",
 			"root "+in.DocRoot+";",
 			"index index.php index.html index.htm;",
@@ -608,3 +621,10 @@ func symlinkFrom(in engine.Input) string {
 	}
 	return "$document_root"
 }
+
+// appUpstreamRe is the only form a managed app's upstream takes.
+var appUpstreamRe = regexp.MustCompile(`^(unix:/run/cloudground/app/cg-site-[1-9][0-9]{0,18}/app\.sock|127\.0\.0\.1:[1-9][0-9]{3,4})$`)
+
+// proxied reports whether a site proxies every request: a proxy site, or a
+// managed app (SPEC §4.12).
+func proxied(s state.Site) bool { return s.Type == state.SiteProxy || s.Type.IsApp() }

@@ -7,6 +7,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/engine/nginx"
 	"github.com/cloudground-it/cloudground/internal/rpc"
+	"github.com/cloudground-it/cloudground/internal/runtimes"
 	"github.com/cloudground-it/cloudground/internal/state"
 )
 
@@ -40,8 +41,11 @@ func viewOf(v rpc.RoutingView) routingView {
 // without this machine's listening ports, addresses or name resolution.
 func routingContext(s state.Site) nginx.RoutingContext {
 	rc := nginx.RoutingContext{SiteRoot: s.RootPath, Domains: append([]string{s.Domain}, s.Aliases...)}
-	if s.Type != state.SiteProxy {
+	if s.Type != state.SiteProxy && !s.Type.IsApp() {
 		rc.DocRoot = filepath.Join(s.RootPath, "current", s.Config.PublicRoot)
+	}
+	if s.Type.IsApp() {
+		rc.AppUpstream = runtimes.UpstreamName(s.ID)
 	}
 	return rc
 }

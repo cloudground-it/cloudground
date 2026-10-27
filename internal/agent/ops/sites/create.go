@@ -211,6 +211,8 @@ func (o *Ops) bootstrap(ctx context.Context, r *sitefs.Root, s state.Site, p rpc
 		}
 	case state.SiteStatic:
 		return r.WriteFile(firstRelease+"/index.html", []byte(welcomePage(s.Domain, false)), 0o644)
+	case state.SiteNode, state.SitePython:
+		return o.bootstrapApp(ctx, r, s)
 	case state.SitePHP, state.SiteLaravel:
 		dir := firstRelease
 		if s.Config.PublicRoot != "" {
@@ -264,6 +266,11 @@ func (o *Ops) Verify(ctx context.Context, s state.Site) error {
 	}
 	if _, err := os.Stat(o.vhostPath(s)); err != nil {
 		return fmt.Errorf("nginx site configuration unavailable: %w", err)
+	}
+	if isApp(s) {
+		if _, err := os.Stat(o.appUnitPath(s)); err != nil {
+			return fmt.Errorf("the app's unit unavailable: %w", err)
+		}
 	}
 	if s.PHPVersion != "" {
 		if _, err := os.Stat(o.poolPath(s)); err != nil {

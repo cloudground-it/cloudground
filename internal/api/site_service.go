@@ -16,6 +16,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/jobs"
 	"github.com/cloudground-it/cloudground/internal/rpc"
+	"github.com/cloudground-it/cloudground/internal/runtimes"
 	"github.com/cloudground-it/cloudground/internal/site"
 	"github.com/cloudground-it/cloudground/internal/state"
 )
@@ -36,8 +37,12 @@ type newSite struct {
 	AdminUser     string   `json:"admin_user"`
 	AdminPassword string   `json:"admin_password"`
 	ProxyUpstream string   `json:"proxy_upstream"`
-	CacheEnabled  *bool    `json:"cache_enabled"`
-	ObjectCache   bool     `json:"object_cache"`
+	// A managed app (§3.21): its runtime version and start command; empty
+	// takes the defaults.
+	RuntimeVersion string `json:"runtime_version"`
+	StartCommand   string `json:"start_command"`
+	CacheEnabled   *bool  `json:"cache_enabled"`
+	ObjectCache    bool   `json:"object_cache"`
 	// The primary database (site_create_db.go): asked for on a static or
 	// PHP site, its names and password chosen or the panel's.
 	CreateDatabase   *bool  `json:"create_database"`
@@ -49,7 +54,7 @@ type newSite struct {
 // siteKinds are the types a site can be created as.
 var siteKinds = []state.SiteType{
 	state.SiteWordPress, state.SiteWooCommerce, state.SiteStatic,
-	state.SitePHP, state.SiteLaravel, state.SiteProxy,
+	state.SitePHP, state.SiteLaravel, state.SiteProxy, state.SiteNode, state.SitePython,
 }
 
 // knownProfile reports whether p is one of the three tuning profiles.
@@ -58,7 +63,9 @@ func knownProfile(p state.Profile) bool {
 }
 
 // runsPHP reports whether sites of type t have a PHP pool.
-func runsPHP(t state.SiteType) bool { return t != state.SiteStatic && t != state.SiteProxy }
+func runsPHP(t state.SiteType) bool {
+	return t != state.SiteStatic && t != state.SiteProxy && !t.IsApp()
+}
 
 // backedUp reports whether sites of type t have anything to back up: every
 // type but a reverse proxy, whose tree holds no content of its own and
@@ -218,6 +225,23 @@ func checkNewSite(req *newSite) (state.Site, newSiteDB, error) {
 	if kind == state.SiteLaravel {
 		rec.Config.PublicRoot = "public"
 	}
+	if kind.IsApp() {
+		rt := runtimes.Of(kind)
+		app := state.SiteApp{Version: strings.TrimSpace(req.RuntimeVersion), Start: strings.TrimSpace(req.StartCommand)}
+		if app.Version == "" {
+			app.Version = "22"
+			if rt == runtimes.Python {
+				app.Version = "3.12"
+			}
+		}
+		if app.Start == "" {
+			app.Start = runtimes.DefaultStart(rt)
+		}
+		if err := runtimes.CheckApp(kind, app); err != nil {
+			return state.Site{}, newSiteDB{}, refuse(probInvalid, err.Error())
+		}
+		rec.Config.App = app
+	}
 	return rec, db, nil
 }
 
@@ -352,6 +376,12 @@ func siteDatabase(id int64) string { return "site_" + strconv.FormatInt(id, 10) 
 func (svc siteService) provision(ctx context.Context, rec state.Site, sec siteSecrets, admin *wpAdmin, progress func(int, string)) error {
 	srv := svc.srv
 	progress(10, "Provisioning "+rec.Domain)
+	if rec.Type.IsApp() {
+		if err := srv.ensureRuntime(ctx, rec, progress); err != nil {
+			srv.abandonCreatedSite(rec, err)
+			return err
+		}
+	}
 	params := rpc.CreateSiteParams{Site: rec, DBPassword: sec.dbPassword, ConnectorToken: sec.connectorToken}
 	if admin != nil {
 		params.AdminEmail, params.AdminUser, params.AdminPassword, params.SiteTitle = admin.email, admin.user, admin.password, admin.title

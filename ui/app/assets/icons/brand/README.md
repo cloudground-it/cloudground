@@ -12,6 +12,8 @@ was added, so they take the text colour like the rest of the panel's icons.
 | `woocommerce.svg` | `woo` | WooCommerce (the "Woo" mark) | [WooCommerce trademark guidelines](https://woocommerce.com/trademark-guidelines/) |
 | `php.svg` | `php` | PHP | [PHP logo terms](https://www.php.net/download-logos.php) |
 | `laravel.svg` | `laravel` | Laravel | [Laravel trademark guidelines](https://laravel.com/trademark) |
+| `node.svg` | `nodedotjs` | Node.js | [OpenJS Foundation trademark policy](https://trademark-policy.openjsf.org/) |
+| `python.svg` | `python` | Python | [PSF trademark usage policy](https://www.python.org/psf/trademarks/) |
 
 `woocommerce.svg` is the upstream path moved up by 4.857 units (`viewBox` `0 0 24 14.3` instead of
 `0 4.857 24 14.3`), so the collection loader does not have to carry a viewBox offset. Nothing else

@@ -36,6 +36,9 @@ func (st stagingService) Create(ctx context.Context, actor string, prod state.Si
 	if prod.StagingOf != 0 {
 		return state.Site{}, jobs.Task{}, refuse(probInvalid, "cannot stage a staging site")
 	}
+	if prod.Type.IsApp() {
+		return state.Site{}, jobs.Task{}, refuse(probInvalid, "staging is not available for Node.js and Python sites")
+	}
 	if prod.Status == state.SiteDeleting {
 		return state.Site{}, jobs.Task{}, refuse(probConflict, "this site is being deleted")
 	}

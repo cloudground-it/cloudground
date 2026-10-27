@@ -136,6 +136,9 @@ export interface SiteDraft {
   admin_user: string
   admin_password: string
   proxy_upstream: string
+  /** A Node.js or Python site's runtime version ('auto': the default) and start command ('' : the default). */
+  runtime_version: string
+  start_command: string
   with_db: boolean
   db_name: string
   db_user: string
@@ -154,6 +157,8 @@ export function freshDraft(): SiteDraft {
     admin_user: 'admin',
     admin_password: '',
     proxy_upstream: '',
+    runtime_version: 'auto',
+    start_command: '',
     with_db: false,
     db_name: '',
     db_user: '',
@@ -162,11 +167,12 @@ export function freshDraft(): SiteDraft {
 }
 
 export const isWPType = (t: SiteType) => t === 'wordpress' || t === 'woocommerce'
-export const hasPHPType = (t: SiteType) => t !== 'static' && t !== 'proxy'
+export const isAppType = (t: SiteType) => t === 'node' || t === 'python'
+export const hasPHPType = (t: SiteType) => t !== 'static' && t !== 'proxy' && !isAppType(t)
 /** A type whose configuration uses a database always gets one. */
 export const dbAlways = (t: SiteType) => t === 'wordpress' || t === 'woocommerce' || t === 'laravel'
 /** A type that may get one if asked; a proxy never does. */
-export const dbOptional = (t: SiteType) => t === 'static' || t === 'php'
+export const dbOptional = (t: SiteType) => t === 'static' || t === 'php' || isAppType(t)
 export const wantsDB = (d: Pick<SiteDraft, 'type' | 'with_db'>) => dbAlways(d.type) || (dbOptional(d.type) && d.with_db)
 /** The profile "auto" stands for: the server picks it by type. */
 export const autoProfile = (t: SiteType) => t === 'woocommerce' ? 'commerce' : 'balanced'
@@ -208,6 +214,8 @@ export const FIELD_STEP: Record<string, WizardStep> = {
   admin_user: 'setup',
   admin_password: 'setup',
   proxy_upstream: 'setup',
+  runtime_version: 'setup',
+  start_command: 'setup',
   create_database: 'database',
   database_name: 'database',
   database_user: 'database',
@@ -236,6 +244,7 @@ export function draftProblems(d: SiteDraft): Record<string, FieldProblem> {
     if (d.admin_password.length < 12) e.admin_password = { key: 'auth.min12' }
   }
   if (d.type === 'proxy' && !d.proxy_upstream.trim()) e.proxy_upstream = { key: 'newSite.upstreamRequired' }
+  if (isAppType(d.type) && (/[\r\n]/.test(d.start_command) || d.start_command.length > 1024)) e.start_command = { key: 'app.startRule' }
   if (wantsDB(d)) {
     e.database_name = nameProblem(d.db_name)
     e.database_user = nameProblem(d.db_user)
@@ -266,6 +275,10 @@ export function createBody(d: SiteDraft): Record<string, unknown> {
   if (hasPHPType(d.type) && d.php_version !== 'auto') body.php_version = d.php_version
   if (isWPType(d.type)) Object.assign(body, { title: d.title, admin_email: d.admin_email.trim(), admin_user: d.admin_user.trim(), admin_password: d.admin_password })
   if (d.type === 'proxy') body.proxy_upstream = d.proxy_upstream.trim()
+  if (isAppType(d.type)) {
+    if (d.runtime_version !== 'auto') body.runtime_version = d.runtime_version
+    if (d.start_command.trim()) body.start_command = d.start_command.trim()
+  }
   if (dbOptional(d.type)) body.create_database = d.with_db
   if (wantsDB(d)) Object.assign(body, { database_name: d.db_name, database_user: d.db_user, database_password: d.db_password })
   return body
@@ -276,7 +289,7 @@ export function createBody(d: SiteDraft): Record<string, unknown> {
 /** The session storage key of the draft. */
 export const DRAFT_KEY = 'cg:new-site'
 const SECRET_FIELDS = ['admin_password', 'db_password'] as const
-const TYPES: SiteType[] = ['wordpress', 'woocommerce', 'static', 'php', 'laravel', 'proxy']
+const TYPES: SiteType[] = ['wordpress', 'woocommerce', 'static', 'php', 'laravel', 'proxy', 'node', 'python']
 
 /** What a reload keeps: the step and the draft without its passwords. */
 export interface StoredDraft { step: WizardStep, draft: Partial<SiteDraft>, edited: { name: boolean, user: boolean } }

@@ -1,4 +1,4 @@
-export type SiteType = 'wordpress' | 'woocommerce' | 'static' | 'php' | 'laravel' | 'proxy'
+export type SiteType = 'wordpress' | 'woocommerce' | 'static' | 'php' | 'laravel' | 'proxy' | 'node' | 'python'
 export type Profile = 'balanced' | 'commerce' | 'maximum'
 export type Role = 'admin' | 'operator' | 'readonly'
 
@@ -78,6 +78,8 @@ export interface Site {
     hsts?: boolean
     wildcard_cert?: boolean
     proxy_upstream?: string
+    /** A Node.js or Python site's app (#28). */
+    app?: SiteApp
     public_root?: string
     database: { enabled: boolean, name: string, user: string }
     backups: { enabled: boolean, schedule: string, retention_days: number, hour?: number | null }
@@ -263,6 +265,22 @@ export interface Capabilities {
   http3: boolean
   /** The panel's time zone, the one a backup's hour is in. */
   time_zone?: string
+  /** The Node.js and Python versions installed (#28). */
+  runtimes?: Runtimes
+}
+
+/** An installed runtime version: as sites name it, and as it reports itself. */
+export interface RuntimeVersion { version: string, full: string }
+export interface Runtimes { node: RuntimeVersion[], python: RuntimeVersion[] }
+
+/** A managed app's settings (GET /api/sites/{id}/app). */
+export interface SiteApp {
+  version: string
+  start: string
+  env?: Record<string, string>
+  secrets?: string[]
+  port?: number
+  health_path?: string
 }
 
 export interface PanelUser {

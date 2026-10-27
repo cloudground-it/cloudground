@@ -60,6 +60,8 @@ const links = computed(() => {
     { label: t('tabs.overview'), icon: 'i-cg-dashboard', to: base.value, exact: true },
     { label: t('tabs.cache'), icon: 'i-cg-cache', to: `${base.value}/cache` }
   ]
+  // A Node.js or Python site's app: its health, settings and environment (#28).
+  if (isAppSite(s)) items.splice(1, 1, { label: t('tabs.app'), icon: s.type === 'node' ? 'i-brand-node' : 'i-brand-python', to: `${base.value}/app` })
   if (isWordPress(s)) items.push({ label: 'WordPress', icon: 'i-cg-plug', to: `${base.value}/wordpress` })
   // The malware scan covers every site with files; the vulnerability check WordPress.
   if (s.type !== 'proxy') items.push({ label: t('tabs.security'), icon: 'i-cg-shield-check', to: `${base.value}/security` })

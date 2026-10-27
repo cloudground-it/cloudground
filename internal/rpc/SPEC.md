@@ -59,6 +59,9 @@ handler.
 | `CloudflareRangesParams` | `cfips.Parse` takes `V4` and `V6` (internal/cfips SPEC) | its message |
 | `TrafficCollectParams` | at most 4096 sites; each a positive `ID` and a valid domain, no `ID` twice | `too many sites in one traffic read`, `site <id>: …`, `site <id> is listed twice` |
 | `TrafficStatsParams` | a positive `ID`, a valid domain, `Days` 1–90 | `invalid site id`, the domain's message, `days must be 1 to 90` |
+| `RuntimeInstallParams` | `Runtime` is `node` or `python`, `Version` of its form (internal/runtimes SPEC §1) | `unknown runtime "<r>"`, `invalid <runtime> version "<v>"` |
+| `AppEnvParams` | the site is `node` or `python`; `runtimes.CheckEnv` takes `Env` | `not a Node.js or Python site`, its message |
+| `AppControlParams` | `Action` is `start`, `stop` or `restart` | `unknown action "<a>"` |
 | `ManageFileParams` | `Operation` is `mkdir`, `rename` or `delete` | `unsupported file operation "<o>"` |
 | | `rename` has a non-blank `DestPath` | `destination path required` |
 | `SSHKeyParams` | `Action` is `list`, `add` or `delete` | `unsupported SSH key action "<a>"` |

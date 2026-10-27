@@ -441,3 +441,25 @@ func mustParse(t *testing.T, text string) *parsed {
 	}
 	return p
 }
+
+// A managed app's block may proxy to its own upstream, and to no other
+// (SPEC §4.12).
+func TestAppUpstreamRouting(t *testing.T) {
+	app := rc
+	app.DocRoot, app.AppUpstream = "", "cg_app_7"
+	if err := CheckRouting("location / { proxy_pass http://cg_app_7; proxy_set_header Host $host; }", app); err != nil {
+		t.Fatalf("the own app refused: %v", err)
+	}
+	for _, text := range []string{
+		"location / { proxy_pass http://cg_app_8; }",
+		"location / { proxy_pass http://cg_app_7:8080; }",
+		"location / { proxy_pass http://cg_app_7; proxy_set_header Host evil.example.org; }",
+	} {
+		if err := CheckRouting(text, app); err == nil {
+			t.Errorf("taken: %s", text)
+		}
+	}
+	if err := CheckRouting("location / { proxy_pass http://cg_app_7; }", rc); err == nil {
+		t.Error("another site reached an app's upstream")
+	}
+}

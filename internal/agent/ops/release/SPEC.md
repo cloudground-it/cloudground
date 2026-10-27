@@ -110,6 +110,11 @@ Migration calls `Build` and `Promote` directly, holding the lock itself.
    `releases/<id>` (`RENAME_NOREPLACE`); the build directory goes. A
    failure at any step leaves no release: only the build directory, which
    the deferred cleanup (or the next deploy) removes.
+8. **A managed app's dependencies** (`node`, `python`, #28): `PrepareApp`
+   (ops/runtimes SPEC §3) runs in the published release, as the site user,
+   in the site's sandbox (it could not reach the build directory, which is
+   root's). A failure removes the release and is the deploy's error, with
+   the step's output; `current` was never touched.
 
 ## 4. Precompression
 
@@ -144,7 +149,8 @@ definition only affects new releases.)
   directory (`Lstat`; a symlink is `not_found`). `current` is replaced by a
   new link renamed over it (`sitefs.Symlink`: temporary name, `renameat`),
   so every request sees one release or the other. Then the site's PHP-FPM
-  master is reloaded (sites with PHP), so OPcache serves the new code, then
+  master is reloaded (sites with PHP), so OPcache serves the new code (a managed app is restarted instead, so it
+  runs from the new `current`), then
   nginx (its `open_file_cache` holds a path's descriptor for
   `open_file_cache_valid`, 60s outside the page-cache location, so a static
   file would come from the old release that long; measured by the e2e of

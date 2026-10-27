@@ -33,6 +33,7 @@ in the rendered comments (they are part of the output and stay with it) and
 | `AuthLogSocket` | the agent's datagram socket for failed sign-ins (#21, §4.6); empty logs none |
 | `Blocking` | the visitors the site refuses (#25, §4.7): addresses, user agents, countries already resolved to their prefixes, and this machine's addresses (never refused); nil refuses nobody |
 | `CloudflareInclude` | the file of Cloudflare's ranges (`<ConfDir>/cloudground-cloudflare.inc`) when the visitor's address comes from Cloudflare (#22, §4.11); empty: it does not |
+| `AppUpstream` | a managed app's address (#28, §4.12): `unix:/run/cloudground/app/<user>/app.sock` or `127.0.0.1:<port>`; empty for every other site |
 
 `Renderer` has `SiteFiles(Input) (path → content)`, `GlobalFiles()` and
 `Routing(Input) (RoutingView)` (§7.5).
@@ -480,6 +481,22 @@ if ($cg_banned) { return 403; }
   on its allowlist (§7.3).
 - Port 80 is unchanged (it only redirects and serves ACME challenges).
 - Off: none of this, so a site not behind Cloudflare pays nothing.
+### 4.12 Managed apps (#28)
+
+A `node` or `python` site (internal/api SPEC §3.21) is rendered as a proxy site whose upstream is
+its own app. Before the `server` blocks:
+
+```
+upstream cg_app_<id> {
+    server <AppUpstream>;
+}
+```
+
+and its default routing (§7) is the proxy site's with `proxy_pass http://cg_app_<id>;`. The page
+cache is never on for it (`velocity.PolicyFor`), and like a proxy site it has no document root.
+A custom routing block may `proxy_pass http://cg_app_<id>` for **its own** id (§7.3: the one host
+name allowed, and counted as this machine's, so the Host rule holds); any other `cg_app_` name is a
+host name and refused.
 
 ## 5. Page-cache policy (`velocity.PolicyFor`)
 

@@ -35,7 +35,21 @@
         "http3": true
       },
       "restic_version": "ResticVersion",
-      "restic_supported": true
+      "restic_supported": true,
+      "runtimes": {
+        "node": [
+          {
+            "version": "Version",
+            "full": "Full"
+          }
+        ],
+        "python": [
+          {
+            "version": "Version",
+            "full": "Full"
+          }
+        ]
+      }
     },
     "zero": {
       "agent_version": "",
@@ -51,7 +65,11 @@
         "http3": false
       },
       "restic_version": "",
-      "restic_supported": false
+      "restic_supported": false,
+      "runtimes": {
+        "node": null,
+        "python": null
+      }
     }
   }
 }

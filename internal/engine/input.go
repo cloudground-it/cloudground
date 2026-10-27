@@ -71,6 +71,9 @@ type Input struct {
 	// CloudflareInclude is the file of Cloudflare's ranges when the
 	// visitor's address comes from Cloudflare (#22, SPEC §4.11); "" is not.
 	CloudflareInclude string
+	// AppUpstream is a managed app's address (#28, SPEC §4.12):
+	// unix:<socket> or 127.0.0.1:<port>; "" for every other site.
+	AppUpstream string
 
 	// What a custom routing block must not reach (SPEC §7.3): the ports
 	// system services listen on here, this machine's own addresses, and a

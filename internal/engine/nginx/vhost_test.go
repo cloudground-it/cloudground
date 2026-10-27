@@ -191,7 +191,7 @@ func TestLeftoversAreNotServed(t *testing.T) {
 				regexes = append(regexes, d)
 			}
 		})
-		if c.in.Site.Type == state.SiteProxy {
+		if proxied(c.in.Site) {
 			for _, d := range regexes {
 				if d.words[2] == leftoverRegex {
 					t.Errorf("%s: a proxy site has the leftovers location", c.name)

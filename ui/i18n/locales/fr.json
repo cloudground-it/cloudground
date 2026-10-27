@@ -223,7 +223,9 @@
       "static": "Statique",
       "php": "PHP",
       "laravel": "Laravel",
-      "proxy": "Reverse proxy"
+      "proxy": "Reverse proxy",
+      "node": "Node.js",
+      "python": "Python"
     }
   },
   "osupdates": {
@@ -316,7 +318,8 @@
     "resources": "Ressources",
     "security": "Sécurité",
     "redirects": "Redirections",
-    "traffic": "Trafic"
+    "traffic": "Trafic",
+    "app": "Application"
   },
   "overview": {
     "certificate": "Certificat",
@@ -1040,7 +1043,8 @@
     "compressed": "archivé, compressé",
     "download": "Télécharger",
     "reload": "Actualiser",
-    "currentNote": "Le journal courant est envoyé tel qu'il est à ce moment, sa taille indiquée n'est donc qu'une indication. Les journaux archivés ne changent pas."
+    "currentNote": "Le journal courant est envoyé tel qu'il est à ce moment, sa taille indiquée n'est donc qu'une indication. Les journaux archivés ne changent pas.",
+    "app": "Application"
   },
   "services": {
     "manual": "démarrage manuel",
@@ -1596,7 +1600,9 @@
       "static": "HTML, builds",
       "php": "PHP simple",
       "laravel": "framework",
-      "proxy": "Node, Go…"
+      "proxy": "votre propre serveur",
+      "node": "votre application",
+      "python": "WSGI, ASGI"
     },
     "upstreamHelp": "nginx sert de proxy avec HTTP/3 et un certificat ; le cache reste désactivé tant que vous ne l’activez pas.",
     "wpPart": "Administrateur WordPress",
@@ -2115,5 +2121,53 @@
     "path": "Chemin",
     "hits": "Requêtes",
     "none": "Rien pour l’instant."
+  },
+  "app": {
+    "willInstall": "installé avec le site",
+    "runtime": "Environnement d’exécution",
+    "runtimeHelp": "La version sur laquelle tourne l’application. Si le serveur ne l’a pas, elle est installée avec le site.",
+    "start": "Commande de démarrage",
+    "startHelp": "Lancée par le shell dans la version en ligne. L’application doit écouter sur $PORT : le chemin d’un socket unix, sauf si vous indiquez un port.",
+    "startRule": "La commande de démarrage tient sur une ligne de 1024 caractères au plus.",
+    "statusTitle": "Application",
+    "statusHint": "L’application {runtime} tourne comme un service à part, sous l’utilisateur du site, et redémarre si elle s’arrête.",
+    "down": "Arrêtée",
+    "healthy": "En bonne santé",
+    "unhealthy": "Ne répond pas",
+    "unitState": "Service",
+    "since": "En marche depuis",
+    "restarts": "Redémarrages",
+    "lastExit": "dernier code de sortie {code}",
+    "health": "Vérification",
+    "restart": "Redémarrer",
+    "logs": "Journal de l’application",
+    "settingsTitle": "Réglages",
+    "settingsHint": "Enregistrer redémarre l’application. Les déploiements et retours arrière la redémarrent aussi, avec la nouvelle version.",
+    "versionHelp": "Installez d’autres versions dans Services → Environnements d’exécution.",
+    "port": "Port",
+    "portHelp": "0 (recommandé) : un socket unix que seul nginx atteint. Un port est sur 127.0.0.1, où tout processus du serveur l’atteint.",
+    "healthPath": "Chemin de vérification",
+    "healthPathHelp": "Ce que le panneau demande pour vérifier que l’application répond.",
+    "socket": "nginx atteint l’application sur {socket}.",
+    "envTitle": "Environnement",
+    "envHint": "Les variables que l’application trouve dans son environnement. Enregistrer la redémarre.",
+    "variables": "Variables",
+    "name": "NOM",
+    "value": "Valeur",
+    "addVariable": "Ajouter une variable",
+    "secrets": "Secrets",
+    "secretsHint": "Conservés chiffrés et jamais réaffichés ; l’application les reçoit comme toute variable.",
+    "addSecret": "Ajouter un secret",
+    "nameRule": "{name} n’est pas un nom de variable : majuscules, chiffres et _, sans commencer par un chiffre.",
+    "saveRestart": "Enregistrer et redémarrer",
+    "saved": "Application enregistrée et redémarrée",
+    "restarted": "Application redémarrée"
+  },
+  "runtimes": {
+    "title": "Environnements d’exécution",
+    "hint": "Node.js et Python pour les sites Node.js et Python. Node.js vient de nodejs.org, vérifié avec ses sommes de contrôle publiées ; Python est celui du système.",
+    "installed": "Installé",
+    "install": "Installer",
+    "queued": "Installation lancée"
   }
 }
