@@ -344,6 +344,7 @@ e2e/parse_test.go	TestWPConfigDBName	NONE
 e2e/parse_test.go	TestWPConfigValue	NONE
 e2e/parse_test.go	TestWarmerRequests	NONE
 e2e/passkeys_test.go	apiClient.pk	panel passkeys
+e2e/passkeys_test.go	apiClient.pkAt	panel passkeys
 e2e/passkeys_test.go	harness.addSoftPasskey	panel passkeys
 e2e/passkeys_test.go	harness.panelPasskeys	panel passkeys
 e2e/php_extensions_test.go	harness.phpExtensions	PHP extensions and backup hour
