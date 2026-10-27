@@ -76,6 +76,12 @@ type Ops struct {
 	CacheDir string
 	// WorkDir is root's own scratch directory.
 	WorkDir string
+	// ArchiveDir holds the downloadable archives of backups (SPEC §12); ""
+	// is DefaultArchiveDir.
+	ArchiveDir string
+	// FreeSpace reports the bytes free for root in dir; nil reads statfs
+	// (tests replace it).
+	FreeSpace func(dir string) (int64, error)
 	// Hostname scopes retention to this server; nil is os.Hostname.
 	Hostname func() (string, error)
 	Log      *slog.Logger
@@ -92,6 +98,9 @@ func (o *Ops) Register(s *agentrpc.Server) {
 	agentrpc.Handle(s, agentrpc.BackupRetention, o.BackupRetention)
 	agentrpc.Handle(s, agentrpc.ForgetSnapshot, o.ForgetSnapshot)
 	agentrpc.Handle(s, agentrpc.PruneRepository, o.PruneRepository)
+	agentrpc.Handle(s, agentrpc.ArchiveSnapshot, o.ArchiveSnapshot)
+	agentrpc.Handle(s, agentrpc.ReadArchiveChunk, o.ReadArchiveChunk)
+	agentrpc.Handle(s, agentrpc.DeleteArchive, o.DeleteArchive)
 }
 
 func (o *Ops) log() *slog.Logger {
@@ -114,8 +123,24 @@ func (o *Ops) repoOf(ctx context.Context, url, password string, env map[string]s
 		}
 		return host.Repo{}, err
 	}
-	return host.Repo{URL: url, Password: password, Env: env}, nil
+	// The panel's SFTP key travels with the credentials but is no variable
+	// of restic's: it becomes the repository's key (SPEC §2).
+	key := env[EnvSFTPKey]
+	if key != "" {
+		rest := make(map[string]string, len(env))
+		for k, v := range env {
+			if k != EnvSFTPKey {
+				rest[k] = v
+			}
+		}
+		env = rest
+	}
+	return host.Repo{URL: url, Password: password, Env: env, SSHKey: key}, nil
 }
+
+// EnvSFTPKey is the credential the panel sends an SFTP repository's private
+// key under.
+const EnvSFTPKey = "CG_SFTP_KEY"
 
 // run is one bounded restic call.
 func (o *Ops) run(ctx context.Context, repo host.Repo, d time.Duration, args ...string) ([]byte, error) {

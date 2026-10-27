@@ -21,7 +21,7 @@ character. Then, by prefix (anything else is refused):
 | `s3:<host>[:port]/<bucket>[/…]`, `s3:http(s)://<host>[:port]/<bucket>` | the host passes the endpoint rule (§2); no user info, query or fragment in the URL form |
 | `rest:https://[user:pass@]<host>[:port]/…` | `https` only (the repository password and the data would otherwise cross in the clear); the host passes §2 |
 | `b2:<bucket>[:<path>]` | a bucket name of 5–63 letters, digits and `-`; the path of letters, digits and `. _ / -` |
-| `sftp:[user@]host:<path>`, `sftp://[user@]host[:port]//<path>` | neither user nor host starts with `-` (ssh would read it as an option); the user of letters, digits and `. _ -`; the host a host name or an address; no password in the URL (use a key) |
+| `sftp:[user@]host:<path>`, `sftp://[user@]host[:port]//<path>` | neither user nor host starts with `-` (ssh would read it as an option); the user of letters, digits and `. _ -`; the host a host name or an address; no password in the URL (use the panel's key, internal/api SPEC §5.8) |
 | `rclone:<remote>:<path>` | `Options.Rclone()` says rclone is installed (the agent: `rclone` on `PATH`; the API leaves this to the agent); no `..` |
 
 ## 2. The endpoint rule (s3:, rest:)

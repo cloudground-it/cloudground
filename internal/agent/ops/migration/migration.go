@@ -78,6 +78,9 @@ type Ops struct {
 // Register wires the handler into the agent's RPC server.
 func (o *Ops) Register(s *agentrpc.Server) {
 	agentrpc.Handle(s, agentrpc.ImportMigration, o.Import)
+	agentrpc.Handle(s, agentrpc.PullEstimate, o.PullEstimate)
+	agentrpc.Handle(s, agentrpc.PullMigration, o.PullMigration)
+	agentrpc.Handle(s, agentrpc.PullCleanup, o.PullCleanup)
 }
 
 // limits are the migration's limits: o.Limits (DefaultLimits when zero),

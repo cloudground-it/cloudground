@@ -662,7 +662,21 @@
     "hourHelp": "Ora del server ({zone}). Qualsiasi ora: un giorno o una settimana dopo il backup precedente.",
     "databases": "Database da ripristinare",
     "databasesHint": "Vengono sostituiti solo i database selezionati; gli altri restano come sono ora.",
-    "databasesNone": "Scegli almeno un database, oppure ripristina solo i file."
+    "databasesNone": "Scegli almeno un database, oppure ripristina solo i file.",
+    "download": "Scarica",
+    "downloadTitle": "Scarica questo backup",
+    "downloadHint": "Il server prepara un .tar.gz con i file e un dump di ogni database, poi il browser lo scarica. Per i siti grandi serve un po’ di tempo.",
+    "preparing": "Preparazione…",
+    "onlyPaths": "Solo alcuni file o cartelle",
+    "onlyPathsHint": "Tutto il resto del sito resta com’è ora.",
+    "paths": "Percorsi",
+    "pathsHelp": "Uno per riga, dalla cartella del sito: shared/wp-config.php, shared/wp-content/uploads/2026",
+    "pathsBad": "Indica da 1 a 20 percorsi.",
+    "part": {
+      "full": "Tutto (file e database)",
+      "files": "Solo i file",
+      "database": "Solo i database"
+    }
   },
   "ssl": {
     "current": "Certificato attuale",
@@ -982,7 +996,29 @@
     "oldDomainHint": "facoltativo; riscrive in modo sicuro gli URL serializzati di WordPress",
     "sql": "Dump del database",
     "started": "Importazione avviata",
-    "title": "Importa un sito esistente"
+    "title": "Importa un sito esistente",
+    "pullTitle": "Importa da un altro server",
+    "pullHint": "CloudGround si collega al vecchio server via SSH/SFTP, copia il sito e il suo database, poi li importa dietro uno snapshot di sicurezza. Prima misura: niente viene copiato finché non avvii.",
+    "pullHost": "Vecchio server",
+    "pullPort": "Porta",
+    "pullUser": "Utente SSH o SFTP",
+    "pullPassword": "Password",
+    "pullKey": "Chiave privata",
+    "pullOnce": "Usata solo per questa importazione, poi dimenticata: non viene mai salvata.",
+    "pullPath": "Cartella del vecchio sito",
+    "pullPathHint": "La cartella che contiene wp-config.php per WordPress.",
+    "pullDb": "Database",
+    "pullDbNone": "Solo i file",
+    "pullDbDump": "Esportalo sul vecchio server (legge wp-config.php; serve una shell)",
+    "pullDbFile": "Copia un dump già presente sul vecchio server",
+    "pullMeasure": "Misura",
+    "pullStart": "Importa",
+    "pullEstimate": "{files} file, {size}",
+    "pullIsWordPress": "Un sito WordPress (wp-config.php trovato).",
+    "pullNotWordPress": "Nessun wp-config.php in quella cartella.",
+    "pullNoShell": "Questo account non ha una shell: copia invece un dump già presente sul vecchio server.",
+    "pullNoRoom": "Spazio insufficiente su questo server: {free} liberi.",
+    "pullHostKey": "La chiave del vecchio server: {key}. L’importazione accetta solo questa chiave."
   },
   "logs": {
     "access": "Accessi",

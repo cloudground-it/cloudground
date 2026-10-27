@@ -40,6 +40,9 @@ type Repo struct {
 	URL      string
 	Password string
 	Env      map[string]string
+	// SSHKey is the panel's private key for an sftp: repository (#23);
+	// empty for any other, or to use root's own ssh configuration.
+	SSHKey string
 }
 
 // Restic runs restic against one repository.
@@ -64,6 +67,9 @@ type ResticCLI struct {
 	// AgentBinary is the panel-agent the sandboxed run starts restic-exec
 	// from; "" is /usr/local/bin/panel-agent.
 	AgentBinary string
+	// SSHDir holds an SFTP repository's key and known hosts; "" is
+	// DefaultSSHDir (restic_sftp.go).
+	SSHDir string
 }
 
 // NewRestic returns the real adapter.
@@ -115,11 +121,16 @@ func (r *ResticCLI) RunIO(ctx context.Context, repo Repo, stdin io.Reader, stdou
 	if stdout == nil {
 		stdout = io.Discard
 	}
+	sftp, err := r.sftpArgs(repo)
+	if err != nil {
+		return err
+	}
+	args = append(sftp, args...)
 	// The caller's context carries the deadline: data-moving commands take
 	// hours, metadata ones should not. The Exec default must not cut them.
 	// A restic that is stopped removes its lock from the repository on
 	// SIGINT; killed outright, it leaves the lock behind (SPEC: restic).
-	_, err := r.Exec.Run(ctx, Cmd{Name: "restic", Args: args, Env: r.env(repo), Stdin: stdin, Stdout: stdout,
+	_, err = r.Exec.Run(ctx, Cmd{Name: "restic", Args: args, Env: r.env(repo), Stdin: stdin, Stdout: stdout,
 		Timeout: 24 * time.Hour, Interrupt: ResticGrace})
 	var ee *ExitError
 	if errors.As(err, &ee) {

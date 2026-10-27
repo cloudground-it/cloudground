@@ -11,6 +11,9 @@
       },
       "databases": [
         "Databases"
+      ],
+      "paths": [
+        "Paths"
       ]
     },
     "zero": {

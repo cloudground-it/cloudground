@@ -35,6 +35,7 @@ const (
 	dbChunkBody    = uploadChunk
 	passkeyBody    = 64 << 10 // a new passkey's attestation, which may carry certificates
 	mcpBody        = 64 << 10 // an MCP client's metadata or one JSON-RPC message
+	pullBody       = 64 << 10 // an old host's address and a private key
 )
 
 // routeTable is every route the panel serves (SPEC.md §1). Routes and
@@ -221,6 +222,10 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "tail one of the site's own logs: `access`, `error`, `php` or `cleanup`"},
 		{Method: post, Path: "/api/sites/{id}/migration", Policy: policyManage, Load: loadSite, Handle: s.handleImportMigration,
 			Section: secSites, Doc: "bring in a site from a files archive and a SQL dump"},
+		{Method: post, Path: "/api/sites/{id}/migration/pull/estimate", Policy: policyAdmin, Load: loadSite, MaxBody: pullBody, Handle: s.handlePullEstimate,
+			Section: secSites, Doc: "dry run of a pull from another host over SSH/SFTP: files, bytes, WordPress or not, the host's key, whether it fits"},
+		{Method: post, Path: "/api/sites/{id}/migration/pull", Policy: policyAdmin, Load: loadSite, MaxBody: pullBody, Handle: s.handlePullMigration,
+			Section: secSites, Doc: "pull a site from another host over SSH/SFTP (a password or key, single-use) and import it behind a safety snapshot"},
 
 		// Releases, staging and Safe Push.
 		{Method: get, Path: "/api/sites/{id}/deployments", Policy: policySignedIn, Load: loadSite, Handle: s.handleListDeployments,
@@ -276,7 +281,15 @@ func (s *Server) routeTable() []route {
 		{Method: post, Path: "/api/backups/{id}/verify", Policy: policyManage, Load: loadBackup, Handle: s.handleVerifyBackup,
 			Section: secBackups, Doc: "test-restore the backup to a scratch place"},
 		{Method: post, Path: "/api/backups/{id}/restore", Policy: policyManage, Load: loadBackup, Handle: s.handleRestoreBackup,
-			Section: secBackups, Doc: "restore in place — `mode` is `full`, `files` or `database`; `confirm` is the domain; `databases`, optional, restores only these of the snapshot's (a backup lists them in `databases`)"},
+			Section: secBackups, Doc: "restore in place — `mode` is `full`, `files` or `database`; `confirm` is the domain; `databases`, optional, restores only these of the snapshot's (a backup lists them in `databases`); `paths`, optional with `files`, only these files or folders"},
+		{Method: post, Path: "/api/backups/{id}/archive", Policy: policyManage, Load: loadBackup, MaxBody: smallBody, Handle: s.handleArchiveBackup,
+			Section: secBackups, Doc: "prepare a download of the backup — `part` is `full`, `files` or `database`; returns `202` with the task"},
+		{Method: get, Path: "/api/backups/{id}/archive", Query: "part=", Policy: policyManage, Load: loadBackup, Handle: s.handleDownloadArchive,
+			Section: secBackups, Doc: "download the prepared archive (`.tar.gz`: `files/`, `databases/<name>.sql`), streamed; deleted once sent"},
+		{Method: get, Path: "/api/settings/backup-ssh-key", Policy: policyAdmin, Handle: s.handleGetBackupSSHKey,
+			Section: secBackups, Doc: "the public key the panel signs in to an SFTP backup destination with (`\"\"` before one is made)"},
+		{Method: post, Path: "/api/settings/backup-ssh-key", Policy: policyAdmin, SessionOnly: true, Handle: s.handleNewBackupSSHKey,
+			Section: secBackups, Doc: "make a new key pair for SFTP destinations, replacing the old one; returns the public key"},
 		{Method: del, Path: "/api/backups/{id}", Policy: policyAdmin, Load: loadBackup, Handle: s.handleDeleteBackup,
 			Section: secBackups, Doc: "delete the snapshot from the repository (queued under its lock); refused for one whose restore test has not run and for the site's newest verified one"},
 		{Method: post, Path: "/api/backups/test", Policy: policyAdmin, Handle: s.handleTestBackupRepo,

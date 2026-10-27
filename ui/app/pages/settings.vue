@@ -41,7 +41,30 @@ async function save(keys: string[]) {
 // ---- off-site backups: a destination and the fields it needs ----
 // The presets fill in the endpoint; what is saved is the same repository
 // string and region the API has always taken (utils/backupDestination).
-const BACKUP_KEYS = ['backup_repository', 'backup_password', 'backup_s3_access_key', 'backup_s3_secret_key', 'backup_s3_region']
+const BACKUP_KEYS = ['backup_repository', 'backup_password', 'backup_s3_access_key', 'backup_s3_secret_key', 'backup_s3_region', 'backup_b2_account_id', 'backup_b2_account_key']
+
+// Destinations typed by hand (issue 23): B2's native API takes its own
+// credentials; SFTP signs in with the panel's key, made here.
+const advancedRepo = computed(() => dest.value.kind === 'advanced' ? (form.value.backup_repository ?? '').trim() : '')
+const isSFTP = computed(() => advancedRepo.value.startsWith('sftp:'))
+const isB2 = computed(() => advancedRepo.value.startsWith('b2:'))
+const sshKey = ref('')
+async function loadSSHKey() {
+  if (!isAdmin.value) return
+  try {
+    sshKey.value = (await api.get<{ public_key: string }>('/api/settings/backup-ssh-key')).public_key
+  } catch {
+    sshKey.value = ''
+  }
+}
+watch(isSFTP, (on) => { if (on && !sshKey.value) void loadSSHKey() })
+onMounted(() => { if (isSFTP.value) void loadSSHKey() })
+async function makeSSHKey() {
+  if (sshKey.value && !await confirm({ title: t('ux.backup.sshNewTitle'), description: t('ux.backup.sshNewHint'), danger: true, confirmLabel: t('ux.backup.sshNew') })) return
+  await run(async () => {
+    sshKey.value = (await api.post<{ public_key: string }>('/api/settings/backup-ssh-key', {})).public_key
+  }, t('ux.backup.sshMade'))
+}
 const dest = ref(blankDestination())
 function readDestination() {
   dest.value = destinationOf(saved.value.backup_repository ?? '', saved.value.backup_s3_region ?? '')
@@ -214,7 +237,30 @@ async function selfUpdate() {
                   </UFormField>
                 </div>
 
-                <div v-if="s3 || dest.kind === 'advanced'" class="grid gap-4 sm:grid-cols-2">
+                <div v-if="isB2" class="grid gap-4 sm:grid-cols-2">
+                  <UFormField :label="t('ux.backup.b2Id')" :help="t('ux.backup.b2Help')">
+                    <UInput v-model="form.backup_b2_account_id" type="password" autocomplete="off" class="w-full font-mono" :disabled="!isAdmin" />
+                  </UFormField>
+                  <UFormField :label="t('ux.backup.b2Key')">
+                    <UInput v-model="form.backup_b2_account_key" type="password" autocomplete="off" class="w-full font-mono" :disabled="!isAdmin" />
+                  </UFormField>
+                </div>
+
+                <div v-if="isSFTP" class="flex flex-col gap-2">
+                  <p class="text-sm text-highlighted">
+                    {{ t('ux.backup.sshTitle') }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ t('ux.backup.sshHint') }}
+                  </p>
+                  <div v-if="sshKey" class="flex min-w-0 items-center gap-2">
+                    <code class="mono min-w-0 flex-1 text-xs [overflow-wrap:anywhere] text-highlighted">{{ sshKey }}</code>
+                    <CopyButton :value="sshKey" />
+                  </div>
+                  <UButton v-if="isAdmin" class="self-start" color="neutral" variant="outline" icon="i-cg-key" :label="sshKey ? t('ux.backup.sshNew') : t('ux.backup.sshMake')" @click="makeSSHKey" />
+                </div>
+
+                <div v-if="s3 || (dest.kind === 'advanced' && !isSFTP && !isB2)" class="grid gap-4 sm:grid-cols-2">
                   <UFormField :label="t('ux.backup.accessKey')" :help="t('ux.backup.keysHelp')">
                     <UInput v-model="form.backup_s3_access_key" autocomplete="off" class="w-full font-mono" :disabled="!isAdmin" />
                   </UFormField>

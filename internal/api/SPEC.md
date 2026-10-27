@@ -1647,11 +1647,79 @@ accounts read it).
 | --- | --- | --- |
 | `POST /api/sites/{id}/backups` (`manage`) | 412 `configure backup_repository and backup_password in settings first`; 500 when the settings cannot be read | `202 {"task"}`, job `backup.run` |
 | `POST /api/backups/{id}/verify` (`manage`) | 412 | `202`, job `backup.verify` (deduplicated per record) |
-| `POST /api/backups/{id}/restore` (`manage`) `{"confirm", "mode", "databases"?}` | 400 `type the site domain to confirm restoration` (confirm is not the domain), 400 `restore mode must be full, files, or database`, 400 `a files restore puts back no database`, 400 `this site has no database "<name>"`, 400 `snapshot <id> holds no database "<name>"` (when the record knows its databases; else the agent checks); 412 | `202`, job `backup.restore` |
+| `POST /api/backups/{id}/restore` (`manage`) `{"confirm", "mode", "databases"?, "paths"?}` | 400 `type the site domain to confirm restoration` (confirm is not the domain), 400 `restore mode must be full, files, or database`, 400 `a files restore puts back no database`, 400 `this site has no database "<name>"`, 400 `snapshot <id> holds no database "<name>"` (when the record knows its databases; else the agent checks), 400 `only a files restore takes paths`, 400 `invalid path "<p>": give a file or folder inside the site, such as shared/wp-config.php` (§5.6); 412 | `202`, job `backup.restore` |
+| `POST /api/backups/{id}/archive` (`manage`) `{"part"?}` | 412; 400 `part must be full, files or database` | `202 {"task"}`, job `backup.archive` (deduplicated per record and part, §5.7) |
+| `GET /api/backups/{id}/archive?part=` (`manage`) | 404 `prepare the download first` (no archive of that part, or one older than a day) | `200`, the archive streamed (§5.7) |
 | `DELETE /api/backups/{id}` (`admin`) | 412; **409** for a record whose restore test has not run, and for the site's newest `passed` record in its repository | `202`, job `backup.forget` (deduplicated per record) |
 | `POST /api/backups/test` (`admin`) | 412 | the agent's `TestBackup` now: `200 {"reachable", "snapshots"}`, or `repository not reachable: …` with the agent error's status |
 | `POST /api/sites/{id}/backups/retention` (`admin`) | 412; 400 `this site has no backup retention window` | `202`, job `backup.retention` |
 | `PUT /api/sites/{id}/backups/policy` (`manage`) | §5.5 | `200` with the policy |
+
+### 5.6 Restoring one file or folder (#23)
+
+A `files` restore may name `paths`: 1 to 20 files or folders, each
+relative to the site's root (`shared/wp-config.php`,
+`shared/wp-content/uploads/2026/10`). Each is cleaned and must stay inside
+the site: no absolute path, no `..`, not the root itself, not `.ssh` (the
+keys are always the live site's, ops/backup SPEC §5), `tmp` or `current`,
+and not `releases` itself (a release inside it may be named) → else 400
+`invalid path`. Only those paths are put back; the rest of the site is left
+as it is. The job is the same `backup.restore` with the same **safety
+snapshot first**, taken and restore-tested before anything changes
+(§5.3): a selective restore is undone by restoring that snapshot. A path
+the snapshot does not hold fails the job (the agent's `snapshot <id> has
+no <path>`) after the safety snapshot, with nothing changed. Audited
+`backup.restore` with the paths.
+
+### 5.7 Downloading a backup (#23)
+
+A backup is downloaded as one `.tar.gz`: `files/` holds the site's root as
+the snapshot has it, `databases/<name>.sql` each database dump of the
+backup. `part` is `full` (the default: both), `files` or `database`.
+
+- `POST /api/backups/{id}/archive` queues `backup.archive` under the
+  repository's lock: the agent writes the archive into its own root-only
+  folder (ops/backup SPEC §12), never into the site's tree, after checking
+  the snapshot is the site's (SR-T6) and that the server has room for it:
+  without room the job fails with the agent's conflict (409), `not enough
+  free space on the server to prepare this download: it needs about … and
+  … is free`, and nothing is written. The job's result names the size.
+- `GET /api/backups/{id}/archive?part=` streams it, in chunks read from
+  the agent (4 MiB each, as Quarry's exports, §6.4), with
+  `Content-Type: application/gzip`, `Content-Disposition: attachment;
+  filename="<domain>-<snapshot>-<part>.tar.gz"`, its `Content-Length` and
+  `Cache-Control: no-store`; the API never holds it whole. Audited
+  `backup.download` (subject the domain, detail the snapshot and part)
+  before the first byte. Sent whole, the archive is deleted; an archive
+  nobody fetched is deleted a day after it was made.
+- The policy is `manage`: an admin, or an operator on its own sites (the
+  loader, §1.4); a read-only account cannot download a site's database.
+
+### 5.8 Destinations (#23)
+
+The repository is restic's (`backup_repository`, `internal/backuprepo`):
+a local folder, S3-compatible storage, Backblaze B2, SFTP or a REST
+server. Their credentials are sealed secrets, never part of what the
+settings show:
+
+- **S3-compatible**: `backup_s3_access_key`, `backup_s3_region` and the
+  secret `backup_s3_secret_key`, as before.
+- **B2** (`b2:<bucket>[:<path>]`): the secrets `backup_b2_account_id` and
+  `backup_b2_account_key` (§12), handed to restic as `B2_ACCOUNT_ID` and
+  `B2_ACCOUNT_KEY`.
+- **REST server** (`rest:https://user:password@host/…`): the password of
+  the URL is sealed as before (state SPEC, invariant 1).
+- **SFTP** (`sftp:user@host:/path`, `sftp://user@host:port//path`): with
+  the panel's own key. `GET /api/settings/backup-ssh-key` (`admin`) → 200
+  `{"public_key"}` (`""` before one exists); `POST
+  /api/settings/backup-ssh-key` (`admin`, sessions only) makes a new
+  Ed25519 key pair, replacing the old one (the private key is the sealed
+  secret `backup_sftp_key`, never shown), audited
+  `backup.ssh_key` → 200 `{"public_key"}`. The administrator adds the
+  public key to the destination's `authorized_keys`. Every restic call on
+  an `sftp:` repository carries the key (ops/backup SPEC §2); the
+  destination's host key is learned at its first connection (the test
+  when the setting is saved) and checked from then on.
 
 ### 5.5 The policy
 
@@ -1719,8 +1787,11 @@ job; the store's `site.changed` event tells the pages. Audited
   the restore: production was not changed); a cancel before the snapshot
   stops it; once recorded, its test runs whatever happens; then a
   checkpoint ("Stopped before the restore …"), the agent's
-  `RestoreSnapshot` in the mode asked for, a purge. The staging database
-  push takes the same safety snapshot.
+  `RestoreSnapshot` in the mode asked for (with its `paths`, §5.6), a
+  purge. The staging database push takes the same safety snapshot.
+- **backup.archive** (not resumable: ask again; under the repository's
+  lock; deduplicated per record and part): the agent's `ArchiveSnapshot` (§5.7); a record gone
+  meanwhile: skipped.
 - **backup.retention** (rerun): the site's window (`retention_days`); the
   newest `passed` record and **every `pending` one** are protected (sent as
   `Protect`): retention never forgets a snapshot whose restore test has not
@@ -1753,8 +1824,14 @@ the daily job and run once, a missing snapshot, the refusal checked again at run
 the record), `backup_retention_test.go`, `jobcancel_test.go` (restore
 cancel, verify not cancelable, retention protecting pending snapshots),
 `api_test.go` (`TestEveryBackupIsVerified`, the safety snapshots),
-`backup_policy_test.go` (§5.5). e2e: `wordpress backups`, `R-4.3 deploys
-and backups`, `R-4.3 site settings` (the policy, R-8.2).
+`backup_policy_test.go` (§5.5), `backup_selective_test.go` (§5.6–§5.8:
+the paths' refusals, the safety snapshot before a selective restore, the
+archive job, the streamed download and its audit, the B2 and SFTP
+credentials reaching the agent). e2e: `wordpress backups`, `R-4.3 deploys
+and backups`, `R-4.3 site settings` (the policy, R-8.2), `backup
+destinations and selective restore` (#23: an SFTP repository on a second
+site of the box, one file restored behind its safety snapshot, a
+download).
 ## 6. Site proxies (R-4.3)
 
 Files, WordPress, the database console and Quarry are thin proxies: the
@@ -2567,6 +2644,56 @@ and activated (<n> files)[; <k> unsafe or special entries skipped][; safety
 snapshot <id> retained]`. Answer
 202 `{task, release_id}`.
 
+### 10.1 Pulling from another host (#82, `migration_pull.go`)
+
+Instead of uploading an archive and a dump, the panel fetches them from the
+old host over SSH/SFTP and runs the import above with its safety snapshot.
+Both routes are `admin` (the agent, as root, opens a connection to a host
+the request names: an operator must not be able to point it anywhere) and
+take, as JSON:
+
+- `host` (a host name or an address, not starting with `-`), `port` (1–65535,
+  default 22), `user`;
+- `password` or `private_key` (OpenSSH or PEM, unencrypted): exactly one →
+  else 400 `give a password or a private key`;
+- `host_key` (optional): the old host's key fingerprint, `SHA256:…`; when
+  given the connection is refused unless the host shows that key;
+- `path`: the old site's folder on that host (absolute, or relative to the
+  account's home); a link there is followed once, to the folder it names;
+- `db`: `""` (no database), `dump` (the old site's `wp-config.php` is read
+  over SFTP for its database's name, user, password and host, and
+  `mysqldump` runs on the old host over SSH, its password on its standard
+  input; this needs a shell there) or `file` with `sql_path` (a `.sql` on
+  the old host, fetched over SFTP; works with an SFTP-only account) → else
+  400 `db must be empty, dump or file`; `file` without `sql_path` → 400;
+- `old_domain`, `confirm` and `max_ratio` as §10.
+
+`POST /api/sites/{id}/migration/pull/estimate` (the dry run) connects, walks
+the folder and answers 200 `{files, bytes, wordpress, shell, host_key,
+free_bytes, fits}`: what would be copied, whether a `wp-config.php` is
+there, whether the account has a shell (asked only for `db: dump`), the
+host's key fingerprint (to pin in the pull), the space free where the
+copy is written and whether it fits (with the import's reserve). Nothing is
+written. An agent refusal (the host unreachable, the login refused, the key
+not the one pinned, the folder missing) → 400 with its message.
+
+`POST /api/sites/{id}/migration/pull` (confirm the domain as §10) queues
+`migration.pull` under the site's lock (and the repository's when backups
+are configured): 5 `Connecting to <user>@<host>`, the agent's
+`PullMigration`, which writes the archive (and the dump) into the site's
+`tmp/` (left out of backups, ops/backup SPEC §4) under the site user, then
+the import of §10 with them: the **restore-tested safety snapshot first**,
+the release recorded and promoted. Whatever happens, the pulled files are
+deleted at the end (`PullCleanup`), and the job's log names the host key it
+connected to. 202 `{task, release_id}`.
+
+**The credentials are single-use.** The password or key lives only in the
+running job's memory and in the one RPC to the agent: it is never written to
+the database (the job's record holds only host, port, user and path), the
+audit log or the task's log, and the agent keeps it in memory only (no key
+file). Nothing is kept once the job ends; a pull run again asks for them
+again. Audited `migration.pull` (subject the domain, detail `user@host:path`).
+
 ## 11. Alerts (R-4.3)
 
 Alerts are rows of the `alerts` table (internal/state/SPEC.md, Alerts), one
@@ -2943,7 +3070,8 @@ use it). Each key is a field of `state.PanelSettings` or a secret.
 - A requirement that would hold the caller itself is accepted: the
   caller is then held like anyone else, on the Security page, until it sets
   up a factor.
-- Secrets: `backup_password`, `backup_s3_secret_key`, `cloudflare_api_token`,
+- Secrets: `backup_password`, `backup_s3_secret_key`, `backup_b2_account_id`,
+  `backup_b2_account_key` (§5.8), `cloudflare_api_token`,
   `mail_password` show `••••••••` when set and `""` when not; `notify_webhook` is shown in
   full to an admin and as `<scheme>://<host>/••••••••` to anyone else.
 - `GET` (global): the map. 500 `could not read the settings`.

@@ -74,7 +74,17 @@
       "result": "Repository",
       "resultHelp": "Was gespeichert wird, so wie restic es liest.",
       "saveFirst": "Erst speichern: der Test liest die gespeicherten Einstellungen.",
-      "testHelp": "Verbindet sich mit den gespeicherten Einstellungen und zählt die Snapshots."
+      "testHelp": "Verbindet sich mit den gespeicherten Einstellungen und zählt die Snapshots.",
+      "b2Id": "B2-Schlüssel-ID",
+      "b2Key": "B2-Anwendungsschlüssel",
+      "b2Help": "Ein Backblaze-B2-Anwendungsschlüssel, auf diesen Bucket beschränkt. Beide werden verschlüsselt gespeichert.",
+      "sshTitle": "Der SSH-Schlüssel des Panels",
+      "sshHint": "Füge diesen öffentlichen Schlüssel zu authorized_keys des Kontos auf dem SFTP-Server hinzu. Der private Schlüssel verlässt das Panel nie.",
+      "sshMake": "Schlüssel erzeugen",
+      "sshNew": "Neuen Schlüssel erzeugen",
+      "sshNewTitle": "SSH-Schlüssel des Panels ersetzen?",
+      "sshNewHint": "Backups erreichen den SFTP-Server nicht mehr, bis du dort den neuen öffentlichen Schlüssel hinzufügst.",
+      "sshMade": "SSH-Schlüssel erzeugt"
     },
     "settings": {
       "secureShort": "Panel absichern",

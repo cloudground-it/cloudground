@@ -41,6 +41,12 @@ func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[str
 	if mode == "files" && len(p.Databases) > 0 {
 		return nil, agentrpc.Invalid("a files restore puts back no database")
 	}
+	if len(p.Paths) > 0 && mode != "files" {
+		return nil, agentrpc.Invalid("only a files restore takes paths")
+	}
+	if len(p.Paths) > rpc.MaxRestorePaths {
+		return nil, agentrpc.Invalid("at most %d paths", rpc.MaxRestorePaths)
+	}
 	databases, err := o.siteDatabases(ctx, s)
 	if err != nil {
 		return nil, err
@@ -116,6 +122,13 @@ func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[str
 		return done, nil
 	}
 
+	if len(p.Paths) > 0 {
+		if err := o.restorePaths(ctx, repo, s, p.SnapshotID, work, p.Paths); err != nil {
+			return nil, err
+		}
+		done["paths"] = strings.Join(p.Paths, ",")
+		return done, nil
+	}
 	if err := o.restoreFiles(ctx, repo, p.SnapshotID, work); err != nil {
 		return nil, err
 	}

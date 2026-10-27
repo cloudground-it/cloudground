@@ -80,6 +80,16 @@ var routePolicy = map[string]string{
 	"POST /api/users/{id}/password":  "admin",
 	"POST /api/users/{id}/2fa/reset": "admin",
 
+	// Backups' downloads and the SFTP destination's key (SPEC.md §5.7, §5.8).
+	"POST /api/backups/{id}/archive":    "manage",
+	"GET /api/backups/{id}/archive":     "manage",
+	"GET /api/settings/backup-ssh-key":  "admin",
+	"POST /api/settings/backup-ssh-key": "admin",
+	// A pull from another host opens a connection from the agent: admins
+	// only (SPEC.md §10.1).
+	"POST /api/sites/{id}/migration/pull/estimate": "admin",
+	"POST /api/sites/{id}/migration/pull":          "admin",
+
 	"GET /api/tokens":         "admin",
 	"POST /api/tokens":        "admin",
 	"DELETE /api/tokens/{id}": "admin",
