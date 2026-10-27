@@ -47,6 +47,11 @@ var routePolicy = map[string]string{
 	"PUT /api/users/{id}":           "admin",
 	"POST /api/users/{id}/password": "admin",
 
+	// A pull from another host opens a connection from the agent: admins
+	// only (SPEC.md §10.1).
+	"POST /api/sites/{id}/migration/pull/estimate": "admin",
+	"POST /api/sites/{id}/migration/pull":          "admin",
+
 	"GET /api/tokens":         "admin",
 	"POST /api/tokens":        "admin",
 	"DELETE /api/tokens/{id}": "admin",

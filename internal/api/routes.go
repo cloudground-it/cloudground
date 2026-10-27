@@ -32,6 +32,7 @@ const (
 	dbEditBody     = 16 << 20  // a batch of row changes
 	fileUploadBody = maxPanelTransfer
 	dbChunkBody    = uploadChunk
+	pullBody       = 64 << 10 // an old host's address and a private key
 )
 
 // routeTable is every route the panel serves (SPEC.md §1). Routes and
@@ -159,6 +160,10 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "tail one of the site's own logs: `access`, `error`, `php` or `cleanup`"},
 		{Method: post, Path: "/api/sites/{id}/migration", Policy: policyManage, Load: loadSite, Handle: s.handleImportMigration,
 			Section: secSites, Doc: "bring in a site from a files archive and a SQL dump"},
+		{Method: post, Path: "/api/sites/{id}/migration/pull/estimate", Policy: policyAdmin, Load: loadSite, MaxBody: pullBody, Handle: s.handlePullEstimate,
+			Section: secSites, Doc: "dry run of a pull from another host over SSH/SFTP: files, bytes, WordPress or not, the host's key, whether it fits"},
+		{Method: post, Path: "/api/sites/{id}/migration/pull", Policy: policyAdmin, Load: loadSite, MaxBody: pullBody, Handle: s.handlePullMigration,
+			Section: secSites, Doc: "pull a site from another host over SSH/SFTP (a password or key, single-use) and import it behind a safety snapshot"},
 
 		// Releases, staging and Safe Push.
 		{Method: get, Path: "/api/sites/{id}/deployments", Policy: policySignedIn, Load: loadSite, Handle: s.handleListDeployments,

@@ -193,6 +193,9 @@ var (
 	BackupRetention   = define[rpc.RetentionParams, rpc.RetentionResult](Spec{Name: "BackupRetention", Timeout: 4 * hrs, Sites: true, Fail: "Could not apply the backup retention"})
 	ForgetSnapshot    = define[rpc.ForgetSnapshotParams, rpc.ForgetSnapshotResult](Spec{Name: "ForgetSnapshot", Timeout: 4 * hrs, Sites: true, Fail: "Could not delete the backup"})
 	ImportMigration   = define[rpc.MigrationParams, rpc.MigrationResult](Spec{Name: "ImportMigration", Timeout: 7 * hrs, Sites: true, Lock: LockLiveSite, Fail: "The migration failed"})
+	PullEstimate      = define[rpc.PullParams, rpc.PullEstimateResult](Spec{Name: "PullEstimate", Timeout: 5 * mins, Sites: true, ReadOnly: true, Fail: "Could not measure the site on the old host"})
+	PullMigration     = define[rpc.PullParams, rpc.PullResult](Spec{Name: "PullMigration", Timeout: 7 * hrs, Sites: true, Lock: LockLiveSite, Fail: "Could not copy the site from the old host"})
+	PullCleanup       = define[rpc.PullCleanupParams, map[string]int](Spec{Name: "PullCleanup", Timeout: 1 * mins, Sites: true, Fail: "Could not remove the copied files"})
 )
 
 // The server's own packages (internal/agent/ops/system/SPEC.md §7, #27). A

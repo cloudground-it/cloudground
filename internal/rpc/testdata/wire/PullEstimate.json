@@ -1,0 +1,43 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "host": "Host",
+      "port": 7,
+      "user": "User",
+      "password": "Password",
+      "private_key": "PrivateKey",
+      "host_key": "HostKey",
+      "path": "Path",
+      "db": "DB",
+      "sql_path": "SQLPath",
+      "release_id": "ReleaseID"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "host": "",
+      "user": "",
+      "path": ""
+    }
+  },
+  "result": {
+    "full": {
+      "files": 7,
+      "bytes": 7,
+      "wordpress": true,
+      "shell": true,
+      "host_key": "HostKey",
+      "free_bytes": 7,
+      "fits": true
+    },
+    "zero": {
+      "files": 0,
+      "bytes": 0,
+      "wordpress": false,
+      "shell": false,
+      "host_key": "",
+      "free_bytes": 0,
+      "fits": false
+    }
+  }
+}

@@ -15,7 +15,7 @@ it.
 | `ImportMigration` | `MigrationParams{Site, Archive, SQL?, OldDomain?, ReleaseID, MaxRatio?}` → `MigrationResult{ReleaseID, Files, Bytes, Skipped}` | Sites, **`LockLiveSite`**, 7 h |
 | `PullEstimate` | `PullParams` → `PullEstimate{Files, Bytes, WordPress, Shell, HostKey, FreeBytes, Fits}` | Sites, read-only, 5 min |
 | `PullMigration` | `PullParams` → `PullResult{Archive, SQL, Files, Bytes, HostKey}` | Sites, `LockLiveSite`, 7 h |
-| `PullCleanup` | `PullParams{Site, ReleaseID}` → `{"removed": n}` | Sites, 1 min |
+| `PullCleanup` | `PullCleanupParams{Site, ReleaseID}` → `{"removed": n}` | Sites, 1 min |
 
 The server has validated the site and holds its lock, so no deploy, restore,
 staging push or second migration runs on the site meanwhile. The handler
