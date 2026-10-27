@@ -34,6 +34,27 @@ var routePolicy = map[string]string{
 	"/":                             "public",
 	"POST /api/connector/purge":     "token",
 
+	// The MCP server's OAuth and /mcp rows authenticate themselves (and
+	// answer 404 while it is off): mcp_test.go covers them.
+	"GET /.well-known/oauth-protected-resource":     "mcp",
+	"GET /.well-known/oauth-protected-resource/mcp": "mcp",
+	"GET /.well-known/oauth-authorization-server":   "mcp",
+	"POST /oauth/register":                          "mcp",
+	"GET /oauth/authorize":                          "mcp",
+	"POST /oauth/token":                             "mcp",
+	"POST /oauth/revoke":                            "mcp",
+	"POST /mcp":                                     "mcp",
+	"GET /mcp":                                      "mcp",
+	"DELETE /mcp":                                   "mcp",
+	"GET /api/mcp/requests/{id}":                    "auth",
+	"POST /api/mcp/requests/{id}/approve":           "auth",
+	"POST /api/mcp/requests/{id}/deny":              "auth",
+	"GET /api/mcp/grants":                           "auth",
+	"DELETE /api/mcp/grants/{id}":                   "auth",
+	"GET /api/mcp/actions":                          "auth",
+	"POST /api/mcp/actions/{id}/confirm":            "auth",
+	"POST /api/mcp/actions/{id}/reject":             "auth",
+
 	"POST /api/logout":                       "auth",
 	"POST /api/account/password":             "auth",
 	"POST /api/account/2fa/begin":            "auth",
@@ -299,7 +320,7 @@ func TestEveryRouteEnforcesItsPolicy(t *testing.T) {
 	for _, role := range roles {
 		for _, pattern := range s.routePatterns {
 			policy := routePolicy[pattern]
-			if policy == "token" || policy == "" {
+			if policy == "token" || policy == "mcp" || policy == "" {
 				continue
 			}
 			method, path := "GET", pattern

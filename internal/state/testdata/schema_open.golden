@@ -18,6 +18,12 @@ index idx_jobs_site on jobs
   create index idx_jobs_site on jobs(site_id)
 index idx_jobs_status on jobs
   create index idx_jobs_status on jobs(status)
+index idx_mcp_actions_user on mcp_actions
+  create index idx_mcp_actions_user on mcp_actions(user_id)
+index idx_mcp_grants_prev on mcp_grants
+  create index idx_mcp_grants_prev on mcp_grants(prev_refresh_hash)
+index idx_mcp_grants_user on mcp_grants
+  create index idx_mcp_grants_user on mcp_grants(user_id)
 index idx_metric_samples_time on metric_samples
   create index idx_metric_samples_time on metric_samples(sampled_at)
 index idx_secrets_lookup on secrets
@@ -55,6 +61,12 @@ index sqlite_autoindex_blocklist_1 on blocklist
 index sqlite_autoindex_deployments_1 on deployments
   
 index sqlite_autoindex_managed_files_1 on managed_files
+  
+index sqlite_autoindex_mcp_clients_1 on mcp_clients
+  
+index sqlite_autoindex_mcp_grants_1 on mcp_grants
+  
+index sqlite_autoindex_mcp_grants_2 on mcp_grants
   
 index sqlite_autoindex_meta_1 on meta
   
@@ -108,12 +120,18 @@ table jobs on jobs
   create table jobs(id integer primary key autoincrement,kind text not null,site_id integer not null default 0,status text not null,progress integer not null default 0,message text not null default '',log_head text not null default '',log_tail text not null default '',log_dropped integer not null default 0,error text not null default '',error_key text not null default '',error_args text not null default '',payload text not null default '{}',locks text not null default '[]',dedup_key text,quiet integer not null default 0,attempts integer not null default 0,cancel_requested integer not null default 0,background integer not null default 0,not_before text,created_at text not null,started_at text,finished_at text)
 table managed_files on managed_files
   create table managed_files(path text primary key,sha256 text not null,updated_at text not null)
+table mcp_actions on mcp_actions
+  create table mcp_actions(id integer primary key autoincrement,grant_id integer not null references mcp_grants(id)on delete cascade,user_id integer not null references users(id)on delete cascade,tool text not null,args text not null,summary text not null,status text not null default 'pending' check(status in('pending','done','failed','rejected','expired')),result text not null default '',created_at text not null,expires_at text not null,decided_at text not null default '')
+table mcp_clients on mcp_clients
+  create table mcp_clients(id text primary key,name text not null,redirect_uris text not null,created_at text not null,last_used_at text not null default '')
+table mcp_grants on mcp_grants
+  create table mcp_grants(id integer primary key autoincrement,user_id integer not null references users(id)on delete cascade,client_id text not null references mcp_clients(id)on delete cascade,scopes text not null,access_hash text not null unique,access_expires text not null,refresh_hash text not null unique,refresh_expires text not null,prev_refresh_hash text not null default '',created_at text not null,last_used_at text not null default '')
 table meta on meta
   create table meta(key text primary key,value text not null)
 table metric_samples on metric_samples
   create table metric_samples(id integer primary key autoincrement,cpu_headroom_pct integer not null,mem_headroom_pct integer not null,disk_headroom_pct integer not null,load1 real not null,sampled_at text not null)
 table panel_settings on panel_settings
-  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')),vulnerability_check integer not null default 1,malware_scan integer not null default 0,mail text not null default '{}',require_2fa_all integer not null default 0)
+  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')),vulnerability_check integer not null default 1,malware_scan integer not null default 0,mail text not null default '{}',require_2fa_all integer not null default 0,mcp_enabled integer not null default 0)
 table schedule_state on schedule_state
   create table schedule_state(key text primary key,last_run text not null)
 table schema_migrations on schema_migrations
@@ -308,6 +326,49 @@ columns of managed_files
   2 | updated_at | TEXT | 1 | - | 0
   index sqlite_autoindex_managed_files_1 unique=1 origin=pk partial=0 on 0:0:path
 
+columns of mcp_actions
+  0 | id | INTEGER | 0 | - | 1
+  1 | grant_id | INTEGER | 1 | - | 0
+  2 | user_id | INTEGER | 1 | - | 0
+  3 | tool | TEXT | 1 | - | 0
+  4 | args | TEXT | 1 | - | 0
+  5 | summary | TEXT | 1 | - | 0
+  6 | status | TEXT | 1 | 'pending' | 0
+  7 | result | TEXT | 1 | '' | 0
+  8 | created_at | TEXT | 1 | - | 0
+  9 | expires_at | TEXT | 1 | - | 0
+  10 | decided_at | TEXT | 1 | '' | 0
+  fk 0 | 0 | users | user_id | id | NO ACTION | CASCADE | NONE
+  fk 1 | 0 | mcp_grants | grant_id | id | NO ACTION | CASCADE | NONE
+  index idx_mcp_actions_user unique=0 origin=c partial=0 on 0:2:user_id
+
+columns of mcp_clients
+  0 | id | TEXT | 0 | - | 1
+  1 | name | TEXT | 1 | - | 0
+  2 | redirect_uris | TEXT | 1 | - | 0
+  3 | created_at | TEXT | 1 | - | 0
+  4 | last_used_at | TEXT | 1 | '' | 0
+  index sqlite_autoindex_mcp_clients_1 unique=1 origin=pk partial=0 on 0:0:id
+
+columns of mcp_grants
+  0 | id | INTEGER | 0 | - | 1
+  1 | user_id | INTEGER | 1 | - | 0
+  2 | client_id | TEXT | 1 | - | 0
+  3 | scopes | TEXT | 1 | - | 0
+  4 | access_hash | TEXT | 1 | - | 0
+  5 | access_expires | TEXT | 1 | - | 0
+  6 | refresh_hash | TEXT | 1 | - | 0
+  7 | refresh_expires | TEXT | 1 | - | 0
+  8 | prev_refresh_hash | TEXT | 1 | '' | 0
+  9 | created_at | TEXT | 1 | - | 0
+  10 | last_used_at | TEXT | 1 | '' | 0
+  fk 0 | 0 | mcp_clients | client_id | id | NO ACTION | CASCADE | NONE
+  fk 1 | 0 | users | user_id | id | NO ACTION | CASCADE | NONE
+  index idx_mcp_grants_prev unique=0 origin=c partial=0 on 0:8:prev_refresh_hash
+  index idx_mcp_grants_user unique=0 origin=c partial=0 on 0:1:user_id
+  index sqlite_autoindex_mcp_grants_1 unique=1 origin=u partial=0 on 0:4:access_hash
+  index sqlite_autoindex_mcp_grants_2 unique=1 origin=u partial=0 on 0:6:refresh_hash
+
 columns of meta
   0 | key | TEXT | 0 | - | 1
   1 | value | TEXT | 1 | - | 0
@@ -337,6 +398,7 @@ columns of panel_settings
   11 | malware_scan | INTEGER | 1 | 0 | 0
   12 | mail | TEXT | 1 | '{}' | 0
   13 | require_2fa_all | INTEGER | 1 | 0 | 0
+  14 | mcp_enabled | INTEGER | 1 | 0 | 0
 
 columns of schedule_state
   0 | key | TEXT | 0 | - | 1
