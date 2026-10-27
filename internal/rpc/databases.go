@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/cloudground-it/cloudground/internal/site"
@@ -14,6 +15,10 @@ import (
 type SiteDatabaseParams struct {
 	Site state.Site `json:"site"`
 	Name string     `json:"name"`
+	// ServerID is the external server a new database is made on; 0 is the
+	// box's own (#30, ops/db SPEC §9). A drop finds the server from the
+	// agent's record.
+	ServerID int64 `json:"server_id,omitempty"`
 }
 
 // Sites lists the site whose database it is.
@@ -21,7 +26,12 @@ func (p *SiteDatabaseParams) Sites() []*state.Site { return []*state.Site{&p.Sit
 
 // Validate refuses a name the site may not take: reserved, a system name,
 // another site's default.
-func (p *SiteDatabaseParams) Validate() error { return site.ClaimableBy(p.Name, p.Site.ID) }
+func (p *SiteDatabaseParams) Validate() error {
+	if p.ServerID < 0 {
+		return errors.New("invalid database server")
+	}
+	return site.ClaimableBy(p.Name, p.Site.ID)
+}
 
 // DBUserParams creates one of a site's database accounts, changes its
 // password or its grants, or drops it. Password is the new password
@@ -32,6 +42,9 @@ type DBUserParams struct {
 	User     string          `json:"user"`
 	Password string          `json:"password,omitempty"`
 	Grants   []state.DBGrant `json:"grants,omitempty"`
+	// ServerID is the external server a new account is made on (0: the
+	// box's own); every later call finds it from the agent's record.
+	ServerID int64 `json:"server_id,omitempty"`
 }
 
 // Sites lists the site whose account it is.
@@ -40,6 +53,9 @@ func (p *DBUserParams) Sites() []*state.Site { return []*state.Site{&p.Site} }
 // Validate refuses a name the site may not take and a grant level other
 // than all or read.
 func (p *DBUserParams) Validate() error {
+	if p.ServerID < 0 {
+		return errors.New("invalid database server")
+	}
 	if err := site.ClaimableBy(p.User, p.Site.ID); err != nil {
 		return err
 	}
@@ -75,14 +91,16 @@ type DBListResult struct {
 // DBInfo is one database: its size (data and indexes) and its tables.
 type DBInfo struct {
 	Name      string `json:"name"`
+	ServerID  int64  `json:"server_id,omitempty"`
 	SizeBytes int64  `json:"size_bytes"`
 	Tables    int64  `json:"tables"`
 }
 
 // DBUserInfo is one account and its grants.
 type DBUserInfo struct {
-	Name   string          `json:"name"`
-	Grants []state.DBGrant `json:"grants"`
+	Name     string          `json:"name"`
+	ServerID int64           `json:"server_id,omitempty"`
+	Grants   []state.DBGrant `json:"grants"`
 }
 
 // DBQueryParams runs one SQL statement on a site's own database, through a

@@ -64,6 +64,9 @@ handler.
 | `RestoreParams` | `Mode`, trimmed and lower-cased, is empty (full), `full`, `files` or `database` | `restore mode must be full, files, or database` |
 | `ForgetSnapshotParams` | `SnapshotID` is 8 to 64 hex digits | `invalid snapshot id` |
 | `RemoveReleasesParams` | at most 100 `ReleaseIDs`, each a release ID (never `initial`) | `at most 100 releases at a time`, `invalid release id "<id>"` |
+| `SiteDatabaseParams`, `DBUserParams` | `ServerID`, when not 0, is positive | `invalid database server` |
+| `DBServerParams` (`TestDBServer`) | `Host` a host name or an address (at most 253 characters, none of space, `/`, `@`), `Port` 1–65535, `AdminUser` one line of at most 80 characters, `AdminPassword` not empty and without a line break, `CACert` empty or PEM certificates, at most 64 KiB | the rule's sentence |
+| `SetDBServersParams` | every server as `DBServerParams`, with a positive `ID`, at most 50 | the rule's sentence |
 | `DeployParams` | `ReleaseID` is a release ID (`site.ValidReleaseID`: a canonical upper-case ULID, or one of the two older forms) | `invalid release id "<id>"` |
 | `ReleaseParams` | `ReleaseID` is empty (rollback to the previous), `initial` or a release ID | `invalid release id "<id>"` |
 | `MigrationParams` | `ReleaseID` is a release ID | `invalid migration release id` |

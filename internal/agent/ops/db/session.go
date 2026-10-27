@@ -33,6 +33,9 @@ type DialSpec struct {
 	Account  *host.ScopedAccount
 	Login    Login
 	Database string
+	// Target is the external server to connect to; nil is the box's own
+	// socket.
+	Target *Target
 	// StatementTimeout becomes the session's max_statement_time.
 	StatementTimeout time.Duration
 }
@@ -59,7 +62,9 @@ var ErrStop = errors.New("stop reading rows")
 
 // Session is a scoped account and one connection as it. Close drops both.
 type Session struct {
-	o        *Ops
+	o *Ops
+	// m is the adapter of the server the session is on (KILL goes there).
+	m        host.MariaDB
 	acct     *host.ScopedAccount
 	conn     Conn
 	timeout  time.Duration
@@ -84,7 +89,15 @@ func (o *Ops) OpenSession(ctx context.Context, s state.Site, database string, re
 // session opens a session on database: read-only grants SELECT and SHOW VIEW
 // only.
 func (o *Ops) session(ctx context.Context, database string, readOnly bool, timeout time.Duration) (*Session, error) {
-	acct, err := o.MariaDB.ScopedAccount(ctx, database, readOnly)
+	m, err := o.maria(ctx, database)
+	if err != nil {
+		return nil, err
+	}
+	target, err := o.target(ctx, database)
+	if err != nil {
+		return nil, err
+	}
+	acct, err := m.ScopedAccount(ctx, database, readOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -92,11 +105,11 @@ func (o *Ops) session(ctx context.Context, database string, readOnly bool, timeo
 	if dial == nil {
 		dial = driverDial(o.Socket)
 	}
-	conn, err := dial(ctx, DialSpec{Account: acct, Database: database, StatementTimeout: statementTime(timeout)})
+	conn, err := dial(ctx, DialSpec{Account: acct, Database: database, Target: target, StatementTimeout: statementTime(timeout)})
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("connect to %s: %w", database, err), acct.Close())
 	}
-	return &Session{o: o, acct: acct, conn: conn, timeout: timeout, database: database}, nil
+	return &Session{o: o, m: m, acct: acct, conn: conn, timeout: timeout, database: database}, nil
 }
 
 // Login is a database user's own name and password: a person signed in to
@@ -121,18 +134,42 @@ func (o *Ops) LoginSession(ctx context.Context, login Login, database string, ti
 	if timeout <= 0 {
 		timeout = o.consoleTimeout()
 	}
+	// The user's server: that of the database asked for, else the account's.
+	var m host.MariaDB
+	var target *Target
+	var err error
+	if database != "" {
+		if m, err = o.maria(ctx, database); err == nil {
+			target, err = o.target(ctx, database)
+		}
+	} else if o.Servers == nil {
+		m = o.MariaDB
+	} else {
+		var id int64
+		if id, err = o.registry().UserServer(ctx, login.User); err == nil {
+			if m, err = o.mariaOfServer(id); err == nil && id != 0 {
+				var t Target
+				if t, err = o.Servers.Target(id); err == nil {
+					target = &t
+				}
+			}
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
 	dial := o.Dial
 	if dial == nil {
 		dial = driverDial(o.Socket)
 	}
-	conn, err := dial(ctx, DialSpec{Login: login, Database: database, StatementTimeout: statementTime(timeout)})
+	conn, err := dial(ctx, DialSpec{Login: login, Database: database, Target: target, StatementTimeout: statementTime(timeout)})
 	if err != nil {
 		if AccessDenied(err) {
 			return nil, ErrLoginRefused
 		}
 		return nil, fmt.Errorf("connect as %s: %w", login.User, err)
 	}
-	s := &Session{o: o, conn: conn, timeout: timeout, database: database}
+	s := &Session{o: o, m: m, conn: conn, timeout: timeout, database: database}
 	var who string
 	err = s.Each(ctx, "SELECT CURRENT_USER()", nil, func(_ []string, row [][]byte) error {
 		if len(row) == 1 {
@@ -140,7 +177,7 @@ func (o *Ops) LoginSession(ctx context.Context, login Login, database string, ti
 		}
 		return nil
 	})
-	if err != nil || who != login.User+"@localhost" {
+	if err != nil || who != login.User+"@"+hostPartOf(target) {
 		s.Close()
 		if err != nil && !AccessDenied(err) {
 			return nil, fmt.Errorf("check the signed-in user: %w", err)
@@ -148,6 +185,15 @@ func (o *Ops) LoginSession(ctx context.Context, login Login, database string, ti
 		return nil, ErrLoginRefused
 	}
 	return s, nil
+}
+
+// hostPartOf is the host part an account of the target's server has: the
+// box's own accounts are @localhost, an external server's @%.
+func hostPartOf(t *Target) string {
+	if t != nil {
+		return "%"
+	}
+	return "localhost"
 }
 
 // ErrLoginRefused is a sign-in the server refused (a wrong name or
@@ -161,6 +207,10 @@ func AccessDenied(err error) bool {
 	var me *mysql.MySQLError
 	return errors.As(err, &me) && (me.Number == 1045 || me.Number == 1044 || me.Number == 1698)
 }
+
+// Maria is the adapter of the server the session is on, for the statements a
+// caller must ask that server itself (the simulation's checks).
+func (s *Session) Maria() host.MariaDB { return s.m }
 
 // Database is the database the session is granted on.
 func (s *Session) Database() string { return s.database }
@@ -234,7 +284,7 @@ func (s *Session) ServerMessage(err error) string { return s.o.serverMessage(err
 func (s *Session) kill() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := s.o.MariaDB.Exec(ctx, "KILL ?", s.conn.ID()); err != nil {
+	if err := s.m.Exec(ctx, "KILL ?", s.conn.ID()); err != nil {
 		// Already gone (the statement ended meanwhile) is the usual reason.
 		s.o.log().Debug("kill a console connection", "id", s.conn.ID(), "err", err)
 	}
@@ -260,6 +310,9 @@ func scopedConfig(socket string, d DialSpec) *mysql.Config {
 		cfg.User, cfg.Passwd = d.Login.User, d.Login.Password
 	}
 	cfg.Net, cfg.Addr = "unix", socket
+	if d.Target != nil {
+		cfg.Net, cfg.Addr, cfg.TLS = d.Target.Net, d.Target.Addr, d.Target.TLS
+	}
 	cfg.DBName = d.Database
 	cfg.Timeout = 10 * time.Second
 	// An UPDATE reports the rows it matched, not only those it changed:

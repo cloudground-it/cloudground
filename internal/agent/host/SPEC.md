@@ -254,6 +254,18 @@ The agent's database domain over it is `internal/agent/ops/db`.
   `_` and `%` (`site\_1`), so a grant is on one database (SR-T2).
 - Driver errors are returned as `*mysql.MySQLError` (test with `errors.As`,
   read `.Number`), never matched by text.
+- **A remote server (#30).** `MariaDBAdmin.Remote` (`RemoteServer{ID, Host, Port, TLS, CACert,
+  AdminUser, AdminPassword}`, `NewRemoteMariaDB`) points the same adapter at an external MariaDB or
+  MySQL server: the admin connection is the driver over TCP as `AdminUser` (with
+  `tls.Config{ServerName: Host}` verified against `CACert` or the system's authorities when `TLS`;
+  the driver's plain connection otherwise), and `Exec`/`QueryStrings` read an account's host part
+  `'localhost'` (and `` `localhost` ``) as `'%'` and add `REQUIRE SSL` to a `CREATE USER` or `ALTER
+  USER … WITH MAX_USER_CONNECTIONS` when `TLS`. The tools reach it with `--protocol=tcp` and a
+  defaults file (still `0600`, still the only option file read) that names `host`, `port` and, with
+  TLS, `ssl-ca` (the CA written beside it, or the system bundle) and `ssl-verify-server-cert`. An
+  `ImportAs.Site` import runs as the administrator in that file with `--one-database`, its DEFINER
+  clauses read as the site's account on `` `%` ``, because borrowing a site's account needs
+  `mysql.global_priv`; `Unborrow` does nothing. Errors never include the password.
 - **`ScopedAccount(ctx, db, readOnly)`** — the semantics of the agent's
   `scopedDBUser`, unchanged:
   - account `cgq_<16 hex>@localhost`, a 32-character base64url password,

@@ -61,7 +61,11 @@ func (o *Ops) ImportAsLogin(ctx context.Context, s state.Site, login Login, data
 		return rpc.DBImportResult{}, err
 	}
 	defer f.Close()
-	err = o.MariaDB.Import(ctx, database, f, host.ImportAs{Login: &host.Credentials{User: login.User, Password: login.Password}})
+	m, merr := o.maria(ctx, database)
+	if merr != nil {
+		return rpc.DBImportResult{}, merr
+	}
+	err = m.Import(ctx, database, f, host.ImportAs{Login: &host.Credentials{User: login.User, Password: login.Password}})
 	if err != nil {
 		msg := "the import stopped at a statement the server refused; what ran before it stays"
 		if len(warnings) > 0 {
@@ -75,5 +79,9 @@ func (o *Ops) ImportAsLogin(ctx context.Context, s state.Site, login Login, data
 // DumpAsLogin streams mariadb-dump of database (or some of its tables) as
 // login: the dump holds what the server lets the user read.
 func (o *Ops) DumpAsLogin(ctx context.Context, login Login, database string, w io.Writer, tables ...string) error {
-	return o.MariaDB.DumpAs(ctx, host.Credentials{User: login.User, Password: login.Password}, database, w, tables...)
+	m, err := o.maria(ctx, database)
+	if err != nil {
+		return err
+	}
+	return m.DumpAs(ctx, host.Credentials{User: login.User, Password: login.Password}, database, w, tables...)
 }

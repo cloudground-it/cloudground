@@ -22,6 +22,9 @@ import (
 // Ops holds what the handlers use.
 type Ops struct {
 	MariaDB host.MariaDB
+	// Servers is the agent's connection to each external server (#30);
+	// nil: none.
+	Servers Servers
 	// Systemd restarts MariaDB after the first tuning.
 	Systemd host.Systemd
 	// Open opens a site's tree, creating entries for the site user.
@@ -53,6 +56,7 @@ type Ops struct {
 	tuneMu  sync.Mutex
 	regOnce sync.Once
 	reg     *Registry
+	scratch scratchServers
 }
 
 // Register wires this package's methods into the agent's RPC server.
@@ -64,6 +68,10 @@ func (o *Ops) Register(s *agentrpc.Server) {
 	agentrpc.Handle(s, agentrpc.SetDBPassword, o.SetPassword)
 	agentrpc.Handle(s, agentrpc.SetDBGrants, o.SetGrants)
 	agentrpc.Handle(s, agentrpc.ListDatabases, o.List)
+	if r, ok := o.Servers.(*Remotes); ok {
+		agentrpc.Handle(s, agentrpc.SetDBServers, r.Set)
+		agentrpc.Handle(s, agentrpc.TestDBServer, r.Test)
+	}
 	agentrpc.Handle(s, agentrpc.DBQuery, o.Query)
 	agentrpc.Handle(s, agentrpc.DBTables, o.Tables)
 	agentrpc.Handle(s, agentrpc.DBExport, o.Export)

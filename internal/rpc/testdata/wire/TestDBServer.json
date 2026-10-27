@@ -1,0 +1,29 @@
+{
+  "params": {
+    "full": {
+      "id": 7,
+      "host": "Host",
+      "port": 7,
+      "tls": true,
+      "ca_cert": "CACert",
+      "admin_user": "AdminUser",
+      "admin_password": "AdminPassword"
+    },
+    "zero": {
+      "id": 0,
+      "host": "",
+      "port": 0,
+      "tls": false,
+      "admin_user": "",
+      "admin_password": ""
+    }
+  },
+  "result": {
+    "full": {
+      "version": "Version"
+    },
+    "zero": {
+      "version": ""
+    }
+  }
+}

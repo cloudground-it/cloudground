@@ -22,6 +22,7 @@ func (a *Agent) dbHandlers() *db.Ops {
 		}
 		a.dbOps = &db.Ops{
 			MariaDB:         m,
+			Servers:         &db.Remotes{WorkDir: a.Paths.WorkDir, Tools: helpers(time.Minute)},
 			Systemd:         a.Systemd,
 			Open:            a.openSite,
 			WorkDir:         a.Paths.WorkDir,

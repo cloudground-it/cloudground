@@ -136,6 +136,8 @@ var (
 	DropDBUser      = define[rpc.DBUserParams, map[string]string](Spec{Name: "DropDatabaseUser", Timeout: 2 * mins, Sites: true, Fail: "Could not delete the database user"})
 	SetDBPassword   = define[rpc.DBUserParams, map[string]string](Spec{Name: "SetDatabaseUserPassword", Timeout: 15 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not change the database user's password"})
 	SetDBGrants     = define[rpc.DBUserParams, map[string]string](Spec{Name: "SetDatabaseUserGrants", Timeout: 2 * mins, Sites: true, Fail: "Could not change the database user's privileges"})
+	SetDBServers    = define[rpc.SetDBServersParams, None](Spec{Name: "SetDBServers", Timeout: 30 * sec, Fail: "Could not give the agent the database servers"})
+	TestDBServer    = define[rpc.DBServerParams, rpc.DBServerTestResult](Spec{Name: "TestDBServer", Timeout: 1 * mins, Fail: "Could not connect to the database server"})
 	ListDatabases   = define[rpc.DBListParams, rpc.DBListResult](Spec{Name: "ListDatabases", Timeout: 1 * mins, Sites: true, ReadOnly: true, Fail: "Could not list the site's databases"})
 	DeployRelease   = define[rpc.DeployParams, rpc.DeployResult](Spec{Name: "DeployRelease", Timeout: 45 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not build the release"})
 	PromoteRelease  = define[rpc.ReleaseParams, map[string]string](Spec{Name: "PromoteRelease", Timeout: 10 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not promote the release"})
