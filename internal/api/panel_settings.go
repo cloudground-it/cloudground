@@ -164,7 +164,7 @@ var settingFields = map[string]setting{
 // it, see it in full.
 var secretKeys = []string{
 	state.SecretBackupPassword, state.SecretBackupS3SecretKey, state.SecretCloudflareToken, state.SecretNotifyWebhook,
-	state.SecretMailPassword,
+	state.SecretMailPassword, state.SecretCloudflarePurgeToken,
 }
 
 // repoPasswordRe finds the password of a URL's userinfo, as in

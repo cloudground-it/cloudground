@@ -22,6 +22,10 @@ const (
 	SecretBackupPassword    = "backup_password"
 	SecretBackupS3SecretKey = "backup_s3_secret_key"
 	SecretCloudflareToken   = "cloudflare_api_token"
+	// SecretCloudflarePurgeToken empties Cloudflare's cache of a site
+	// (#22): a token with the zone permission Cache Purge only, never the
+	// DNS one.
+	SecretCloudflarePurgeToken = "cloudflare_purge_token"
 	// The alert webhook URL is a credential: whoever has it can post as the
 	// panel.
 	SecretNotifyWebhook = "notify_webhook"

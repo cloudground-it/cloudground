@@ -68,6 +68,10 @@ type Input struct {
 	// Blocking is who the site refuses (#25, SPEC §4.7); nil is nobody.
 	Blocking *Blocking
 
+	// CloudflareInclude is the file of Cloudflare's ranges when the
+	// visitor's address comes from Cloudflare (#22, SPEC §4.10); "" is not.
+	CloudflareInclude string
+
 	// What a custom routing block must not reach (SPEC §7.3): the ports
 	// system services listen on here, this machine's own addresses, and a
 	// resolver for proxy host names. The agent fills them in at every

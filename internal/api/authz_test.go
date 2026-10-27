@@ -161,6 +161,8 @@ var routePolicy = map[string]string{
 	"POST /api/sites/{id}/protected-paths":                       "manage",
 	"PUT /api/sites/{id}/blocking":                               "manage",
 	"PUT /api/sites/{id}/dev-mode":                               "manage",
+	"GET /api/sites/{id}/cloudflare":                             "auth",
+	"PUT /api/sites/{id}/cloudflare":                             "manage",
 	"GET /api/sites/{id}/maintenance":                            "manage",
 	"PUT /api/sites/{id}/maintenance":                            "manage",
 	"GET /api/changelog":                                         "auth",

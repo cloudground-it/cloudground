@@ -53,7 +53,8 @@ for f in "$src"/sites-enabled/*.conf; do
   cp "$f" /etc/nginx/sites-enabled/
   n=$((n + 1))
 done
-cp "$src"/conf.d/*.conf /etc/nginx/conf.d/
+# The .conf files and the includes the vhosts name (Cloudflare's ranges).
+cp "$src"/conf.d/* /etc/nginx/conf.d/
 echo "== $n vhosts, $(ls "$src"/conf.d | wc -l) conf.d files"
 out=$(nginx -t 2>&1) || { echo "$out"; echo "FAIL: nginx -t on $PRETTY_NAME"; exit 1; }
 echo "$out" | grep -v -e 'syntax is ok' -e 'test is successful' || true

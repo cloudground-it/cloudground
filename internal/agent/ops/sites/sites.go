@@ -132,6 +132,7 @@ func (o *Ops) Register(s *agentrpc.Server) {
 	agentrpc.Handle(s, agentrpc.CheckDocRoot, o.CheckDocRoot)
 	agentrpc.Handle(s, agentrpc.PHPExtensions, o.PHPExtensions)
 	agentrpc.Handle(s, agentrpc.PHPExtInstall, o.InstallPHPExtension)
+	agentrpc.Handle(s, agentrpc.SetCloudflareRanges, o.SetCloudflareRanges)
 	agentrpc.Handle(s, agentrpc.ReloadWebServer, func(ctx context.Context, _ agentrpc.None) (agentrpc.None, error) {
 		return agentrpc.None{}, o.ReloadNginx(ctx)
 	})

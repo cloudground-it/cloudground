@@ -108,6 +108,9 @@ type SiteConfig struct {
 	// Maintenance is the site's maintenance page (#79, internal/engine SPEC
 	// §4.9): its text is kept while the mode is off.
 	Maintenance SiteMaintenance `json:"maintenance,omitzero"`
+	// Cloudflare is the site behind Cloudflare's proxy (#22, internal/api
+	// SPEC §3.18): visitor addresses and the CDN purge.
+	Cloudflare SiteCloudflare `json:"cloudflare,omitzero"`
 	// WPCleanup is a WordPress site's scheduled database cleanup (#78,
 	// internal/api SPEC §3.17).
 	WPCleanup WPCleanup `json:"wp_cleanup,omitzero"`
@@ -400,4 +403,13 @@ func (s Site) Public() Site {
 		s.Config.ProtectedPaths = paths
 	}
 	return s
+}
+
+// SiteCloudflare is a site behind Cloudflare (#22): RealIP takes the
+// visitor's address from CF-Connecting-IP, from Cloudflare's ranges only
+// (internal/engine SPEC §4.10); ZoneID, when set, has purges empty
+// Cloudflare's cache of the site too.
+type SiteCloudflare struct {
+	RealIP bool   `json:"real_ip,omitempty"`
+	ZoneID string `json:"zone_id,omitempty"`
 }

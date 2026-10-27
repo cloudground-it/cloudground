@@ -32,7 +32,7 @@ in the rendered comments (they are part of the output and stay with it) and
 | `ProtectedPaths` | the site's protected paths (#26), each `{Path, File}`: the path and its password file (§4.5) |
 | `AuthLogSocket` | the agent's datagram socket for failed sign-ins (#21, §4.6); empty logs none |
 | `Blocking` | the visitors the site refuses (#25, §4.7): addresses, user agents, countries already resolved to their prefixes, and this machine's addresses (never refused); nil refuses nobody |
-| `CloudflareRealIP` | the visitor's address comes from Cloudflare (#22, §4.10) |
+| `CloudflareInclude` | the file of Cloudflare's ranges (`<ConfDir>/cloudground-cloudflare.inc`) when the visitor's address comes from Cloudflare (#22, §4.10); empty: it does not |
 
 `Renderer` has `SiteFiles(Input) (path → content)`, `GlobalFiles()` and
 `Routing(Input) (RoutingView)` (§7.5).
@@ -45,7 +45,7 @@ in the rendered comments (they are part of the output and stay with it) and
 | `<ConfDir>/cloudground-cache-<id>.conf` (default `/etc/nginx/conf.d`) | the policy caches: the cache zone (§3.2) |
 | `<ConfDir>/cloudground-block-<id>.conf` | `Blocking` set: the site's refused visitors (§4.7) |
 | `<ConfDir>/cloudground-global.conf` | `GlobalFiles`: http-level maps and tuning (§3.1) |
-| `<ConfDir>/cloudground-cloudflare.inc`, `<ConfDir>/cloudground-banned.conf` | written by the agent, not the renderer (ops/sites SPEC §10): Cloudflare's ranges and the server's block list, for `CloudflareRealIP` (§4.10) |
+| `<ConfDir>/cloudground-cloudflare.inc`, `<ConfDir>/cloudground-banned.conf` | written by the agent, not the renderer (ops/sites SPEC §10): Cloudflare's ranges and the server's block list, for `CloudflareInclude` (§4.10) |
 
 Refused before anything is rendered:
 
@@ -101,7 +101,7 @@ In this order. "Security headers" is the set of §4.3.
      `443 ssl` and `http2 on;`; with `HTTP3` also `443 quic` (no
      `reuseport`: the installer's default server holds the only one);
    - server names, `server_tokens off`;
-   - with `CloudflareRealIP`, the visitor's address and the block list (§4.10);
+   - with `CloudflareInclude`, the visitor's address and the block list (§4.10);
    - with `Blocking`, `if ($cg_block_<id>) { return 403; }` (§4.7);
    - staging: `auth_basic $cg_staging_realm_<id>` and the password file;
    - protected paths: `auth_basic $cg_auth_realm_<id>` and
@@ -409,7 +409,7 @@ only redirects and serves ACME challenges, is not affected.
 ### 4.10 Visitors behind Cloudflare (#22)
 
 A site behind Cloudflare's proxy sees every request come from Cloudflare's
-addresses. With `CloudflareRealIP` (the panel's `config.cloudflare.real_ip`,
+addresses. With `CloudflareInclude` (the panel's `config.cloudflare.real_ip`,
 internal/api SPEC §3.18), in the 443 server right after `server_tokens`:
 
 ```
@@ -436,6 +436,8 @@ if ($cg_banned) { return 403; }
   Cloudflare's address on these requests, never the visitor's, so the list
   is enforced here as well. The server rewrite phase runs before the page
   cache is read: a blocked visitor never gets a cached page.
+- A routing block cannot change any of it: the realip directives are not
+  on its allowlist (§7.3).
 - Port 80 is unchanged (it only redirects and serves ACME challenges).
 - Off: none of this, so a site not behind Cloudflare pays nothing.
 

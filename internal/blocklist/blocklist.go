@@ -74,10 +74,13 @@ func Unit(a netip.Addr) netip.Prefix {
 }
 
 // Exempt is the set of addresses never blocked: loopback, the server's own
-// addresses and the allowlist (SPEC §1).
+// addresses, the allowlist and Cloudflare's ranges (SPEC §1).
 type Exempt struct {
 	Own   []netip.Addr
 	Allow []netip.Prefix
+	// Proxies are Cloudflare's ranges: blocking one of its addresses cuts
+	// off every visitor it proxies, to every site.
+	Proxies []netip.Prefix
 }
 
 // Has reports whether a is exempt.
@@ -89,7 +92,8 @@ func (e Exempt) Has(a netip.Addr) bool {
 	if slices.ContainsFunc(e.Own, func(o netip.Addr) bool { return o.Unmap() == a }) {
 		return true
 	}
-	return slices.ContainsFunc(e.Allow, func(p netip.Prefix) bool { return p.Contains(a) })
+	return slices.ContainsFunc(e.Allow, func(p netip.Prefix) bool { return p.Contains(a) }) ||
+		slices.ContainsFunc(e.Proxies, func(p netip.Prefix) bool { return p.Contains(a) })
 }
 
 // Overlaps reports whether p shares an address with an exempt one: a block
@@ -103,7 +107,8 @@ func (e Exempt) Overlaps(p netip.Prefix) bool {
 	if slices.ContainsFunc(e.Own, func(o netip.Addr) bool { return p.Contains(o.Unmap()) }) {
 		return true
 	}
-	return slices.ContainsFunc(e.Allow, func(a netip.Prefix) bool { return a.Overlaps(p) })
+	return slices.ContainsFunc(e.Allow, func(a netip.Prefix) bool { return a.Overlaps(p) }) ||
+		slices.ContainsFunc(e.Proxies, func(a netip.Prefix) bool { return a.Overlaps(p) })
 }
 
 // Settings is the automatic blocking's policy (SPEC §2).

@@ -1,0 +1,24 @@
+{
+  "params": {
+    "full": {
+      "v4": [
+        "V4"
+      ],
+      "v6": [
+        "V6"
+      ]
+    },
+    "zero": {
+      "v4": null,
+      "v6": null
+    }
+  },
+  "result": {
+    "full": {
+      "changed": true
+    },
+    "zero": {
+      "changed": false
+    }
+  }
+}

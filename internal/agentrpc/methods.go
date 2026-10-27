@@ -152,18 +152,21 @@ var (
 	VerifyBackup    = define[rpc.RestoreParams, rpc.VerifyResult](Spec{Name: "VerifyBackup", Timeout: 7 * hrs, Sites: true, Fail: "The restore test failed"})
 	PurgeCache      = define[rpc.PurgeParams, rpc.PurgeResult](Spec{Name: "PurgeCache", Timeout: 5 * mins, Sites: true, Fail: "Could not purge the cache"})
 	ReloadWebServer = define[None, None](Spec{Name: "ReloadWebServer", Timeout: 2 * mins, Fail: "Could not reload the web server"})
-	CheckDrift      = define[rpc.DriftParams, rpc.DriftResult](Spec{Name: "CheckDrift", Timeout: 5 * mins, ReadOnly: true, Fail: "Could not check the configuration for drift"})
-	RestartService  = define[rpc.ServiceParams, map[string]string](Spec{Name: "RestartService", Timeout: 5 * mins, Fail: "Could not restart the service"})
-	ServiceStatus   = define[None, rpc.ServiceStatusResult](Spec{Name: "ServiceStatus", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the services' status"})
-	TailLog         = define[rpc.TailLogParams, rpc.TailLogResult](Spec{Name: "TailLog", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the log"})
-	ApplyCron       = define[rpc.CronParams, rpc.CronResult](Spec{Name: "ApplyCron", Timeout: 2 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not install the site's cron jobs"})
-	RunCron         = define[rpc.RunCronParams, rpc.RunCronResult](Spec{Name: "RunCron", Timeout: 7 * mins, Sites: true, Fail: "Could not run the cron job"})
-	CronRuns        = define[rpc.CronRunsParams, rpc.CronRunsResult](Spec{Name: "CronRuns", Timeout: 1 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the cron jobs' last runs"})
-	FirewallStatus  = define[None, rpc.FirewallStatusResult](Spec{Name: "FirewallStatus", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the firewall status"})
-	PHPExtensions   = define[rpc.PHPExtensionsParams, rpc.PHPExtensionsResult](Spec{Name: "PHPExtensions", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not list the PHP extensions"})
-	PHPExtInstall   = define[rpc.PHPExtensionInstallParams, rpc.PHPExtensionsResult](Spec{Name: "PHPExtensionInstall", Timeout: 15 * mins, Fail: "Could not install the PHP extension"})
-	FirewallRule    = define[rpc.FirewallRuleParams, map[string]string](Spec{Name: "FirewallRule", Timeout: 2 * mins, Fail: "Could not change the firewall"})
-	FirewallEnable  = define[rpc.FirewallEnableParams, rpc.FirewallStatusResult](Spec{Name: "FirewallEnable", Timeout: 2 * mins, Fail: "Could not turn the firewall on"})
+	// SetCloudflareRanges replaces the ranges nginx takes CF-Connecting-IP
+	// from (#22, ops/sites SPEC §10).
+	SetCloudflareRanges = define[rpc.CloudflareRangesParams, rpc.CloudflareRangesResult](Spec{Name: "SetCloudflareRanges", Timeout: 2 * mins, Fail: "Could not update Cloudflare's ranges"})
+	CheckDrift          = define[rpc.DriftParams, rpc.DriftResult](Spec{Name: "CheckDrift", Timeout: 5 * mins, ReadOnly: true, Fail: "Could not check the configuration for drift"})
+	RestartService      = define[rpc.ServiceParams, map[string]string](Spec{Name: "RestartService", Timeout: 5 * mins, Fail: "Could not restart the service"})
+	ServiceStatus       = define[None, rpc.ServiceStatusResult](Spec{Name: "ServiceStatus", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the services' status"})
+	TailLog             = define[rpc.TailLogParams, rpc.TailLogResult](Spec{Name: "TailLog", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the log"})
+	ApplyCron           = define[rpc.CronParams, rpc.CronResult](Spec{Name: "ApplyCron", Timeout: 2 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not install the site's cron jobs"})
+	RunCron             = define[rpc.RunCronParams, rpc.RunCronResult](Spec{Name: "RunCron", Timeout: 7 * mins, Sites: true, Fail: "Could not run the cron job"})
+	CronRuns            = define[rpc.CronRunsParams, rpc.CronRunsResult](Spec{Name: "CronRuns", Timeout: 1 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the cron jobs' last runs"})
+	FirewallStatus      = define[None, rpc.FirewallStatusResult](Spec{Name: "FirewallStatus", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the firewall status"})
+	PHPExtensions       = define[rpc.PHPExtensionsParams, rpc.PHPExtensionsResult](Spec{Name: "PHPExtensions", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not list the PHP extensions"})
+	PHPExtInstall       = define[rpc.PHPExtensionInstallParams, rpc.PHPExtensionsResult](Spec{Name: "PHPExtensionInstall", Timeout: 15 * mins, Fail: "Could not install the PHP extension"})
+	FirewallRule        = define[rpc.FirewallRuleParams, map[string]string](Spec{Name: "FirewallRule", Timeout: 2 * mins, Fail: "Could not change the firewall"})
+	FirewallEnable      = define[rpc.FirewallEnableParams, rpc.FirewallStatusResult](Spec{Name: "FirewallEnable", Timeout: 2 * mins, Fail: "Could not turn the firewall on"})
 	// The block list (internal/agent/ops/blocklist SPEC). Reading the
 	// failures takes them away, so it is not read-only: a reply lost to a
 	// cancelled caller would lose them.

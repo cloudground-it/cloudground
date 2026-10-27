@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudground-it/cloudground/internal/cfips"
 	"github.com/cloudground-it/cloudground/internal/engine"
 	"github.com/cloudground-it/cloudground/internal/state"
 	"github.com/cloudground-it/cloudground/internal/velocity"
@@ -343,6 +344,17 @@ func matrixCases() []matrixCase {
 			add(fmt.Sprintf("%s-opt-%s", b.name, o.name), b, in)
 		}
 	}
+	// Behind Cloudflare (#22, SPEC §4.10), last for the same reason: a
+	// WordPress site that also refuses visitors, so the order of the two
+	// is pinned.
+	for _, b := range matrixBuilds {
+		id++
+		in := matrixInput(id, state.SiteWordPress, state.ProfileBalanced, true)
+		in.CloudflareInclude = Renderer{}.CloudflareIncludeFile()
+		in.Site.Config.Blocking = state.SiteBlocking{Addresses: []string{"203.0.113.0/24"}}
+		in.Blocking = &engine.Blocking{Addresses: []netip.Prefix{netip.MustParsePrefix("203.0.113.0/24")}}
+		add(fmt.Sprintf("%s-opt-cloudflare", b.name), b, in)
+	}
 	return cases
 }
 
@@ -374,6 +386,11 @@ func TestRenderMatrix(t *testing.T) {
 			seen[c.name+".golden"] = true
 			checkMatrix(t, c.name, matrixText(files))
 			if dump != "" {
+				if c.in.CloudflareInclude != "" {
+					// The agent's shared files, which nginx -t needs (ops/sites SPEC §10).
+					files[r.CloudflareIncludeFile()] = CloudflareInclude(cfips.Shipped())
+					files[r.BannedFile()] = Banned([]netip.Prefix{netip.MustParsePrefix("198.51.100.7/32")}, nil)
+				}
 				dumpCase(t, filepath.Join(dump, c.build.name), files)
 			}
 		})

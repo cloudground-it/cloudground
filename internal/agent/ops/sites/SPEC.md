@@ -150,7 +150,7 @@ the PHP masters' directory, set to 0755 on every PHP render (step 4).
    (`Paths.AuthLogSocket`, ops/blocklist SPEC §1.2; internal/engine SPEC §4.6);
    each protected path (`Config.ProtectedPaths`) its own password file, one
    line `<username>:<bcrypt hash>`; a site with `Config.Cloudflare.RealIP`
-   gets `CloudflareRealIP`, and Cloudflare's two shared files are written
+   gets `CloudflareInclude`, and Cloudflare's two shared files are written
    in the same nginx change when they are missing (§10).
    `HTTP3` and `HTTP2Directive` (nginx ≥ 1.25.1) come from `nginx -V`, read
    once per process (`host.Nginx.BuildInfo`, which reads stderr).

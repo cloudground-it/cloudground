@@ -1207,8 +1207,9 @@ JSON's `result.ipv4_cidrs` and `result.ipv6_cidrs`, checked by `cfips.Parse`
 (a list it refuses is not used). The good list is stored (`meta` key
 `cloudflare_ranges`, `{v4, v6, fetched_at}`) and sent to the agent
 (`SetCloudflareRanges`, every run: the agent rewrites its file only when it
-changed). A failed fetch fails the job (an alert, as any task) and keeps
-the list in use. The same list (stored, else shipped) is what the DNS check
+changed). A failed fetch fails the job (quiet: logged, no alert) and
+keeps the list in use; the next run tries again (Cloudflare changes its
+ranges rarely). The same list (stored, else shipped) is what the DNS check
 (§3.14) calls Cloudflare and what the block list never blocks (§7.4).
 
 **CDN purge.** It rides on the purge paths: `POST /api/sites/{id}/purge`

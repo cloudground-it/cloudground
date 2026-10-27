@@ -476,12 +476,26 @@ func (svc siteService) remove(ctx context.Context, target state.Site) error {
 	return srv.Store.DeleteSite(target.ID)
 }
 
-// Purge empties the site's page cache: every page, or the URLs given.
-func (svc siteService) Purge(ctx context.Context, actor string, target state.Site, urls []string) (rpc.PurgeResult, error) {
+// purgeAnswer is the agent's purge and, for a site behind Cloudflare,
+// how the purge of Cloudflare's cache went (SPEC.md §3.9, §3.18).
+type purgeAnswer struct {
+	rpc.PurgeResult
+	cdnPurge
+}
+
+// Purge empties the site's page cache: every page, or the URLs given; then
+// Cloudflare's, when the site sends its purges there too. A failure there
+// does not fail the purge: the server's cache is already empty.
+func (svc siteService) Purge(ctx context.Context, actor string, target state.Site, urls []string) (purgeAnswer, error) {
 	var res rpc.PurgeResult
 	if err := agentrpc.Into(ctx, svc.srv.Agent, agentrpc.PurgeCache, rpc.PurgeParams{Site: target, URLs: urls}, &res); err != nil {
-		return rpc.PurgeResult{}, agentFailure{err}
+		return purgeAnswer{}, agentFailure{err}
 	}
-	svc.srv.audit(actor, "cache.purge", target.Domain, fmt.Sprintf("%d urls, %d removed", len(urls), res.Removed))
-	return res, nil
+	cdn := svc.srv.purgeCloudflare(ctx, target, urls, len(urls) == 0)
+	detail := fmt.Sprintf("%d urls, %d removed", len(urls), res.Removed)
+	if cdn.CDN != "" {
+		detail += ", cloudflare " + cdn.CDN
+	}
+	svc.srv.audit(actor, "cache.purge", target.Domain, detail)
+	return purgeAnswer{res, cdn}, nil
 }
