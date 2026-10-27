@@ -29,8 +29,12 @@ type PanelSettings struct {
 	BackupRepository  string
 	BackupS3AccessKey string
 	BackupS3Region    string
-	Require2FAAdmin   bool
-	UpdateCheck       bool
+	// Require2FAAdmin and Require2FAAll are the two-factor requirement
+	// (api SPEC §1.2 step 7): all covers every account, admin only the
+	// admins; TwoFactorRequirement names it.
+	Require2FAAdmin bool
+	Require2FAAll   bool
+	UpdateCheck     bool
 	// UpdateChannel is the release channel the panel follows: "stable" or
 	// "beta" (internal/version, SPEC §4.1).
 	UpdateChannel string
@@ -62,6 +66,47 @@ type panelMail struct {
 	AlertEmails []string  `json:"alert_emails,omitempty"`
 }
 
+// The two-factor requirement's values (api SPEC §12, require_2fa).
+const (
+	Require2FAOff    = "off"
+	Require2FAAdmins = "admins"
+	Require2FAAll    = "all"
+)
+
+// TwoFactorRequirement is the requirement as one value: off, admins or
+// all.
+func (p PanelSettings) TwoFactorRequirement() string {
+	switch {
+	case p.Require2FAAll:
+		return Require2FAAll
+	case p.Require2FAAdmin:
+		return Require2FAAdmins
+	}
+	return Require2FAOff
+}
+
+// SetTwoFactorRequirement sets the requirement from one of its values; false
+// for any other.
+func (p *PanelSettings) SetTwoFactorRequirement(v string) bool {
+	switch v {
+	case Require2FAOff, "":
+		p.Require2FAAdmin, p.Require2FAAll = false, false
+	case Require2FAAdmins:
+		p.Require2FAAdmin, p.Require2FAAll = true, false
+	case Require2FAAll:
+		p.Require2FAAdmin, p.Require2FAAll = true, true
+	default:
+		return false
+	}
+	return true
+}
+
+// RequiresTwoFactor reports whether the requirement covers an account of
+// role.
+func (p PanelSettings) RequiresTwoFactor(role string) bool {
+	return p.Require2FAAll || (p.Require2FAAdmin && role == "admin")
+}
+
 // EffectiveProbeTarget is ProbeTarget, or the default when unset.
 func (p PanelSettings) EffectiveProbeTarget() string {
 	if p.ProbeTarget == "" {
@@ -70,13 +115,13 @@ func (p PanelSettings) EffectiveProbeTarget() string {
 	return p.ProbeTarget
 }
 
-const panelCols = `acme_email, panel_domain, probe_target, backup_repository, backup_s3_access_key, backup_s3_region, require_2fa_admin, update_check, update_channel, vulnerability_check, malware_scan, mail`
+const panelCols = `acme_email, panel_domain, probe_target, backup_repository, backup_s3_access_key, backup_s3_region, require_2fa_admin, require_2fa_all, update_check, update_channel, vulnerability_check, malware_scan, mail`
 
 func scanPanel(row interface{ Scan(...any) error }) (PanelSettings, error) {
 	var p PanelSettings
 	var mail string
 	err := row.Scan(&p.ACMEEmail, &p.PanelDomain, &p.ProbeTarget, &p.BackupRepository,
-		&p.BackupS3AccessKey, &p.BackupS3Region, &p.Require2FAAdmin, &p.UpdateCheck, &p.UpdateChannel, &p.VulnerabilityCheck, &p.MalwareScan, &mail)
+		&p.BackupS3AccessKey, &p.BackupS3Region, &p.Require2FAAdmin, &p.Require2FAAll, &p.UpdateCheck, &p.UpdateChannel, &p.VulnerabilityCheck, &p.MalwareScan, &mail)
 	if err != nil {
 		return p, err
 	}
@@ -124,9 +169,9 @@ func (s *Store) UpdatePanelSettings(fn func(*PanelSettings) error) (PanelSetting
 			return err
 		}
 		if _, err := conn.ExecContext(ctx, `UPDATE panel_settings SET acme_email=?, panel_domain=?, probe_target=?,
-			backup_repository=?, backup_s3_access_key=?, backup_s3_region=?, require_2fa_admin=?, update_check=?, update_channel=?, vulnerability_check=?, malware_scan=?, mail=? WHERE id=1`,
+			backup_repository=?, backup_s3_access_key=?, backup_s3_region=?, require_2fa_admin=?, require_2fa_all=?, update_check=?, update_channel=?, vulnerability_check=?, malware_scan=?, mail=? WHERE id=1`,
 			p.ACMEEmail, p.PanelDomain, p.ProbeTarget, repo, p.BackupS3AccessKey, p.BackupS3Region,
-			p.Require2FAAdmin, p.UpdateCheck, p.UpdateChannel, p.VulnerabilityCheck, p.MalwareScan, string(mail)); err != nil {
+			p.Require2FAAdmin, p.Require2FAAll, p.UpdateCheck, p.UpdateChannel, p.VulnerabilityCheck, p.MalwareScan, string(mail)); err != nil {
 			return fmt.Errorf("update panel settings: %w", err)
 		}
 		out = p

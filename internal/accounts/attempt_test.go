@@ -284,14 +284,14 @@ func TestPasswordChecksAreLimitedPerNetwork(t *testing.T) {
 	for range 30 {
 		f.sv.Login(bg, SignIn{Email: "someone@example.com", Password: "x", Address: from.Address, Network: from.Network})
 	}
-	_, err := f.sv.BeginTOTP(bg, from, u, pw, "")
+	_, err := f.sv.BeginTOTP(bg, from, u, RP{}, u.Email, Proof{Password: pw, Code: ""})
 	wantRefusal(t, err, Throttled, msgTooMany)
 	err = f.sv.ChangePassword(bg, from, u, u.Email, pw, "brand-new-password")
 	wantRefusal(t, err, Throttled, msgTooMany)
-	err = f.sv.DisableTOTP(bg, from, u, u.Email, pw, "", "")
+	err = f.sv.DisableTOTP(bg, from, u, RP{}, u.Email, Proof{Password: pw, Code: ""}, "")
 	wantRefusal(t, err, Throttled, msgTooMany)
 	// From elsewhere the same account is fine.
-	if _, err := f.sv.BeginTOTP(bg, Origin{Address: "203.0.113.10"}, u, pw, ""); err != nil {
+	if _, err := f.sv.BeginTOTP(bg, Origin{Address: "203.0.113.10"}, u, RP{}, u.Email, Proof{Password: pw, Code: ""}); err != nil {
 		t.Fatalf("begin from another network = %v", err)
 	}
 
@@ -392,7 +392,7 @@ func TestCancelledDelayIsAThrottledRefusal(t *testing.T) {
 	}
 	gone, stop := context.WithCancel(bg)
 	stop()
-	_, err = f.sv.BeginTOTP(gone, Origin{Address: attackerNet}, u, pw, "")
+	_, err = f.sv.BeginTOTP(gone, Origin{Address: attackerNet}, u, RP{}, u.Email, Proof{Password: pw, Code: ""})
 	wantRefusal(t, err, Throttled, msgTooMany)
 	err = f.sv.ChangePassword(gone, Origin{Address: attackerNet}, u, u.Email, pw, "brand-new-password")
 	wantRefusal(t, err, Throttled, msgTooMany)

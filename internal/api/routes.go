@@ -32,6 +32,7 @@ const (
 	dbEditBody     = 16 << 20  // a batch of row changes
 	fileUploadBody = maxPanelTransfer
 	dbChunkBody    = uploadChunk
+	passkeyBody    = 64 << 10 // a new passkey's attestation, which may carry certificates
 )
 
 // routeTable is every route the panel serves (SPEC.md §1). Routes and
@@ -48,7 +49,11 @@ func (s *Server) routeTable() []route {
 		{Method: post, Path: "/api/setup", Policy: policyOpen, MaxBody: smallBody, Handle: plain(s.handleSetup),
 			Section: secSession, Doc: "create the first admin with the one-time setup token"},
 		{Method: post, Path: "/api/login", Policy: policyOpen, MaxBody: smallBody, Handle: plain(s.handleLogin),
-			Section: secSession, Doc: "start a session"},
+			Section: secSession, Doc: "start a session: `email`, `password`, and one second factor when the account has two-factor (`totp`, `recovery_code` or `passkey`, an assertion); a refusal for the second factor lists the account's `factors` and carries `passkey` request options"},
+		{Method: post, Path: "/api/login/passkey/begin", Policy: policyOpen, MaxBody: smallBody, Handle: plain(s.handlePasskeySignInBegin),
+			Section: secSession, Doc: "start signing in with a passkey alone: WebAuthn request options"},
+		{Method: post, Path: "/api/login/passkey", Policy: policyOpen, MaxBody: smallBody, Handle: plain(s.handlePasskeySignIn),
+			Section: secSession, Doc: "sign in with a passkey alone (`credential`, an assertion with user verification) and start a session"},
 		{Method: post, Path: "/api/logout", Policy: policySignedIn, SessionOnly: true, Enrol: true, Handle: plain(s.handleLogout),
 			Section: secSession, Doc: "sign out and delete the session"},
 		// The UI's first request: it must not answer 401, which would be a
@@ -64,11 +69,25 @@ func (s *Server) routeTable() []route {
 		{Method: post, Path: "/api/account/password", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handleChangePassword,
 			Section: secAccount, Doc: "change your own password"},
 		{Method: post, Path: "/api/account/2fa/begin", Policy: policySignedIn, SessionOnly: true, Enrol: true, MaxBody: smallBody, Handle: s.handleTOTPBegin,
-			Section: secAccount, Doc: "start TOTP enrolment (requires your password); returns the secret"},
+			Section: secAccount, Doc: "start TOTP enrolment (a proof: your password, and a current factor when you have two-factor); returns the secret"},
 		{Method: post, Path: "/api/account/2fa/confirm", Policy: policySignedIn, SessionOnly: true, Enrol: true, Handle: s.handleTOTPConfirm,
 			Section: secAccount, Doc: "confirm with a code and switch 2FA on"},
 		{Method: post, Path: "/api/account/2fa/disable", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handleTOTPDisable,
-			Section: secAccount, Doc: "disable 2FA (requires your password and a current code)"},
+			Section: secAccount, Doc: "turn TOTP off (a proof: your password and a current factor)"},
+		{Method: get, Path: "/api/account/passkeys", Policy: policySignedIn, SessionOnly: true, Enrol: true, Handle: s.handleListPasskeys,
+			Section: secAccount, Doc: "your passkeys"},
+		{Method: post, Path: "/api/account/passkeys/begin", Policy: policySignedIn, SessionOnly: true, Enrol: true, MaxBody: smallBody, Handle: s.handlePasskeyBegin,
+			Section: secAccount, Doc: "start adding a passkey (a proof); returns WebAuthn creation options"},
+		{Method: post, Path: "/api/account/passkeys/finish", Policy: policySignedIn, SessionOnly: true, Enrol: true, MaxBody: passkeyBody, Handle: s.handlePasskeyFinish,
+			Section: secAccount, Doc: "store the passkey (`name`, `credential`); with your first factor, returns your recovery codes"},
+		{Method: post, Path: "/api/account/passkeys/challenge", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handlePasskeyChallenge,
+			Section: secAccount, Doc: "WebAuthn request options for confirming a change with one of your passkeys"},
+		{Method: post, Path: "/api/account/passkeys/{id}/remove", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handlePasskeyRemove,
+			Section: secAccount, Doc: "remove one of your passkeys (a proof)"},
+		{Method: put, Path: "/api/account/password-signin", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handlePasswordSignIn,
+			Section: secAccount, Doc: "turn your password sign-in on or off (`enabled` and a proof; off takes a verified passkey)"},
+		{Method: post, Path: "/api/account/recovery-codes", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handleRecoveryCodes,
+			Section: secAccount, Doc: "new recovery codes in place of the old ones (a proof)"},
 		{Method: get, Path: "/api/account/sessions", Policy: policySignedIn, SessionOnly: true, Enrol: true, Handle: s.handleListSessions,
 			Section: secAccount, Doc: "your active sessions"},
 		{Method: del, Path: "/api/account/sessions/{id}", Policy: policySignedIn, SessionOnly: true, Handle: s.handleRevokeSession,
@@ -89,7 +108,9 @@ func (s *Server) routeTable() []route {
 		{Method: put, Path: "/api/users/{id}", Policy: policyAdmin, SessionOnly: true, Handle: s.handleUpdateUser,
 			Section: secUsers, Doc: "change an account's role, sites or name, or disable it"},
 		{Method: post, Path: "/api/users/{id}/password", Policy: policyAdmin, SessionOnly: true, MaxBody: smallBody, Handle: s.handleResetUserPassword,
-			Section: secUsers, Doc: "set a new password for another account"},
+			Section: secUsers, Doc: "set a new password for another account (turns its password sign-in back on)"},
+		{Method: post, Path: "/api/users/{id}/2fa/reset", Policy: policyAdmin, SessionOnly: true, Handle: s.handleResetUserTwoFactor,
+			Section: secUsers, Doc: "remove another account's second factors (TOTP, passkeys, recovery codes) when they are lost"},
 		{Method: del, Path: "/api/users/{id}", Policy: policyAdmin, SessionOnly: true, Handle: s.handleDeleteUser,
 			Section: secUsers, Doc: "delete an account"},
 

@@ -504,7 +504,8 @@ this order (an empty `totp` or `recovery_code` counts as absent):
    an administrator`;
    - password sign-in turned off for the account (§2.10), also only now and
      not a failure: `login.password_off` → **403** `password sign-in is
-     turned off for this account — sign in with a passkey`;
+     turned off for this account — sign in with a passkey`, with
+     `"password_off": true`;
 7. second factor, when the account has two-factor (§2.1), reached only with
    the right password:
    - the account's code cap reached (below) → **429** `too many wrong
@@ -2829,8 +2830,8 @@ use it). Each key is a field of `state.PanelSettings` or a secret.
   requirement covers admins (`admins` or `all`), `""` when `off`; writing
   `1`/`true` makes an `off` requirement `admins` and leaves `all` alone,
   writing `""`/`0`/`false` makes it `off`; else 400 `require_2fa_admin: must
-  be 1 or empty`; sent together with `require_2fa` → 400 `require_2fa:
-  send require_2fa or require_2fa_admin, not both`), `update_check` (`""` on, `"0"` off; accepts `""`/`1`/`true`/`0`/
+  be 1 or empty`; sent together with a `require_2fa` it disagrees with → 400 `require_2fa:
+  send require_2fa or require_2fa_admin, not both`, and ignored when they agree, as when a page sends back the whole map), `update_check` (`""` on, `"0"` off; accepts `""`/`1`/`true`/`0`/
   `false`, else 400 `update_check: must be 0 or empty`), `update_channel`
   (`stable` or `beta`, `""` meaning stable; else 400 `update_channel: must be
   stable or beta`; the release check and `POST /api/panel/update` follow

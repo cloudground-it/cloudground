@@ -60,7 +60,7 @@ var refusal = map[policy]string{
 
 const (
 	msgSignIn = "authentication required"
-	msg2FA    = "two-factor authentication is required for admin accounts: enrol in Security before continuing"
+	msg2FA    = "two-factor authentication is required for this account: set it up in Security before continuing"
 )
 
 // enrolment is every route an admin held by the 2FA requirement can still
@@ -71,6 +71,10 @@ var enrolment = map[string]bool{
 	"POST /api/account/2fa/confirm": true,
 	// The enrolment page lists the account's sessions (W3: it got 403).
 	"GET /api/account/sessions": true,
+	// A passkey is a second factor too (#156).
+	"GET /api/account/passkeys":         true,
+	"POST /api/account/passkeys/begin":  true,
+	"POST /api/account/passkeys/finish": true,
 }
 
 // sessionOnly is every route an API token may not reach (403): the ones
@@ -79,35 +83,43 @@ var enrolment = map[string]bool{
 // a site's shell and routing; and the panel's own firewall, certificate
 // and binary.
 var sessionOnly = map[string]bool{
-	"POST /api/logout":                  true,
-	"POST /api/account/password":        true,
-	"POST /api/account/2fa/begin":       true,
-	"POST /api/account/2fa/confirm":     true,
-	"POST /api/account/2fa/disable":     true,
-	"GET /api/account/sessions":         true,
-	"DELETE /api/account/sessions/{id}": true,
-	"PUT /api/account/profile":          true,
-	"POST /api/account/whats-new":       true,
-	"POST /api/users":                   true,
-	"PUT /api/users/{id}":               true,
-	"DELETE /api/users/{id}":            true,
-	"POST /api/users/{id}/password":     true,
-	"GET /api/tokens":                   true,
-	"POST /api/tokens":                  true,
-	"DELETE /api/tokens/{id}":           true,
-	"POST /api/sites/{id}/ssh-shell":    true,
-	"GET /api/sites/{id}/routing":       true,
-	"PUT /api/sites/{id}/routing":       true,
-	"POST /api/firewall/rule":           true,
-	"POST /api/firewall/enable":         true,
-	"POST /api/blocklist/blocks":        true,
-	"DELETE /api/blocklist/blocks":      true,
-	"POST /api/blocklist/allowed":       true,
-	"DELETE /api/blocklist/allowed":     true,
-	"PUT /api/blocklist/settings":       true,
-	"POST /api/panel/certificate":       true,
-	"POST /api/panel/update":            true,
-	"POST /api/system/updates/apply":    true,
+	"POST /api/logout":                       true,
+	"POST /api/account/password":             true,
+	"POST /api/account/2fa/begin":            true,
+	"POST /api/account/2fa/confirm":          true,
+	"POST /api/account/2fa/disable":          true,
+	"GET /api/account/sessions":              true,
+	"DELETE /api/account/sessions/{id}":      true,
+	"PUT /api/account/profile":               true,
+	"POST /api/account/whats-new":            true,
+	"GET /api/account/passkeys":              true,
+	"POST /api/account/passkeys/begin":       true,
+	"POST /api/account/passkeys/finish":      true,
+	"POST /api/account/passkeys/challenge":   true,
+	"POST /api/account/passkeys/{id}/remove": true,
+	"PUT /api/account/password-signin":       true,
+	"POST /api/account/recovery-codes":       true,
+	"POST /api/users/{id}/2fa/reset":         true,
+	"POST /api/users":                        true,
+	"PUT /api/users/{id}":                    true,
+	"DELETE /api/users/{id}":                 true,
+	"POST /api/users/{id}/password":          true,
+	"GET /api/tokens":                        true,
+	"POST /api/tokens":                       true,
+	"DELETE /api/tokens/{id}":                true,
+	"POST /api/sites/{id}/ssh-shell":         true,
+	"GET /api/sites/{id}/routing":            true,
+	"PUT /api/sites/{id}/routing":            true,
+	"POST /api/firewall/rule":                true,
+	"POST /api/firewall/enable":              true,
+	"POST /api/blocklist/blocks":             true,
+	"DELETE /api/blocklist/blocks":           true,
+	"POST /api/blocklist/allowed":            true,
+	"DELETE /api/blocklist/allowed":          true,
+	"PUT /api/blocklist/settings":            true,
+	"POST /api/panel/certificate":            true,
+	"POST /api/panel/update":                 true,
+	"POST /api/system/updates/apply":         true,
 	// An API token cannot open Quarry.
 	"POST /api/sites/{id}/quarry/handoff": true,
 }
@@ -605,6 +617,14 @@ func TestRouteBodyLimitsArePinned(t *testing.T) {
 	want := map[string]int64{
 		"POST /api/setup":                              smallBody,
 		"POST /api/login":                              smallBody,
+		"POST /api/login/passkey/begin":                smallBody,
+		"POST /api/login/passkey":                      smallBody,
+		"POST /api/account/passkeys/begin":             smallBody,
+		"POST /api/account/passkeys/finish":            passkeyBody,
+		"POST /api/account/passkeys/challenge":         smallBody,
+		"POST /api/account/passkeys/{id}/remove":       smallBody,
+		"PUT /api/account/password-signin":             smallBody,
+		"POST /api/account/recovery-codes":             smallBody,
 		"POST /api/account/password":                   smallBody,
 		"POST /api/account/2fa/begin":                  smallBody,
 		"POST /api/account/2fa/disable":                smallBody,
