@@ -156,6 +156,7 @@ owner, a new one is created root-owned (what `install -d -m` does).
     | Directory | Mode | Owner |
     | --- | --- | --- |
     | `/srv/sites`, `/var/log/cloudground`, `/var/cache/cloudground` | 0755 | unchanged |
+    | `/srv/functions` (the functions' code, internal/functions SPEC §2: traversed, never listed) | 0711 | root:root |
     | `/var/lib/cloudground` (the API's state) | 0750 | cloudground:cloudground |
     | `/var/www/cloudground-acme`, `/run/cloudground`, `/run/cloudground/php` | 0755 | unchanged |
     | `/etc/cloudground-php` (each site's PHP master configuration, read by the site's user) | 0755 | root:root |
@@ -177,7 +178,7 @@ owner, a new one is created root-owned (what `install -d -m` does).
     (`/var/backups`, `/mnt`, the sandboxes' `InaccessiblePaths=`). A unit test
     (`unitpaths_test.go`) holds every absolute path of the embedded units, and the fixed paths of
     the site sandbox (`internal/phpfpm.Sandbox`) and the shell's (`ops/sftp.ShellQuiet`), to: in
-    this table, prefixed `-`, or one of `/etc`, `/run`, `/var/log`, `/usr/local/bin`,
+    this table, prefixed `-`, or one of `/etc`, `/srv`, `/run`, `/var/log`, `/usr/local/bin`,
     which every Ubuntu image has. `/etc/letsencrypt` needs no entry: the agent's unit names `/etc`,
     and step 28 creates it.
 

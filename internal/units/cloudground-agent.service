@@ -43,12 +43,12 @@ RuntimeDirectoryPreserve=yes
 # own with these same lines (host.HelperProps, held to this file by a test);
 # wp-cli runs in its site's sandbox.
 #
-# It may write only: /etc, the site trees, its own state, cache and log
+# It may write only: /etc, /srv (the site trees and the functions' code), its own state, cache and log
 # directories, the ACME webroot and certbot's state, cron's spool, /run and
 # /usr/local/bin (where self-update puts binaries). /usr, /boot and the rest
 # of the system are read-only, and so are /home and /root.
 ProtectSystem=strict
-ReadWritePaths=/etc /srv/sites /var/lib/cloudground-agent /var/cache/cloudground /var/log /var/lib/letsencrypt /var/www/cloudground-acme /var/spool/cron /run /usr/local/bin
+ReadWritePaths=/etc /srv /var/lib/cloudground-agent /var/cache/cloudground /var/log /var/lib/letsencrypt /var/www/cloudground-acme /var/spool/cron /run /usr/local/bin
 # Optional: a local restic repository under /var/backups or a mount in /mnt.
 ReadWritePaths=-/var/backups -/mnt
 ProtectHome=read-only

@@ -16,6 +16,7 @@ import (
 
 	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/staging"
+	"github.com/cloudground-it/cloudground/internal/functions"
 	"github.com/cloudground-it/cloudground/internal/phpfpm"
 	"github.com/cloudground-it/cloudground/internal/rpc"
 	"github.com/cloudground-it/cloudground/internal/site"
@@ -235,7 +236,7 @@ func killUser(ctx context.Context, name string) error {
 		return err
 	}
 	uid, err := strconv.Atoi(u.Uid)
-	if err != nil || uid == 0 || !site.ValidSystemUser(name) {
+	if err != nil || uid == 0 || !(site.ValidSystemUser(name) || functions.ValidUser(name)) {
 		return fmt.Errorf("refusing to kill the processes of %s (uid %s)", name, u.Uid)
 	}
 	ctx, cancel := context.WithTimeout(ctx, killWait)
