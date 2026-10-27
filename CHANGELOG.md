@@ -7,6 +7,28 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.7.0
+
+Traffic and visibility. What changes for a person running the panel:
+
+- **redirects and the canonical name** per site: choose whether the site answers at `www.` or at
+  the bare domain (the other name redirects to it in one hop, the certificate covers both), and
+  add up to 200 exact or prefix 301/302 redirects. Redirects are answered before the page cache,
+  so a cached page never hides one;
+- **traffic statistics** from each site's own access logs, on the server, with no third party and
+  no cookie: requests, page views, visitors, bots, status codes, cache hits, top pages and
+  not-found paths, kept as daily totals for 90 days. Visitors are counted without storing any
+  address. On the new Traffic tab;
+- **Cloudflare**: for a site behind Cloudflare, the panel sees the real visitor address (trusted
+  only from Cloudflare's published networks, refreshed daily), the block list still applies, and
+  a purge from the panel also purges Cloudflare's cache with a purge-only API token;
+- **download a site's full logs**, access and error, rotated ones included, from the panel or with
+  `cgctl logs`; every download is in the audit log;
+- **a clickable demo** of the panel with sample data, published with each stable release at
+  get.cloudground.it/demo/: nothing you do there leaves your browser;
+- missing static files (a 404 on an image or a stylesheet) are now written to the site's access
+  log; served static files still are not.
+
 ## v0.6.0
 
 Data. What changes for a person running the panel:
