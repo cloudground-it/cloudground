@@ -1809,9 +1809,10 @@ to disk by the agent.
 **Databases.** `POST /api/sites/{id}/databases` takes `server_id` (absent or 0: this server; any
 other must be a registered one, else **400** `unknown database server`); the row is recorded with
 it and `CreateDatabase` carries it. A database lives on one server for good. `GET databases` adds
-`server_id` to each database and user, and a `servers` list of the connections the site's
+`server_id` to each database and user, a `servers` list of the connections the site's
 databases use (`{id, name, host, port, tls}`; `id` 0 for this server) so the page can tell where an
-application connects. `POST database-users` takes `server_id` too, used when the user has no
+application connects, and `available_servers` (`{id, name}` of every registered server) for the
+picker of whoever manages the site, who cannot read `GET /api/db-servers`. `POST database-users` takes `server_id` too, used when the user has no
 grants; with grants the user is on the server of their databases, which must be **one** (else 400
 `a user's databases must be on one server`); `PUT …/grants` the same. The primary database and
 its account are always on this server. The user's password is the secret of §6.5 as before; on an

@@ -60,8 +60,18 @@ type dbListView struct {
 	Users     []dbUserView     `json:"users"`
 	// Servers are the connections the site's databases use, so the page can
 	// say where an application connects (id 0: this server).
-	Servers    []dbServerRef `json:"servers"`
-	StatsError string        `json:"stats_error,omitempty"`
+	Servers []dbServerRef `json:"servers"`
+	// Available are the registered servers a database may be put on (name
+	// only: a person who manages the site picks one, the host is the
+	// administrator's).
+	Available  []dbServerChoice `json:"available_servers"`
+	StatsError string           `json:"stats_error,omitempty"`
+}
+
+// dbServerChoice is a server to pick.
+type dbServerChoice struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
 }
 
 // dbServerRef is where a server is, for an application's configuration.
@@ -98,7 +108,12 @@ func (d siteDatabases) list(ctx context.Context, site state.Site) (dbListView, e
 	if err != nil {
 		return dbListView{}, stored(err)
 	}
-	out := dbListView{Databases: []dbDatabaseView{}, Users: []dbUserView{}, Servers: []dbServerRef{}}
+	out := dbListView{Databases: []dbDatabaseView{}, Users: []dbUserView{}, Servers: []dbServerRef{}, Available: []dbServerChoice{}}
+	if all, err := st.ListDBServers(); err == nil {
+		for _, sv := range all {
+			out.Available = append(out.Available, dbServerChoice{ID: sv.ID, Name: sv.Name})
+		}
+	}
 	stats := map[string]rpc.DBInfo{}
 	if len(dbs) > 0 {
 		res, err := agentrpc.Call(ctx, d.s.Agent, agentrpc.ListDatabases, rpc.DBListParams{Site: site})

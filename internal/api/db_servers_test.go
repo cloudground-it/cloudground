@@ -216,6 +216,9 @@ func TestDatabaseOnAnExternalServer(t *testing.T) {
 	if _, ok := refs[0]; !ok {
 		t.Fatalf("this server is not listed: %+v", list.Servers)
 	}
+	if len(list.Available) != 1 || list.Available[0].ID != srv.ID || list.Available[0].Name != "managed" {
+		t.Fatalf("available servers %+v", list.Available)
+	}
 
 	// Users: with no grants the body's server; with grants their databases'.
 	user := func(name string, body map[string]any) (int, string) {

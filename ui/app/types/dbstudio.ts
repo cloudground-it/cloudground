@@ -187,6 +187,8 @@ export interface WPTransientsResult {
 /** A site's database, as GET /api/sites/{id}/databases lists it. */
 export interface SiteDatabase {
   name: string
+  /** The external server it is on; 0 is this server. */
+  server_id: number
   /** The database the site's configuration (wp-config.php) uses. */
   primary: boolean
   /** -1 when the agent could not read it. */
@@ -201,13 +203,19 @@ export interface DBGrant { database: string, level: DBGrantLevel }
 /** A site's database user and its privileges. */
 export interface SiteDBUser {
   name: string
+  server_id: number
   primary: boolean
   grants: DBGrant[] | null
   created_at: string
 }
 
+/** Where an application connects (id 0: this server). */
+export interface SiteDBServerRef { id: number, name: string, host: string, port: number, tls: 'required' | 'off' }
+
 export interface SiteDatabases {
   databases: SiteDatabase[] | null
   users: SiteDBUser[] | null
+  servers?: SiteDBServerRef[]
+  available_servers?: { id: number, name: string }[]
   stats_error?: string
 }

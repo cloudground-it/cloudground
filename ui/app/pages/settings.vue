@@ -130,6 +130,7 @@ const toc = computed(() => [
   { id: 'backups', label: t('settings.backups') },
   { id: 'panel-domain', label: t('settings.panelDomain') },
   { id: 'certificates', label: t('settings.certificates') },
+  { id: 'dbservers', label: t('dbservers.title') },
   { id: 'mail', label: t('mail.title') },
   { id: 'notifications', label: t('settings.notifications') },
   { id: 'access', label: t('settings.access') },
@@ -276,6 +277,8 @@ async function selfUpdate() {
                 <UButton :label="t('common.save')" :loading="busy" @click="save(['acme_email', 'cloudflare_api_token'])" />
               </template>
             </PanelSection>
+
+            <DatabaseServers />
 
             <PanelSection id="mail" :title="t('mail.title')" :description="t('mail.serverHint')" icon="i-cg-bell">
               <div class="grid gap-4 sm:grid-cols-2">
