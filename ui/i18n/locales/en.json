@@ -959,7 +959,7 @@
     "blocked": "{address} is blocked",
     "blockedHint": "Their packets are dropped on every port: SSH, the sites and this panel.",
     "blockedTitle": "Blocked addresses",
-    "blockHint": "Its packets are dropped on every port at once. This server, loopback and the addresses always allowed cannot be blocked.",
+    "blockHint": "Its packets are dropped on every port at once. This server, loopback, Cloudflare’s network and the addresses always allowed cannot be blocked.",
     "disallowed": "{address} is no longer always allowed",
     "disallowHint": "Failed sign-ins from it count towards a block again.",
     "disallowTitle": "Stop always allowing {address}?",
@@ -1160,7 +1160,9 @@
     "vulnCheck": "Check WordPress sites for known vulnerabilities",
     "vulnCheckHint": "Once a day, the versions of each WordPress site’s core, plugins and themes are looked up in the public WPVulnerability database. Only names and versions are sent, never the site.",
     "malwareScan": "Scan the sites’ files for malware every week",
-    "malwareScanHint": "Each site at an hour of its own, with ClamAV started only for the scan, in the site’s sandbox. The first scan installs ClamAV and its signatures (about 300 MB of disk)."
+    "malwareScanHint": "Each site at an hour of its own, with ClamAV started only for the scan, in the site’s sandbox. The first scan installs ClamAV and its signatures (about 300 MB of disk).",
+    "cloudflarePurge": "Cloudflare purge token",
+    "cloudflarePurgeHint": "Zone → Cache Purge permission only. With it, purging a site that has a Cloudflare zone empties Cloudflare’s cache too."
   },
   "editor": {
     "close": "Close",
@@ -1772,5 +1774,21 @@
     "quarantineTitle": "Move {path} to quarantine?",
     "quarantineHint": "The file is removed from the site and kept on the server, readable only by root. If the site needs it, it will stop working where it uses it.",
     "quarantined": "{path} moved to quarantine"
+  },
+  "cloudflare": {
+    "title": "Cloudflare",
+    "hint": "For a site served through Cloudflare’s proxy (the orange cloud).",
+    "realIP": "Real visitor addresses",
+    "realIPHelp": "Take the visitor’s address from the CF-Connecting-IP header, and only on requests that come from Cloudflare’s own addresses. The logs, the block list and the visitors this site refuses then see the visitor, not Cloudflare.",
+    "zone": "Zone ID",
+    "zoneHelp": "On the domain’s Overview page in Cloudflare’s dashboard. With a zone, purging this site empties Cloudflare’s cache of it too.",
+    "zoneBad": "32 characters: digits and the letters a to f",
+    "purgeReady": "Purges reach Cloudflare",
+    "purgeNeedsToken": "Add the Cloudflare purge token in Settings so that purges reach Cloudflare.",
+    "rangesShipped": "Cloudflare’s addresses: the list shipped with CloudGround.",
+    "rangesUpdated": "Cloudflare’s addresses: updated {date}.",
+    "saved": "Cloudflare settings saved",
+    "purgedToo": "Cloudflare’s cache was emptied too.",
+    "purgeFailed": "Cloudflare’s cache was not emptied: {error}"
   }
 }

@@ -959,7 +959,7 @@
     "blocked": "{address} è bloccato",
     "blockedHint": "I loro pacchetti vengono scartati su ogni porta: SSH, i siti e questo pannello.",
     "blockedTitle": "Indirizzi bloccati",
-    "blockHint": "I suoi pacchetti vengono scartati subito su ogni porta. Questo server, il loopback e gli indirizzi sempre consentiti non si possono bloccare.",
+    "blockHint": "I suoi pacchetti vengono scartati subito su ogni porta. Questo server, il loopback, la rete di Cloudflare e gli indirizzi sempre consentiti non si possono bloccare.",
     "disallowed": "{address} non è più sempre consentito",
     "disallowHint": "Gli accessi falliti da questo indirizzo tornano a contare per il blocco.",
     "disallowTitle": "Smettere di consentire sempre {address}?",
@@ -1160,7 +1160,9 @@
     "vulnCheck": "Controlla i siti WordPress per vulnerabilità note",
     "vulnCheckHint": "Una volta al giorno le versioni di core, plugin e temi di ogni sito WordPress vengono cercate nel database pubblico WPVulnerability. Si inviano solo nomi e versioni, mai il sito.",
     "malwareScan": "Scansiona ogni settimana i file dei siti alla ricerca di malware",
-    "malwareScanHint": "Ogni sito a un’ora tutta sua, con ClamAV avviato solo per la scansione, nella sandbox del sito. La prima scansione installa ClamAV e le sue firme (circa 300 MB di disco)."
+    "malwareScanHint": "Ogni sito a un’ora tutta sua, con ClamAV avviato solo per la scansione, nella sandbox del sito. La prima scansione installa ClamAV e le sue firme (circa 300 MB di disco).",
+    "cloudflarePurge": "Token Cloudflare per svuotare la cache",
+    "cloudflarePurgeHint": "Solo il permesso Zone → Cache Purge. Con questo token, svuotare la cache di un sito con una zona Cloudflare svuota anche quella di Cloudflare."
   },
   "editor": {
     "close": "Chiudi",
@@ -1772,5 +1774,21 @@
     "quarantineTitle": "Mettere {path} in quarantena?",
     "quarantineHint": "Il file viene tolto dal sito e conservato sul server, leggibile solo da root. Se il sito lo usa, smetterà di funzionare dove serve.",
     "quarantined": "{path} messo in quarantena"
+  },
+  "cloudflare": {
+    "title": "Cloudflare",
+    "hint": "Per un sito servito attraverso il proxy di Cloudflare (la nuvola arancione).",
+    "realIP": "Indirizzi reali dei visitatori",
+    "realIPHelp": "Prende l’indirizzo del visitatore dall’intestazione CF-Connecting-IP, solo per le richieste che arrivano dagli indirizzi di Cloudflare. I log, la lista dei blocchi e i visitatori rifiutati dal sito vedono così il visitatore e non Cloudflare.",
+    "zone": "ID della zona",
+    "zoneHelp": "Nella pagina Overview del dominio, nella dashboard di Cloudflare. Con una zona, svuotare la cache del sito svuota anche quella di Cloudflare.",
+    "zoneBad": "32 caratteri: cifre e lettere da a a f",
+    "purgeReady": "Lo svuotamento arriva a Cloudflare",
+    "purgeNeedsToken": "Aggiungi il token Cloudflare per svuotare la cache nelle Impostazioni, così lo svuotamento arriva anche a Cloudflare.",
+    "rangesShipped": "Indirizzi di Cloudflare: l’elenco incluso in CloudGround.",
+    "rangesUpdated": "Indirizzi di Cloudflare: aggiornati il {date}.",
+    "saved": "Impostazioni Cloudflare salvate",
+    "purgedToo": "Anche la cache di Cloudflare è stata svuotata.",
+    "purgeFailed": "La cache di Cloudflare non è stata svuotata: {error}"
   }
 }

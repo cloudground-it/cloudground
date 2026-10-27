@@ -5,6 +5,7 @@ const { t } = useI18n()
 const api = useApi()
 const { canManage } = useAuth()
 const { busy, run } = useAction()
+const toast = useToast()
 const { site, refresh } = useCurrentSite()
 
 const policy = reactive({ profile: site.value.profile as Profile, cache_enabled: site.value.config.cache_enabled, cache_ttl_sec: site.value.config.cache_ttl_sec || 0 })
@@ -35,13 +36,29 @@ function setDevMode(minutes: number) {
 function apply() {
   void run(() => api.patch(`/api/sites/${site.value.id}`, { ...policy, cache_ttl_sec: Number(policy.cache_ttl_sec) || 0 }), t('common.applied')).then(refresh)
 }
+// A purge also empties Cloudflare's cache when the site has a zone (#22): its
+// outcome comes with the answer, and a failure there is a warning, not an error.
+interface PurgeAnswer { removed: number, cdn?: 'purged' | 'failed', cdn_error?: string }
+async function purge(body: object, done: string) {
+  let res: PurgeAnswer | undefined
+  const ok = await run(async () => {
+    res = await api.post<PurgeAnswer>(`/api/sites/${site.value.id}/purge`, body)
+  })
+  if (!ok) return false
+  if (res?.cdn === 'failed') {
+    toast.add({ title: done, description: t('cloudflare.purgeFailed', { error: res.cdn_error ?? '' }), color: 'warning', icon: 'i-cg-alert-triangle' })
+  } else {
+    toast.add({ title: done, description: res?.cdn === 'purged' ? t('cloudflare.purgedToo') : undefined, color: 'success', icon: 'i-cg-check-circle' })
+  }
+  return true
+}
 function purgeOne() {
-  void run(() => api.post(`/api/sites/${site.value.id}/purge`, { urls: [purgeURL.value] }), t('cache.purgedOne')).then((ok) => {
+  void purge({ urls: [purgeURL.value] }, t('cache.purgedOne')).then((ok) => {
     if (ok) purgeURL.value = ''
   })
 }
 function purgeAll() {
-  void run(() => api.post(`/api/sites/${site.value.id}/purge`), t('cache.purgedAll'))
+  void purge({}, t('cache.purgedAll'))
 }
 </script>
 
@@ -100,5 +117,7 @@ function purgeAll() {
         <UButton icon="i-cg-purge" :label="t('cache.purgeAll')" :disabled="!canManage" @click="purgeAll" />
       </template>
     </PanelSection>
+
+    <SiteCloudflare />
   </div>
 </template>

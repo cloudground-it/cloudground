@@ -959,7 +959,7 @@
     "blocked": "{address} está bloqueada",
     "blockedHint": "Sus paquetes se descartan en todos los puertos: SSH, los sitios y este panel.",
     "blockedTitle": "Direcciones bloqueadas",
-    "blockHint": "Sus paquetes se descartan de inmediato en todos los puertos. Este servidor, el loopback y las direcciones siempre permitidas no se pueden bloquear.",
+    "blockHint": "Sus paquetes se descartan de inmediato en todos los puertos. Este servidor, el loopback, la red de Cloudflare y las direcciones siempre permitidas no se pueden bloquear.",
     "disallowed": "{address} ya no está siempre permitida",
     "disallowHint": "Sus inicios de sesión fallidos vuelven a contar para un bloqueo.",
     "disallowTitle": "¿Dejar de permitir siempre {address}?",
@@ -1160,7 +1160,9 @@
     "vulnCheck": "Buscar vulnerabilidades conocidas en los sitios WordPress",
     "vulnCheckHint": "Una vez al día, las versiones del núcleo, los plugins y los temas de cada sitio WordPress se buscan en la base de datos pública WPVulnerability. Solo se envían nombres y versiones, nunca el sitio.",
     "malwareScan": "Analizar cada semana los archivos de los sitios en busca de malware",
-    "malwareScanHint": "Cada sitio a una hora propia, con ClamAV iniciado solo para el análisis, en el sandbox del sitio. El primer análisis instala ClamAV y sus firmas (unos 300 MB de disco)."
+    "malwareScanHint": "Cada sitio a una hora propia, con ClamAV iniciado solo para el análisis, en el sandbox del sitio. El primer análisis instala ClamAV y sus firmas (unos 300 MB de disco).",
+    "cloudflarePurge": "Token de Cloudflare para purgar la caché",
+    "cloudflarePurgeHint": "Solo el permiso Zone → Cache Purge. Con este token, purgar la caché de un sitio con una zona de Cloudflare purga también la de Cloudflare."
   },
   "editor": {
     "close": "Cerrar",
@@ -1772,5 +1774,21 @@
     "quarantineTitle": "¿Poner {path} en cuarentena?",
     "quarantineHint": "El archivo se quita del sitio y se guarda en el servidor, legible solo por root. Si el sitio lo usa, dejará de funcionar donde lo necesite.",
     "quarantined": "{path} puesto en cuarentena"
+  },
+  "cloudflare": {
+    "title": "Cloudflare",
+    "hint": "Para un sitio servido a través del proxy de Cloudflare (la nube naranja).",
+    "realIP": "Direcciones reales de los visitantes",
+    "realIPHelp": "Toma la dirección del visitante de la cabecera CF-Connecting-IP, y solo en las peticiones que llegan desde las direcciones de Cloudflare. Los registros, la lista de bloqueo y los visitantes que este sitio rechaza ven así al visitante y no a Cloudflare.",
+    "zone": "ID de la zona",
+    "zoneHelp": "En la página Overview del dominio, en el panel de Cloudflare. Con una zona, purgar la caché de este sitio purga también la de Cloudflare.",
+    "zoneBad": "32 caracteres: cifras y las letras de la a a la f",
+    "purgeReady": "Las purgas llegan a Cloudflare",
+    "purgeNeedsToken": "Añade el token de Cloudflare para purgar la caché en Ajustes para que las purgas lleguen a Cloudflare.",
+    "rangesShipped": "Direcciones de Cloudflare: la lista incluida en CloudGround.",
+    "rangesUpdated": "Direcciones de Cloudflare: actualizadas el {date}.",
+    "saved": "Ajustes de Cloudflare guardados",
+    "purgedToo": "La caché de Cloudflare también se ha purgado.",
+    "purgeFailed": "La caché de Cloudflare no se ha purgado: {error}"
   }
 }
