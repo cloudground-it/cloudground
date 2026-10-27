@@ -379,6 +379,19 @@ Interface `Nginx`: `Test`, `Reload`, `BuildInfo`.
   `AWS_DEFAULT_REGION`, `B2_ACCOUNT_ID`, `B2_ACCOUNT_KEY` pass from `Env`;
   values with NUL or newline are dropped. Any `RESTIC_*`, `AWS_*`, `B2_*` the
   agent itself inherited is stripped first.
+- **SFTP key** (#23). `Repo.SSHKey`, the panel's private key for an `sftp:`
+  repository, is written to `<SSHDir>/id_ed25519` (root's, 0600; the folder
+  0700, `/var/lib/cloudground-agent/backup-ssh` by default) before the
+  call, and restic gets `-o sftp.command=ssh <user@host> -p <port> -i
+  <key> -o IdentitiesOnly=yes -o BatchMode=yes -o
+  StrictHostKeyChecking=accept-new -o UserKnownHostsFile=<SSHDir>/known_hosts
+  -s sftp` ahead of its other arguments, the user, host and port read from
+  the URL (`SFTPTarget`; a user or host starting with `-` is refused). So the
+  key is never an argument or a variable, the destination's host key is
+  learned at the first connection and checked at every later one, and
+  `ssh` reads nothing of root's own `~/.ssh`. A sandboxed run binds
+  `SSHDir` read-only. Without a key, an `sftp:` repository runs as before
+  (root's own ssh configuration).
 - Exit codes (restic ≥ 0.17, documented): 1 fatal, 3 backup read some files
   incompletely (`ErrIncomplete`), 10 repository does not exist
   (`ErrRepoNotFound`), 11 lock failed (`ErrRepoLocked`), 12 wrong password

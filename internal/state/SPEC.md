@@ -40,6 +40,8 @@ it is derived from the system except the observations named below
    | --- | --- |
    | `backup_password` | restic repository password |
    | `backup_s3_secret_key` | object-storage secret key |
+   | `backup_b2_account_id`, `backup_b2_account_key` | Backblaze B2 credentials (#23) |
+   | `backup_sftp_key` | the panel's private key for an SFTP backup destination (#23) |
    | `cloudflare_api_token` | DNS token for wildcard certificates |
    | `notify_webhook` | alert webhook URL: whoever holds it can post as the panel |
    | `site.<id>.db_password` | the password of the site's primary database user (the one made with the site) |
