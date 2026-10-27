@@ -51,6 +51,11 @@ func (o *Ops) TableNames(ctx context.Context, database string) ([]string, error)
 	if !o.known(ctx, database) || scratchNameRe.MatchString(database) {
 		return nil, agentrpc.Invalid("invalid database name")
 	}
+	if pg, ok, err := o.pgOfDatabase(ctx, database); err != nil {
+		return nil, err
+	} else if ok {
+		return tablesPG(ctx, pg, database)
+	}
 	m, err := o.maria(ctx, database)
 	if err != nil {
 		return nil, err

@@ -1,6 +1,8 @@
 {
   "params": {
     "full": {
+      "kind": "Kind",
+      "backup_dumps": true,
       "id": 7,
       "host": "Host",
       "port": 7,
@@ -10,6 +12,7 @@
       "admin_password": "AdminPassword"
     },
     "zero": {
+      "backup_dumps": false,
       "id": 0,
       "host": "",
       "port": 0,

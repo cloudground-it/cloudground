@@ -12,6 +12,11 @@ import (
 // (internal/api SPEC §6.5.1): what the agent connects with. AdminPassword is
 // a secret: never logged.
 type DBServerParams struct {
+	// Kind is "mariadb" (also "", MySQL servers included) or "postgres".
+	Kind string `json:"kind,omitempty"`
+	// BackupDumps says whether a site's backup dumps the server's
+	// databases (false: the provider backs them up). Always true for MariaDB.
+	BackupDumps bool `json:"backup_dumps"`
 	// ID is the panel's id for the server (0 for a server being tested
 	// before it is registered). The box's own server is never one of these.
 	ID            int64  `json:"id"`
@@ -54,8 +59,23 @@ func CheckDBServerCA(pem string) error {
 	return nil
 }
 
+// Kinds of external server.
+const (
+	KindMariaDB  = "mariadb"
+	KindPostgres = "postgres"
+)
+
 // Validate holds the rules about the values themselves.
 func (p *DBServerParams) Validate() error {
+	switch p.Kind {
+	case "", KindMariaDB:
+	case KindPostgres:
+		if !p.TLS {
+			return errors.New("PostgreSQL needs TLS")
+		}
+	default:
+		return fmt.Errorf("unknown kind of database server %q", p.Kind)
+	}
 	if err := CheckDBServerHost(p.Host); err != nil {
 		return err
 	}

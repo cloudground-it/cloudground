@@ -10,6 +10,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/rpc"
+	"github.com/cloudground-it/cloudground/internal/state"
 )
 
 // External servers (SPEC §9, #30): a database or an account may be on a
@@ -26,10 +27,18 @@ type Target struct {
 // Servers gives the agent's connection to each external server. The agent
 // holds them in memory (SetDBServers); nil means there is none.
 type Servers interface {
-	// Maria is the administrator's adapter of server id.
+	// Maria is the administrator's adapter of MariaDB server id.
 	Maria(id int64) (host.MariaDB, error)
-	// Target is how a session reaches server id.
+	// Target is how a session reaches MariaDB server id.
 	Target(id int64) (Target, error)
+	// Kind is "mariadb" or "postgres".
+	Kind(id int64) (string, error)
+	// Postgres is the administrator's adapter of PostgreSQL server id.
+	Postgres(id int64) (*host.PostgresAdmin, error)
+	// AdminUser is the name of server id's administrator.
+	AdminUser(id int64) string
+	// BackedUp says whether a site's backup dumps server id's databases.
+	BackedUp(id int64) bool
 }
 
 // UnknownServer is the answer for a server the agent has no connection for:
@@ -147,6 +156,7 @@ type Remotes struct {
 	mu       sync.RWMutex
 	servers  map[int64]host.RemoteServer
 	adapters map[int64]*host.MariaDBAdmin
+	pgs      map[int64]*host.PostgresAdmin
 }
 
 // Set replaces the table. A server that is gone or changed loses its pool.
@@ -163,12 +173,72 @@ func (r *Remotes) Set(_ context.Context, p rpc.SetDBServersParams) (agentrpc.Non
 			delete(r.adapters, id)
 		}
 	}
+	for id, a := range r.pgs {
+		if n, ok := next[id]; !ok || n != r.servers[id] {
+			_ = a.Close()
+			delete(r.pgs, id)
+		}
+	}
 	r.servers = next
 	return agentrpc.None{}, nil
 }
 
 func remoteOf(s rpc.DBServerParams) host.RemoteServer {
-	return host.RemoteServer{ID: s.ID, Host: s.Host, Port: s.Port, TLS: s.TLS, CACert: s.CACert, AdminUser: s.AdminUser, AdminPassword: s.AdminPassword}
+	kind := s.Kind
+	if kind == "" {
+		kind = rpc.KindMariaDB
+	}
+	return host.RemoteServer{ID: s.ID, Host: s.Host, Port: s.Port, TLS: s.TLS, CACert: s.CACert, AdminUser: s.AdminUser, AdminPassword: s.AdminPassword,
+		Kind: kind, BackupDumps: s.BackupDumps}
+}
+
+// Kind is the kind of server id.
+func (r *Remotes) Kind(id int64) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	s, ok := r.servers[id]
+	if !ok {
+		return "", UnknownServer(id)
+	}
+	return s.Kind, nil
+}
+
+// AdminUser is the name of server id's administrator ("" for an unknown one).
+func (r *Remotes) AdminUser(id int64) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.servers[id].AdminUser
+}
+
+// BackedUp says whether a site's backup dumps server id's databases: always
+// for MariaDB, for PostgreSQL unless the provider backs it up.
+func (r *Remotes) BackedUp(id int64) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	s, ok := r.servers[id]
+	return !ok || s.Kind != rpc.KindPostgres || s.BackupDumps
+}
+
+// Postgres is the administrator's adapter of PostgreSQL server id.
+func (r *Remotes) Postgres(id int64) (*host.PostgresAdmin, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if a, ok := r.pgs[id]; ok {
+		return a, nil
+	}
+	s, ok := r.servers[id]
+	if !ok {
+		return nil, UnknownServer(id)
+	}
+	if s.Kind != rpc.KindPostgres {
+		return nil, agentrpc.Invalid("not a PostgreSQL server")
+	}
+	if r.pgs == nil {
+		r.pgs = map[int64]*host.PostgresAdmin{}
+	}
+	a := host.NewPostgres(s, r.WorkDir, r.Tools)
+	r.pgs[id] = a
+	return a, nil
 }
 
 // Maria is the administrator's adapter of server id.
@@ -181,6 +251,9 @@ func (r *Remotes) Maria(id int64) (host.MariaDB, error) {
 	s, ok := r.servers[id]
 	if !ok {
 		return nil, UnknownServer(id)
+	}
+	if s.Kind == rpc.KindPostgres {
+		return nil, agentrpc.Invalid(pgUnsupported)
 	}
 	if r.adapters == nil {
 		r.adapters = map[int64]*host.MariaDBAdmin{}
@@ -198,6 +271,9 @@ func (r *Remotes) Target(id int64) (Target, error) {
 	if !ok {
 		return Target{}, UnknownServer(id)
 	}
+	if s.Kind == rpc.KindPostgres {
+		return Target{}, agentrpc.Invalid(pgUnsupported)
+	}
 	t := Target{Net: "tcp", Addr: s.Addr()}
 	if s.TLS {
 		cfg, err := s.TLSConfig()
@@ -212,6 +288,9 @@ func (r *Remotes) Target(id int64) (Target, error) {
 // Test connects with the credentials given and reports the server's version
 // when its administrator can create accounts and grant privileges.
 func (r *Remotes) Test(ctx context.Context, p rpc.DBServerParams) (rpc.DBServerTestResult, error) {
+	if p.Kind == rpc.KindPostgres {
+		return r.testPG(ctx, p)
+	}
 	m := host.NewRemoteMariaDB(remoteOf(p), r.WorkDir, r.Tools)
 	defer m.Close()
 	version, err := m.QueryStrings(ctx, "SELECT VERSION()")
@@ -236,4 +315,40 @@ func connectError(err error) string {
 		return "no answer"
 	}
 	return err.Error()
+}
+
+// testPG connects to a PostgreSQL server with the credentials given and
+// reports its version when its administrator may create roles and databases.
+func (r *Remotes) testPG(ctx context.Context, p rpc.DBServerParams) (rpc.DBServerTestResult, error) {
+	pg := host.NewPostgres(remoteOf(p), r.WorkDir, r.Tools)
+	defer pg.Close()
+	version, err := pg.Version(ctx)
+	if err != nil || version == "" {
+		return rpc.DBServerTestResult{}, agentrpc.Invalid("could not connect to %s as %s: %s", p.Host, p.AdminUser, connectError(err))
+	}
+	ok, err := pg.QueryStrings(ctx, "", "SELECT (rolsuper OR (rolcreaterole AND rolcreatedb))::text FROM pg_roles WHERE rolname = current_user")
+	if err != nil || len(ok) != 1 || ok[0] != "true" {
+		return rpc.DBServerTestResult{}, agentrpc.Invalid("%s cannot create roles and databases: it needs CREATEROLE and CREATEDB (or to be a superuser)", p.AdminUser)
+	}
+	return rpc.DBServerTestResult{Version: version}, nil
+}
+
+// BackedUpDatabases lists the site's databases a backup dumps: those on a
+// server the provider does not back up instead.
+func (o *Ops) BackedUpDatabases(ctx context.Context, s state.Site) ([]string, error) {
+	names, err := o.SiteDatabases(ctx, s)
+	if err != nil || o.Servers == nil {
+		return names, err
+	}
+	var out []string
+	for _, n := range names {
+		id, err := o.serverOf(ctx, n)
+		if err != nil {
+			return nil, err
+		}
+		if o.Servers.BackedUp(id) {
+			out = append(out, n)
+		}
+	}
+	return out, nil
 }

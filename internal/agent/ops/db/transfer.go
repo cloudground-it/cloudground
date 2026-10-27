@@ -21,6 +21,17 @@ import (
 
 // Dump streams database (or only tables of it) into w.
 func (o *Ops) Dump(ctx context.Context, database string, w io.Writer, tables ...string) error {
+	if pg, ok, err := o.pgOfDatabase(ctx, database); err != nil {
+		return err
+	} else if ok {
+		if len(tables) > 0 {
+			return agentrpc.Invalid("a PostgreSQL database is dumped whole")
+		}
+		if err := pg.Dump(ctx, database, w); err != nil {
+			return fmt.Errorf("dump %s: %w", database, err)
+		}
+		return nil
+	}
 	m, err := o.maria(ctx, database)
 	if err != nil {
 		return err
@@ -48,6 +59,15 @@ func (o *Ops) DumpFile(ctx context.Context, database, path string, tables ...str
 // ImportFile feeds the SQL file at path to database through the sandboxed
 // client, as an account scoped to that database.
 func (o *Ops) ImportFile(ctx context.Context, database, path string) error {
+	if pg, ok, err := o.pgOfDatabase(ctx, database); err != nil {
+		return err
+	} else if ok {
+		return o.importPG(ctx, pg, database, ownerRole(database), path)
+	}
+	return o.importFileMaria(ctx, database, path)
+}
+
+func (o *Ops) importFileMaria(ctx context.Context, database, path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -169,6 +189,11 @@ func (o *Ops) charset(ctx context.Context, database string) (string, string, err
 func (o *Ops) empty(ctx context.Context, database string) error {
 	if !ValidName(database) {
 		return agentrpc.Invalid("invalid database name")
+	}
+	if pg, ok, err := o.pgOfDatabase(ctx, database); err != nil {
+		return err
+	} else if ok {
+		return o.emptyPG(ctx, pg, database)
 	}
 	cs, coll, err := o.charset(ctx, database)
 	if err != nil {

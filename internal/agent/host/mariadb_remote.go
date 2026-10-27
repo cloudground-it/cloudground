@@ -23,6 +23,10 @@ type RemoteServer struct {
 	CACert        string // PEM; empty with TLS means the system's authorities
 	AdminUser     string
 	AdminPassword string // a secret: never in an error, a log or an argument
+	// Kind is "mariadb" or "postgres"; BackupDumps whether a site's backup
+	// dumps the server's databases (the provider backs it up otherwise).
+	Kind        string
+	BackupDumps bool
 }
 
 // Addr is host:port.

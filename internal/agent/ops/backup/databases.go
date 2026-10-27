@@ -37,7 +37,7 @@ type dbPart struct {
 // siteDatabases lists the databases the agent records for the site: what a
 // backup dumps and a restore may replace.
 func (o *Ops) siteDatabases(ctx context.Context, s state.Site) ([]string, error) {
-	return o.DB.SiteDatabases(ctx, s)
+	return o.DB.BackedUpDatabases(ctx, s)
 }
 
 // databaseParts reads the database snapshots the file snapshot names, each

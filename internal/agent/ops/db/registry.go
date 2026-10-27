@@ -262,6 +262,24 @@ func (r *Registry) UserServer(ctx context.Context, name string) (int64, error) {
 	return id, err
 }
 
+// SiteOfDatabase returns the accounts that have a grant on database, each
+// with all its grants (database → level).
+func (r *Registry) SiteOfDatabase(ctx context.Context, database string) (map[string]map[string]string, error) {
+	out := map[string]map[string]string{}
+	err := r.view(ctx, func(f *registryFile) {
+		for u, ru := range f.Users {
+			if _, ok := ru.Grants[database]; ok {
+				g := map[string]string{}
+				for d, l := range ru.Grants {
+					g[d] = l
+				}
+				out[u] = g
+			}
+		}
+	})
+	return out, err
+}
+
 // UserOwner returns the site an account is recorded for, or 0.
 func (r *Registry) UserOwner(ctx context.Context, name string) (int64, error) {
 	var id int64

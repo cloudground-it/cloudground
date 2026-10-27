@@ -423,6 +423,36 @@ Tests: `servers_test.go` (routing by the record, the grants rule, a name in use 
 an unknown server), host `TestRemoteAdapter…` (the host rewrite, `REQUIRE SSL`, the client
 arguments, the defaults file).
 
+### 9.1 PostgreSQL servers (#81, `postgres.go`)
+
+A server pushed with `kind: "postgres"` is PostgreSQL (TLS is always required). Everything §9 says
+about the record and routing holds; what differs is the SQL (`host.PostgresAdmin`, host SPEC):
+
+- **A database** `<db>` is made with an owner role `cgo_<db>` (`NOLOGIN`; the prefix is one
+  `ClaimableBy` reserves, so no site can name it): `CREATE ROLE`, the administrator made a member of
+  it, `CREATE DATABASE <db> OWNER cgo_<db>`, `REVOKE ALL … FROM PUBLIC` on the database and on schema
+  `public`, which `cgo_<db>` owns. Dropping it revokes the accounts' grants, drops the database
+  (`WITH (FORCE)`) and the role.
+- **An account** is `CREATE ROLE <user> LOGIN PASSWORD … CONNECTION LIMIT 50` (a password is quoted
+  as a literal; the password rule already bans `'` `"` `\`). Grants: **all** makes it a member of
+  `cgo_<db>` and sets `role = cgo_<db>` for its sessions on that database (`ALTER ROLE … IN DATABASE`),
+  so everything it creates is the owner's and every all-user sees it; **read** gives `CONNECT`, `USAGE`
+  on `public`, `SELECT` on its tables and sequences now and, through default privileges of
+  `cgo_<db>`, later. Revoking undoes each. The same record-first rules and conflicts as §2.
+- **Dump** is `pg_dump`; **import, restore and `empty`** run the dump through `Restore` as the owner
+  role, after `empty` has dropped and recreated schema `public` (owned by `cgo_<db>`) and re-applied
+  every read grant of the record: dropping the database instead would lose its `CONNECT` grants.
+  **`TableNames`** counts the tables of schema `public`. **`VerifyDump`** names the database: for
+  PostgreSQL the dump is restored into a scratch database `cgv_<16 hex>` on the same server, owned
+  by a scratch owner role, and its tables counted.
+- **List** reads `pg_database_size` and the table count of each database.
+- **Not for PostgreSQL yet:** the SQL console, the table list and Quarry's sessions
+  (`invalid`, "not available for PostgreSQL databases yet"); staging and migration (primary
+  databases are never on an external server).
+- **Backups.** A server pushed with `backup_dumps: false` (the provider backs it up) has its databases
+  left out of a site's backup, its restore plan and its restore test; with `true`, the dump and the
+  restore test above.
+
 ## 10. Not here
 
 Quarry (`ops/dbstudio`). The backup's restic plumbing, the restore's

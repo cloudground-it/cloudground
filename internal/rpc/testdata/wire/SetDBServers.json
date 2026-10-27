@@ -3,6 +3,8 @@
     "full": {
       "servers": [
         {
+          "kind": "Kind",
+          "backup_dumps": true,
           "id": 7,
           "host": "Host",
           "port": 7,
