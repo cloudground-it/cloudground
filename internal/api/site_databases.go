@@ -72,6 +72,7 @@ type dbListView struct {
 type dbServerChoice struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
+	Kind string `json:"kind"`
 }
 
 // dbServerRef is where a server is, for an application's configuration.
@@ -111,7 +112,10 @@ func (d siteDatabases) list(ctx context.Context, site state.Site) (dbListView, e
 	out := dbListView{Databases: []dbDatabaseView{}, Users: []dbUserView{}, Servers: []dbServerRef{}, Available: []dbServerChoice{}}
 	if all, err := st.ListDBServers(); err == nil {
 		for _, sv := range all {
-			out.Available = append(out.Available, dbServerChoice{ID: sv.ID, Name: sv.Name})
+			if sv.Kind == "postgres" && !siteval.SupportsPostgres(site.Type) {
+				continue
+			}
+			out.Available = append(out.Available, dbServerChoice{ID: sv.ID, Name: sv.Name, Kind: sv.Kind})
 		}
 	}
 	stats := map[string]rpc.DBInfo{}
@@ -171,18 +175,22 @@ func userServerIDs(us []state.DBUser) []int64 {
 }
 
 // knownServer refuses a server id that is not the box's own or a registered
-// one.
-func (d siteDatabases) knownServer(id int64) error {
+// one, and a PostgreSQL server for a site of a type that cannot use it.
+func (d siteDatabases) knownServer(site state.Site, id int64) error {
 	if id == 0 {
 		return nil
 	}
 	if id < 0 {
 		return decline(http.StatusBadRequest, "unknown database server")
 	}
-	if _, err := d.s.Store.GetDBServer(id); errors.Is(err, state.ErrNotFound) {
+	sv, err := d.s.Store.GetDBServer(id)
+	if errors.Is(err, state.ErrNotFound) {
 		return decline(http.StatusBadRequest, "unknown database server")
 	} else if err != nil {
 		return stored(err)
+	}
+	if sv.Kind == "postgres" && !siteval.SupportsPostgres(site.Type) {
+		return decline(http.StatusBadRequest, "PostgreSQL is offered for PHP and Laravel sites")
 	}
 	return nil
 }
@@ -218,7 +226,7 @@ func (d siteDatabases) createDB(actor string, site state.Site, name string, serv
 	if err := checkName(site, name); err != nil {
 		return jobs.Task{}, err
 	}
-	if err := d.knownServer(serverID); err != nil {
+	if err := d.knownServer(site, serverID); err != nil {
 		return jobs.Task{}, err
 	}
 	st := d.s.Store
@@ -375,7 +383,7 @@ func (d siteDatabases) createUser(ctx context.Context, actor string, site state.
 		}
 		server = gs
 	}
-	if err := d.knownServer(server); err != nil {
+	if err := d.knownServer(site, server); err != nil {
 		return dbUserCreated{}, err
 	}
 	st := d.s.Store

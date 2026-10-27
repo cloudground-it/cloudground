@@ -1835,6 +1835,29 @@ Tests: `db_servers_test.go` (the routes and their refusals, the sealed secret, t
 retry, a database created on a server and a refusal to delete one in use, the grants rule).
 e2e `external database server`.
 
+#### 6.5.2 External PostgreSQL servers (#81)
+
+The registry of §6.5.1 holds PostgreSQL servers too: `kind` is `mariadb` (the default, MySQL
+servers included) or `postgres`, chosen when it is registered and never changed. A `postgres`
+server:
+
+- needs **TLS**: `tls: "off"` is **400** `PostgreSQL needs TLS`; the port defaults to 5432;
+- has `backup`: `provider` (the default: the provider backs it up, and CloudGround leaves its
+  databases out of a site's backups) or `dump` (`pg_dump` over TLS with the usual restore test,
+  ops/db SPEC §9.1); a `mariadb` server is always `dump`;
+- is tested by the agent with `SELECT version()` and a check that the account may create roles and
+  databases (`rolcreaterole`/`rolcreatedb` or superuser): a refusal is 400 with the reason.
+
+The view of a server gains `kind` and `backup`. **Sites that may use it:** PostgreSQL is offered for
+`php` and `laravel` sites only (`site.SupportsPostgres`): `POST databases` or `POST database-users` on
+a PostgreSQL server for another type is **400** `PostgreSQL is offered for PHP and Laravel sites`, and
+`available_servers` of such a site leaves PostgreSQL servers out. A name is the same namespace as on
+MariaDB, and a user is on one server (§6.5.1). The password rule is the same.
+
+**Not for PostgreSQL yet** (the agent answers `invalid`): the SQL console, the table list,
+the database import/export of Quarry and Quarry's own sessions. A plain export (`POST database/export`),
+import and the backups, restores and restore test work (ops/db SPEC §9.1).
+
 ### 6.4 Quarry (Fase 9b: a service of its own)
 
 Quarry is served at `/quarry` from the same build of the interface

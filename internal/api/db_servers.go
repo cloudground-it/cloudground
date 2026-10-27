@@ -29,6 +29,7 @@ type dbServerView struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
 	Kind        string `json:"kind"`
+	Backup      string `json:"backup"`
 	Host        string `json:"host"`
 	Port        int    `json:"port"`
 	TLS         string `json:"tls"`
@@ -40,13 +41,15 @@ type dbServerView struct {
 
 func (s *Server) dbServerView(d state.DBServer) dbServerView {
 	pw, _ := s.Store.DBServerPassword(d.ID)
-	return dbServerView{ID: d.ID, Name: d.Name, Kind: d.Kind, Host: d.Host, Port: d.Port, TLS: d.TLS, CACert: d.CACert,
+	return dbServerView{ID: d.ID, Name: d.Name, Kind: d.Kind, Backup: d.Backup, Host: d.Host, Port: d.Port, TLS: d.TLS, CACert: d.CACert,
 		AdminUser: d.AdminUser, PasswordSet: pw != "", Databases: d.Databases}
 }
 
 // dbServerRequest is the body of a registration or a change; a field left
 // out keeps its value (a change) or its default (a registration).
 type dbServerRequest struct {
+	Kind          *string `json:"kind"`
+	Backup        *string `json:"backup"`
 	Name          *string `json:"name"`
 	Host          *string `json:"host"`
 	Port          *int    `json:"port"`
@@ -59,6 +62,9 @@ type dbServerRequest struct {
 // apply puts the request's fields over d, and returns the password to
 // connect with ("" when the request names none).
 func (r dbServerRequest) apply(d *state.DBServer) (password string) {
+	if r.Backup != nil {
+		d.Backup = strings.TrimSpace(*r.Backup)
+	}
 	if r.Name != nil {
 		d.Name = strings.TrimSpace(*r.Name)
 	}
@@ -93,6 +99,14 @@ func checkDBServer(d state.DBServer, password string) error {
 		return decline(http.StatusBadRequest, "the name is 2 to 32 lowercase letters, digits and hyphens, starting with a letter")
 	case d.TLS != state.DBServerTLSRequired && d.TLS != state.DBServerTLSOff:
 		return decline(http.StatusBadRequest, "tls is required or off")
+	case d.Kind != rpc.KindMariaDB && d.Kind != rpc.KindPostgres:
+		return decline(http.StatusBadRequest, "kind is mariadb or postgres")
+	case d.Kind == rpc.KindPostgres && d.TLS != state.DBServerTLSRequired:
+		return decline(http.StatusBadRequest, "PostgreSQL needs TLS")
+	case d.Backup != state.DBServerBackupDump && d.Backup != state.DBServerBackupProvider:
+		return decline(http.StatusBadRequest, "backup is dump or provider")
+	case d.Kind == rpc.KindMariaDB && d.Backup != state.DBServerBackupDump:
+		return decline(http.StatusBadRequest, "a MariaDB server is always dumped by a backup")
 	}
 	if err := (&rpc.DBServerParams{Host: d.Host, Port: d.Port, AdminUser: d.AdminUser, AdminPassword: password, CACert: d.CACert}).Validate(); err != nil {
 		return decline(http.StatusBadRequest, "%s", err)
@@ -102,7 +116,7 @@ func checkDBServer(d state.DBServer, password string) error {
 
 // agentParams is what the agent connects with.
 func agentParams(d state.DBServer, password string) rpc.DBServerParams {
-	return rpc.DBServerParams{ID: d.ID, Host: d.Host, Port: d.Port, TLS: d.TLS == state.DBServerTLSRequired,
+	return rpc.DBServerParams{Kind: d.Kind, BackupDumps: d.Kind != rpc.KindPostgres || d.Backup == state.DBServerBackupDump, ID: d.ID, Host: d.Host, Port: d.Port, TLS: d.TLS == state.DBServerTLSRequired,
 		CACert: d.CACert, AdminUser: d.AdminUser, AdminPassword: password}
 }
 
@@ -172,7 +186,13 @@ func (s *Server) handleCreateDBServer(w http.ResponseWriter, r *http.Request, c 
 	if !decodeOr400(w, r, &req) {
 		return
 	}
-	d := state.DBServer{Kind: "mariadb", Port: 3306, TLS: state.DBServerTLSRequired}
+	d := state.DBServer{Kind: rpc.KindMariaDB, Port: 3306, TLS: state.DBServerTLSRequired, Backup: state.DBServerBackupDump}
+	if req.Kind != nil && strings.TrimSpace(*req.Kind) == rpc.KindPostgres {
+		d.Kind, d.Port, d.Backup = rpc.KindPostgres, 5432, state.DBServerBackupProvider
+	} else if req.Kind != nil && strings.TrimSpace(*req.Kind) != rpc.KindMariaDB && strings.TrimSpace(*req.Kind) != "" {
+		respondErr(w, http.StatusBadRequest, "kind is mariadb or postgres")
+		return
+	}
 	pw := req.apply(&d)
 	if err := checkDBServer(d, pw); err != nil {
 		fail(w, err)
@@ -208,6 +228,10 @@ func (s *Server) handleUpdateDBServer(w http.ResponseWriter, r *http.Request, c 
 	}
 	var req dbServerRequest
 	if !decodeOr400(w, r, &req) {
+		return
+	}
+	if req.Kind != nil && strings.TrimSpace(*req.Kind) != d.Kind {
+		respondErr(w, http.StatusBadRequest, "the kind of a database server cannot change")
 		return
 	}
 	pw := req.apply(&d)
