@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -38,7 +39,9 @@ func (e *extDB) as(user, pw, db, q string) result {
 
 // start installs and starts the instance, and makes its administrator. The
 // server binary is a copy at a path of its own, which no AppArmor profile
-// of the distribution's mariadbd covers.
+// of the distribution's mariadbd covers, and the copy is also what
+// mariadb-install-db runs (through a basedir of its own: the distribution's
+// profile denies the install a data directory outside /var/lib/mysql).
 func (e *extDB) start(t *testing.T) bool {
 	h := e.h
 	e.dir = "/var/lib/cg-e2e-extdb"
@@ -51,7 +54,10 @@ func (e *extDB) start(t *testing.T) bool {
 		h.fail(t, "#30 control: MariaDB's server and install tools are on the box", "mariadbd %q, install-db %q", bin, install)
 		return false
 	}
-	if r := h.run("sh", "-c", fmt.Sprintf("mkdir -p %[1]s/tmp && cp -p %[2]s %[1]s/cg-e2e-mariadbd && chown -R mysql:mysql %[1]s", e.dir, bin)); !r.OK() {
+	// The server binary under the name the install looks for, the shared files
+	// and the two tools it calls beside it.
+	if r := h.run("sh", "-c", fmt.Sprintf("mkdir -p %[1]s/tmp %[1]s/base/sbin %[1]s/base/bin && cp -p %[2]s %[1]s/base/sbin/mariadbd && ln -s /usr/share %[1]s/base/share && "+
+		"for t in my_print_defaults resolveip; do p=$(command -v $t) && ln -s $p %[1]s/base/bin/$t; done; chown -R mysql:mysql %[1]s", e.dir, bin)); !r.OK() {
 		h.fail(t, "#30 control: the second instance's directory is made", "%s", r)
 		return false
 	}
@@ -59,11 +65,11 @@ func (e *extDB) start(t *testing.T) bool {
 		h.run("systemctl", "stop", "cg-e2e-extdb.service")
 		h.remove(e.dir)
 	})
-	if r := h.run(install, "--no-defaults", "--datadir="+e.dir+"/data", "--user=mysql", "--auth-root-authentication-method=normal", "--skip-test-db"); !r.OK() {
+	if r := h.run(install, "--no-defaults", "--basedir="+e.dir+"/base", "--datadir="+e.dir+"/data", "--user=mysql", "--auth-root-authentication-method=normal", "--skip-test-db"); !r.OK() {
 		h.fail(t, "#30 control: the second instance's data directory is initialised", "%s", r)
 		return false
 	}
-	if r := h.run("systemd-run", "--unit=cg-e2e-extdb", "--uid=mysql", "--collect", e.dir+"/cg-e2e-mariadbd", "--no-defaults",
+	if r := h.run("systemd-run", "--unit=cg-e2e-extdb", "--uid=mysql", "--collect", e.dir+"/base/sbin/mariadbd", "--no-defaults",
 		"--datadir="+e.dir+"/data", "--tmpdir="+e.dir+"/tmp", "--socket="+e.sock, "--pid-file="+e.dir+"/ext.pid", "--port="+fmt.Sprint(extPort),
 		"--bind-address=127.0.0.1", "--skip-name-resolve", "--innodb-buffer-pool-size=64M", "--performance-schema=OFF"); !r.OK() {
 		h.fail(t, "#30 control: the second instance starts", "%s", r)
@@ -166,16 +172,19 @@ func (h *harness) externalDatabaseServer(t *testing.T) {
 	h.assert(t, "#30: a wrong password is refused", !r.OK(), "%s", r)
 
 	// The console (a scoped account made on the server) and an export.
-	c, b = h.api.post(d.base(id)+"/database/query", map[string]any{"database": name, "sql": "SELECT id FROM t", "read_only": true})
+	c, b = h.api.post(d.base(id)+"/database/query", map[string]any{"database": name, "sql": "SELECT id FROM t"})
 	h.assert(t, "#30: the console reads the table on the external server", c == 200 && strings.Contains(string(b), `"7"`), "= %d %s", c, head(b, 300))
 	h.check(t, "#30: the console's scoped account is gone from the external server afterwards",
 		ext.run("SELECT COUNT(*) FROM mysql.global_priv WHERE User LIKE 'cgq\\_%'"), "0")
 	c, b = h.api.post(d.base(id)+"/database/export", map[string]any{"database": name})
-	exp := jsonField(b, "path")
-	h.assert(t, "#30: an export of the database is made", c == 200 && exp != "", "= %d %s", c, head(b, 300))
+	h.check(t, "#30: an export of the database is accepted", fmt.Sprint(c), "202")
+	h.check(t, "#30: its task succeeds", h.api.waitTask(taskID(b), 3*time.Minute), "succeeded")
+	// The dump is in the site's shared/exports, named after the database.
+	exp := h.run("sh", "-c", "ls -t /srv/sites/"+h.api.site(id).Domain+"/shared/exports/"+name+"-*.sql 2>/dev/null | head -1").Trim()
+	h.assert(t, "#30: the export is a file of the site", exp != "", "no %s-*.sql under shared/exports", name)
 	if exp != "" {
 		dump, _ := os.ReadFile(exp)
-		h.assert(t, "#30: it holds the rows dumped over the network", strings.Contains(string(dump), "INSERT INTO `t` VALUES (7)"), "%s", head(dump, 400))
+		h.assert(t, "#30: it holds the rows dumped over the network", regexp.MustCompile("INSERT INTO `t` (\\(`id`\\) )?VALUES\\s*\\(7\\)").Match(dump), "%s", head(dump[max(0, len(dump)-700):], 700))
 	}
 
 	// A backup (with its restore test) and a restore into the same server.

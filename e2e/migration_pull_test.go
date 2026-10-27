@@ -34,6 +34,8 @@ func (h *harness) migrationPull(t *testing.T) {
 		return code(h.api.post(fmt.Sprintf("/api/sites/%d/files/write", src), map[string]string{"path": "current/" + name, "content": content}))
 	}
 	h.check(t, "control: the old site has an index", write("index.html", "pulled from the old host\n"), "200")
+	// The file manager's write makes no folder: the folder first.
+	h.check(t, "control: and a folder", code(h.api.post(fmt.Sprintf("/api/sites/%d/files/manage", src), map[string]string{"operation": "mkdir", "path": "current/assets"})), "200")
 	h.check(t, "control: and a file in a folder", write("assets/app.css", "body{}\n"), "200")
 	password := fmt.Sprintf("e2e-pull-%d-Secret!", h.pid)
 	h.check(t, "control: the old site's SFTP takes a password",

@@ -75,7 +75,7 @@ func (e *extPG) start(t *testing.T) bool {
 		return false
 	}
 	if r := h.run("pg_createcluster", e.version, "cge2e", "-d", pgDir+"/data", "-p", fmt.Sprint(pgPort), "--start-conf=manual",
-		"-o", "listen_addresses=127.0.0.1", "-o", "ssl=on", "-o", "ssl_cert_file="+pgDir+"/server.crt", "-o", "ssl_key_file="+pgDir+"/server.key"); !r.OK() {
+		"-o", "listen_addresses=localhost", "-o", "ssl=on", "-o", "ssl_cert_file="+pgDir+"/server.crt", "-o", "ssl_key_file="+pgDir+"/server.key"); !r.OK() {
 		h.fail(t, "#81 control: the second cluster is created", "%s", r)
 		return false
 	}
@@ -226,11 +226,14 @@ func (h *harness) externalPostgresServer(t *testing.T) {
 	h.assert(t, "#81: and cannot connect to the other database either", !r.OK(), "%s", r)
 
 	// The SQL console is not there yet; an export is.
-	c, b = h.api.post(d.base(id)+"/database/query", map[string]any{"database": name, "sql": "SELECT id FROM t", "read_only": true})
+	c, b = h.api.post(d.base(id)+"/database/query", map[string]any{"database": name, "sql": "SELECT id FROM t"})
 	h.assert(t, "#81: the SQL console says it is not available for PostgreSQL yet", c == 400 && strings.Contains(string(b), "PostgreSQL"), "= %d %s", c, head(b, 300))
 	c, b = h.api.post(d.base(id)+"/database/export", map[string]any{"database": name})
-	exp := jsonField(b, "path")
-	h.assert(t, "#81: an export of the database is made", c == 200 && exp != "", "= %d %s", c, head(b, 300))
+	h.check(t, "#81: an export of the database is accepted", fmt.Sprint(c), "202")
+	h.check(t, "#81: its task succeeds", h.api.waitTask(taskID(b), 3*time.Minute), "succeeded")
+	// The dump is in the site's shared/exports, named after the database.
+	exp := h.run("sh", "-c", "ls -t /srv/sites/"+dom+"/shared/exports/"+name+"-*.sql 2>/dev/null | head -1").Trim()
+	h.assert(t, "#81: the export is a file of the site", exp != "", "no %s-*.sql under shared/exports", name)
 	if exp != "" {
 		dump, _ := os.ReadFile(exp)
 		h.assert(t, "#81: it holds the rows dumped over TLS", strings.Contains(string(dump), "COPY public.t") && strings.Contains(string(dump), "\n7\n"), "%s", head(dump, 600))

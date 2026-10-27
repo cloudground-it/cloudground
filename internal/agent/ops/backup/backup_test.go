@@ -836,6 +836,46 @@ func TestLooksLikeSQL(t *testing.T) {
 	}
 }
 
+// A PostgreSQL database with no table has no CREATE TABLE to recognise its
+// dump by (#81): an empty pg_dump is accepted by its header and its closing
+// line together, a dump that stopped before the closing line is not, and
+// neither is text that merely says so.
+func TestLooksLikeSQLPostgres(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	empty := "--\n-- PostgreSQL database dump\n--\n\n\\restrict abc123\n\nSET statement_timeout = 0;\nSET client_encoding = 'UTF8';\n\n" +
+		"--\n-- PostgreSQL database dump complete\n--\n\n\\unrestrict abc123\n\n"
+	if err := looksLikeSQL(write("empty.sql", empty)); err != nil {
+		t.Fatalf("an empty database's pg_dump was refused: %v", err)
+	}
+	// With rows, so that the header is far from the end: both ends are read.
+	big := "--\n-- PostgreSQL database dump\n--\n\nSET client_encoding = 'UTF8';\nCOPY public.t (id) FROM stdin;\n" + strings.Repeat("7\n", 100000) + "\\.\n\n" +
+		"--\n-- PostgreSQL database dump complete\n--\n"
+	if err := looksLikeSQL(write("big.sql", big)); err != nil {
+		t.Fatalf("a whole pg_dump with rows was refused: %v", err)
+	}
+	for name, body := range map[string]string{
+		"truncated.sql":    strings.Split(big, "\\.\n")[0] + "7\n7\n", // stopped in the middle of the rows
+		"truncated-empty":  strings.Split(empty, "--\n-- PostgreSQL database dump complete")[0],
+		"header-only.sql":  "--\n-- PostgreSQL database dump\n--\n",
+		"end-only.sql":     "SET x = 1;\n--\n-- PostgreSQL database dump complete\n--\n",
+		"header-later.sql": "\n\n" + empty,
+		"words.sql":        "the text -- PostgreSQL database dump -- and -- PostgreSQL database dump complete, but not a dump\n",
+		"random.txt":       strings.Repeat("lorem ipsum dolor sit amet\n", 500),
+		"end-far-away.sql": empty[:len(empty)-len("--\n-- PostgreSQL database dump complete\n--\n\n\\unrestrict abc123\n\n")] + strings.Repeat("x\n", 5000),
+	} {
+		if err := looksLikeSQL(write(name, body)); err == nil {
+			t.Errorf("%s passed as SQL", name)
+		}
+	}
+}
+
 // ------------------------------------------------------ BackupRetention --
 
 const (
