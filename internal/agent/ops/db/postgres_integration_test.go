@@ -53,7 +53,8 @@ func (g pgTarget) server() host.RemoteServer {
 // pgServers is the agent's table with one PostgreSQL server (id 5).
 type pgServers struct {
 	fakeServers
-	pg *host.PostgresAdmin
+	pg    *host.PostgresAdmin
+	admin string
 }
 
 func (s pgServers) Kind(id int64) (string, error) {
@@ -63,7 +64,7 @@ func (s pgServers) Kind(id int64) (string, error) {
 	return s.fakeServers.Kind(id)
 }
 func (s pgServers) Postgres(id int64) (*host.PostgresAdmin, error) { return s.pg, nil }
-func (s pgServers) AdminUser(int64) string                         { return "cgadmin" }
+func (s pgServers) AdminUser(int64) string                         { return s.admin }
 
 // as connects as an account of the server, verifying the certificate.
 func (g pgTarget) as(t *testing.T, user, pw, database string) *pgx.Conn {
@@ -95,7 +96,7 @@ func TestPostgresDatabasesAndAccounts(t *testing.T) {
 	f := newFixture(t)
 	pg := host.NewPostgres(g.server(), t.TempDir(), nil)
 	defer pg.Close()
-	f.o.Servers = pgServers{fakeServers: fakeServers{m: map[int64]*host.FakeMariaDB{}}, pg: pg}
+	f.o.Servers = pgServers{fakeServers: fakeServers{m: map[int64]*host.FakeMariaDB{}}, pg: pg, admin: g.user}
 	ctx := context.Background()
 	const db1, db2, rw, ro = "pgt_shop", "pgt_other", "pgt_rw", "pgt_ro"
 	cleanup := func() {

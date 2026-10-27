@@ -67,6 +67,27 @@ func pgIgnore(err error) bool {
 	return errors.As(err, &pe) && (pe.Code == "3D000" || pe.Code == "42704" || pe.Code == "42P01" || pe.Code == "42P06")
 }
 
+// pgDropDatabase drops database, ending the sessions on it. An autovacuum
+// worker on it cannot be ended by an administrator that is not a superuser
+// (42501), but it gives way to the lock the drop asks for within a moment, so
+// that one error is tried again a few times.
+func pgDropDatabase(ctx context.Context, pg *host.PostgresAdmin, database string) error {
+	var err error
+	for try := 0; try < 10; try++ {
+		err = pg.Exec(ctx, "", "DROP DATABASE IF EXISTS "+host.QuotePGIdent(database)+" WITH (FORCE)")
+		var pe *pgconn.PgError
+		if err == nil || !errors.As(err, &pe) || pe.Code != "42501" {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(time.Second):
+		}
+	}
+	return err
+}
+
 func pgExecAll(ctx context.Context, pg *host.PostgresAdmin, database string, stmts ...string) error {
 	for _, s := range stmts {
 		if err := pg.Exec(ctx, database, s); err != nil {
@@ -166,7 +187,7 @@ func (o *Ops) dropDBPG(ctx context.Context, pg *host.PostgresAdmin, name string)
 			errs = append(errs, o.revokePG(ctx, pg, user, name, level))
 		}
 	}
-	errs = append(errs, pg.Exec(ctx, "", "DROP DATABASE IF EXISTS "+host.QuotePGIdent(name)+" WITH (FORCE)"))
+	errs = append(errs, pgDropDatabase(ctx, pg, name))
 	errs = append(errs, pg.Exec(ctx, "", "DROP ROLE IF EXISTS "+host.QuotePGIdent(ownerRole(name))))
 	return errors.Join(errs...)
 }
@@ -325,6 +346,13 @@ func (o *Ops) createUserPG(ctx context.Context, p rpc.DBUserParams, pg *host.Pos
 	if err := pg.Exec(ctx, "", verb+" ROLE "+u+" LOGIN PASSWORD "+host.QuotePGLiteral(p.Password)+fmt.Sprintf(" CONNECTION LIMIT %d", defaultMaxConns)); err != nil {
 		return undo(fmt.Errorf("create the database user %s: %w", p.User, err))
 	}
+	// The administrator is made a member of the account so that it may end
+	// the account's sessions when its database is dropped (an administrator
+	// that is not a superuser may only signal sessions of roles it is a
+	// member of).
+	if err := pg.Exec(ctx, "", "GRANT "+u+" TO "+host.QuotePGIdent(o.pgAdmin(p.ServerID))); err != nil {
+		return undo(fmt.Errorf("let the administrator end the sessions of %s: %w", p.User, err))
+	}
 	if err := o.applyGrantsPG(ctx, pg, p.User, have, want); err != nil {
 		return undo(err)
 	}
@@ -340,6 +368,11 @@ func (o *Ops) dropUserPG(ctx context.Context, pg *host.PostgresAdmin, user strin
 	}
 	if err := errors.Join(errs...); err != nil {
 		return err
+	}
+	// A session of the account would outlive it (and could not be ended by
+	// an administrator that is not a superuser once the role is gone).
+	if err := pg.Exec(ctx, "", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = "+host.QuotePGLiteral(user)); err != nil {
+		return fmt.Errorf("end the sessions of %s: %w", user, err)
 	}
 	return pg.Exec(ctx, "", "DROP ROLE IF EXISTS "+host.QuotePGIdent(user))
 }
@@ -398,7 +431,7 @@ func (o *Ops) verifyPG(ctx context.Context, pg *host.PostgresAdmin, adminUser, p
 	defer func() {
 		dctx, cancel := detached(ctx, 5*time.Minute)
 		defer cancel()
-		if err := pg.Exec(dctx, "", "DROP DATABASE IF EXISTS "+host.QuotePGIdent(scratch)+" WITH (FORCE)"); err != nil {
+		if err := pgDropDatabase(dctx, pg, scratch); err != nil {
 			o.log().Warn("drop the restore-test database", "database", scratch, "err", err)
 		}
 		if err := pg.Exec(dctx, "", "DROP ROLE IF EXISTS "+host.QuotePGIdent(ownerRole(scratch))); err != nil {
