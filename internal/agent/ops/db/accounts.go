@@ -152,8 +152,12 @@ func commerce(s state.Site) bool {
 
 // userExists reports whether the server has an account of this name, from
 // any host.
-func (o *Ops) userExists(ctx context.Context, user string) (bool, error) {
-	got, err := o.MariaDB.QueryStrings(ctx, "SELECT User FROM mysql.global_priv WHERE User = ?", user)
+func (o *Ops) userExists(ctx context.Context, server int64, user string) (bool, error) {
+	m, err := o.mariaOfServer(server)
+	if err != nil {
+		return false, err
+	}
+	got, err := m.QueryStrings(ctx, "SELECT User FROM mysql.global_priv WHERE User = ?", user)
 	if err != nil {
 		return false, fmt.Errorf("look for the account %s: %w", user, err)
 	}
@@ -172,11 +176,23 @@ func (o *Ops) CreateDB(ctx context.Context, p rpc.SiteDatabaseParams) (map[strin
 	if err != nil {
 		return nil, err
 	}
+	m, err := o.mariaOfServer(p.ServerID)
+	if err != nil {
+		return nil, err
+	}
 	switch {
 	case owner != 0 && owner != p.Site.ID:
 		return nil, agentrpc.Conflict("a database called %s already exists on this server", p.Name)
+	case owner != 0:
+		have, err := reg.DatabaseServer(ctx, p.Name)
+		if err != nil {
+			return nil, err
+		}
+		if have != p.ServerID {
+			return nil, agentrpc.Conflict("%s is on another database server", p.Name)
+		}
 	case owner == 0:
-		exists, err := o.exists(ctx, p.Name)
+		exists, err := o.exists(ctx, p.ServerID, p.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -184,16 +200,23 @@ func (o *Ops) CreateDB(ctx context.Context, p rpc.SiteDatabaseParams) (map[strin
 			return nil, agentrpc.Conflict("a database called %s already exists on this server", p.Name)
 		}
 	}
-	if err := o.Tune(ctx, commerce(p.Site)); err != nil {
-		return nil, err
+	// The box's own server is tuned for the site; an external one is not
+	// ours to tune.
+	if p.ServerID == 0 {
+		if err := o.Tune(ctx, commerce(p.Site)); err != nil {
+			return nil, err
+		}
 	}
 	if err := reg.update(ctx, func(f *registryFile) error {
 		f.Databases[p.Name] = p.Site.ID
+		if p.ServerID != 0 {
+			f.Servers[p.Name] = p.ServerID
+		}
 		return nil
 	}); err != nil {
 		return nil, err
 	}
-	if err := o.MariaDB.Exec(ctx, "CREATE DATABASE IF NOT EXISTS `"+p.Name+"` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"); err != nil {
+	if err := m.Exec(ctx, "CREATE DATABASE IF NOT EXISTS `"+p.Name+"` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"); err != nil {
 		if owner == 0 {
 			o.forgetDatabase(ctx, p.Name)
 		}
@@ -206,6 +229,7 @@ func (o *Ops) CreateDB(ctx context.Context, p rpc.SiteDatabaseParams) (map[strin
 func (o *Ops) forgetDatabase(ctx context.Context, name string) {
 	err := o.registry().update(ctx, func(f *registryFile) error {
 		delete(f.Databases, name)
+		delete(f.Servers, name)
 		for _, u := range f.Users {
 			delete(u.Grants, name)
 		}
@@ -235,13 +259,17 @@ func (o *Ops) DropDB(ctx context.Context, p rpc.SiteDatabaseParams) (map[string]
 	if err != nil {
 		return nil, err
 	}
+	m, err := o.maria(ctx, name)
+	if err != nil {
+		return nil, err
+	}
 	var errs []error
 	for user, grants := range rec.Users {
 		if _, ok := grants[name]; ok {
 			errs = append(errs, o.revoke(ctx, user, name))
 		}
 	}
-	errs = append(errs, o.MariaDB.Exec(ctx, "DROP DATABASE IF EXISTS `"+name+"`"))
+	errs = append(errs, m.Exec(ctx, "DROP DATABASE IF EXISTS `"+name+"`"))
 	if err := errors.Join(errs...); err != nil {
 		return nil, fmt.Errorf("drop the database %s: %w", name, err)
 	}
@@ -252,7 +280,11 @@ func (o *Ops) DropDB(ctx context.Context, p rpc.SiteDatabaseParams) (map[string]
 // revoke takes every privilege user has on database; having none is not an
 // error.
 func (o *Ops) revoke(ctx context.Context, user, database string) error {
-	err := o.MariaDB.Exec(ctx, "REVOKE ALL PRIVILEGES ON `"+host.GrantPattern(database)+"`.* FROM ?@'localhost'", user)
+	m, err := o.maria(ctx, database)
+	if err != nil {
+		return err
+	}
+	err = m.Exec(ctx, "REVOKE ALL PRIVILEGES ON `"+host.GrantPattern(database)+"`.* FROM ?@'localhost'", user)
 	var me *mysql.MySQLError
 	if errors.As(err, &me) && (me.Number == 1141 || me.Number == 1147) {
 		return nil // there is no such grant
@@ -283,7 +315,7 @@ func (o *Ops) wantGrants(ctx context.Context, s state.Site, grants []state.DBGra
 
 // applyGrants takes user from the grants it has to want, one database at a
 // time, and records what it reached, also when a step fails.
-func (o *Ops) applyGrants(ctx context.Context, user string, have, want map[string]string) error {
+func (o *Ops) applyGrants(ctx context.Context, m host.MariaDB, user string, have, want map[string]string) error {
 	got := map[string]string{}
 	for d, l := range have {
 		got[d] = l
@@ -304,7 +336,7 @@ func (o *Ops) applyGrants(ctx context.Context, user string, have, want map[strin
 			continue
 		}
 		q := "GRANT " + privileges[want[d]] + " ON `" + host.GrantPattern(d) + "`.* TO ?@'localhost'"
-		if err := o.MariaDB.Exec(ctx, q, user); err != nil {
+		if err := m.Exec(ctx, q, user); err != nil {
 			errs = append(errs, fmt.Errorf("grant %s %s on %s: %w", user, want[d], d, err))
 			continue
 		}
@@ -349,11 +381,23 @@ func (o *Ops) CreateUser(ctx context.Context, p rpc.DBUserParams) (map[string]st
 	if err != nil {
 		return nil, err
 	}
+	m, err := o.mariaOfServer(p.ServerID)
+	if err != nil {
+		return nil, err
+	}
 	switch {
 	case owner != 0 && owner != p.Site.ID:
 		return nil, agentrpc.Conflict("a database user called %s already exists on this server", p.User)
+	case owner != 0:
+		have, err := reg.UserServer(ctx, p.User)
+		if err != nil {
+			return nil, err
+		}
+		if have != p.ServerID {
+			return nil, agentrpc.Conflict("%s is on another database server", p.User)
+		}
 	case owner == 0:
-		exists, err := o.userExists(ctx, p.User)
+		exists, err := o.userExists(ctx, p.ServerID, p.User)
 		if err != nil {
 			return nil, err
 		}
@@ -365,11 +409,14 @@ func (o *Ops) CreateUser(ctx context.Context, p rpc.DBUserParams) (map[string]st
 	if err != nil {
 		return nil, err
 	}
+	if err := o.sameServer(ctx, p.ServerID, want); err != nil {
+		return nil, err
+	}
 	var have map[string]string
 	if err := reg.update(ctx, func(f *registryFile) error {
 		u, ok := f.Users[p.User]
 		if !ok {
-			u = registryUser{Site: p.Site.ID, Grants: map[string]string{}}
+			u = registryUser{Site: p.Site.ID, Grants: map[string]string{}, Server: p.ServerID}
 		}
 		have = u.Grants
 		f.Users[p.User] = u
@@ -379,7 +426,7 @@ func (o *Ops) CreateUser(ctx context.Context, p rpc.DBUserParams) (map[string]st
 	}
 	undo := func(cause error) (map[string]string, error) {
 		if owner == 0 {
-			err := o.MariaDB.Exec(context.WithoutCancel(ctx), "DROP USER IF EXISTS ?@'localhost'", p.User)
+			err := m.Exec(context.WithoutCancel(ctx), "DROP USER IF EXISTS ?@'localhost'", p.User)
 			o.forgetUser(ctx, p.User)
 			cause = errors.Join(cause, err)
 		}
@@ -393,11 +440,11 @@ func (o *Ops) CreateUser(ctx context.Context, p rpc.DBUserParams) (map[string]st
 		{fmt.Sprintf("ALTER USER ?@'localhost' IDENTIFIED BY ? WITH MAX_USER_CONNECTIONS %d", defaultMaxConns), []any{p.User, p.Password}},
 	}
 	for _, s := range stmts {
-		if err := o.MariaDB.Exec(ctx, s.q, s.args...); err != nil {
+		if err := m.Exec(ctx, s.q, s.args...); err != nil {
 			return undo(fmt.Errorf("create the database user %s: %w", p.User, err))
 		}
 	}
-	if err := o.applyGrants(ctx, p.User, have, want); err != nil {
+	if err := o.applyGrants(ctx, m, p.User, have, want); err != nil {
 		return undo(err)
 	}
 	return map[string]string{"user": p.User}, nil
@@ -427,7 +474,11 @@ func (o *Ops) DropUser(ctx context.Context, p rpc.DBUserParams) (map[string]stri
 	if primaryUser(p.Site, p.User) {
 		return nil, agentrpc.Conflict("%s is the account the site's application signs in with", p.User)
 	}
-	if err := o.MariaDB.Exec(ctx, "DROP USER IF EXISTS ?@'localhost'", p.User); err != nil {
+	m, err := o.mariaOfUser(ctx, p.User)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.Exec(ctx, "DROP USER IF EXISTS ?@'localhost'", p.User); err != nil {
 		return nil, fmt.Errorf("drop the database user %s: %w", p.User, err)
 	}
 	o.forgetUser(ctx, p.User)
@@ -450,11 +501,22 @@ func (o *Ops) SetGrants(ctx context.Context, p rpc.DBUserParams) (map[string]str
 	if primaryUser(p.Site, p.User) && want[p.Site.Config.Database.Name] != site.GrantAll {
 		return nil, agentrpc.Invalid("%s must keep all privileges on %s, the site's primary database", p.User, p.Site.Config.Database.Name)
 	}
+	server, err := o.registry().UserServer(ctx, p.User)
+	if err != nil {
+		return nil, err
+	}
+	if err := o.sameServer(ctx, server, want); err != nil {
+		return nil, err
+	}
+	m, err := o.mariaOfServer(server)
+	if err != nil {
+		return nil, err
+	}
 	rec, err := o.registry().Site(ctx, p.Site.ID)
 	if err != nil {
 		return nil, err
 	}
-	if err := o.applyGrants(ctx, p.User, rec.Users[p.User], want); err != nil {
+	if err := o.applyGrants(ctx, m, p.User, rec.Users[p.User], want); err != nil {
 		return nil, err
 	}
 	return map[string]string{"user": p.User}, nil
@@ -470,6 +532,10 @@ func (o *Ops) SetPassword(ctx context.Context, p rpc.DBUserParams) (map[string]s
 	if err := checkPassword(p.Password); err != nil {
 		return nil, err
 	}
+	m, err := o.mariaOfUser(ctx, p.User)
+	if err != nil {
+		return nil, err
+	}
 	wire := primaryUser(p.Site, p.User) && o.PrimaryPassword != nil
 	var plugin, auth string
 	if wire {
@@ -478,7 +544,7 @@ func (o *Ops) SetPassword(ctx context.Context, p rpc.DBUserParams) (map[string]s
 			return nil, err
 		}
 	}
-	if err := o.MariaDB.Exec(ctx, "ALTER USER ?@'localhost' IDENTIFIED BY ?", p.User, p.Password); err != nil {
+	if err := m.Exec(ctx, "ALTER USER ?@'localhost' IDENTIFIED BY ?", p.User, p.Password); err != nil {
 		return nil, fmt.Errorf("change the password of %s: %w", p.User, err)
 	}
 	if wire {
@@ -521,43 +587,81 @@ func (o *Ops) List(ctx context.Context, p rpc.DBListParams) (rpc.DBListResult, e
 		return rpc.DBListResult{}, err
 	}
 	out := rpc.DBListResult{Databases: []rpc.DBInfo{}, Users: []rpc.DBUserInfo{}}
+	servers := map[string]int64{}
 	for _, d := range rec.Databases {
-		out.Databases = append(out.Databases, rpc.DBInfo{Name: d, SizeBytes: -1, Tables: -1})
+		id, err := o.registry().DatabaseServer(ctx, d)
+		if err != nil {
+			return rpc.DBListResult{}, err
+		}
+		servers[d] = id
+		out.Databases = append(out.Databases, rpc.DBInfo{Name: d, ServerID: id, SizeBytes: -1, Tables: -1})
 	}
 	for _, u := range sortedUsers(rec.Users) {
-		info := rpc.DBUserInfo{Name: u, Grants: []state.DBGrant{}}
+		id, err := o.registry().UserServer(ctx, u)
+		if err != nil {
+			return rpc.DBListResult{}, err
+		}
+		info := rpc.DBUserInfo{Name: u, ServerID: id, Grants: []state.DBGrant{}}
 		for _, d := range sortedKeys(rec.Users[u]) {
 			info.Grants = append(info.Grants, state.DBGrant{Database: d, Level: rec.Users[u][d]})
 		}
 		out.Users = append(out.Users, info)
 	}
-	if len(rec.Databases) == 0 {
-		return out, nil
-	}
-	args := make([]any, len(rec.Databases))
-	for i, d := range rec.Databases {
-		args[i] = d
-	}
-	q := "SELECT CONCAT(TABLE_SCHEMA, ' ', COUNT(*), ' ', IFNULL(SUM(DATA_LENGTH + INDEX_LENGTH), 0)) FROM information_schema.TABLES WHERE TABLE_SCHEMA IN (?" +
-		strings.Repeat(", ?", len(args)-1) + ") GROUP BY TABLE_SCHEMA"
-	rows, err := o.MariaDB.QueryStrings(ctx, q, args...)
-	if err != nil {
-		o.log().Warn("read the sizes of a site's databases", "site", p.Site.Domain, "err", err)
-		out.StatsError = "the sizes could not be read"
-		return out, nil
+	// The sizes are read from each server the site's databases are on.
+	byServer := map[int64][]string{}
+	for _, d := range rec.Databases {
+		byServer[servers[d]] = append(byServer[servers[d]], d)
 	}
 	stats := map[string][2]int64{}
-	for _, r := range rows {
-		f := strings.Fields(r)
-		if len(f) == 3 {
-			stats[f[0]] = [2]int64{atoi(f[1]), atoi(f[2])}
+	failed := map[int64]bool{}
+	for server, names := range byServer {
+		m, err := o.mariaOfServer(server)
+		var rows []string
+		if err == nil {
+			args := make([]any, len(names))
+			for i, d := range names {
+				args[i] = d
+			}
+			q := "SELECT CONCAT(TABLE_SCHEMA, ' ', COUNT(*), ' ', IFNULL(SUM(DATA_LENGTH + INDEX_LENGTH), 0)) FROM information_schema.TABLES WHERE TABLE_SCHEMA IN (?" +
+				strings.Repeat(", ?", len(args)-1) + ") GROUP BY TABLE_SCHEMA"
+			rows, err = m.QueryStrings(ctx, q, args...)
+		}
+		if err != nil {
+			o.log().Warn("read the sizes of a site's databases", "site", p.Site.Domain, "server", server, "err", err)
+			out.StatsError = "the sizes could not be read"
+			failed[server] = true
+			continue
+		}
+		for _, r := range rows {
+			f := strings.Fields(r)
+			if len(f) == 3 {
+				stats[f[0]] = [2]int64{atoi(f[1]), atoi(f[2])}
+			}
 		}
 	}
 	for i := range out.Databases {
+		if failed[out.Databases[i].ServerID] {
+			continue
+		}
 		st := stats[out.Databases[i].Name] // an empty database has no row
 		out.Databases[i].Tables, out.Databases[i].SizeBytes = st[0], st[1]
 	}
 	return out, nil
+}
+
+// sameServer refuses grants on databases of another server than the
+// account's.
+func (o *Ops) sameServer(ctx context.Context, server int64, want map[string]string) error {
+	for d := range want {
+		id, err := o.registry().DatabaseServer(ctx, d)
+		if err != nil {
+			return err
+		}
+		if id != server {
+			return agentrpc.Invalid("%s is on another database server than the account", d)
+		}
+	}
+	return nil
 }
 
 func sortedUsers(m map[string]map[string]string) []string {
@@ -594,14 +698,22 @@ func (o *Ops) DropSite(ctx context.Context, siteID int64) error {
 	}
 	var errs []error
 	for _, u := range sortedUsers(rec.Users) {
-		if err := o.MariaDB.Exec(ctx, "DROP USER IF EXISTS ?@'localhost'", u); err != nil {
+		m, err := o.mariaOfUser(ctx, u)
+		if err == nil {
+			err = m.Exec(ctx, "DROP USER IF EXISTS ?@'localhost'", u)
+		}
+		if err != nil {
 			errs = append(errs, fmt.Errorf("drop the database user %s: %w", u, err))
 			continue
 		}
 		o.forgetUser(ctx, u)
 	}
 	for _, d := range rec.Databases {
-		if err := o.MariaDB.Exec(ctx, "DROP DATABASE IF EXISTS `"+d+"`"); err != nil {
+		m, err := o.maria(ctx, d)
+		if err == nil {
+			err = m.Exec(ctx, "DROP DATABASE IF EXISTS `"+d+"`")
+		}
+		if err != nil {
 			errs = append(errs, fmt.Errorf("drop the database %s: %w", d, err))
 			continue
 		}

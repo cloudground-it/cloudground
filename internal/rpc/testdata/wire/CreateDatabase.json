@@ -2,7 +2,8 @@
   "params": {
     "full": {
       "site": "@state.Site",
-      "name": "Name"
+      "name": "Name",
+      "server_id": 7
     },
     "zero": {
       "site": "@state.Site",

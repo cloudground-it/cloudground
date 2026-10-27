@@ -161,6 +161,25 @@ var stepWhatsNew = schemaStep{version: 28, stmts: []string{
 	`ALTER TABLE users ADD COLUMN whats_new_seen TEXT NOT NULL DEFAULT ''`,
 }}
 
+// stepDBServers registers external MariaDB and MySQL servers (#30, api SPEC
+// §6.5.1) and says which one each database and account is on (0: the box's
+// own, as every row from before). A server's password is a sealed secret.
+var stepDBServers = schemaStep{version: 33, stmts: []string{
+	`CREATE TABLE db_servers (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		name       TEXT NOT NULL UNIQUE,
+		kind       TEXT NOT NULL DEFAULT 'mariadb',
+		host       TEXT NOT NULL,
+		port       INTEGER NOT NULL,
+		tls        TEXT NOT NULL DEFAULT 'required' CHECK (tls IN ('required', 'off')),
+		ca_cert    TEXT NOT NULL DEFAULT '',
+		admin_user TEXT NOT NULL,
+		created_at TEXT NOT NULL
+	)`,
+	`ALTER TABLE site_databases ADD COLUMN server_id INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE site_db_users ADD COLUMN server_id INTEGER NOT NULL DEFAULT 0`,
+}}
+
 // stepMail keeps the server-wide mail relay and the alert recipients
 // (#77, api SPEC §14) as one JSON value; the relay's password is a secret.
 var stepMail = schemaStep{version: 29, stmts: []string{

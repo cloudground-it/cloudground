@@ -52,6 +52,7 @@ var schemaSteps = []schemaStep{
 	stepPasskeys,          // 30
 	stepGitDeploy,         // 31
 	stepMCP,               // 32
+	stepDBServers,         // 33
 }
 
 // latestSchema is the version Open brings every database to.

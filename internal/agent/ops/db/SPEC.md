@@ -385,7 +385,45 @@ one named `site_<n>`). Kept rollback points in
 holding database, which after a migration cut short may be the only copy of
 a site's previous tables: it is logged by name for the operator.
 
-## 9. Not here
+## 9. External servers (#30, `servers.go`)
+
+A database or an account may be on a registered **external** MariaDB or MySQL server instead of
+the box's own (internal/api SPEC §6.5.1). Server 0 is the box's; any other id is one the panel
+pushed.
+
+- **The table.** `SetDBServers{Servers: [{id, host, port, tls, ca_cert, admin_user,
+  admin_password}]}` replaces the agent's list, in memory only (never written to disk; the
+  passwords are secrets of the panel's store). A server that disappears or changes loses its
+  adapter and open pool. `TestDBServer{Server}` connects with the credentials given, runs `SELECT
+  VERSION()`, and checks the administrator can create accounts (`SHOW GRANTS` names `ALL PRIVILEGES`
+  with `GRANT OPTION`, or `CREATE USER` and `CREATE`): `{version}`, or `invalid` with the reason.
+  A call that names a server the agent has no connection for is `unavailable`, `unknown database
+  server <id>` (the panel pushes and repeats).
+- **The record** gains the server of each database (`servers`: database → id, absent for the
+  box's) and of each account (`server`). Names stay one namespace across servers: a name any
+  site has anywhere is a conflict, as before. `CreateDatabase{ServerID}` and
+  `CreateDatabaseUser{ServerID}` record the server with the name; every later handler finds it
+  from the record, so `DropDatabase`, grants, the console, tables, export, import, backups,
+  restores and Quarry need no new parameter. A user's grants may name only databases of its own
+  server (`invalid`).
+- **Routing.** `Ops.maria(ctx, database)` is the adapter of the database's server; `mariaOfUser`
+  the account's; `scratch` databases (the staged replacement's `cgm_` and `cgh_`) are made on, and
+  routed to, the server of the database they stage (`Staged.maria`). Calls that name no database
+  (the startup sweep, `SET GLOBAL`, the tuning, the record's rebuild) are the box's.
+- **The adapter** is `host.MariaDBAdmin` with `Remote` set (host SPEC, mariadb): the same SQL, an
+  account's host part `'localhost'` read as `'%'`, TLS as the server's setting says, `REQUIRE SSL`
+  on every account made when TLS is required. An import into a database of an external server runs
+  the sandboxed client as the administrator, scoped by `--one-database`, with every `DEFINER`
+  clause rewritten to the site's account on `'%'` (a managed server rarely lets the agent read
+  `mysql.global_priv`, which borrowing a site's account needs).
+- **Not on an external server:** the startup sweep (its accounts and scratch databases are dropped
+  by the code that made them, also when it fails), `Unborrow`, tuning, the primary database.
+
+Tests: `servers_test.go` (routing by the record, the grants rule, a name in use on another server,
+an unknown server), host `TestRemoteAdapter…` (the host rewrite, `REQUIRE SSL`, the client
+arguments, the defaults file).
+
+## 10. Not here
 
 Quarry (`ops/dbstudio`). The backup's restic plumbing, the restore's
 file swap, staging's URL rewrite and the migration's tree are their own
