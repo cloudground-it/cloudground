@@ -251,8 +251,12 @@ never weaker than one: a backup it passes can be restored.
    that follows nothing. (A snapshot whose `current` was broken used to
    pass, while a restore of it was refused.)
 5. **Every dump**, one after the other: its first 4 KiB must look like SQL
-   (`CREATE TABLE` or the `MariaDB dump` header); only the head is read,
-   never the whole file. Then `ops/db.VerifyDump`: it is imported into a
+   (`CREATE TABLE` or the `MariaDB dump` header; or, for a PostgreSQL
+   database, which may have no table, a whole `pg_dump`: it starts with
+   the lines `--` and `-- PostgreSQL database dump` exactly and its last
+   4 KiB hold the closing `-- PostgreSQL database dump complete`, which
+   pg_dump writes only once it has dumped everything, so a truncated dump is
+   refused); only the two ends are read, never the whole file. Then `ops/db.VerifyDump`: it is imported into a
    throwaway `cgv_<16 hex>` database through the same sandboxed import a
    restore uses, must create at least as many tables as the database had
    at the dump (its `tables:` tag; an empty database passes with none; a
