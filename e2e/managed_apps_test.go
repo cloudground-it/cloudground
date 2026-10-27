@@ -146,9 +146,12 @@ http.createServer((req, res) => {
 				h.run("kill", "-9", strconv.Itoa(mainPID))
 			}
 			h.check(t, "#28: a killed app is started again", waitBody(ndom, "cg28-node-v1"), "")
-			after, _ := strconv.Atoi(show("NRestarts"))
-			b0, _ := strconv.Atoi(before)
-			h.assert(t, "#28: the restart is counted", after > b0, "NRestarts %s → %d", before, after)
+			// systemd starts it again (Restart=always); a reconcile of the
+			// agent running meanwhile may start it first, which NRestarts
+			// does not count: the new process is what proves it came back.
+			h.check(t, "#28: systemd restarts the app whenever it exits", show("Restart"), "always")
+			newPID, _ := strconv.Atoi(show("MainPID"))
+			h.assert(t, "#28: the app runs again in a new process", newPID > 0 && newPID != mainPID, "MainPID %d → %d (NRestarts %s → %s)", mainPID, newPID, before, show("NRestarts"))
 			c, sb := h.api.get(fmt.Sprintf("/api/sites/%d/app/status", nid))
 			h.assert(t, "#28: the panel shows the app healthy", c == 200 && strings.Contains(string(sb), `"active":true`) && strings.Contains(string(sb), `"status":200`), "%d %s", c, head(sb, 300))
 			h.assert(t, "#28: the app's output is in the site's app log", h.run("test", "-f", "/var/log/cloudground/"+ndom+"/app.log").OK(), "no app.log")

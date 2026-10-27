@@ -33,6 +33,7 @@ in the rendered comments (they are part of the output and stay with it) and
 | `AuthLogSocket` | the agent's datagram socket for failed sign-ins (#21, §4.6); empty logs none |
 | `Blocking` | the visitors the site refuses (#25, §4.7): addresses, user agents, countries already resolved to their prefixes, and this machine's addresses (never refused); nil refuses nobody |
 | `Functions` | the site's functions (#143, §4.13): each `{Name, Socket, TimeoutSec}` |
+| `FunctionsInvokeSocket` | the unix socket the agent invokes functions through (§4.13) |
 | `CloudflareInclude` | the file of Cloudflare's ranges (`<ConfDir>/cloudground-cloudflare.inc`) when the visitor's address comes from Cloudflare (#22, §4.11); empty: it does not |
 | `AppUpstream` | a managed app's address (#28, §4.12): `unix:/run/cloudground/app/<user>/app.sock` or `127.0.0.1:<port>`; empty for every other site |
 
@@ -534,9 +535,12 @@ a time; per site 32 at a time, the socket's `MaxConnections` (beyond: 503).
 
 HTTP/1.0 to the socket (nginx's default for a proxy): one request per connection, so one process
 per invocation (internal/functions SPEC §3). A visitor's `X-CloudGround-Source` is emptied: only the
-agent's own invocation, which comes from this machine, says `schedule` or `test` — nginx sets it
-again from the request only when the client is loopback (`$cg_fn_source_<id>`, a map of
-`$remote_addr` before the server blocks). A name is `^[a-z][a-z0-9-]{0,30}$` and a socket
+agent's own invocation says `schedule` or `test` — nginx sets it again from the request only when
+it came in on `FunctionsInvokeSocket` (`$cg_fn_source_<id>`, a map of `$remote_addr`, `unix:` there,
+before the server blocks). With functions and a `FunctionsInvokeSocket`, the 443 server also has
+`listen unix:<FunctionsInvokeSocket>;`: plain HTTP on a socket nginx makes 0666, in the agent's
+state directory (`/var/lib/cloudground-agent`, root's 0700), so only root, the agent, can reach it; the request gets the site's server as a visitor's does
+(its locations, limits, logs, maintenance page and passwords), without TLS on the local hop. A name is `^[a-z][a-z0-9-]{0,30}$` and a socket
 `/run/cloudground/fn/cg-site-<id>/<name>.sock`, else nothing is rendered.
 
 ## 5. Page-cache policy (`velocity.PolicyFor`)

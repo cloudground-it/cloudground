@@ -150,6 +150,25 @@ func TestUnpack(t *testing.T) {
 			t.Errorf("%s: unpacked", name)
 		}
 	}
+
+	// A chain of links, each inside the tree on paper: d/up is the tree's
+	// root, out is "d/up/.." (lexically d) but resolves above the tree. A
+	// file written through it is refused and nothing lands outside.
+	base := t.TempDir()
+	d := filepath.Join(base, "out")
+	chain := []entry{
+		{name: "top/", typ: tar.TypeDir, mode: 0o755},
+		{name: "top/d/", typ: tar.TypeDir, mode: 0o755},
+		{name: "top/d/up", typ: tar.TypeSymlink, link: ".."},
+		{name: "top/out", typ: tar.TypeSymlink, link: "d/up/.."},
+		{name: "top/out/escaped", typ: tar.TypeReg, mode: 0o644, body: "x"},
+	}
+	if err := Unpack(bytes.NewReader(tarball(t, chain...)), d); err == nil {
+		t.Error("a file through an escaping chain of links was unpacked")
+	}
+	if _, err := os.Lstat(filepath.Join(base, "escaped")); err == nil {
+		t.Error("a file landed outside the tree")
+	}
 }
 
 func TestNodeInstaller(t *testing.T) {

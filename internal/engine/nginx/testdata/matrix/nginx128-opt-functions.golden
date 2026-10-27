@@ -8,8 +8,7 @@ fastcgi_cache_path /srv/cgt/cache/c231.example.test levels=1:2 keys_zone=cg_231:
 
 map $remote_addr $cg_fn_source_231 {
     default  "";
-    127.0.0.1  $http_x_cloudground_source;
-    ::1  $http_x_cloudground_source;
+    unix:  $http_x_cloudground_source;
 }
 limit_req_zone $binary_remote_addr zone=cg_fn_req_231:1m rate=10r/s;
 limit_conn_zone $binary_remote_addr zone=cg_fn_conn_231:1m;
@@ -37,6 +36,9 @@ server {
     # among many, so the default server set up at install time holds it.
     listen 443 quic;
     listen [::]:443 quic;
+    # The agent's own invocations of the functions (SPEC §4.13), plain HTTP
+    # on a unix socket in a directory only root can enter.
+    listen unix:/var/lib/cloudground-agent/nginx-functions.sock;
     server_name c231.example.test;
     server_tokens off;
 

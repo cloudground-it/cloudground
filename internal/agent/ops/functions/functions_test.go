@@ -3,6 +3,7 @@ package functions
 import (
 	"context"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -132,14 +133,22 @@ func TestSetReleasesRollbackDelete(t *testing.T) {
 func TestInvokeAndLogs(t *testing.T) {
 	e := newEnv(t)
 	var got *http.Request
-	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// nginx's invocation socket: plain HTTP on a unix socket, no TLS.
+	sock := filepath.Join(t.TempDir(), "nginx.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got = r
 		b, _ := io.ReadAll(r.Body)
 		w.WriteHeader(201)
 		w.Write([]byte("echo:" + string(b)))
 	}))
+	srv.Listener = ln
+	srv.Start()
 	defer srv.Close()
-	e.NginxAddr = strings.TrimPrefix(srv.URL, "https://")
+	e.NginxSocket = sock
 	res, err := e.Invoke(context.Background(), rpc.InvokeFunctionParams{Site: e.site, Name: "hello", Source: "test", Body: "x", TimeoutSec: 5})
 	if err != nil || res.Status != 201 || res.Body != "echo:x" {
 		t.Fatalf("invoke %+v %v", res, err)

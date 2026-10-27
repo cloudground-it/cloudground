@@ -165,6 +165,10 @@ func (h *harness) functionsSection(t *testing.T) {
 	h.assert(t, "#143: the schedule invoked the function", sched, "no scheduled invocation within 3 minutes")
 	_, ib := h.api.post(base+"/hello/invoke", map[string]any{})
 	h.assert(t, "#143: a test run answers", strings.Contains(string(ib), `"status":200`), "%s", head(ib, 300))
+	// The agent invokes through nginx on a unix socket, in plain HTTP, in a
+	// directory only root can enter.
+	h.assert(t, "#143: the invocation socket is there", h.run("test", "-S", "/var/lib/cloudground-agent/nginx-functions.sock").OK(), "no socket")
+	h.check(t, "#143: and only root can reach it", strings.TrimSpace(h.run("stat", "-c", "%U %a", "/var/lib/cloudground-agent").Out), "root 700")
 
 	c, _ = h.api.do("DELETE", base+"/hello", nil)
 	h.check(t, "#143: the function is deleted", fmt.Sprint(c), "204")

@@ -160,6 +160,13 @@ func UnitBase(user, name string) string { return "cloudground-fn-" + user + "-" 
 func SocketUnit(user, name string) string      { return UnitBase(user, name) + ".socket" }
 func ServiceTemplate(user, name string) string { return UnitBase(user, name) + "@.service" }
 
+// InvokeSocket is where the agent reaches nginx to invoke a function
+// (internal/engine SPEC §4.13): a unix socket every site with functions
+// listens on in plain HTTP. nginx makes it 0666, so it lives in the
+// agent's state directory, root's 0700 (internal/install SPEC): only root
+// can reach it. That directory is there before nginx starts, at boot too.
+const InvokeSocket = "/var/lib/cloudground-agent/nginx-functions.sock"
+
 // SocketPath is where nginx reaches a function.
 func SocketPath(user, name string) string {
 	return filepath.Join("/run/cloudground/fn", user, name+".sock")

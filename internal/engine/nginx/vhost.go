@@ -267,11 +267,11 @@ func (v *vhost) render() (before, block, after string) {
 	v.xmlrpcMaps(&c)
 	v.maintenanceMaps(&c)
 	if len(in.Functions) > 0 {
-		// Only the agent's own invocation, from this machine, names its
-		// source (SPEC §4.13).
+		// Only the agent's own invocation, on the root-only unix socket,
+		// names its source (SPEC §4.13).
 		c.put(0, "")
 		c.putf(0, "map $remote_addr $cg_fn_source_%d {", s.ID)
-		c.put(1, `default  "";`, "127.0.0.1  $http_x_cloudground_source;", "::1  $http_x_cloudground_source;")
+		c.put(1, `default  "";`, "unix:  $http_x_cloudground_source;")
 		c.put(0, "}")
 		// One process per connection: a flood is bounded here, per client
 		// and for the whole site, before it reaches the sockets (SPEC §4.13).
@@ -319,6 +319,12 @@ func (v *vhost) render() (before, block, after string) {
 			`# "reuseport" is allowed once per address and this file is one site`,
 			"# among many, so the default server set up at install time holds it.",
 			"listen 443 quic;", "listen [::]:443 quic;")
+	}
+	if len(in.Functions) > 0 && in.FunctionsInvokeSocket != "" {
+		c.put(1,
+			"# The agent's own invocations of the functions (SPEC §4.13), plain HTTP",
+			"# on a unix socket in a directory only root can enter.",
+			"listen unix:"+in.FunctionsInvokeSocket+";")
 	}
 	c.put(1, "server_name "+names+";", "server_tokens off;")
 	if in.CloudflareInclude != "" {

@@ -157,9 +157,11 @@ func (n NodeInstaller) Install(ctx context.Context, major string) (string, error
 }
 
 // Unpack extracts a .tar.gz into dir (made 0755), without its top
-// directory (SPEC §2 step 4): absolute names, .. components, links that
+// directory (SPEC §2 step 4): absolute names, names with "..", links that
 // leave the tree and anything but files, directories and symbolic links
-// are refused; set-id bits are dropped.
+// are refused; set-id bits are dropped. Every write goes through an
+// os.Root on dir, so the kernel refuses a path that leaves it, through a
+// chain of links included.
 func Unpack(r io.Reader, dir string) error {
 	zr, err := gzip.NewReader(r)
 	if err != nil {
@@ -168,6 +170,11 @@ func Unpack(r io.Reader, dir string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
 	tr := tar.NewReader(zr)
 	for {
 		h, err := tr.Next()
@@ -177,35 +184,24 @@ func Unpack(r io.Reader, dir string) error {
 		if err != nil {
 			return err
 		}
-		name := h.Name
-		if strings.HasPrefix(name, "/") {
-			return fmt.Errorf("%q: an absolute name", name)
+		rel, err := entryPath(h.Name)
+		if err != nil {
+			return err
 		}
-		parts := strings.Split(strings.TrimSuffix(name, "/"), "/")
-		for _, p := range parts {
-			if p == ".." {
-				return fmt.Errorf("%q: a .. component", name)
-			}
-		}
-		if len(parts) < 2 {
+		if rel == "" {
 			continue // the top directory itself
 		}
-		rel := path.Join(parts[1:]...)
-		if rel == "." || rel == "" {
-			continue
-		}
-		target := filepath.Join(dir, filepath.FromSlash(rel))
 		mode := os.FileMode(h.Mode).Perm()
 		switch h.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, mode|0o700); err != nil {
+			if err := root.MkdirAll(rel, mode|0o700); err != nil {
 				return err
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			if err := root.MkdirAll(filepath.Dir(rel), 0o755); err != nil {
 				return err
 			}
-			f, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+			f, err := root.OpenFile(rel, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
 			if err != nil {
 				return err
 			}
@@ -216,23 +212,59 @@ func Unpack(r io.Reader, dir string) error {
 			if err != nil {
 				return err
 			}
-			if err := os.Chmod(target, mode); err != nil {
+			if err := root.Chmod(rel, mode); err != nil {
 				return err
 			}
 		case tar.TypeSymlink:
-			link := h.Linkname
-			resolved := path.Clean(path.Join(path.Dir(rel), link))
-			if strings.HasPrefix(link, "/") || resolved == ".." || strings.HasPrefix(resolved, "../") {
-				return fmt.Errorf("%q: a link out of the tree (%s)", name, link)
+			link, err := linkTarget(rel, h.Linkname)
+			if err != nil {
+				return fmt.Errorf("%q: %w", h.Name, err)
 			}
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			if err := root.MkdirAll(filepath.Dir(rel), 0o755); err != nil {
 				return err
 			}
-			if err := os.Symlink(link, target); err != nil {
+			if err := root.Symlink(link, rel); err != nil {
 				return err
 			}
 		default:
-			return fmt.Errorf("%q: not a file, a directory or a link", name)
+			return fmt.Errorf("%q: not a file, a directory or a link", h.Name)
 		}
 	}
+}
+
+// entryPath is an archive name without its top directory, as a local
+// path ("" for the top directory): an absolute name, or one with ".." in
+// it anywhere, is refused.
+func entryPath(name string) (string, error) {
+	if strings.HasPrefix(name, "/") || filepath.IsAbs(name) {
+		return "", fmt.Errorf("%q: an absolute name", name)
+	}
+	if strings.Contains(name, "..") {
+		return "", fmt.Errorf("%q: a name with ..", name)
+	}
+	parts := strings.Split(strings.TrimSuffix(name, "/"), "/")
+	if len(parts) < 2 {
+		return "", nil
+	}
+	rel := filepath.Clean(filepath.FromSlash(path.Join(parts[1:]...)))
+	if rel == "." {
+		return "", nil
+	}
+	if !filepath.IsLocal(rel) {
+		return "", fmt.Errorf("%q: not a path inside the tree", name)
+	}
+	return rel, nil
+}
+
+// linkTarget is a symbolic link's target, checked: relative, and inside
+// the tree once joined to the link's directory and cleaned.
+func linkTarget(rel, link string) (string, error) {
+	if link == "" || strings.HasPrefix(link, "/") || filepath.IsAbs(link) {
+		return "", fmt.Errorf("a link out of the tree (%s)", link)
+	}
+	resolved := filepath.Clean(filepath.Join(filepath.Dir(rel), filepath.FromSlash(link)))
+	if !filepath.IsLocal(resolved) {
+		return "", fmt.Errorf("a link out of the tree (%s)", link)
+	}
+	return link, nil
 }

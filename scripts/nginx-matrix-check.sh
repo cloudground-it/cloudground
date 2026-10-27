@@ -43,6 +43,8 @@ NGINX
 src=$matrix/$build
 root=/srv/cgt
 mkdir -p $root/acme $root/fallback $root/cache $root/php $root/auth
+# The functions' invocation socket lives in the agent's state directory.
+install -d -m 0700 /var/lib/cloudground-agent
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=cgt -keyout $root/fallback/key.pem -out $root/fallback/cert.pem 2>/dev/null
 n=0
 for f in "$src"/sites-enabled/*.conf; do

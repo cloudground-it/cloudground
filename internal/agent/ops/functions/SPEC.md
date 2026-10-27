@@ -49,8 +49,9 @@ release older than the live one (`conflict` when there is none), with one points
 
 ## 5. InvokeFunction
 
-An HTTPS request from the agent to nginx on `127.0.0.1:443` (SNI and `Host` the site's domain; the
-certificate is not checked: the connection never leaves the machine), `POST
+An HTTP request from the agent to nginx on `fn.InvokeSocket` (`/var/lib/cloudground-agent/nginx-functions.sock`,
+which the site's 443 server listens on when it has functions: internal/engine SPEC §4.13; only root
+can reach it, in a 0700 root directory, and the hop has no TLS, so no certificate is taken on trust), `Host` the site's domain, `POST
 /.functions/<name>` with `User-Agent: CloudGround-Functions/<source>`, `X-CloudGround-Source: <source>`
 (`schedule` or `test`; the shim puts it in the event's `source`) and the body given (at most 64
 KiB). So a scheduled or test run goes through the same nginx, socket and limits as a visitor's,

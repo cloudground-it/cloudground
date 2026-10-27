@@ -8,8 +8,7 @@ fastcgi_cache_path /srv/cgt/cache/c230.example.test levels=1:2 keys_zone=cg_230:
 
 map $remote_addr $cg_fn_source_230 {
     default  "";
-    127.0.0.1  $http_x_cloudground_source;
-    ::1  $http_x_cloudground_source;
+    unix:  $http_x_cloudground_source;
 }
 limit_req_zone $binary_remote_addr zone=cg_fn_req_230:1m rate=10r/s;
 limit_conn_zone $binary_remote_addr zone=cg_fn_conn_230:1m;
@@ -32,6 +31,9 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
     http2 on;
+    # The agent's own invocations of the functions (SPEC §4.13), plain HTTP
+    # on a unix socket in a directory only root can enter.
+    listen unix:/var/lib/cloudground-agent/nginx-functions.sock;
     server_name c230.example.test;
     server_tokens off;
 

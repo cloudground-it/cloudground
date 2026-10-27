@@ -37,9 +37,11 @@ There:
 3. The tarball (at most 128 MiB), its SHA-256 compared with the digest: another one is refused and
    nothing is unpacked. HTTPS only, the system's roots, no redirect outside `nodejs.org`.
 4. It is unpacked in Go into `node/.new-<major>-<random>`, without its top directory: an entry with
-   an absolute path, a `..` component, or a link that leads outside the tree is refused, as is
-   anything but a file, a directory or a symbolic link; modes are kept without set-id bits,
-   everything root's.
+   an absolute path, `..` anywhere in its name, or a link whose target, joined to its directory and
+   cleaned, is not local (`filepath.IsLocal`) is refused, as is anything but a file, a directory or a
+   symbolic link; modes are kept without set-id bits, everything root's. Every write goes through an
+   `os.Root` on that directory, so the kernel refuses a path that leaves it, through a chain of links
+   that are each inside on paper too.
 5. `VERSION` is written, the old `node/<major>` (if any) is renamed aside, the new one renamed into
    its place, the old one removed. A running app keeps its open binary; the next start takes the
    new one.

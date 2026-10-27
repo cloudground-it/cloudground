@@ -134,6 +134,7 @@ func (o *Ops) input(ctx context.Context, s state.Site) engine.Input {
 	}
 	for _, f := range s.Config.Functions {
 		in.Functions = append(in.Functions, engine.FunctionRoute{Name: f.Name, Socket: functions.SocketPath(s.SystemUser, f.Name), TimeoutSec: f.TimeoutSec})
+		in.FunctionsInvokeSocket = functions.InvokeSocket
 	}
 	o.probeBuild(ctx)
 	in.HTTP3, in.HTTP2Directive = o.http3, o.http2On

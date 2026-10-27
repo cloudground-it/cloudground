@@ -73,6 +73,10 @@ type Input struct {
 	CloudflareInclude string
 	// Functions are the site's functions (#143, SPEC §4.13).
 	Functions []FunctionRoute
+	// FunctionsInvokeSocket is the unix socket the 443 server also listens
+	// on, in plain HTTP, when the site has functions: the agent's own
+	// invocations come in there (SPEC §4.13).
+	FunctionsInvokeSocket string
 
 	// AppUpstream is a managed app's address (#28, SPEC §4.12):
 	// unix:<socket> or 127.0.0.1:<port>; "" for every other site.

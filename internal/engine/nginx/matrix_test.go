@@ -410,6 +410,7 @@ func matrixCases() []matrixCase {
 		in := matrixInput(id, state.SiteWordPress, state.ProfileBalanced, true)
 		for i, name := range []string{"hello", "webhook-2"} {
 			in.Functions = append(in.Functions, engine.FunctionRoute{Name: name, Socket: fmt.Sprintf("/run/cloudground/fn/cg-site-%d/%s.sock", id, name), TimeoutSec: 10 * (i + 1)})
+			in.FunctionsInvokeSocket = "/var/lib/cloudground-agent/nginx-functions.sock"
 		}
 		add(fmt.Sprintf("%s-opt-functions", b.name), b, in)
 	}

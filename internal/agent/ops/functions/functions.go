@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -45,10 +44,11 @@ type Ops struct {
 	SystemdDir, Dir, LogRoot string
 	// Installed reports whether a runtime version is on the server.
 	Installed func(runtime, version string) bool
-	// NginxAddr is where an invocation reaches nginx ("" is 127.0.0.1:443).
-	NginxAddr string
-	Now       func() time.Time
-	Log       *slog.Logger
+	// NginxSocket is where an invocation reaches nginx ("" is
+	// fn.InvokeSocket).
+	NginxSocket string
+	Now         func() time.Time
+	Log         *slog.Logger
 }
 
 // Register wires the methods into the agent's RPC server.
@@ -409,25 +409,25 @@ func (o *Ops) Rollback(_ context.Context, p rpc.FunctionRollbackParams) (rpc.Fun
 
 // Invoke is InvokeFunction (SPEC §5): through nginx, as a visitor's.
 func (o *Ops) Invoke(ctx context.Context, p rpc.InvokeFunctionParams) (rpc.InvokeResult, error) {
-	addr := o.NginxAddr
-	if addr == "" {
-		addr = "127.0.0.1:443"
+	sock := o.NginxSocket
+	if sock == "" {
+		sock = fn.InvokeSocket
 	}
 	timeout := time.Duration(max(p.TimeoutSec, 1)+10) * time.Second
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	// The site's own 443 server, on the unix socket only root reaches
+	// (internal/engine SPEC §4.13): no TLS on a hop that never leaves the
+	// machine, and so no certificate to take on trust.
 	tr := &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			var d net.Dialer
-			return d.DialContext(ctx, "tcp", addr)
+			return d.DialContext(ctx, "unix", sock)
 		},
-		// The connection never leaves the machine: the site's certificate
-		// may still be the fallback.
-		TLSClientConfig:   &tls.Config{ServerName: p.Site.Domain, InsecureSkipVerify: true}, //nolint:gosec
 		DisableKeepAlives: true,
 	}
 	c := &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://"+p.Site.Domain+"/.functions/"+p.Name, strings.NewReader(p.Body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://"+p.Site.Domain+"/.functions/"+p.Name, strings.NewReader(p.Body))
 	if err != nil {
 		return rpc.InvokeResult{}, err
 	}
