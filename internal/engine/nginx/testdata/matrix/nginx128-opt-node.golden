@@ -1,16 +1,16 @@
-## /etc/nginx/sites-enabled/c218.example.test.conf
+## /etc/nginx/sites-enabled/c227.example.test.conf
 # Managed by CloudGround — do not edit. Changes are detected as drift.
-# Site: c218.example.test (id 218, type node, profile balanced)
+# Site: c227.example.test (id 227, type node, profile balanced)
 
-# The site's own app (SPEC §4.11).
-upstream cg_app_218 {
-    server unix:/run/cloudground/app/cg-site-218/app.sock;
+# The site's own app (SPEC §4.12).
+upstream cg_app_227 {
+    server unix:/run/cloudground/app/cg-site-227/app.sock;
 }
 
 server {
     listen 80;
     listen [::]:80;
-    server_name c218.example.test;
+    server_name c227.example.test;
 
     location /.well-known/acme-challenge/ {
         root /srv/cgt/acme;
@@ -29,7 +29,7 @@ server {
     # among many, so the default server set up at install time holds it.
     listen 443 quic;
     listen [::]:443 quic;
-    server_name c218.example.test;
+    server_name c227.example.test;
     server_tokens off;
 
     # Send small responses at once. With Ubuntu's tcp_nopush and no
@@ -46,8 +46,8 @@ server {
     ssl_session_cache shared:cg_ssl:10m;
 
     # Log lines go out in 64 KiB batches, at least once a second.
-    access_log /srv/cgt/log/c218.example.test/access.log cloudground buffer=64k flush=1s;
-    error_log /srv/cgt/log/c218.example.test/error.log warn;
+    access_log /srv/cgt/log/c227.example.test/access.log cloudground buffer=64k flush=1s;
+    error_log /srv/cgt/log/c227.example.test/error.log warn;
 
     client_max_body_size 128m;
     http3 on;
@@ -57,7 +57,7 @@ server {
     add_header Alt-Svc 'h3=":443"; ma=86400' always;
 
     location / {
-        proxy_pass http://cg_app_218;
+        proxy_pass http://cg_app_227;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

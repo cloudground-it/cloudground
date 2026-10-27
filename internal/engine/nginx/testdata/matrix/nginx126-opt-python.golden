@@ -1,16 +1,16 @@
-## /etc/nginx/sites-enabled/c217.example.test.conf
+## /etc/nginx/sites-enabled/c226.example.test.conf
 # Managed by CloudGround — do not edit. Changes are detected as drift.
-# Site: c217.example.test (id 217, type python, profile balanced)
+# Site: c226.example.test (id 226, type python, profile balanced)
 
-# The site's own app (SPEC §4.11).
-upstream cg_app_217 {
+# The site's own app (SPEC §4.12).
+upstream cg_app_226 {
     server 127.0.0.1:8001;
 }
 
 server {
     listen 80;
     listen [::]:80;
-    server_name c217.example.test;
+    server_name c226.example.test;
 
     location /.well-known/acme-challenge/ {
         root /srv/cgt/acme;
@@ -24,7 +24,7 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
     http2 on;
-    server_name c217.example.test;
+    server_name c226.example.test;
     server_tokens off;
 
     # Send small responses at once. With Ubuntu's tcp_nopush and no
@@ -41,8 +41,8 @@ server {
     ssl_session_cache shared:cg_ssl:10m;
 
     # Log lines go out in 64 KiB batches, at least once a second.
-    access_log /srv/cgt/log/c217.example.test/access.log cloudground buffer=64k flush=1s;
-    error_log /srv/cgt/log/c217.example.test/error.log warn;
+    access_log /srv/cgt/log/c226.example.test/access.log cloudground buffer=64k flush=1s;
+    error_log /srv/cgt/log/c226.example.test/error.log warn;
 
     client_max_body_size 128m;
     add_header X-Content-Type-Options nosniff always;
@@ -50,7 +50,7 @@ server {
     add_header Referrer-Policy strict-origin-when-cross-origin always;
 
     location / {
-        proxy_pass http://cg_app_217;
+        proxy_pass http://cg_app_226;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

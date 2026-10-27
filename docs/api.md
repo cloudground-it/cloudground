@@ -258,7 +258,6 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `PUT` | `/api/sites/{id}/certificate/custom` | manage | install your own certificate: `{fullchain, key}` in PEM |
 | `DELETE` | `/api/sites/{id}/certificate/custom` | manage | remove it and go back to Let's Encrypt: the certificate for the site's current names is requested (`{status, task}`; `{status, warning}` without an ACME e-mail) |
 | `GET` | `/api/sites/{id}/traffic` | auth | visitor statistics from the site's access log, built on the server (no cookie, no third party): `?days=7|30|90` (7 by default) answers `days`, `hours` (the last 48), `totals`, `top_pages`, `top_not_found` and `collected_at`; each day `requests`, `pageviews`, `visitors` (per day), `bots`, `bytes`, `status_2xx`…`status_5xx`, `cache_hit`, `cache_miss`, `cache_bypass` |
-| `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache (`{"urls": […]}` for some pages only); for a site with a Cloudflare zone, Cloudflare's too (`cdn`: `purged` or `failed`, with `cdn_error`) |
 | `GET` | `/api/sites/{id}/app` | auth | a Node.js or Python site's app: `version`, `start`, `env` (plain variables), `secrets` (names only), `port` (0: the unix socket), `health_path` and the `socket` nginx proxies to |
 | `PUT` | `/api/sites/{id}/app` | manage | change the app (a field left out keeps its value; `secrets` maps a name to its value, `""` removes it, `••••••••` keeps it): the environment is written, the app restarted; 412 for a runtime version the server lacks |
 | `GET` | `/api/sites/{id}/app/status` | auth | the app's unit (`active`, `state`, `since`, `restarts`, `last_exit`) and its health probe (`health {status, ms, error}`) |
@@ -271,7 +270,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `POST` | `/api/sites/{id}/functions/{name}/rollback` | manage | put the previous release of the code back live (`{"release": …}` for a given one) |
 | `POST` | `/api/sites/{id}/functions/{name}/invoke` | manage | run the function once through nginx (`{"body": "…"}`): `{status, ms, body, error}` |
 | `GET` | `/api/sites/{id}/functions/{name}/logs` | auth | the function's recent `invocations` (time, method, status, ms, source) and its `output` |
-| `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache |
+| `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache (`{"urls": […]}` for some pages only); for a site with a Cloudflare zone, Cloudflare's too (`cdn`: `purged` or `failed`, with `cdn_error`) |
 | `POST` | `/api/sites/{id}/warm` | manage | fill the page cache from the sitemap |
 | `GET` | `/api/sites/{id}/wp/cleanup` | auth | the scheduled database cleanup of a WordPress site: `enabled`, `keep_revisions`, `last_run`, `next_run` and whether `backups_ready` |
 | `PUT` | `/api/sites/{id}/wp/cleanup` | manage | turn the weekly cleanup (expired transients deleted, revisions trimmed to `keep_revisions` per post, 1–100) on or off (`{"enabled": true, "keep_revisions": 5}`); 412 turning it on without backups configured |

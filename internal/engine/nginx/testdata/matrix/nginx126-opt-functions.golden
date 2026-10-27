@@ -1,24 +1,24 @@
-## /etc/nginx/conf.d/cloudground-cache-221.conf
-# Written by CloudGround: page-cache zone of c221.example.test (site 221).
-fastcgi_cache_path /srv/cgt/cache/c221.example.test levels=1:2 keys_zone=cg_221:32m
+## /etc/nginx/conf.d/cloudground-cache-230.conf
+# Written by CloudGround: page-cache zone of c230.example.test (site 230).
+fastcgi_cache_path /srv/cgt/cache/c230.example.test levels=1:2 keys_zone=cg_230:32m
                    max_size=1024m inactive=604800s use_temp_path=off;
-## /etc/nginx/sites-enabled/c221.example.test.conf
+## /etc/nginx/sites-enabled/c230.example.test.conf
 # Managed by CloudGround — do not edit. Changes are detected as drift.
-# Site: c221.example.test (id 221, type wordpress, profile balanced)
+# Site: c230.example.test (id 230, type wordpress, profile balanced)
 
-map $remote_addr $cg_fn_source_221 {
+map $remote_addr $cg_fn_source_230 {
     default  "";
     127.0.0.1  $http_x_cloudground_source;
     ::1  $http_x_cloudground_source;
 }
-limit_req_zone $binary_remote_addr zone=cg_fn_req_221:1m rate=10r/s;
-limit_conn_zone $binary_remote_addr zone=cg_fn_conn_221:1m;
-limit_conn_zone $server_port zone=cg_fn_all_221:1m;
+limit_req_zone $binary_remote_addr zone=cg_fn_req_230:1m rate=10r/s;
+limit_conn_zone $binary_remote_addr zone=cg_fn_conn_230:1m;
+limit_conn_zone $server_port zone=cg_fn_all_230:1m;
 
 server {
     listen 80;
     listen [::]:80;
-    server_name c221.example.test;
+    server_name c230.example.test;
 
     location /.well-known/acme-challenge/ {
         root /srv/cgt/acme;
@@ -32,7 +32,7 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
     http2 on;
-    server_name c221.example.test;
+    server_name c230.example.test;
     server_tokens off;
 
     # Send small responses at once. With Ubuntu's tcp_nopush and no
@@ -49,8 +49,8 @@ server {
     ssl_session_cache shared:cg_ssl:10m;
 
     # Log lines go out in 64 KiB batches, at least once a second.
-    access_log /srv/cgt/log/c221.example.test/access.log cloudground buffer=64k flush=1s;
-    error_log /srv/cgt/log/c221.example.test/error.log warn;
+    access_log /srv/cgt/log/c230.example.test/access.log cloudground buffer=64k flush=1s;
+    error_log /srv/cgt/log/c230.example.test/error.log warn;
     # A failed WordPress sign-in also goes to the agent, which counts it
     # towards blocking the address (SPEC §4.6). Unbuffered, and only the
     # requests the connector marked: every other request logs nothing here.
@@ -61,19 +61,19 @@ server {
     add_header X-Frame-Options SAMEORIGIN always;
     add_header Referrer-Policy strict-origin-when-cross-origin always;
 
-    # The site's functions (SPEC §4.12): one process per request, over a socket.
+    # The site's functions (SPEC §4.13): one process per request, over a socket.
     location = /.functions/hello {
-        proxy_pass http://unix:/run/cloudground/fn/cg-site-221/hello.sock:;
+        proxy_pass http://unix:/run/cloudground/fn/cg-site-230/hello.sock:;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-CloudGround-Source $cg_fn_source_221;
+        proxy_set_header X-CloudGround-Source $cg_fn_source_230;
         proxy_read_timeout 15s;
         client_max_body_size 6m;
-        limit_req zone=cg_fn_req_221 burst=20 nodelay;
-        limit_conn cg_fn_conn_221 8;
-        limit_conn cg_fn_all_221 32;
+        limit_req zone=cg_fn_req_230 burst=20 nodelay;
+        limit_conn cg_fn_conn_230 8;
+        limit_conn cg_fn_all_230 32;
         limit_req_status 429;
         limit_conn_status 503;
         add_header X-Content-Type-Options nosniff always;
@@ -81,17 +81,17 @@ server {
         add_header Referrer-Policy strict-origin-when-cross-origin always;
     }
     location ^~ /.functions/hello/ {
-        proxy_pass http://unix:/run/cloudground/fn/cg-site-221/hello.sock:;
+        proxy_pass http://unix:/run/cloudground/fn/cg-site-230/hello.sock:;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-CloudGround-Source $cg_fn_source_221;
+        proxy_set_header X-CloudGround-Source $cg_fn_source_230;
         proxy_read_timeout 15s;
         client_max_body_size 6m;
-        limit_req zone=cg_fn_req_221 burst=20 nodelay;
-        limit_conn cg_fn_conn_221 8;
-        limit_conn cg_fn_all_221 32;
+        limit_req zone=cg_fn_req_230 burst=20 nodelay;
+        limit_conn cg_fn_conn_230 8;
+        limit_conn cg_fn_all_230 32;
         limit_req_status 429;
         limit_conn_status 503;
         add_header X-Content-Type-Options nosniff always;
@@ -99,17 +99,17 @@ server {
         add_header Referrer-Policy strict-origin-when-cross-origin always;
     }
     location = /.functions/webhook-2 {
-        proxy_pass http://unix:/run/cloudground/fn/cg-site-221/webhook-2.sock:;
+        proxy_pass http://unix:/run/cloudground/fn/cg-site-230/webhook-2.sock:;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-CloudGround-Source $cg_fn_source_221;
+        proxy_set_header X-CloudGround-Source $cg_fn_source_230;
         proxy_read_timeout 25s;
         client_max_body_size 6m;
-        limit_req zone=cg_fn_req_221 burst=20 nodelay;
-        limit_conn cg_fn_conn_221 8;
-        limit_conn cg_fn_all_221 32;
+        limit_req zone=cg_fn_req_230 burst=20 nodelay;
+        limit_conn cg_fn_conn_230 8;
+        limit_conn cg_fn_all_230 32;
         limit_req_status 429;
         limit_conn_status 503;
         add_header X-Content-Type-Options nosniff always;
@@ -117,17 +117,17 @@ server {
         add_header Referrer-Policy strict-origin-when-cross-origin always;
     }
     location ^~ /.functions/webhook-2/ {
-        proxy_pass http://unix:/run/cloudground/fn/cg-site-221/webhook-2.sock:;
+        proxy_pass http://unix:/run/cloudground/fn/cg-site-230/webhook-2.sock:;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-CloudGround-Source $cg_fn_source_221;
+        proxy_set_header X-CloudGround-Source $cg_fn_source_230;
         proxy_read_timeout 25s;
         client_max_body_size 6m;
-        limit_req zone=cg_fn_req_221 burst=20 nodelay;
-        limit_conn cg_fn_conn_221 8;
-        limit_conn cg_fn_all_221 32;
+        limit_req zone=cg_fn_req_230 burst=20 nodelay;
+        limit_conn cg_fn_conn_230 8;
+        limit_conn cg_fn_all_230 32;
         limit_req_status 429;
         limit_conn_status 503;
         add_header X-Content-Type-Options nosniff always;
@@ -135,7 +135,7 @@ server {
         add_header Referrer-Policy strict-origin-when-cross-origin always;
     }
 
-    root /srv/cgt/sites/c221.example.test/current;
+    root /srv/cgt/sites/c230.example.test/current;
     index index.php index.html index.htm;
     disable_symlinks if_not_owner from=$document_root;
 
@@ -172,18 +172,18 @@ server {
 
     # Who skips the page cache: POSTs, query strings, the session cookies
     # and the paths below (logins, carts, the admin) are always rendered.
-    set $cg_skip_221 0;
+    set $cg_skip_230 0;
     if ($request_method = POST) {
-        set $cg_skip_221 1;
+        set $cg_skip_230 1;
     }
     if ($cg_args_bypass) {
-        set $cg_skip_221 1;
+        set $cg_skip_230 1;
     }
     if ($http_cookie ~* "wordpress_logged_in_|wp-postpass_|comment_author_|woocommerce_cart_hash|woocommerce_items_in_cart|wp_woocommerce_session_") {
-        set $cg_skip_221 1;
+        set $cg_skip_230 1;
     }
     if ($request_uri ~* "^/wp-admin([/?]|$)|^/wp-login\.php([/?]|$)|^/wp-cron\.php([/?]|$)|^/xmlrpc\.php([/?]|$)|^/wp-json/|^/feed([/?]|$)") {
-        set $cg_skip_221 1;
+        set $cg_skip_230 1;
     }
 
     location ~ \.php$ {
@@ -191,7 +191,7 @@ server {
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         fastcgi_param HTTPS on;
-        fastcgi_pass unix:/srv/cgt/php/cg-site-221/php.sock;
+        fastcgi_pass unix:/srv/cgt/php/cg-site-230/php.sock;
         fastcgi_read_timeout 120s;
         fastcgi_buffers 16 32k;
         fastcgi_buffer_size 64k;
@@ -204,13 +204,13 @@ server {
         gunzip on;
         # After a purge an open descriptor may serve the old file for 1s at most.
         open_file_cache_valid 1s;
-        fastcgi_cache cg_221;
+        fastcgi_cache cg_230;
         fastcgi_cache_key "$scheme$request_method$host$cg_key";
         fastcgi_cache_valid 200 301 600s;
         fastcgi_cache_valid 404 60s;
         fastcgi_cache_methods GET HEAD;
-        fastcgi_cache_bypass $cg_skip_221 $cg_private_req;
-        fastcgi_no_cache $cg_skip_221 $cg_no_store $cg_private_req;
+        fastcgi_cache_bypass $cg_skip_230 $cg_private_req;
+        fastcgi_no_cache $cg_skip_230 $cg_no_store $cg_private_req;
         # One request renders a missing page; the others wait for it.
         fastcgi_cache_lock on;
         fastcgi_cache_lock_timeout 5s;
