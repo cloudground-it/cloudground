@@ -93,7 +93,19 @@
     "twoFactorHint": "Introduce el código de tu app de autenticación.",
     "verify": "Verificar",
     "firstName": "Nombre",
-    "lastName": "Apellidos"
+    "lastName": "Apellidos",
+    "recoveryCode": "Código de recuperación",
+    "recoveryHint": "Introduce uno de los códigos de recuperación que guardaste al activar la verificación en dos pasos. Cada uno sirve una sola vez.",
+    "passkeyHint": "Confirma con tu llave de acceso para terminar de iniciar sesión.",
+    "usePasskey": "Usar una llave de acceso",
+    "useCode": "Usar la app de autenticación",
+    "useRecoveryCode": "Usar un código de recuperación",
+    "signInPasskey": "Iniciar sesión con una llave de acceso",
+    "or": "o",
+    "passkeyCancelled": "La solicitud de la llave de acceso se cerró antes de terminar.",
+    "passkeyFailed": "No se ha podido verificar esa llave de acceso para este panel.",
+    "passwordOff": "El inicio de sesión con contraseña está desactivado para esta cuenta: inicia sesión con una llave de acceso.",
+    "passkeyElsewhere": "El segundo factor de esta cuenta es una llave de acceso, que solo funciona si abres el panel en su dominio por HTTPS."
   },
   "alerts": {
     "description": "Lo que requiere atención, actualizado cada minuto.",
@@ -1100,7 +1112,11 @@
     "created": "Creado",
     "actions": "Acciones",
     "delete": "Eliminar",
-    "noName": "Sin nombre"
+    "noName": "Sin nombre",
+    "reset2fa": "Restablecer la verificación en dos pasos",
+    "reset2faTitle": "¿Restablecer la verificación en dos pasos de {email}?",
+    "reset2faHint": "Se quitan la app de autenticación, las llaves de acceso y los códigos de recuperación, y se cierran todas sus sesiones. Entra con su contraseña y la vuelve a configurar.",
+    "reset2faDone": "Verificación en dos pasos restablecida"
   },
   "audit": {
     "action": "Acción",
@@ -1162,7 +1178,38 @@
     "tokenRevoked": "Token revocado",
     "tokenMade": "creado {when}",
     "enrolRequired": "Configura la autenticación de dos factores para continuar",
-    "enrolRequiredHint": "Este panel exige 2FA a los administradores. Hasta que la actives solo está disponible esta página; el perfil, la contraseña y los tokens de API vuelven en cuanto la 2FA esté activa."
+    "enrolRequiredHint": "Este panel exige la verificación en dos pasos para tu cuenta. Hasta que la configures, con una app de autenticación o una llave de acceso, solo está disponible esta página.",
+    "passkeys": "Llaves de acceso",
+    "passkeysHint": "Inicia sesión con tu huella, tu cara o el PIN del dispositivo. Una llave de acceso solo funciona en el dominio de este panel, así que no se puede robar con phishing. Úsala después de la contraseña o sola.",
+    "passkeysElsewhere": "Las llaves de acceso funcionan si abres el panel en su dominio por HTTPS, no en su dirección IP.",
+    "passkeyName": "Nombre",
+    "passkeyAdd": "Añadir una llave de acceso",
+    "passkeyAdded": "Llave de acceso añadida",
+    "passkeySynced": "sincronizada",
+    "passkeyRemoveTitle": "¿Quitar la llave de acceso {name}?",
+    "passkeyRemoveHint": "Dejará de servir para entrar en este panel. Tus otras sesiones se cierran.",
+    "passkeyRemoved": "Llave de acceso quitada",
+    "remove": "Quitar",
+    "passwordSignIn": "Inicio de sesión con contraseña",
+    "passwordSignInOnHint": "Activado: tu contraseña permite entrar, seguida de un segundo factor.",
+    "passwordSignInOffNow": "Desactivado: solo tus llaves de acceso permiten entrar en esta cuenta.",
+    "passwordSignInTurnOff": "Desactivar",
+    "passwordSignInTurnOn": "Activar",
+    "passwordSignInOffTitle": "¿Iniciar sesión solo con llaves de acceso?",
+    "passwordSignInOffHint": "Tu contraseña dejará de servir para entrar. Ten más de una llave de acceso: si las pierdes todas, un administrador o el propietario del servidor tendrá que restablecer tu cuenta.",
+    "passwordSignInOnTitle": "¿Volver a activar el inicio de sesión con contraseña?",
+    "passwordSignInOn": "Inicio de sesión con contraseña activado",
+    "passwordSignInOff": "Inicio de sesión con contraseña desactivado",
+    "codes": "Códigos de recuperación",
+    "codesHint": "Códigos de un solo uso para cuando no tengas a mano el teléfono o las llaves de acceso. Guárdalos en un lugar seguro, lejos de este dispositivo.",
+    "codesLeft": "quedan {n}",
+    "codesNew": "Generar códigos nuevos",
+    "codesMade": "Códigos de recuperación nuevos generados",
+    "codesOnce": "Guarda ahora tus códigos de recuperación: no se volverán a mostrar.",
+    "codesOnceHint": "Cada código permite entrar una vez en lugar del segundo factor. Generar otros nuevos anula estos.",
+    "codesDownload": "Descargar",
+    "codesStored": "Ya los he guardado",
+    "codesFile": "Códigos de recuperación: cada uno sirve una sola vez."
   },
   "settings": {
     "access": "Acceso",
@@ -1190,8 +1237,8 @@
     "repoPasswordHint": "Perder esta contraseña significa perder las copias de seguridad.",
     "repository": "Repositorio",
     "repositoryHint": "S3, Cloudflare R2, Backblaze B2, SFTP o una carpeta local.",
-    "require2fa": "Exigir 2FA a los administradores",
-    "require2faHint": "Un administrador sin 2FA solo ve su página de Seguridad hasta que lo configure, así nadie se queda fuera.",
+    "require2fa": "Exigir la verificación en dos pasos",
+    "require2faHint": "Una cuenta que debe tenerla y no la tiene solo ve su página Seguridad hasta que la configura: nadie se queda fuera.",
     "securePanel": "Proteger el panel con Let's Encrypt",
     "testRepo": "Probar conexión",
     "updateChannel": "Canal de actualizaciones",
@@ -1208,7 +1255,10 @@
     "vulnCheck": "Buscar vulnerabilidades conocidas en los sitios WordPress",
     "vulnCheckHint": "Una vez al día, las versiones del núcleo, los plugins y los temas de cada sitio WordPress se buscan en la base de datos pública WPVulnerability. Solo se envían nombres y versiones, nunca el sitio.",
     "malwareScan": "Analizar cada semana los archivos de los sitios en busca de malware",
-    "malwareScanHint": "Cada sitio a una hora propia, con ClamAV iniciado solo para el análisis, en el sandbox del sitio. El primer análisis instala ClamAV y sus firmas (unos 300 MB de disco)."
+    "malwareScanHint": "Cada sitio a una hora propia, con ClamAV iniciado solo para el análisis, en el sandbox del sitio. El primer análisis instala ClamAV y sus firmas (unos 300 MB de disco).",
+    "require2faOff": "No exigida",
+    "require2faAdmins": "Para los administradores",
+    "require2faAll": "Para todas las cuentas"
   },
   "editor": {
     "close": "Cerrar",
@@ -1820,5 +1870,9 @@
     "quarantineTitle": "¿Poner {path} en cuarentena?",
     "quarantineHint": "El archivo se quita del sitio y se guarda en el servidor, legible solo por root. Si el sitio lo usa, dejará de funcionar donde lo necesite.",
     "quarantined": "{path} puesto en cuarentena"
+  },
+  "proof": {
+    "factorHint": "Después confirma con un segundo factor.",
+    "passkeyOnly": "Confirma con una llave de acceso que compruebe que eres tú: huella, cara o PIN del dispositivo."
   }
 }

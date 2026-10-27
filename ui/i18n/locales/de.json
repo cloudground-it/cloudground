@@ -93,7 +93,19 @@
     "twoFactorHint": "Gib den Code aus deiner Authenticator-App ein.",
     "verify": "Bestätigen",
     "firstName": "Vorname",
-    "lastName": "Nachname"
+    "lastName": "Nachname",
+    "recoveryCode": "Wiederherstellungscode",
+    "recoveryHint": "Gib einen der Wiederherstellungscodes ein, die du beim Einrichten der Zwei-Faktor-Authentifizierung gespeichert hast. Jeder funktioniert nur einmal.",
+    "passkeyHint": "Bestätige mit deinem Passkey, um die Anmeldung abzuschließen.",
+    "usePasskey": "Passkey verwenden",
+    "useCode": "Authenticator-App verwenden",
+    "useRecoveryCode": "Wiederherstellungscode verwenden",
+    "signInPasskey": "Mit Passkey anmelden",
+    "or": "oder",
+    "passkeyCancelled": "Die Passkey-Abfrage wurde geschlossen, bevor sie fertig war.",
+    "passkeyFailed": "Dieser Passkey konnte für dieses Panel nicht geprüft werden.",
+    "passwordOff": "Die Anmeldung mit Passwort ist für dieses Konto ausgeschaltet: Melde dich mit einem Passkey an.",
+    "passkeyElsewhere": "Der zweite Faktor dieses Kontos ist ein Passkey. Er funktioniert nur, wenn du das Panel über seine Domain per HTTPS öffnest."
   },
   "alerts": {
     "description": "Was Aufmerksamkeit braucht, jede Minute aktualisiert.",
@@ -1100,7 +1112,11 @@
     "created": "Erstellt",
     "actions": "Aktionen",
     "delete": "Löschen",
-    "noName": "Kein Name"
+    "noName": "Kein Name",
+    "reset2fa": "Zwei-Faktor-Authentifizierung zurücksetzen",
+    "reset2faTitle": "Zwei-Faktor-Authentifizierung von {email} zurücksetzen?",
+    "reset2faHint": "Authenticator-App, Passkeys und Wiederherstellungscodes werden entfernt und alle Sitzungen abgemeldet. Die Person meldet sich mit ihrem Passwort an und richtet sie neu ein.",
+    "reset2faDone": "Zwei-Faktor-Authentifizierung zurückgesetzt"
   },
   "audit": {
     "action": "Aktion",
@@ -1162,7 +1178,38 @@
     "tokenRevoked": "Token widerrufen",
     "tokenMade": "erstellt {when}",
     "enrolRequired": "Richten Sie die Zwei-Faktor-Authentifizierung ein, um fortzufahren",
-    "enrolRequiredHint": "Dieses Panel verlangt 2FA für Administratoren. Bis Sie sie einrichten, ist nur diese Seite verfügbar; Profil, Passwort und API-Tokens sind wieder da, sobald 2FA aktiv ist."
+    "enrolRequiredHint": "Dieses Panel verlangt für dein Konto die Zwei-Faktor-Authentifizierung. Bis du sie mit einer Authenticator-App oder einem Passkey eingerichtet hast, ist nur diese Seite verfügbar.",
+    "passkeys": "Passkeys",
+    "passkeysHint": "Melde dich mit Fingerabdruck, Gesicht oder Geräte-PIN an. Ein Passkey funktioniert nur auf der Domain dieses Panels und lässt sich deshalb nicht abfischen. Nutze ihn nach dem Passwort oder allein.",
+    "passkeysElsewhere": "Passkeys funktionieren, wenn du das Panel über seine Domain per HTTPS öffnest, nicht über seine IP-Adresse.",
+    "passkeyName": "Name",
+    "passkeyAdd": "Passkey hinzufügen",
+    "passkeyAdded": "Passkey hinzugefügt",
+    "passkeySynced": "synchronisiert",
+    "passkeyRemoveTitle": "Passkey {name} entfernen?",
+    "passkeyRemoveHint": "Er meldet dich nicht mehr bei diesem Panel an. Deine anderen Sitzungen werden abgemeldet.",
+    "passkeyRemoved": "Passkey entfernt",
+    "remove": "Entfernen",
+    "passwordSignIn": "Anmeldung mit Passwort",
+    "passwordSignInOnHint": "An: Dein Passwort meldet dich an, gefolgt von einem zweiten Faktor.",
+    "passwordSignInOffNow": "Aus: Nur deine Passkeys melden dich bei diesem Konto an.",
+    "passwordSignInTurnOff": "Ausschalten",
+    "passwordSignInTurnOn": "Einschalten",
+    "passwordSignInOffTitle": "Nur noch mit Passkeys anmelden?",
+    "passwordSignInOffHint": "Dein Passwort meldet dich dann nicht mehr an. Behalte mehr als einen Passkey: Verlierst du alle, muss ein Administrator oder der Besitzer des Servers dein Konto zurücksetzen.",
+    "passwordSignInOnTitle": "Anmeldung mit Passwort wieder einschalten?",
+    "passwordSignInOn": "Anmeldung mit Passwort eingeschaltet",
+    "passwordSignInOff": "Anmeldung mit Passwort ausgeschaltet",
+    "codes": "Wiederherstellungscodes",
+    "codesHint": "Einmalcodes für den Fall, dass dein Telefon oder deine Passkeys nicht zur Hand sind. Bewahre sie sicher auf, getrennt von diesem Gerät.",
+    "codesLeft": "noch {n}",
+    "codesNew": "Neue Codes erzeugen",
+    "codesMade": "Neue Wiederherstellungscodes erzeugt",
+    "codesOnce": "Speichere deine Wiederherstellungscodes jetzt: Sie werden nicht noch einmal angezeigt.",
+    "codesOnceHint": "Jeder Code ersetzt einmal deinen zweiten Faktor bei der Anmeldung. Neue Codes machen diese ungültig.",
+    "codesDownload": "Herunterladen",
+    "codesStored": "Gespeichert",
+    "codesFile": "Wiederherstellungscodes: Jeder funktioniert nur einmal."
   },
   "settings": {
     "access": "Zugang",
@@ -1190,8 +1237,8 @@
     "repoPasswordHint": "Wer dieses Passwort verliert, verliert die Backups.",
     "repository": "Repository",
     "repositoryHint": "S3, Cloudflare R2, Backblaze B2, SFTP oder ein lokaler Ordner.",
-    "require2fa": "2FA für Administratoren verlangen",
-    "require2faHint": "Ein Administrator ohne 2FA sieht nur seine Sicherheitsseite, bis er sie einrichtet, damit niemand ausgesperrt wird.",
+    "require2fa": "Zwei-Faktor-Authentifizierung verlangen",
+    "require2faHint": "Ein Konto, das sie haben muss und nicht hat, sieht nur seine Sicherheitsseite, bis es sie einrichtet: So wird niemand ausgesperrt.",
     "securePanel": "Panel mit Let's Encrypt absichern",
     "testRepo": "Verbindung testen",
     "updateChannel": "Update-Kanal",
@@ -1208,7 +1255,10 @@
     "vulnCheck": "WordPress-Websites auf bekannte Sicherheitslücken prüfen",
     "vulnCheckHint": "Einmal am Tag werden die Versionen von Core, Plugins und Themes jeder WordPress-Website in der öffentlichen Datenbank WPVulnerability nachgeschlagen. Gesendet werden nur Namen und Versionen, nie die Website.",
     "malwareScan": "Dateien der Websites jede Woche auf Schadsoftware prüfen",
-    "malwareScanHint": "Jede Website zu einer eigenen Stunde, mit ClamAV nur für den Scan gestartet, in der Sandbox der Website. Der erste Scan installiert ClamAV und seine Signaturen (etwa 300 MB Speicherplatz)."
+    "malwareScanHint": "Jede Website zu einer eigenen Stunde, mit ClamAV nur für den Scan gestartet, in der Sandbox der Website. Der erste Scan installiert ClamAV und seine Signaturen (etwa 300 MB Speicherplatz).",
+    "require2faOff": "Nicht verlangt",
+    "require2faAdmins": "Für Administratoren",
+    "require2faAll": "Für alle Konten"
   },
   "editor": {
     "close": "Schließen",
@@ -1820,5 +1870,9 @@
     "quarantineTitle": "{path} in Quarantäne verschieben?",
     "quarantineHint": "Die Datei wird aus der Website entfernt und auf dem Server aufbewahrt, nur für root lesbar. Wenn die Website sie verwendet, funktioniert sie dort nicht mehr.",
     "quarantined": "{path} in Quarantäne verschoben"
+  },
+  "proof": {
+    "factorHint": "Bestätige dann mit einem zweiten Faktor.",
+    "passkeyOnly": "Bestätige mit einem Passkey, der prüft, dass du es bist: Fingerabdruck, Gesicht oder Geräte-PIN."
   }
 }

@@ -93,7 +93,19 @@
     "twoFactorHint": "Inserisci il codice della tua app di autenticazione.",
     "verify": "Verifica",
     "firstName": "Nome",
-    "lastName": "Cognome"
+    "lastName": "Cognome",
+    "recoveryCode": "Codice di recupero",
+    "recoveryHint": "Inserisci uno dei codici di recupero che hai salvato quando hai attivato la verifica in due passaggi. Ognuno vale una volta sola.",
+    "passkeyHint": "Conferma con la tua passkey per completare l’accesso.",
+    "usePasskey": "Usa una passkey",
+    "useCode": "Usa l’app di autenticazione",
+    "useRecoveryCode": "Usa un codice di recupero",
+    "signInPasskey": "Accedi con una passkey",
+    "or": "oppure",
+    "passkeyCancelled": "La richiesta della passkey è stata chiusa prima di finire.",
+    "passkeyFailed": "Non è stato possibile verificare questa passkey per questo pannello.",
+    "passwordOff": "L’accesso con password è disattivato per questo account: accedi con una passkey.",
+    "passkeyElsewhere": "Il secondo fattore di questo account è una passkey, che funziona solo aprendo il pannello dal suo dominio in HTTPS."
   },
   "alerts": {
     "description": "Cosa richiede attenzione, aggiornato ogni minuto.",
@@ -1100,7 +1112,11 @@
     "created": "Creato",
     "actions": "Azioni",
     "delete": "Elimina",
-    "noName": "Senza nome"
+    "noName": "Senza nome",
+    "reset2fa": "Reimposta la verifica in due passaggi",
+    "reset2faTitle": "Reimpostare la verifica in due passaggi di {email}?",
+    "reset2faHint": "App di autenticazione, passkey e codici di recupero vengono rimossi e tutte le sessioni chiuse. L’utente accede con la password e la configura di nuovo.",
+    "reset2faDone": "Verifica in due passaggi reimpostata"
   },
   "audit": {
     "action": "Azione",
@@ -1162,7 +1178,38 @@
     "tokenRevoked": "Token revocato",
     "tokenMade": "creato {when}",
     "enrolRequired": "Configura l'autenticazione a due fattori per continuare",
-    "enrolRequiredHint": "Questo pannello richiede la 2FA per gli amministratori. Finché non la attivi è disponibile solo questa pagina; profilo, password e token API tornano appena la 2FA è attiva."
+    "enrolRequiredHint": "Questo pannello richiede la verifica in due passaggi per il tuo account. Finché non la configuri, con un’app di autenticazione o una passkey, è disponibile solo questa pagina.",
+    "passkeys": "Passkey",
+    "passkeysHint": "Accedi con impronta, volto o PIN del dispositivo. Una passkey funziona solo sul dominio di questo pannello, quindi non può essere rubata con il phishing. Usala dopo la password o da sola.",
+    "passkeysElsewhere": "Le passkey funzionano aprendo il pannello dal suo dominio in HTTPS, non dal suo indirizzo IP.",
+    "passkeyName": "Nome",
+    "passkeyAdd": "Aggiungi una passkey",
+    "passkeyAdded": "Passkey aggiunta",
+    "passkeySynced": "sincronizzata",
+    "passkeyRemoveTitle": "Rimuovere la passkey {name}?",
+    "passkeyRemoveHint": "Non darà più accesso a questo pannello. Le tue altre sessioni vengono chiuse.",
+    "passkeyRemoved": "Passkey rimossa",
+    "remove": "Rimuovi",
+    "passwordSignIn": "Accesso con password",
+    "passwordSignInOnHint": "Attivo: la password dà accesso, seguita da un secondo fattore.",
+    "passwordSignInOffNow": "Disattivo: solo le tue passkey danno accesso a questo account.",
+    "passwordSignInTurnOff": "Disattiva",
+    "passwordSignInTurnOn": "Attiva",
+    "passwordSignInOffTitle": "Accedere solo con le passkey?",
+    "passwordSignInOffHint": "La password non darà più accesso. Tieni più di una passkey: se le perdi tutte, un amministratore o il proprietario del server deve reimpostare il tuo account.",
+    "passwordSignInOnTitle": "Riattivare l’accesso con password?",
+    "passwordSignInOn": "Accesso con password attivato",
+    "passwordSignInOff": "Accesso con password disattivato",
+    "codes": "Codici di recupero",
+    "codesHint": "Codici monouso per quando non hai a portata di mano il telefono o le passkey. Conservali in un posto sicuro, lontano da questo dispositivo.",
+    "codesLeft": "{n} rimasti",
+    "codesNew": "Genera nuovi codici",
+    "codesMade": "Nuovi codici di recupero generati",
+    "codesOnce": "Salva ora i tuoi codici di recupero: non verranno più mostrati.",
+    "codesOnceHint": "Ogni codice dà accesso una volta al posto del secondo fattore. Generarne di nuovi annulla questi.",
+    "codesDownload": "Scarica",
+    "codesStored": "Li ho salvati",
+    "codesFile": "Codici di recupero: ognuno vale una volta sola."
   },
   "settings": {
     "access": "Accesso",
@@ -1190,8 +1237,8 @@
     "repoPasswordHint": "Se perdi questa password perdi i backup.",
     "repository": "Repository",
     "repositoryHint": "S3, Cloudflare R2, Backblaze B2, SFTP o una cartella locale.",
-    "require2fa": "Richiedi la 2FA agli amministratori",
-    "require2faHint": "Un amministratore senza 2FA vede solo la propria pagina Sicurezza finché non la attiva: nessuno resta chiuso fuori.",
+    "require2fa": "Richiedi la verifica in due passaggi",
+    "require2faHint": "Un account che deve averla e non ce l’ha vede solo la propria pagina Sicurezza finché non la configura: nessuno resta chiuso fuori.",
     "securePanel": "Proteggi il pannello con Let's Encrypt",
     "testRepo": "Prova la connessione",
     "updateChannel": "Canale degli aggiornamenti",
@@ -1208,7 +1255,10 @@
     "vulnCheck": "Controlla i siti WordPress per vulnerabilità note",
     "vulnCheckHint": "Una volta al giorno le versioni di core, plugin e temi di ogni sito WordPress vengono cercate nel database pubblico WPVulnerability. Si inviano solo nomi e versioni, mai il sito.",
     "malwareScan": "Scansiona ogni settimana i file dei siti alla ricerca di malware",
-    "malwareScanHint": "Ogni sito a un’ora tutta sua, con ClamAV avviato solo per la scansione, nella sandbox del sito. La prima scansione installa ClamAV e le sue firme (circa 300 MB di disco)."
+    "malwareScanHint": "Ogni sito a un’ora tutta sua, con ClamAV avviato solo per la scansione, nella sandbox del sito. La prima scansione installa ClamAV e le sue firme (circa 300 MB di disco).",
+    "require2faOff": "Non richiesta",
+    "require2faAdmins": "Per gli amministratori",
+    "require2faAll": "Per tutti gli account"
   },
   "editor": {
     "close": "Chiudi",
@@ -1820,5 +1870,9 @@
     "quarantineTitle": "Mettere {path} in quarantena?",
     "quarantineHint": "Il file viene tolto dal sito e conservato sul server, leggibile solo da root. Se il sito lo usa, smetterà di funzionare dove serve.",
     "quarantined": "{path} messo in quarantena"
+  },
+  "proof": {
+    "factorHint": "Poi conferma con un secondo fattore.",
+    "passkeyOnly": "Conferma con una passkey che verifichi che sei tu: impronta, volto o PIN del dispositivo."
   }
 }

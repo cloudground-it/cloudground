@@ -349,7 +349,7 @@ func (s *Server) serve(rt route) http.Handler {
 				return
 			}
 			if !rt.Enrol && s.secondFactorPending(user) {
-				respondErr(w, http.StatusForbidden, "two-factor authentication is required for admin accounts: enrol in Security before continuing")
+				respondErr(w, http.StatusForbidden, msgSecondFactorRequired)
 				return
 			}
 			if ok, msg := rt.Policy.admits(user.Role, rt.AdminOnly); !ok {
@@ -446,12 +446,17 @@ func (s *Server) sessionUser(r *http.Request, token string) (state.User, error) 
 	return s.Store.UserForSession(token)
 }
 
+// msgSecondFactorRequired refuses an account the 2FA requirement holds
+// back (SPEC.md §1.2 step 7).
+const msgSecondFactorRequired = "two-factor authentication is required for this account: set it up in Security before continuing"
+
 // secondFactorPending reports whether the 2FA requirement holds this account
-// back (S-C9): the panel requires TOTP on admins and this admin has none. An
-// admin is root on the machine in all but name, so its password alone must
-// not be the whole boundary. A setting that cannot be read counts as on.
+// back (S-C9, #156): the panel requires two-factor of its role (admins, or
+// every account) and it has neither TOTP nor a passkey. An admin is root on
+// the machine in all but name, so its password alone must not be the whole
+// boundary. A setting that cannot be read counts as covering everyone.
 func (s *Server) secondFactorPending(user state.User) bool {
-	if user.Role != roleAdmin || user.TOTPEnabled {
+	if user.HasSecondFactor() {
 		return false
 	}
 	ps, err := s.Store.PanelSettings()
@@ -459,7 +464,7 @@ func (s *Server) secondFactorPending(user state.User) bool {
 		s.logIfErr(err, "PanelSettings")
 		return true
 	}
-	return ps.Require2FAAdmin
+	return ps.RequiresTwoFactor(user.Role)
 }
 
 // load runs the route's loader (SPEC.md §1.4): the refusal's status and

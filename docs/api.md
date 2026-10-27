@@ -92,9 +92,17 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 - Unknown fields are rejected. Request bodies are capped at 4 MiB, except:
   - `POST /api/setup`: 8 KiB
   - `POST /api/login`: 8 KiB
+  - `POST /api/login/passkey/begin`: 8 KiB
+  - `POST /api/login/passkey`: 8 KiB
   - `POST /api/account/password`: 8 KiB
   - `POST /api/account/2fa/begin`: 8 KiB
   - `POST /api/account/2fa/disable`: 8 KiB
+  - `POST /api/account/passkeys/begin`: 8 KiB
+  - `POST /api/account/passkeys/finish`: 64 KiB
+  - `POST /api/account/passkeys/challenge`: 8 KiB
+  - `POST /api/account/passkeys/{id}/remove`: 8 KiB
+  - `PUT /api/account/password-signin`: 8 KiB
+  - `POST /api/account/recovery-codes`: 8 KiB
   - `PUT /api/account/profile`: 8 KiB
   - `POST /api/account/whats-new`: 8 KiB
   - `POST /api/users`: 8 KiB
@@ -153,7 +161,9 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | :-- | :-- | :-- | :-- |
 | `GET` | `/api/bootstrap` | open | has the first admin been created yet |
 | `POST` | `/api/setup` | open | create the first admin with the one-time setup token |
-| `POST` | `/api/login` | open | start a session |
+| `POST` | `/api/login` | open | start a session: `email`, `password`, and one second factor when the account has two-factor (`totp`, `recovery_code` or `passkey`, an assertion); a refusal for the second factor lists the account's `factors` and carries `passkey` request options |
+| `POST` | `/api/login/passkey/begin` | open | start signing in with a passkey alone: WebAuthn request options |
+| `POST` | `/api/login/passkey` | open | sign in with a passkey alone (`credential`, an assertion with user verification) and start a session |
 | `POST` | `/api/logout` | auth, session only | sign out and delete the session |
 | `GET` | `/api/session` | open | the signed-in account, or `{"user": null}` |
 | `GET` | `/healthz` | open | liveness: `200` when the agent answers, `503` when it does not |
@@ -164,9 +174,16 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | Method | Path | Access | What it does |
 | :-- | :-- | :-- | :-- |
 | `POST` | `/api/account/password` | auth, session only | change your own password |
-| `POST` | `/api/account/2fa/begin` | auth, session only | start TOTP enrolment (requires your password); returns the secret |
+| `POST` | `/api/account/2fa/begin` | auth, session only | start TOTP enrolment (a proof: your password, and a current factor when you have two-factor); returns the secret |
 | `POST` | `/api/account/2fa/confirm` | auth, session only | confirm with a code and switch 2FA on |
-| `POST` | `/api/account/2fa/disable` | auth, session only | disable 2FA (requires your password and a current code) |
+| `POST` | `/api/account/2fa/disable` | auth, session only | turn TOTP off (a proof: your password and a current factor) |
+| `GET` | `/api/account/passkeys` | auth, session only | your passkeys |
+| `POST` | `/api/account/passkeys/begin` | auth, session only | start adding a passkey (a proof); returns WebAuthn creation options |
+| `POST` | `/api/account/passkeys/finish` | auth, session only | store the passkey (`name`, `credential`); with your first factor, returns your recovery codes |
+| `POST` | `/api/account/passkeys/challenge` | auth, session only | WebAuthn request options for confirming a change with one of your passkeys |
+| `POST` | `/api/account/passkeys/{id}/remove` | auth, session only | remove one of your passkeys (a proof) |
+| `PUT` | `/api/account/password-signin` | auth, session only | turn your password sign-in on or off (`enabled` and a proof; off takes a verified passkey) |
+| `POST` | `/api/account/recovery-codes` | auth, session only | new recovery codes in place of the old ones (a proof) |
 | `GET` | `/api/account/sessions` | auth, session only | your active sessions |
 | `DELETE` | `/api/account/sessions/{id}` | auth, session only | revoke one |
 | `PUT` | `/api/account/profile` | auth, session only | your first and last name and interface language |
@@ -180,7 +197,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `GET` | `/api/users` | global | every account |
 | `POST` | `/api/users` | admin, session only | create one — `role` is `admin`, `operator` or `readonly`; an operator needs `site_ids` |
 | `PUT` | `/api/users/{id}` | admin, session only | change an account's role, sites or name, or disable it |
-| `POST` | `/api/users/{id}/password` | admin, session only | set a new password for another account |
+| `POST` | `/api/users/{id}/password` | admin, session only | set a new password for another account (turns its password sign-in back on) |
+| `POST` | `/api/users/{id}/2fa/reset` | admin, session only | remove another account's second factors (TOTP, passkeys, recovery codes) when they are lost |
 | `DELETE` | `/api/users/{id}` | admin, session only | delete an account |
 
 ### Tokens

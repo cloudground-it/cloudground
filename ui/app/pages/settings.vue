@@ -87,10 +87,12 @@ function downloadPassword() {
 }
 const backupDirty = computed(() => BACKUP_KEYS.some(k => (form.value[k] ?? '') !== (saved.value[k] ?? '')))
 
+// Who must have two-factor (issue 156): nobody, administrators, every account.
 const require2fa = computed({
-  get: () => form.value.require_2fa_admin === '1',
-  set: (v: boolean) => { form.value.require_2fa_admin = v ? '1' : '' }
+  get: () => form.value.require_2fa || 'off',
+  set: (v: string) => { form.value.require_2fa = v }
 })
+const require2faItems = computed(() => (['off', 'admins', 'all'] as const).map(v => ({ label: t({ off: 'settings.require2faOff', admins: 'settings.require2faAdmins', all: 'settings.require2faAll' }[v]), value: v as string })))
 const vulnCheck = computed({
   get: () => form.value.vulnerability_check !== '0',
   set: (v: boolean) => { form.value.vulnerability_check = v ? '' : '0' }
@@ -322,12 +324,14 @@ async function selfUpdate() {
             </PanelSection>
 
             <PanelSection id="access" :title="t('settings.access')" icon="i-cg-lock">
-              <USwitch v-model="require2fa" :label="t('settings.require2fa')" :description="t('settings.require2faHint')" :disabled="!isAdmin" />
+              <UFormField :label="t('settings.require2fa')" :help="t('settings.require2faHint')">
+                <URadioGroup v-model="require2fa" :items="require2faItems" :disabled="!isAdmin" />
+              </UFormField>
               <UFormField :label="t('settings.probeTarget')" :help="t('settings.probeTargetHint')">
                 <UInput v-model="form.probe_target" placeholder="https://127.0.0.1" class="w-full sm:w-96 font-mono" :disabled="!isAdmin" />
               </UFormField>
               <template v-if="isAdmin" #footer>
-                <UButton :label="t('common.save')" :loading="busy" @click="save(['require_2fa_admin', 'probe_target'])" />
+                <UButton :label="t('common.save')" :loading="busy" @click="save(['require_2fa', 'probe_target'])" />
               </template>
             </PanelSection>
 
