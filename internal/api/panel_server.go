@@ -133,6 +133,10 @@ type Server struct {
 	blocklistEvery time.Duration
 	localAddrs     func() []netip.Addr
 
+	// fnRuns is the functions sweep's memory of what ran in which minute
+	// (functions.go).
+	fnRuns fnRuns
+
 	// dnsChecks limits the DNS readiness check; dnsLookup resolves its
 	// names (nil: the system resolver; tests replace it) (dns_check.go).
 	dnsChecks dnsGate

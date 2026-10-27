@@ -51,7 +51,7 @@ release older than the live one (`conflict` when there is none), with one points
 
 An HTTPS request from the agent to nginx on `127.0.0.1:443` (SNI and `Host` the site's domain; the
 certificate is not checked: the connection never leaves the machine), `POST
-/.functions/<name>` with `User-Agent: CloudGround-Functions`, `X-CloudGround-Source: <source>`
+/.functions/<name>` with `User-Agent: CloudGround-Functions/<source>`, `X-CloudGround-Source: <source>`
 (`schedule` or `test`; the shim puts it in the event's `source`) and the body given (at most 64
 KiB). So a scheduled or test run goes through the same nginx, socket and limits as a visitor's,
 and lands in the same logs. Bound: the function's timeout plus 10 seconds. Answer: the status (0
@@ -60,8 +60,8 @@ when nothing came back), the milliseconds, the first 4 KiB of the body, the tran
 ## 6. FunctionLogs
 
 **Invocations**: the site's access log (its last 2 MiB) read for requests to `/.functions/<name>`
-(and beneath): time, method, status, nginx's request time in milliseconds, and `schedule`/`test`
-when the user agent is the agent's, else `http`; the newest 100, newest first. A request killed for
+(and beneath): time, method, status, nginx's request time in milliseconds, and `schedule` or `test`
+when the user agent is the agent's (`CloudGround-Functions/<source>`), else `http`; the newest 100, newest first. A request killed for
 its timeout or its memory shows as nginx's `502`. **Output**: the last 200 lines of
 `fn-<name>.log` (the handlers' own output and the shim's invocation lines).
 

@@ -107,6 +107,11 @@ func prepare(in engine.Input) (*vhost, error) {
 	if err := site.CheckMaintenance(s.Config.Maintenance); err != nil {
 		return nil, err
 	}
+	for _, f := range in.Functions {
+		if !functionNameRe.MatchString(f.Name) || f.Socket != fmt.Sprintf("/run/cloudground/fn/cg-site-%d/%s.sock", s.ID, f.Name) || f.TimeoutSec < 1 || f.TimeoutSec > 300 {
+			return nil, fmt.Errorf("invalid function %q", f.Name)
+		}
+	}
 	if s.Type.IsApp() != (in.AppUpstream != "") || (in.AppUpstream != "" && !appUpstreamRe.MatchString(in.AppUpstream)) {
 		return nil, fmt.Errorf("invalid app upstream %q", in.AppUpstream)
 	}
@@ -255,6 +260,14 @@ func (v *vhost) render() (before, block, after string) {
 	v.protectedMaps(&c)
 	v.xmlrpcMaps(&c)
 	v.maintenanceMaps(&c)
+	if len(in.Functions) > 0 {
+		// Only the agent's own invocation, from this machine, names its
+		// source (SPEC §4.12).
+		c.put(0, "")
+		c.putf(0, "map $remote_addr $cg_fn_source_%d {", s.ID)
+		c.put(1, `default  "";`, "127.0.0.1  $http_x_cloudground_source;", "::1  $http_x_cloudground_source;")
+		c.put(0, "}")
+	}
 	if in.AppUpstream != "" {
 		c.put(0, "", "# The site's own app (SPEC §4.11).")
 		c.putf(0, "upstream %s {", runtimes.UpstreamName(s.ID))
@@ -363,6 +376,7 @@ func (v *vhost) render() (before, block, after string) {
 		}
 	}
 
+	v.functions(&c)
 	if !proxied(s) {
 		c.put(1, "",
 			"root "+in.DocRoot+";",
@@ -604,3 +618,30 @@ var appUpstreamRe = regexp.MustCompile(`^(unix:/run/cloudground/app/cg-site-[1-9
 // proxied reports whether a site proxies every request: a proxy site, or a
 // managed app (SPEC §4.11).
 func proxied(s state.Site) bool { return s.Type == state.SiteProxy || s.Type.IsApp() }
+
+// functionNameRe is a function's name (internal/functions SPEC §1).
+var functionNameRe = regexp.MustCompile(`^[a-z][a-z0-9-]{0,30}$`)
+
+// functions writes each function's two locations (SPEC §4.12): an exact
+// and a prefix one, which win over every regex location.
+func (v *vhost) functions(c *conf) {
+	if len(v.in.Functions) == 0 {
+		return
+	}
+	c.put(1, "", "# The site's functions (SPEC §4.12): one process per request, over a socket.")
+	for _, f := range v.in.Functions {
+		for _, loc := range []string{"= /.functions/" + f.Name, "^~ /.functions/" + f.Name + "/"} {
+			c.put(1, "location "+loc+" {")
+			c.put(2, "proxy_pass http://unix:"+f.Socket+":;",
+				"proxy_set_header Host $host;",
+				"proxy_set_header X-Real-IP $remote_addr;",
+				"proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;",
+				"proxy_set_header X-Forwarded-Proto $scheme;",
+				fmt.Sprintf("proxy_set_header X-CloudGround-Source $cg_fn_source_%d;", v.in.Site.ID),
+				fmt.Sprintf("proxy_read_timeout %ds;", f.TimeoutSec+5),
+				"client_max_body_size 6m;")
+			c.put(2, v.sec...)
+			c.put(1, "}")
+		}
+	}
+}

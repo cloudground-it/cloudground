@@ -25,6 +25,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/ops/wp"
 	"github.com/cloudground-it/cloudground/internal/blocklist"
 	"github.com/cloudground-it/cloudground/internal/engine"
+	"github.com/cloudground-it/cloudground/internal/functions"
 	"github.com/cloudground-it/cloudground/internal/phpfpm"
 	"github.com/cloudground-it/cloudground/internal/rpc"
 	"github.com/cloudground-it/cloudground/internal/runtimes"
@@ -127,6 +128,9 @@ func (o *Ops) input(ctx context.Context, s state.Site) engine.Input {
 	}
 	if isApp(s) {
 		in.AppUpstream = runtimes.Upstream(s)
+	}
+	for _, f := range s.Config.Functions {
+		in.Functions = append(in.Functions, engine.FunctionRoute{Name: f.Name, Socket: functions.SocketPath(s.SystemUser, f.Name), TimeoutSec: f.TimeoutSec})
 	}
 	o.probeBuild(ctx)
 	in.HTTP3, in.HTTP2Directive = o.http3, o.http2On

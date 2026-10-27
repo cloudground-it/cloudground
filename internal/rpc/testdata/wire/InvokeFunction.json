@@ -1,0 +1,30 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "name": "Name",
+      "source": "Source",
+      "body": "Body",
+      "timeout_sec": 7
+    },
+    "zero": {
+      "site": "@state.Site",
+      "name": "",
+      "source": "",
+      "timeout_sec": 0
+    }
+  },
+  "result": {
+    "full": {
+      "status": 7,
+      "ms": 7,
+      "body": "Body",
+      "error": "Error"
+    },
+    "zero": {
+      "status": 0,
+      "ms": 0,
+      "body": ""
+    }
+  }
+}

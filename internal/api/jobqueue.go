@@ -325,6 +325,7 @@ func (s *Server) registerJobKinds() {
 		"devmode.sweep":         s.runDevModeSweep,
 		"wpcleanup.sweep":       s.runWPCleanupSweep,
 		"wp.update.sweep":       s.runWPUpdateSweep,
+		"functions.sweep":       s.runFunctionsSweep,
 	} {
 		q.Register(jobs.Kind{Name: name, Quiet: true, Run: run, Rerun: true})
 	}
@@ -353,6 +354,7 @@ func (s *Server) schedules() []jobs.Schedule {
 		every("retention.sweep", 5*time.Minute, jobs.InTick),
 		every("security.sweep", 5*time.Minute, jobs.InTick),
 		every("devmode.sweep", time.Minute, jobs.InTick),
+		every("functions.sweep", time.Minute, jobs.NotInTick),
 		every("wpcleanup.sweep", 5*time.Minute, jobs.InTick),
 		every("wp.update.sweep", 5*time.Minute, jobs.InTick),
 		cert,
