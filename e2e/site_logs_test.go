@@ -75,8 +75,11 @@ func (h *harness) siteLogDownload(t *testing.T) {
 
 	code, hdr, body := download("access.log")
 	h.assert(t, "#84: the current access log downloads whole, with the request just made in it", code == 200 && strings.Contains(string(body), markA), "= %d %s", code, head(body, 300))
-	h.assert(t, "#84: as an attachment named after the site, with no length up front", strings.Contains(hdr.Get("Content-Disposition"), `filename="`+dom+`-access.log"`) && hdr.Get("Content-Length") == "" && hdr.Get("Cache-Control") == "no-store",
-		"%v", hdr)
+	// The handler declares no length for the file nginx is writing; net/http
+	// still sends the exact one of a body short enough to fit its buffer.
+	cl := hdr.Get("Content-Length")
+	h.assert(t, "#84: as an attachment named after the site, with no length up front", strings.Contains(hdr.Get("Content-Disposition"), `filename="`+dom+`-access.log"`) && (cl == "" || cl == fmt.Sprint(len(body))) && hdr.Get("Cache-Control") == "no-store",
+		"%v (body %d bytes)", hdr, len(body))
 	code, _, body = download("error.log")
 	h.check(t, "#84: the error log downloads too", fmt.Sprint(code), "200")
 	_ = body

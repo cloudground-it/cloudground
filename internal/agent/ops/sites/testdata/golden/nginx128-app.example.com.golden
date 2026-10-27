@@ -86,6 +86,17 @@ map $request_method $cg_auth_failed {
     default  "";
 }
 log_format cloudground_auth '$remote_addr $cg_auth_failed';
+
+# The static assets location logs only the requests that went wrong (SPEC
+# §4): a 4xx or 5xx, so a missing image is a not-found in the traffic
+# statistics (#33).
+map $status $cg_asset_failed {
+    ~^[23]   "";
+    default  1;
+}
+# Each site's maps add variables: with a few dozen sites the default hash of
+# 1024 is too small and nginx -t warns that it falls back to a slower one.
+variables_hash_max_size 2048;
 ## /ROOT/nginx/sites-enabled/app.example.com.conf -rw-r--r--
 # Managed by CloudGround — do not edit. Changes are detected as drift.
 # Site: app.example.com (id 6, type proxy, profile balanced)

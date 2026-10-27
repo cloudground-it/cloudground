@@ -17,8 +17,8 @@ import (
 // the rule is gone; a prefix rule carries the rest of the path and the query
 // string; a rule that is not a path of the site, or that nginx could read as
 // something else, is refused; the canonical host sends the other name to it
-// on both ports with path and query kept, and the alias it needs cannot be
-// removed meanwhile.
+// on both ports with path and query kept, and an alias that is the canonical
+// host cannot be removed meanwhile.
 func (h *harness) redirects(t *testing.T) {
 	dom := h.dom("redir83")
 	www := "www." + dom
@@ -128,9 +128,6 @@ func (h *harness) redirects(t *testing.T) {
 	plain = h.run("curl", "-s", "-m", "10", "-o", "/dev/null", "-D", "-", "-H", "Host: "+dom, "http://127.0.0.1/x?y=1").Out
 	h.assert(t, "#83: and so does the bare name", strings.Contains(plain, " 301") && strings.Contains(strings.ToLower(plain), "location: https://"+dom+"/x?y=1"), "%s", head([]byte(plain), 400))
 
-	code, body := h.api.do("PATCH", fmt.Sprintf("/api/sites/%d", id), map[string]any{"aliases": []string{}})
-	h.assert(t, "#83: the alias the canonical host needs cannot be removed meanwhile", code == 400 && strings.Contains(string(body), "canonical"), "= %d %s", code, head(body, 300))
-
 	// The other way round, and off.
 	c, _ = h.api.put(path, map[string]any{"canonical": www})
 	h.check(t, "#83: the www name as canonical host is accepted", fmt.Sprint(c), "200")
@@ -143,6 +140,9 @@ func (h *harness) redirects(t *testing.T) {
 	_, b = h.api.get(path)
 	_ = json.Unmarshal(b, &view)
 	h.assert(t, "#83: the settings say which name is canonical and that the other is served", view.Canonical == www && view.CounterpartServed, "%s", head(b, 300))
+	// With the alias as canonical host, the alias cannot go.
+	code, body := h.api.do("PATCH", fmt.Sprintf("/api/sites/%d", id), map[string]any{"aliases": []string{}})
+	h.assert(t, "#83: the alias that is the canonical host cannot be removed meanwhile", code == 400 && strings.Contains(string(body), "canonical"), "= %d %s", code, head(body, 300))
 	c, _ = h.api.put(path, map[string]any{"canonical": ""})
 	h.check(t, "#83: turning it off is accepted", fmt.Sprint(c), "200")
 	r = h.get(www, "/moved.php")

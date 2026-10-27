@@ -39,6 +39,10 @@ request.
   `/wp-content/`, `/wp-includes/`, `/wp-json/`, `/.well-known/` or
   `/.cg-maintenance/`, nor `/wp-login.php`, `/wp-cron.php`, `/xmlrpc.php`,
   `/favicon.ico` or `/robots.txt`.
+- **Asset**: the static assets location of the vhost logs only its failed
+  requests (internal/engine SPEC §4): a served stylesheet or image is not
+  in the log and not counted; a missing one is a request, a 4xx and a
+  not-found.
 - **Visitor**: the distinct (address, user agent) pairs among the day's
   page views, counted by a HyperLogLog sketch (§4).
 

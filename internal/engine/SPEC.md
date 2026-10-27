@@ -73,7 +73,10 @@ arguments do not bypass, else `$request_uri`), `$cg_no_store` (upstream
 (`Authorization` or `X-CloudGround-Probe` present); for the block list
 (§4.6), the map `$cg_auth_failed` (the upstream's `X-CloudGround-Auth` on a
 POST, empty for any other method) and the log format `cloudground_auth`
-(`$remote_addr $cg_auth_failed`). Every comment is part of the file.
+(`$remote_addr $cg_auth_failed`); for the static assets location (§4), the map
+`$cg_asset_failed` (`1` for a status that is not 2xx or 3xx, else empty), and
+`variables_hash_max_size 2048` (the sites' maps outgrow the default 1024). Every
+comment is part of the file.
 
 ### 3.2 Cache zone
 
@@ -138,8 +141,8 @@ In this order. "Security headers" is the set of §4.3.
      more regex test, measured with the benchmarks); with hardening
      (§4.8), the readme location and the login path's exact location; the static
      assets location (css, js, mjs, images, fonts, mp4, webm, pdf: `expires
-     30d`, `Cache-Control: public, immutable`, the security headers, no
-     access log, `gzip_static on`, `try_files $uri =404`); then
+     30d`, `Cache-Control: public, immutable`, the security headers, the
+     access log for failed requests only (`if=$cg_asset_failed`), `gzip_static on`, `try_files $uri =404`); then
      - static site: the routing block, default `try_files $uri $uri/
        /index.html =404`;
      - PHP site (a socket, and neither static nor proxy): the routing block,
