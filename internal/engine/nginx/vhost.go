@@ -290,6 +290,17 @@ func (v *vhost) render() (before, block, after string) {
 			"listen 443 quic;", "listen [::]:443 quic;")
 	}
 	c.put(1, "server_name "+names+";", "server_tokens off;")
+	if in.CloudflareInclude != "" {
+		c.put(1, "",
+			"# Behind Cloudflare (SPEC §4.11): the visitor's address is CF-Connecting-IP,",
+			"# taken only from Cloudflare's ranges. Netfilter sees Cloudflare's address,",
+			"# so the server's block list ($cg_banned) is enforced here too.",
+			"include "+in.CloudflareInclude+";",
+			"real_ip_header CF-Connecting-IP;",
+			"if ($cg_banned) {")
+		c.put(2, "return 403;")
+		c.put(1, "}")
+	}
 	if in.Blocking != nil {
 		c.put(1, "",
 			"# Visitors this site refuses: addresses, countries, user agents (SPEC",

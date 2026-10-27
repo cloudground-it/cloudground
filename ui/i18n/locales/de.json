@@ -1115,7 +1115,7 @@
     "blocked": "{address} ist gesperrt",
     "blockedHint": "Ihre Pakete werden auf allen Ports verworfen: SSH, die Websites und dieses Panel.",
     "blockedTitle": "Gesperrte Adressen",
-    "blockHint": "Ihre Pakete werden sofort auf allen Ports verworfen. Dieser Server, Loopback und die immer erlaubten Adressen können nicht gesperrt werden.",
+    "blockHint": "Ihre Pakete werden sofort auf allen Ports verworfen. Dieser Server, Loopback, das Netz von Cloudflare und die immer erlaubten Adressen können nicht gesperrt werden.",
     "disallowed": "{address} ist nicht mehr immer erlaubt",
     "disallowHint": "Fehlgeschlagene Anmeldungen von ihr zählen wieder für eine Sperre.",
     "disallowTitle": "{address} nicht mehr immer erlauben?",
@@ -1356,7 +1356,9 @@
     "require2faAdmins": "Für Administratoren",
     "require2faAll": "Für alle Konten",
     "mcp": "MCP-Server für KI-Assistenten",
-    "mcpHint": "Erlaubt Assistenten wie Claude und ChatGPT, sich per OAuth zu verbinden, jeweils mit Zustimmung eines Kontos mit Zwei-Faktor-Authentifizierung. Ausschalten trennt alle Assistenten."
+    "mcpHint": "Erlaubt Assistenten wie Claude und ChatGPT, sich per OAuth zu verbinden, jeweils mit Zustimmung eines Kontos mit Zwei-Faktor-Authentifizierung. Ausschalten trennt alle Assistenten.",
+    "cloudflarePurge": "Cloudflare-Token zum Cache-Leeren",
+    "cloudflarePurgeHint": "Nur die Berechtigung Zone → Cache Purge. Damit leert das Leeren des Caches einer Site mit Cloudflare-Zone auch den Cache von Cloudflare."
   },
   "editor": {
     "close": "Schließen",
@@ -2065,5 +2067,21 @@
     "aliasAdded": "{name} hinzugefügt; sein Zertifikat wird ausgestellt",
     "wpWarning": "WordPress hat eine eigene Vorstellung vom kanonischen Namen (seine Website-Adresse). Weicht sie von der hier gewählten ab, drehen sich Besucher im Kreis: Gleiche sie zuerst an.",
     "from": "Alter Pfad"
+  },
+  "cloudflare": {
+    "title": "Cloudflare",
+    "hint": "Für eine Site, die über den Proxy von Cloudflare ausgeliefert wird (die orange Wolke).",
+    "realIP": "Echte Besucheradressen",
+    "realIPHelp": "Übernimmt die Adresse des Besuchers aus dem Header CF-Connecting-IP, und nur bei Anfragen, die von den Adressen von Cloudflare kommen. Logs, Sperrliste und die von dieser Site abgewiesenen Besucher sehen dann den Besucher statt Cloudflare.",
+    "zone": "Zonen-ID",
+    "zoneHelp": "Auf der Overview-Seite der Domain im Dashboard von Cloudflare. Mit einer Zone leert das Leeren des Caches dieser Site auch den Cache von Cloudflare.",
+    "zoneBad": "32 Zeichen: Ziffern und die Buchstaben a bis f",
+    "purgeReady": "Das Leeren erreicht Cloudflare",
+    "purgeNeedsToken": "Hinterlege in den Einstellungen das Cloudflare-Token zum Cache-Leeren, damit das Leeren auch Cloudflare erreicht.",
+    "rangesShipped": "Adressen von Cloudflare: die mit CloudGround ausgelieferte Liste.",
+    "rangesUpdated": "Adressen von Cloudflare: aktualisiert am {date}.",
+    "saved": "Cloudflare-Einstellungen gespeichert",
+    "purgedToo": "Der Cache von Cloudflare wurde ebenfalls geleert.",
+    "purgeFailed": "Der Cache von Cloudflare wurde nicht geleert: {error}"
   }
 }

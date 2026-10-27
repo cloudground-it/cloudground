@@ -326,9 +326,12 @@ async function selfUpdate() {
                 <UFormField :label="t('settings.cloudflare')" :help="t('settings.cloudflareHint')">
                   <UInput v-model="form.cloudflare_api_token" type="password" autocomplete="off" class="w-full font-mono" :disabled="!isAdmin" />
                 </UFormField>
+                <UFormField :label="t('settings.cloudflarePurge')" :help="t('settings.cloudflarePurgeHint')">
+                  <UInput v-model="form.cloudflare_purge_token" type="password" autocomplete="off" class="w-full font-mono" :disabled="!isAdmin" />
+                </UFormField>
               </div>
               <template v-if="isAdmin" #footer>
-                <UButton :label="t('common.save')" :loading="busy" @click="save(['acme_email', 'cloudflare_api_token'])" />
+                <UButton :label="t('common.save')" :loading="busy" @click="save(['acme_email', 'cloudflare_api_token', 'cloudflare_purge_token'])" />
               </template>
             </PanelSection>
 

@@ -1115,7 +1115,7 @@
     "blocked": "{address} est bloquée",
     "blockedHint": "Leurs paquets sont rejetés sur tous les ports : SSH, les sites et ce panneau.",
     "blockedTitle": "Adresses bloquées",
-    "blockHint": "Ses paquets sont rejetés aussitôt sur tous les ports. Ce serveur, le loopback et les adresses toujours autorisées ne peuvent pas être bloqués.",
+    "blockHint": "Ses paquets sont rejetés aussitôt sur tous les ports. Ce serveur, le loopback, le réseau de Cloudflare et les adresses toujours autorisées ne peuvent pas être bloqués.",
     "disallowed": "{address} n'est plus toujours autorisée",
     "disallowHint": "Ses connexions échouées comptent de nouveau pour un blocage.",
     "disallowTitle": "Ne plus toujours autoriser {address} ?",
@@ -1356,7 +1356,9 @@
     "require2faAdmins": "Pour les administrateurs",
     "require2faAll": "Pour tous les comptes",
     "mcp": "Serveur MCP pour les assistants IA",
-    "mcpHint": "Permet à des assistants comme Claude et ChatGPT de se connecter avec OAuth, chacun avec l’accord d’un compte doté de la validation en deux étapes. Le désactiver déconnecte tous les assistants."
+    "mcpHint": "Permet à des assistants comme Claude et ChatGPT de se connecter avec OAuth, chacun avec l’accord d’un compte doté de la validation en deux étapes. Le désactiver déconnecte tous les assistants.",
+    "cloudflarePurge": "Jeton Cloudflare pour vider le cache",
+    "cloudflarePurgeHint": "Uniquement la permission Zone → Cache Purge. Avec ce jeton, vider le cache d’un site qui a une zone Cloudflare vide aussi celui de Cloudflare."
   },
   "editor": {
     "close": "Fermer",
@@ -2065,5 +2067,21 @@
     "aliasAdded": "{name} ajouté ; son certificat est en cours d'émission",
     "wpWarning": "WordPress a sa propre idée du nom canonique (l'adresse du site). Si elle diffère de celle choisie ici, les visiteurs tournent en rond : rendez-les d'abord identiques.",
     "from": "Ancien chemin"
+  },
+  "cloudflare": {
+    "title": "Cloudflare",
+    "hint": "Pour un site servi à travers le proxy de Cloudflare (le nuage orange).",
+    "realIP": "Adresses réelles des visiteurs",
+    "realIPHelp": "Prend l’adresse du visiteur dans l’en-tête CF-Connecting-IP, et seulement pour les requêtes qui viennent des adresses de Cloudflare. Les journaux, la liste de blocage et les visiteurs que ce site refuse voient alors le visiteur, et non Cloudflare.",
+    "zone": "ID de zone",
+    "zoneHelp": "Sur la page Overview du domaine, dans le tableau de bord de Cloudflare. Avec une zone, vider le cache de ce site vide aussi celui de Cloudflare.",
+    "zoneBad": "32 caractères : des chiffres et les lettres a à f",
+    "purgeReady": "Les vidages atteignent Cloudflare",
+    "purgeNeedsToken": "Ajoutez le jeton Cloudflare pour vider le cache dans les Paramètres, pour que les vidages atteignent Cloudflare.",
+    "rangesShipped": "Adresses de Cloudflare : la liste fournie avec CloudGround.",
+    "rangesUpdated": "Adresses de Cloudflare : mises à jour le {date}.",
+    "saved": "Paramètres Cloudflare enregistrés",
+    "purgedToo": "Le cache de Cloudflare a aussi été vidé.",
+    "purgeFailed": "Le cache de Cloudflare n’a pas été vidé : {error}"
   }
 }

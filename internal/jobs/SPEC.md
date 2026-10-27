@@ -262,6 +262,7 @@ Locks as in §3. "Resumable" = has `Run`; "rerun" = `Rerun`.
 | `deploy.git` | site | `site` | no | | payload `{deployment_id, branch}`; fetch and build as the site user (`GitSync`), then build the release and promote it as `deploy.create` and `deploy.promote` do (internal/api/SPEC.md §15.4); at most one waiting per site; canceled before it ran: the deployment is `canceled`; interrupted: `failed`, or the site is flagged while it was promoting |
 | `wp.cleanup` | site | `site`, and the repository's | no | | background when the schedule queues it; dedup `wp.cleanup:<site>`; a dry run, a tested snapshot before the site's first cleanup, the cleanup (internal/api/SPEC.md §3.17) |
 | `wpcleanup.sweep` | — | — | rerun | quiet | enqueues the due `wp.cleanup` jobs |
+| `cloudflare.ranges` | — | — | rerun | quiet | fetches Cloudflare's ranges while a site takes visitor addresses from Cloudflare, stores and sends them to the agent (internal/api/SPEC.md §3.20) |
 | `wp.update` | site | `site`, `repo` | no | | payload `{site_id, domain, what}`; a tested snapshot, the update, a health check and a rollback when it fails (internal/api/SPEC.md §6.2.3); a cancel stops it before the update |
 | `wp.update.scheduled` | site | `site`, `repo` (the repository as configured when it starts) | yes | | background; payload `{site_id, domain, what}`; dedup `wp.update.scheduled:<site>`; as `wp.update`; never rerun (the next slot is); canceled before it ran: the site's schedule key is cleared |
 | `database.import`, `dbstudio.import`, `migration.import` | site | `site` | no | | |
@@ -323,6 +324,7 @@ Recurring work is a schedule that enqueues a job:
 | `certificate.sweep` | 12 h | `schedule_state` key `cert.renew` | only when due |
 | `jobs.prune` | 6 h | memory | no |
 | `backup.prune` | 24 h | memory | no |
+| `cloudflare.ranges` | 24 h | memory | no |
 
 - The scheduler wakes 30 s after start (the agent may still be coming up)
   and then every 30 s, and enqueues each schedule that is due, with the

@@ -56,6 +56,7 @@ handler.
 | `BlocklistApplyParams` | at most 100,000 entries in each list | `at most 100000 entries in each list` |
 | | every entry an address or a CIDR (internal/blocklist SPEC §1) | `"<s>" is not an IP address or a network in CIDR form` |
 | | no block wider than /8 (IPv4) or /16 (IPv6) | `<p> is wider than /8 (IPv4) or /16 (IPv6): too broad to block` |
+| `CloudflareRangesParams` | `cfips.Parse` takes `V4` and `V6` (internal/cfips SPEC) | its message |
 | `ManageFileParams` | `Operation` is `mkdir`, `rename` or `delete` | `unsupported file operation "<o>"` |
 | | `rename` has a non-blank `DestPath` | `destination path required` |
 | `SSHKeyParams` | `Action` is `list`, `add` or `delete` | `unsupported SSH key action "<a>"` |

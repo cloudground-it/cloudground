@@ -124,6 +124,9 @@ func (o *Ops) input(ctx context.Context, s state.Site) engine.Input {
 	if s.Config.Maintenance.Enabled {
 		in.MaintenanceExempt = o.localAddrs()
 	}
+	if s.Config.Cloudflare.RealIP {
+		in.CloudflareInclude, _ = o.cloudflareFiles()
+	}
 	o.probeBuild(ctx)
 	in.HTTP3, in.HTTP2Directive = o.http3, o.http2On
 	if s.Config.Routing != "" {
@@ -339,6 +342,13 @@ func (o *Ops) render(ctx context.Context, s state.Site, onlyIfChanged bool) ([]r
 func (o *Ops) renderNginx(ctx context.Context, in engine.Input, nginxFiles map[string]string, tx *configTx, onlyIfChanged bool) error {
 	o.NginxMu.Lock()
 	defer o.NginxMu.Unlock()
+	if in.CloudflareInclude != "" {
+		// Shared, so outside the transaction: left behind by a failure,
+		// they only wait for the next site behind Cloudflare (SPEC §10).
+		if err := o.ensureCloudflare(); err != nil {
+			return err
+		}
+	}
 	err := o.writeNginx(ctx, in, nginxFiles, tx, onlyIfChanged)
 	if err == nil {
 		return nil

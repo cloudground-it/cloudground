@@ -80,7 +80,12 @@ func (s *Server) purge(ctx context.Context, site state.Site, req purgeRequest) (
 			return rpc.PurgeResult{}, nil
 		}
 	}
-	return agentrpc.Call(ctx, s.Agent, agentrpc.PurgeCache, params)
+	res, err := agentrpc.Call(ctx, s.Agent, agentrpc.PurgeCache, params)
+	if err == nil && site.Config.Cloudflare.ZoneID != "" {
+		// Cloudflare's cache too, without holding WordPress up (SPEC.md §8).
+		go s.purgeCloudflare(context.WithoutCancel(ctx), site, params.URLs, req.All)
+	}
+	return res, err
 }
 
 func (s *Server) handleConnectorPurge(w http.ResponseWriter, r *http.Request) {

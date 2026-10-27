@@ -62,6 +62,9 @@ standard input: the table `inet cloudground` is replaced in one transaction
   SPEC §3); a server installed before it lacks it until then.
 - `nft` refuses the script → `internal` with nft's message as the detail;
   the table is as it was (the transaction is all or nothing).
+- Then the same lists go to nginx, for the sites behind Cloudflare whose
+  requests netfilter sees as Cloudflare's (ops/sites SPEC §10, `SetBanned`):
+  a failure there is `internal`, `nginx: …`; netfilter already has the list.
 
 ## 4. Country data (#25)
 

@@ -88,10 +88,10 @@ func (s *Server) ownAddrs() []netip.Addr {
 	return out
 }
 
-// exempt is what is never blocked: loopback, this machine and the
-// allowlist (internal/blocklist SPEC §1).
+// exempt is what is never blocked: loopback, this machine, the allowlist
+// and Cloudflare's ranges (internal/blocklist SPEC §1).
 func (s *Server) exempt(entries []state.BlockEntry) blocklist.Exempt {
-	ex := blocklist.Exempt{Own: s.ownAddrs()}
+	ex := blocklist.Exempt{Own: s.ownAddrs(), Proxies: s.cloudflareRanges().Prefixes()}
 	for _, e := range entries {
 		if e.Kind != state.BlockKindAllow {
 			continue
@@ -335,7 +335,7 @@ func (s *Server) handleBlock(w http.ResponseWriter, r *http.Request, c *call) {
 		return
 	}
 	if s.exempt(entries).Overlaps(p) {
-		respondErr(w, http.StatusBadRequest, p.String()+" holds this server, loopback or an allowed address: those are never blocked")
+		respondErr(w, http.StatusBadRequest, p.String()+" holds this server, loopback, Cloudflare's network or an allowed address: those are never blocked")
 		return
 	}
 	e := state.BlockEntry{Kind: state.BlockKindBlock, Prefix: p.String(), Source: blocklist.SourceManual, Note: req.Note, CreatedAt: time.Now()}

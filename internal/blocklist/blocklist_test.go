@@ -44,13 +44,14 @@ func TestUnitAndExempt(t *testing.T) {
 	if u := Unit(netip.MustParseAddr("::ffff:203.0.113.9")); u.String() != "203.0.113.9/32" {
 		t.Errorf("mapped unit = %s", u)
 	}
-	ex := Exempt{Own: []netip.Addr{netip.MustParseAddr("192.0.2.10")}, Allow: []netip.Prefix{netip.MustParsePrefix("198.51.100.0/24")}}
-	for a, want := range map[string]bool{"127.0.0.5": true, "::1": true, "192.0.2.10": true, "198.51.100.77": true, "203.0.113.9": false} {
+	ex := Exempt{Own: []netip.Addr{netip.MustParseAddr("192.0.2.10")}, Allow: []netip.Prefix{netip.MustParsePrefix("198.51.100.0/24")},
+		Proxies: []netip.Prefix{netip.MustParsePrefix("104.16.0.0/13")}}
+	for a, want := range map[string]bool{"127.0.0.5": true, "::1": true, "192.0.2.10": true, "198.51.100.77": true, "203.0.113.9": false, "104.17.0.1": true} {
 		if ex.Has(netip.MustParseAddr(a)) != want {
 			t.Errorf("Has(%s) = %v", a, !want)
 		}
 	}
-	for p, want := range map[string]bool{"127.0.0.0/16": true, "192.0.2.0/24": true, "198.51.0.0/16": true, "198.51.100.8/32": true, "203.0.113.0/24": false} {
+	for p, want := range map[string]bool{"127.0.0.0/16": true, "192.0.2.0/24": true, "198.51.0.0/16": true, "198.51.100.8/32": true, "203.0.113.0/24": false, "104.0.0.0/8": true} {
 		if ex.Overlaps(netip.MustParsePrefix(p)) != want {
 			t.Errorf("Overlaps(%s) = %v", p, !want)
 		}
