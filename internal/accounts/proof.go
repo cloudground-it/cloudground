@@ -144,3 +144,17 @@ func (sv *Service) confirmPasskey(a *attempt, u state.User, rp RP, raw []byte, u
 	}
 	return nil
 }
+
+// Confirm checks a proof for a change made outside this package (an
+// assistant's consent, its pending action: api SPEC §16), in an attempt of
+// its own: the password while it signs in, and a current factor when the
+// account has two-factor. purpose names the change in the audit of a spent
+// recovery code.
+func (sv *Service) Confirm(ctx context.Context, from Origin, u state.User, rp RP, actor, purpose string, p Proof) error {
+	a, err := sv.gate(ctx, from, u.Email)
+	if err != nil {
+		return err
+	}
+	defer a.end()
+	return sv.confirm(ctx, a, u, rp, p, confirmation{refusal: msgConfirmFactor, purpose: purpose, actor: actor})
+}

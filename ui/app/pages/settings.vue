@@ -93,6 +93,12 @@ const require2fa = computed({
   set: (v: string) => { form.value.require_2fa = v }
 })
 const require2faItems = computed(() => (['off', 'admins', 'all'] as const).map(v => ({ label: t({ off: 'settings.require2faOff', admins: 'settings.require2faAdmins', all: 'settings.require2faAll' }[v]), value: v as string })))
+// The remote MCP server (issue 70): off by default; off revokes every
+// assistant's access.
+const mcpOn = computed({
+  get: () => form.value.mcp === '1',
+  set: (v: boolean) => { form.value.mcp = v ? '1' : '' }
+})
 const vulnCheck = computed({
   get: () => form.value.vulnerability_check !== '0',
   set: (v: boolean) => { form.value.vulnerability_check = v ? '' : '0' }
@@ -327,11 +333,12 @@ async function selfUpdate() {
               <UFormField :label="t('settings.require2fa')" :help="t('settings.require2faHint')">
                 <URadioGroup v-model="require2fa" :items="require2faItems" :disabled="!isAdmin" />
               </UFormField>
+              <USwitch v-model="mcpOn" :label="t('settings.mcp')" :description="t('settings.mcpHint')" :disabled="!isAdmin" />
               <UFormField :label="t('settings.probeTarget')" :help="t('settings.probeTargetHint')">
                 <UInput v-model="form.probe_target" placeholder="https://127.0.0.1" class="w-full sm:w-96 font-mono" :disabled="!isAdmin" />
               </UFormField>
               <template v-if="isAdmin" #footer>
-                <UButton :label="t('common.save')" :loading="busy" @click="save(['require_2fa', 'probe_target'])" />
+                <UButton :label="t('common.save')" :loading="busy" @click="save(['require_2fa', 'mcp', 'probe_target'])" />
               </template>
             </PanelSection>
 

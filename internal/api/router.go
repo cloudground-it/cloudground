@@ -46,10 +46,14 @@ const (
 	// decide), or one opened from the panel by an admin or an operator
 	// (SR-T4: a read-only account sees tables and structure only).
 	policyStudioData
+	// policyMCP: the MCP server's OAuth and /mcp rows (SPEC.md §16): the
+	// handler authenticates what it needs, and answers 404 while the MCP
+	// server is off.
+	policyMCP
 )
 
 // policies lists every valid policy, for the tests and the docs.
-var policies = []policy{policyOpen, policyToken, policySignedIn, policyGlobal, policyManage, policyAdmin, policyStudio, policyStudioData}
+var policies = []policy{policyOpen, policyToken, policySignedIn, policyGlobal, policyManage, policyAdmin, policyStudio, policyStudioData, policyMCP}
 
 // marker is the policy's name in docs/api.md.
 func (p policy) marker() string {
@@ -70,6 +74,8 @@ func (p policy) marker() string {
 		return "dbstudio"
 	case policyStudioData:
 		return "dbstudio data"
+	case policyMCP:
+		return "mcp"
 	}
 	return ""
 }
@@ -243,6 +249,10 @@ type call struct {
 	// session's site; User is the panel account of one opened from the
 	// panel).
 	Studio *studioSession
+	// MCP is the assistant a call is made for (SPEC.md §16.7): the
+	// router's pipeline runs the tool's route as its account, which then
+	// counts as an API token does.
+	MCP *mcpCaller
 }
 
 // Actor is the caller's identity in the audit log.
@@ -253,14 +263,18 @@ func (c *call) Actor() string {
 	if c.User.Email == "" {
 		return "unknown"
 	}
+	if c.MCP != nil {
+		return fmt.Sprintf("%s (via MCP %q)", c.User.Email, c.MCP.client)
+	}
 	if c.ViaToken() {
 		return fmt.Sprintf("%s (API token %q #%d)", c.User.Email, c.Token.Name, c.Token.ID)
 	}
 	return c.User.Email
 }
 
-// ViaToken reports whether the caller authenticated with an API token.
-func (c *call) ViaToken() bool { return c.Token.ID != 0 }
+// ViaToken reports whether the caller authenticated with an API token, or
+// is an assistant (SPEC.md §16.7), which the routes treat the same way.
+func (c *call) ViaToken() bool { return c.Token.ID != 0 || c.MCP != nil }
 
 // CanAccess reports whether the caller may reach the site: an operator
 // only its assigned sites and their staging copies, every other account
@@ -309,6 +323,19 @@ func (s *Server) ConnectorRoutes() http.Handler {
 	return s.withCommonHeaders(mux)
 }
 
+// mcpMux serves the route table to the MCP server's tools (SPEC.md §16.7),
+// without the common headers: their calls come from inside the panel.
+func (s *Server) mcpMux() http.Handler {
+	s.mcpMuxOnce.Do(func() {
+		mux := http.NewServeMux()
+		for _, rt := range s.routeTable() {
+			mux.Handle(rt.pattern(), s.serve(rt))
+		}
+		s.mcpHandler = mux
+	})
+	return s.mcpHandler
+}
+
 // MailRoutes is the sites' mail gate (SPEC.md §14.2), served on its own
 // Unix socket: POST /send and nothing else. It is not a route of the
 // panel's: no session, token or policy applies, the caller is the site the
@@ -336,6 +363,12 @@ func (s *Server) serve(rt route) http.Handler {
 		c := &call{s: s}
 		if rt.Policy.needsSession() {
 			user, tok, err := s.authenticate(r)
+			// An assistant's call is made inside the panel, never over the
+			// network: only the MCP server puts its caller in the context.
+			if mc := mcpCallerOf(r); mc != nil {
+				c.MCP = mc
+				user, tok, err = s.mcpUser(mc)
+			}
 			if errors.Is(err, errBadToken) {
 				respondErr(w, http.StatusUnauthorized, err.Error())
 				return
@@ -344,7 +377,7 @@ func (s *Server) serve(rt route) http.Handler {
 				respondErr(w, http.StatusUnauthorized, "authentication required")
 				return
 			}
-			if rt.SessionOnly && tok.ID != 0 {
+			if rt.SessionOnly && (tok.ID != 0 || c.MCP != nil) {
 				respondErr(w, http.StatusForbidden, msgSessionOnly)
 				return
 			}
@@ -383,7 +416,7 @@ func (s *Server) serve(rt route) http.Handler {
 // crossSite applies the S-H4 rules (SPEC.md §1.5): the refusal's status and
 // message, or 0.
 func (rt route) crossSite(r *http.Request) (int, string) {
-	if rt.Policy == policyToken {
+	if rt.Policy == policyToken || rt.Policy == policyMCP {
 		return 0, ""
 	}
 	write := r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions

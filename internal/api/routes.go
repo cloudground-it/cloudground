@@ -22,6 +22,7 @@ const (
 	secServer   = "Server"
 	secTasks    = "Tasks and events"
 	secConn     = "Connector"
+	secMCP      = "Assistants (MCP)"
 )
 
 // Body limits that differ from defaultMaxBody (SPEC.md §1.6).
@@ -33,6 +34,7 @@ const (
 	fileUploadBody = maxPanelTransfer
 	dbChunkBody    = uploadChunk
 	passkeyBody    = 64 << 10 // a new passkey's attestation, which may carry certificates
+	mcpBody        = 64 << 10 // an MCP client's metadata or one JSON-RPC message
 )
 
 // routeTable is every route the panel serves (SPEC.md §1). Routes and
@@ -113,6 +115,45 @@ func (s *Server) routeTable() []route {
 			Section: secUsers, Doc: "remove another account's second factors (TOTP, passkeys, recovery codes) when they are lost"},
 		{Method: del, Path: "/api/users/{id}", Policy: policyAdmin, SessionOnly: true, Handle: s.handleDeleteUser,
 			Section: secUsers, Doc: "delete an account"},
+
+		// The remote MCP server (mcp_oauth.go, mcp_server.go; SPEC.md §16):
+		// every row answers 404 while it is off.
+		{Method: get, Path: "/.well-known/oauth-protected-resource", Policy: policyMCP, Handle: plain(s.handleMCPResourceMetadata),
+			Section: secMCP, Doc: "the MCP resource's metadata (RFC 9728): where to authorise"},
+		{Method: get, Path: "/.well-known/oauth-protected-resource/mcp", Policy: policyMCP, Handle: plain(s.handleMCPResourceMetadata),
+			Section: secMCP, Doc: "the same, at the path-specific address"},
+		{Method: get, Path: "/.well-known/oauth-authorization-server", Policy: policyMCP, Handle: plain(s.handleMCPServerMetadata),
+			Section: secMCP, Doc: "the authorisation server's metadata (RFC 8414)"},
+		{Method: post, Path: "/oauth/register", Policy: policyMCP, MaxBody: mcpBody, Handle: plain(s.handleMCPRegister),
+			Section: secMCP, Doc: "register a public client (RFC 7591): `client_name`, `redirect_uris`"},
+		{Method: get, Path: "/oauth/authorize", Query: "response_type=code&client_id=&redirect_uri=&code_challenge=&code_challenge_method=S256&state=&resource=", Policy: policyMCP, Handle: plain(s.handleMCPAuthorize),
+			Section: secMCP, Doc: "start an authorisation: redirects to the panel's consent page"},
+		{Method: post, Path: "/oauth/token", Policy: policyMCP, MaxBody: smallBody, Handle: plain(s.handleMCPToken),
+			Section: secMCP, Doc: "exchange a code (with its PKCE verifier) or a refresh token for tokens; form-encoded"},
+		{Method: post, Path: "/oauth/revoke", Policy: policyMCP, MaxBody: smallBody, Handle: plain(s.handleMCPRevoke),
+			Section: secMCP, Doc: "revoke a grant by one of its tokens (RFC 7009)"},
+		{Method: post, Path: "/mcp", Policy: policyMCP, MaxBody: mcpBody, Handle: plain(s.handleMCP),
+			Section: secMCP, Doc: "the MCP endpoint (Streamable HTTP, JSON answers): `Authorization: Bearer cgm_…`"},
+		{Method: get, Path: "/mcp", Policy: policyMCP, Handle: plain(s.handleMCPNoStream),
+			Section: secMCP, Doc: "`405`: the server starts no stream"},
+		{Method: del, Path: "/mcp", Policy: policyMCP, Handle: plain(s.handleMCPNoStream),
+			Section: secMCP, Doc: "`405`: the server keeps no session"},
+		{Method: get, Path: "/api/mcp/requests/{id}", Policy: policySignedIn, SessionOnly: true, Handle: s.handleMCPRequest,
+			Section: secMCP, Doc: "an authorisation request waiting for your consent"},
+		{Method: post, Path: "/api/mcp/requests/{id}/approve", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handleMCPApprove,
+			Section: secMCP, Doc: "consent: `write` (`{area: [site ids]}`) and a proof; returns the `redirect`"},
+		{Method: post, Path: "/api/mcp/requests/{id}/deny", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handleMCPDeny,
+			Section: secMCP, Doc: "refuse; returns the `redirect`"},
+		{Method: get, Path: "/api/mcp/grants", Policy: policySignedIn, SessionOnly: true, Handle: s.handleMCPGrants,
+			Section: secMCP, Doc: "the assistants connected to your account (an admin's: every account's)"},
+		{Method: del, Path: "/api/mcp/grants/{id}", Policy: policySignedIn, SessionOnly: true, Handle: s.handleMCPRevokeGrant,
+			Section: secMCP, Doc: "disconnect one"},
+		{Method: get, Path: "/api/mcp/actions", Policy: policySignedIn, SessionOnly: true, Handle: s.handleMCPActions,
+			Section: secMCP, Doc: "the destructive actions your assistants asked for"},
+		{Method: post, Path: "/api/mcp/actions/{id}/confirm", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handleMCPConfirmAction,
+			Section: secMCP, Doc: "confirm one (a proof): it runs now"},
+		{Method: post, Path: "/api/mcp/actions/{id}/reject", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handleMCPRejectAction,
+			Section: secMCP, Doc: "reject one"},
 
 		// API tokens for cgctl and scripts (apitokens.go): managed from a
 		// signed-in session only.

@@ -74,6 +74,7 @@ is `401`; with one whose role the marker does not allow, `403`.
 | **admin** | `admin` alone |
 | **dbstudio** | a Quarry session (see Quarry below), never a panel session or an API token |
 | **dbstudio data** | a Quarry session that may read the rows: a database user's, or one opened from the panel by an `admin` or `operator` |
+| **mcp** |  |
 
 An `operator` sees and touches only assigned sites (and their staging copies); requests for any
 other site, or for another site's backups, releases or cron jobs, return `404`, not `403`, so the
@@ -107,6 +108,14 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `POST /api/account/whats-new`: 8 KiB
   - `POST /api/users`: 8 KiB
   - `POST /api/users/{id}/password`: 8 KiB
+  - `POST /oauth/register`: 64 KiB
+  - `POST /oauth/token`: 8 KiB
+  - `POST /oauth/revoke`: 8 KiB
+  - `POST /mcp`: 64 KiB
+  - `POST /api/mcp/requests/{id}/approve`: 8 KiB
+  - `POST /api/mcp/requests/{id}/deny`: 8 KiB
+  - `POST /api/mcp/actions/{id}/confirm`: 8 KiB
+  - `POST /api/mcp/actions/{id}/reject`: 8 KiB
   - `POST /api/tokens`: 8 KiB
   - `POST /api/sites/{id}/protected-paths`: 8 KiB
   - `DELETE /api/sites/{id}/protected-paths`: 8 KiB
@@ -608,6 +617,34 @@ refused with `403`. The full contract is `internal/api/events/SPEC.md`.
 | Method | Path | Access | What it does |
 | :-- | :-- | :-- | :-- |
 | `POST` | `/api/connector/purge` | site token | the WordPress connector's purge request |
+
+### Assistants (MCP)
+
+The remote MCP server (SPEC §16), off by default: an administrator turns it on with the setting
+`mcp`, and while it is off every route here answers `404`. Assistants register themselves, are
+authorised with OAuth 2.1 (authorisation code with PKCE) on the panel's consent page, and call
+tools at `/mcp` with a bearer token; destructive tools only record an action you confirm here.
+
+| Method | Path | Access | What it does |
+| :-- | :-- | :-- | :-- |
+| `GET` | `/.well-known/oauth-protected-resource` | mcp | the MCP resource's metadata (RFC 9728): where to authorise |
+| `GET` | `/.well-known/oauth-protected-resource/mcp` | mcp | the same, at the path-specific address |
+| `GET` | `/.well-known/oauth-authorization-server` | mcp | the authorisation server's metadata (RFC 8414) |
+| `POST` | `/oauth/register` | mcp | register a public client (RFC 7591): `client_name`, `redirect_uris` |
+| `GET` | `/oauth/authorize?response_type=code&client_id=&redirect_uri=&code_challenge=&code_challenge_method=S256&state=&resource=` | mcp | start an authorisation: redirects to the panel's consent page |
+| `POST` | `/oauth/token` | mcp | exchange a code (with its PKCE verifier) or a refresh token for tokens; form-encoded |
+| `POST` | `/oauth/revoke` | mcp | revoke a grant by one of its tokens (RFC 7009) |
+| `POST` | `/mcp` | mcp | the MCP endpoint (Streamable HTTP, JSON answers): `Authorization: Bearer cgm_…` |
+| `GET` | `/mcp` | mcp | `405`: the server starts no stream |
+| `DELETE` | `/mcp` | mcp | `405`: the server keeps no session |
+| `GET` | `/api/mcp/requests/{id}` | auth, session only | an authorisation request waiting for your consent |
+| `POST` | `/api/mcp/requests/{id}/approve` | auth, session only | consent: `write` (`{area: [site ids]}`) and a proof; returns the `redirect` |
+| `POST` | `/api/mcp/requests/{id}/deny` | auth, session only | refuse; returns the `redirect` |
+| `GET` | `/api/mcp/grants` | auth, session only | the assistants connected to your account (an admin's: every account's) |
+| `DELETE` | `/api/mcp/grants/{id}` | auth, session only | disconnect one |
+| `GET` | `/api/mcp/actions` | auth, session only | the destructive actions your assistants asked for |
+| `POST` | `/api/mcp/actions/{id}/confirm` | auth, session only | confirm one (a proof): it runs now |
+| `POST` | `/api/mcp/actions/{id}/reject` | auth, session only | reject one |
 
 These calls carry the site's own bearer token instead of a session, and a token purges only URLs on
 the domains of the site it belongs to.
