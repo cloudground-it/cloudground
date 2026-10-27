@@ -76,8 +76,39 @@ var settingFields = map[string]setting{
 		show:  func(p state.PanelSettings) string { return maskRepositoryCredentials(p.BackupRepository) },
 		parse: func(p *state.PanelSettings, v string) error { p.BackupRepository = v; return nil },
 	},
-	"require_2fa_admin": flagSetting(func(p *state.PanelSettings) *bool { return &p.Require2FAAdmin },
-		"1", "", []string{"1", "true"}, []string{"", "0", "false"}, "must be 1 or empty"),
+	// Who must have two-factor (§1.2 step 7): off, admins or all.
+	"require_2fa": {
+		show: func(p state.PanelSettings) string { return p.TwoFactorRequirement() },
+		parse: func(p *state.PanelSettings, v string) error {
+			if !p.SetTwoFactorRequirement(v) {
+				return errors.New("must be off, admins or all")
+			}
+			return nil
+		},
+	},
+	// The older form of require_2fa, kept for scripts: on makes an off
+	// requirement admins and leaves all alone; off makes it off.
+	"require_2fa_admin": {
+		show: func(p state.PanelSettings) string {
+			if p.TwoFactorRequirement() == state.Require2FAOff {
+				return ""
+			}
+			return "1"
+		},
+		parse: func(p *state.PanelSettings, v string) error {
+			switch {
+			case slices.Contains([]string{"1", "true"}, v):
+				if !p.Require2FAAll {
+					p.SetTwoFactorRequirement(state.Require2FAAdmins)
+				}
+			case slices.Contains([]string{"", "0", "false"}, v):
+				p.SetTwoFactorRequirement(state.Require2FAOff)
+			default:
+				return errors.New("must be 1 or empty")
+			}
+			return nil
+		},
+	},
 	"update_check": flagSetting(func(p *state.PanelSettings) *bool { return &p.UpdateCheck },
 		"", "0", []string{"", "1", "true"}, []string{"0", "false"}, "must be 0 or empty"),
 	// The daily lookup of the WordPress sites' versions in a public
@@ -261,6 +292,21 @@ func (s *Server) changeSettings(ctx context.Context, req map[string]string) ([]s
 	if v := req["probe_target"]; v != "" {
 		if err := checkProbeTarget(v); err != nil {
 			return nil, err
+		}
+	}
+	// The two forms of the requirement together (a page sending back the
+	// whole map) must agree; then the older one is redundant.
+	if legacy, both := req["require_2fa_admin"]; both {
+		if mode, also := req["require_2fa"]; also {
+			var p state.PanelSettings
+			if !p.SetTwoFactorRequirement(mode) {
+				return nil, decline(http.StatusBadRequest, "require_2fa: must be off, admins or all")
+			}
+			on := slices.Contains([]string{"1", "true"}, legacy)
+			if on != (p.TwoFactorRequirement() != state.Require2FAOff) {
+				return nil, decline(http.StatusBadRequest, "require_2fa: send require_2fa or require_2fa_admin, not both")
+			}
+			delete(req, "require_2fa_admin")
 		}
 	}
 	next := cur

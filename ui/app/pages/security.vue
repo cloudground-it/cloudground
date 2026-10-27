@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import type { Passkey } from '~/types'
+
 const { t, locale } = useI18n()
 const api = useApi()
 const { user, fetchMe, isAdmin, enrolRequired } = useAuth()
 const { busy, run } = useAction()
 const confirm = useConfirm()
+const toast = useToast()
 useHead({ title: () => t('nav.security') })
 
 const profile = reactive({ first_name: user.value?.first_name ?? '', last_name: user.value?.last_name ?? '' })
@@ -19,35 +22,112 @@ async function changePassword() {
   }
 }
 
-const enrol = reactive({ password: '', code: '', confirmCode: '' })
+const proof = useProof()
+const enrol = reactive({ confirmCode: '' })
 const pending = ref<{ secret: string, qr_data: string } | null>(null)
+/** Recovery codes just made: shown once, here. */
+const freshCodes = ref<string[] | null>(null)
+
+async function refreshAll() {
+  await fetchMe()
+  await refreshPasskeys()
+  await refreshSessions()
+}
+
 async function begin() {
+  const p = await proof({ title: user.value?.totp_enabled ? t('security.replace') : t('security.setup') })
+  if (!p) return
   await run(async () => {
-    pending.value = await api.post('/api/account/2fa/begin', { password: enrol.password, code: enrol.code })
+    pending.value = await api.post('/api/account/2fa/begin', p)
   })
-  enrol.password = ''
-  enrol.code = ''
 }
 async function confirmTotp() {
-  if (await run(() => api.post('/api/account/2fa/confirm', { code: enrol.confirmCode }), t('security.totpEnabled'))) {
+  if (await run(async () => {
+    const r = await api.post<{ recovery_codes?: string[] }>('/api/account/2fa/confirm', { code: enrol.confirmCode })
+    if (r.recovery_codes) freshCodes.value = r.recovery_codes
+  }, t('security.totpEnabled'))) {
     pending.value = null
     enrol.confirmCode = ''
-    await fetchMe()
-    await refreshSessions()
+    await refreshAll()
     await refreshTokens()
   }
 }
-const disablePw = ref('')
-const disableCode = ref('')
 async function disable() {
-  if (await confirm({ title: t('security.disableTitle'), description: t('security.disableHint'), danger: true, confirmLabel: t('security.disable') })) {
-    if (await run(() => api.post('/api/account/2fa/disable', { password: disablePw.value, code: disableCode.value }), t('security.totpDisabled'))) {
-      disablePw.value = ''
-      disableCode.value = ''
-      await fetchMe()
-    }
+  if (!await confirm({ title: t('security.disableTitle'), description: t('security.disableHint'), danger: true, confirmLabel: t('security.disable') })) return
+  const p = await proof({ title: t('security.disableTitle'), danger: true, confirmLabel: t('security.disable') })
+  if (!p) return
+  if (await run(() => api.post('/api/account/2fa/disable', p), t('security.totpDisabled'))) await refreshAll()
+}
+
+// Passkeys (issue 156): a second factor, or the whole sign-in.
+const passkeyHere = ref(false)
+onMounted(() => {
+  const host = window.location.hostname
+  passkeyHere.value = passkeysSupported() && !/^[\d.]+$/.test(host) && !host.includes(':')
+})
+const { data: passkeys, refresh: refreshPasskeys } = useLoad(() => api.get<Passkey[]>('/api/account/passkeys'))
+const newPasskeyName = ref('')
+onMounted(() => { newPasskeyName.value = suggestedPasskeyName() })
+const addingPasskey = ref(false)
+async function addPasskey() {
+  const name = newPasskeyName.value.trim()
+  if (!name) return
+  const p = await proof({ title: t('security.passkeyAdd') })
+  if (!p) return
+  addingPasskey.value = true
+  try {
+    const options = await api.post<Record<string, unknown>>('/api/account/passkeys/begin', p)
+    const credential = await createPasskey(options)
+    const r = await api.post<{ recovery_codes?: string[] }>('/api/account/passkeys/finish', { name, credential })
+    if (r.recovery_codes) freshCodes.value = r.recovery_codes
+    toast.add({ title: t('security.passkeyAdded'), color: 'success', icon: 'i-cg-check-circle' })
+    await refreshAll()
+    await refreshTokens()
+  } catch (e) {
+    if (!passkeyCancelled(e)) toast.add({ title: t('common.failed'), description: errorMessage(e), color: 'error', icon: 'i-cg-alert-circle' })
+  } finally {
+    addingPasskey.value = false
   }
 }
+async function removePasskey(pk: Passkey) {
+  if (!await confirm({ title: t('security.passkeyRemoveTitle', { name: pk.name }), description: t('security.passkeyRemoveHint'), danger: true, confirmLabel: t('security.remove') })) return
+  const p = await proof({ title: t('security.passkeyRemoveTitle', { name: pk.name }), danger: true, confirmLabel: t('security.remove') })
+  if (!p) return
+  if (await run(() => api.post(`/api/account/passkeys/${pk.id}/remove`, p), t('security.passkeyRemoved'))) await refreshAll()
+}
+
+// Password sign-in: off leaves the passkeys as the only way in.
+async function setPasswordSignIn(enabled: boolean) {
+  const p = await proof({
+    title: enabled ? t('security.passwordSignInOnTitle') : t('security.passwordSignInOffTitle'),
+    description: enabled ? undefined : t('security.passwordSignInOffHint'),
+    passkeyOnly: !enabled
+  })
+  if (!p) return
+  if (await run(() => api.put('/api/account/password-signin', { enabled, ...p }), enabled ? t('security.passwordSignInOn') : t('security.passwordSignInOff'))) await refreshAll()
+}
+
+// Recovery codes: made with the first factor, and again on demand.
+async function newCodes() {
+  const p = await proof({ title: t('security.codesNew') })
+  if (!p) return
+  await run(async () => {
+    const r = await api.post<{ recovery_codes: string[] }>('/api/account/recovery-codes', p)
+    freshCodes.value = r.recovery_codes
+  }, t('security.codesMade'))
+  await fetchMe()
+}
+function downloadCodes() {
+  if (!freshCodes.value) return
+  const text = `CloudGround — ${user.value?.email ?? ''}\n${t('security.codesFile')}\n\n${freshCodes.value.join('\n')}\n`
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'cloudground-recovery-codes.txt'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+const twoFactorOn = computed(() => !!user.value && (user.value.totp_enabled || user.value.passkeys > 0))
 
 const { data: sessions, refresh: refreshSessions } = useLoad(() => api.get<{ id: string, current: boolean, created_at: string, expires_at: string, last_seen: string, browser: string, os: string, ip: string }[]>('/api/account/sessions'))
 function device(s: { browser: string, os: string }) {
@@ -93,6 +173,8 @@ async function revokeToken(tok: APIToken) {
 const toc = computed(() => [
   ...(enrolRequired.value ? [] : [{ id: 'profile', label: t('security.profile') }, { id: 'password', label: t('security.password') }]),
   { id: 'two-step', label: t('security.totp') },
+  { id: 'passkeys', label: t('security.passkeys') },
+  ...(twoFactorOn.value ? [{ id: 'recovery-codes', label: t('security.codes') }] : []),
   { id: 'sessions', label: t('security.sessions') },
   ...(isAdmin.value && !enrolRequired.value ? [{ id: 'api-tokens', label: t('security.tokens') }] : [])
 ])
@@ -141,6 +223,24 @@ const toc = computed(() => [
               </UForm>
             </PanelSection>
 
+            <UAlert v-if="freshCodes" color="success" variant="subtle" icon="i-cg-key" :title="t('security.codesOnce')">
+              <template #description>
+                <div class="mt-1 flex w-full flex-col gap-3">
+                  <p>{{ t('security.codesOnceHint') }}</p>
+                  <ul class="m-0 grid list-none grid-cols-2 gap-x-6 gap-y-1 p-0 font-mono text-sm text-highlighted sm:grid-cols-2">
+                    <li v-for="c in freshCodes" :key="c">
+                      {{ c }}
+                    </li>
+                  </ul>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <CopyButton :value="freshCodes.join('\n')" />
+                    <UButton size="xs" color="neutral" variant="outline" icon="i-cg-download" :label="t('security.codesDownload')" @click="downloadCodes" />
+                    <UButton size="xs" color="neutral" variant="outline" :label="t('security.codesStored')" @click="freshCodes = null" />
+                  </div>
+                </div>
+              </template>
+            </UAlert>
+
             <PanelSection id="two-step" :title="t('security.totp')" :description="t('security.totpHint')">
               <template #actions>
                 <UBadge :color="user?.totp_enabled ? 'success' : 'warning'" variant="subtle" size="lg" :label="user?.totp_enabled ? t('common.on') : t('common.off')" />
@@ -162,29 +262,59 @@ const toc = computed(() => [
                 </div>
               </template>
 
-              <template v-else>
-                <div class="grid gap-4 sm:grid-cols-2">
-                  <UFormField :label="t('security.confirmWithPassword')">
-                    <UInput v-model="enrol.password" type="password" autocomplete="current-password" class="w-full" />
-                  </UFormField>
-                  <UFormField v-if="user?.totp_enabled" :label="t('security.currentCode')">
-                    <UInput v-model="enrol.code" inputmode="numeric" maxlength="6" placeholder="000000" class="w-full font-mono" />
-                  </UFormField>
-                </div>
-                <UButton :label="user?.totp_enabled ? t('security.replace') : t('security.setup')" :disabled="!enrol.password || (user?.totp_enabled && enrol.code.length !== 6)" :loading="busy" class="self-start" @click="begin" />
-                <template v-if="user?.totp_enabled">
-                  <USeparator />
-                  <div class="flex items-end gap-2">
-                    <UFormField :label="t('security.disableWithPassword')" class="flex-1">
-                      <UInput v-model="disablePw" type="password" autocomplete="current-password" class="w-full" />
-                    </UFormField>
-                    <UFormField :label="t('security.currentCode')" class="w-36">
-                      <UInput v-model="disableCode" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" class="w-full font-mono" />
-                    </UFormField>
-                    <UButton color="error" variant="outline" :label="t('security.disable')" :disabled="!disablePw || disableCode.length !== 6" @click="disable" />
-                  </div>
-                </template>
+              <div v-else class="flex flex-wrap gap-2">
+                <UButton :label="user?.totp_enabled ? t('security.replace') : t('security.setup')" :loading="busy" @click="begin" />
+                <UButton v-if="user?.totp_enabled" color="error" variant="outline" :label="t('security.disable')" @click="disable" />
+              </div>
+            </PanelSection>
+
+            <PanelSection id="passkeys" :title="t('security.passkeys')" :description="t('security.passkeysHint')">
+              <template #actions>
+                <UBadge :color="(user?.passkeys ?? 0) > 0 ? 'success' : 'neutral'" variant="subtle" size="lg" :label="String(user?.passkeys ?? 0)" />
               </template>
+              <UAlert v-if="!passkeyHere" color="info" variant="subtle" icon="i-cg-info" :description="t('security.passkeysElsewhere')" />
+              <ul v-if="passkeys?.length" class="m-0 list-none divide-y divide-default border-y border-default p-0">
+                <li v-for="pk in passkeys" :key="pk.id" class="flex items-center gap-3 py-2.5">
+                  <UIcon name="i-cg-key" class="size-5 shrink-0 text-muted" />
+                  <div class="min-w-0 flex-1">
+                    <p class="flex flex-wrap items-center gap-2 text-sm text-highlighted">
+                      {{ pk.name }}
+                      <UBadge v-if="pk.backed_up" size="sm" color="neutral" variant="subtle" :label="t('security.passkeySynced')" />
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ pk.rp_id }} · {{ t('security.tokenMade', { when: fmtAgo(pk.created_at, locale) }) }} · {{ pk.last_used_at ? t('security.lastSeen', { when: fmtAgo(pk.last_used_at, locale) }) : t('security.tokenUnused') }}
+                    </p>
+                  </div>
+                  <UButton size="sm" color="error" variant="outline" :label="t('security.remove')" :disabled="!user?.password_signin && passkeys.length === 1" @click="removePasskey(pk)" />
+                </li>
+              </ul>
+              <form v-if="passkeyHere" class="flex flex-wrap items-end gap-3" @submit.prevent="addPasskey">
+                <UFormField :label="t('security.passkeyName')" class="min-w-48 flex-[1_1_240px]">
+                  <UInput v-model="newPasskeyName" maxlength="64" class="w-full" autocomplete="off" />
+                </UFormField>
+                <UButton type="submit" icon="i-cg-plus" :label="t('security.passkeyAdd')" :disabled="!newPasskeyName.trim()" :loading="addingPasskey" />
+              </form>
+              <template v-if="(user?.passkeys ?? 0) > 0 && !enrolRequired">
+                <USeparator />
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm text-highlighted">
+                      {{ t('security.passwordSignIn') }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ user?.password_signin ? t('security.passwordSignInOnHint') : t('security.passwordSignInOffNow') }}
+                    </p>
+                  </div>
+                  <UButton :color="user?.password_signin ? 'error' : 'primary'" variant="outline" :label="user?.password_signin ? t('security.passwordSignInTurnOff') : t('security.passwordSignInTurnOn')" @click="setPasswordSignIn(!user?.password_signin)" />
+                </div>
+              </template>
+            </PanelSection>
+
+            <PanelSection v-if="twoFactorOn" id="recovery-codes" :title="t('security.codes')" :description="t('security.codesHint')">
+              <template #actions>
+                <UBadge :color="(user?.recovery_codes_left ?? 0) > 2 ? 'success' : 'warning'" variant="subtle" size="lg" :label="t('security.codesLeft', { n: fmtNumber(user?.recovery_codes_left ?? 0) })" />
+              </template>
+              <UButton class="self-start" :label="t('security.codesNew')" :loading="busy" @click="newCodes" />
             </PanelSection>
 
             <PanelSection id="sessions" :title="t('security.sessions')" flush>

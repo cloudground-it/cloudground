@@ -16,6 +16,33 @@ export interface Me {
   site_ids?: number[]
   totp_enabled: boolean
   created_at: string
+  /** Whether the account's password signs in (off only with a passkey, issue 156). */
+  password_signin: boolean
+  /** How many passkeys the account has. */
+  passkeys: number
+  /** How many of its recovery codes are unused. */
+  recovery_codes_left: number
+}
+
+/** One of the account's passkeys. */
+export interface Passkey {
+  id: number
+  name: string
+  rp_id: string
+  created_at: string
+  last_used_at?: string
+  backed_up: boolean
+}
+
+/**
+ * Confirming it is you (api SPEC §2.4): the password while it signs in,
+ * and one current second factor when the account has two-factor.
+ */
+export interface Proof {
+  password?: string
+  code?: string
+  recovery_code?: string
+  passkey?: Record<string, unknown>
 }
 
 /** A site's refused visitors (#25): addresses, user agents, countries. */
@@ -248,6 +275,7 @@ export interface PanelUser {
   site_ids?: number[]
   totp_enabled: boolean
   created_at: string
+  passkeys: number
 }
 
 export interface UpdateStatus {

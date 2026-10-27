@@ -25,7 +25,8 @@ type Recovery struct {
 	// Email is the account to reset, or to create on a panel with none;
 	// empty lists the accounts.
 	Email string
-	// DisableTOTP also turns the account's second factor off.
+	// DisableTOTP also removes the account's second factors: TOTP,
+	// passkeys and recovery codes.
 	DisableTOTP bool
 	// Root: the process runs as root. Nothing happens otherwise.
 	Root bool
@@ -105,19 +106,23 @@ func resetAccount(store *state.Store, out io.Writer, target state.User, disableT
 		return fmt.Errorf("setting the password: %w", err)
 	}
 	var notes []string
-	// Turning a second factor off is asked for, never assumed: silently
-	// dropping it would be worse than the lockout.
+	if !target.PasswordSignIn {
+		notes = append(notes, "password sign-in was off for this account: it is on again")
+	}
+	factors := secondFactors(target)
+	// Taking the second factors away is asked for, never assumed: silently
+	// dropping them would be worse than the lockout.
 	switch {
-	case disableTOTP && target.TOTPEnabled:
-		if err := store.DisableUserTOTP(target.ID); err != nil {
-			return fmt.Errorf("disabling two-factor: %w", err)
+	case disableTOTP && factors != "":
+		if err := store.ResetSecondFactors(target.ID); err != nil {
+			return fmt.Errorf("removing the second factors: %w", err)
 		}
-		notes = append(notes, "two-factor authentication was switched off")
-		_ = store.Audit(recoveryActor, "user.2fa.disable", target.Email, "disabled by host recovery")
+		notes = append(notes, "two-factor sign-in was removed: "+factors)
+		_ = store.Audit(recoveryActor, "user.2fa.disable", target.Email, "removed by host recovery: "+factors)
 	case disableTOTP:
 		notes = append(notes, "two-factor was already off")
-	case target.TOTPEnabled:
-		notes = append(notes, "two-factor is still ON for this account: re-run with --disable-2fa if the device is lost")
+	case factors != "":
+		notes = append(notes, "two-factor is still ON for this account ("+factors+"): re-run with --disable-2fa if they are lost")
 	}
 	// Disabled admins do not count, as everywhere else: a panel whose only
 	// admin is disabled has none.
@@ -152,6 +157,25 @@ func resetAccount(store *state.Store, out io.Writer, target state.User, disableT
 		fmt.Fprintf(out, "  note: %s\n", n)
 	}
 	return nil
+}
+
+// secondFactors names an account's second factors for recovery's notes,
+// "" for none.
+func secondFactors(u state.User) string {
+	var parts []string
+	if u.TOTPEnabled {
+		parts = append(parts, "an authenticator app")
+	}
+	switch {
+	case u.Passkeys == 1:
+		parts = append(parts, "1 passkey")
+	case u.Passkeys > 1:
+		parts = append(parts, fmt.Sprintf("%d passkeys", u.Passkeys))
+	}
+	if len(parts) > 0 && u.RecoveryCodesLeft > 0 {
+		parts = append(parts, fmt.Sprintf("%d recovery codes", u.RecoveryCodesLeft))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func newCredential() (password, hash string, err error) {

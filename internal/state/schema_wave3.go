@@ -188,3 +188,37 @@ var stepBlocklist = schemaStep{version: 27, stmts: []string{
 		settings TEXT NOT NULL
 	)`,
 }}
+
+// stepPasskeys adds panel passkeys and recovery codes (#156, api SPEC
+// §2.10–2.11): whether an account's password signs in, its WebAuthn user
+// handle, its passkeys and recovery codes, and the "every account" half of
+// the two-factor requirement.
+var stepPasskeys = schemaStep{version: 30, stmts: []string{
+	`ALTER TABLE users ADD COLUMN password_signin INTEGER NOT NULL DEFAULT 1`,
+	`ALTER TABLE users ADD COLUMN webauthn_id BLOB`,
+	`CREATE UNIQUE INDEX idx_users_webauthn_id ON users (webauthn_id) WHERE webauthn_id IS NOT NULL`,
+	`CREATE TABLE user_passkeys (
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		credential_id   BLOB NOT NULL UNIQUE,
+		public_key      BLOB NOT NULL,
+		sign_count      INTEGER NOT NULL DEFAULT 0,
+		aaguid          BLOB,
+		transports      TEXT NOT NULL DEFAULT '',
+		backup_eligible INTEGER NOT NULL DEFAULT 0,
+		backup_state    INTEGER NOT NULL DEFAULT 0,
+		rp_id           TEXT NOT NULL,
+		name            TEXT NOT NULL,
+		created_at      TEXT NOT NULL,
+		last_used_at    TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX idx_user_passkeys_user ON user_passkeys (user_id)`,
+	`CREATE TABLE user_recovery_codes (
+		id        INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		code_hash TEXT NOT NULL,
+		used_at   TEXT
+	)`,
+	`CREATE INDEX idx_user_recovery_codes_user ON user_recovery_codes (user_id, code_hash)`,
+	`ALTER TABLE panel_settings ADD COLUMN require_2fa_all INTEGER NOT NULL DEFAULT 0`,
+}}

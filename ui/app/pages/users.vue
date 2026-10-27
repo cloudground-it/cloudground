@@ -56,10 +56,18 @@ async function remove(u: PanelUser) {
     await refresh()
   }
 }
+const hasTwoFactor = (u: PanelUser) => u.totp_enabled || (u.passkeys ?? 0) > 0
+async function resetTwoFactor(u: PanelUser) {
+  if (await confirm({ title: t('users.reset2faTitle', { email: u.email }), description: t('users.reset2faHint'), danger: true, confirmLabel: t('users.reset2fa') })) {
+    await run(() => api.post(`/api/users/${u.id}/2fa/reset`, {}), t('users.reset2faDone'))
+    await refresh()
+  }
+}
 function actions(u: PanelUser): DropdownMenuItem[][] {
   return [[
     { label: t('users.edit'), icon: 'i-cg-edit', onSelect: () => openEdit(u) },
-    { label: t('users.resetPassword'), icon: 'i-cg-key', disabled: u.id === me.value?.id, onSelect: () => { resetFor.value = u; newPassword.value = '' } }
+    { label: t('users.resetPassword'), icon: 'i-cg-key', disabled: u.id === me.value?.id, onSelect: () => { resetFor.value = u; newPassword.value = '' } },
+    { label: t('users.reset2fa'), icon: 'i-cg-unlock', disabled: u.id === me.value?.id || !hasTwoFactor(u), onSelect: () => resetTwoFactor(u) }
   ], [
     { label: t('users.delete'), icon: 'i-cg-trash', color: 'error', disabled: u.id === me.value?.id, onSelect: () => remove(u) }
   ]]
@@ -125,7 +133,7 @@ const columns = computed<TableColumn<PanelUser>[]>(() => [
               <span v-else class="text-sm text-muted">—</span>
             </template>
             <template #totp_enabled-cell="{ row }">
-              <UIcon :name="row.original.totp_enabled ? 'i-cg-shield-check' : 'i-cg-unlock'" class="size-5" :class="row.original.totp_enabled ? 'text-success' : 'text-dimmed'" />
+              <UIcon :name="hasTwoFactor(row.original) ? 'i-cg-shield-check' : 'i-cg-unlock'" class="size-5" :class="hasTwoFactor(row.original) ? 'text-success' : 'text-dimmed'" />
             </template>
             <template #disabled-cell="{ row }">
               <UBadge :color="row.original.disabled ? 'neutral' : 'success'" variant="subtle" :label="row.original.disabled ? t('users.disabledLabel') : t('users.active')" />
