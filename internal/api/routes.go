@@ -29,6 +29,7 @@ const (
 const (
 	smallBody      = 8 << 10   // credentials and profile fields
 	blockingBody   = 64 << 10  // a site's blocking rules: 500 networks, 50 user agents
+	redirectBody   = 512 << 10 // a site's redirect rules: 200 of up to 1.5 KB
 	certBody       = 256 << 10 // a PEM chain and key
 	dbEditBody     = 16 << 20  // a batch of row changes
 	fileUploadBody = maxPanelTransfer
@@ -192,6 +193,10 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "the maintenance page: `enabled`, `title`, `message`, `retry_after_sec`, `allow` and, while it is on, the `preview_url` that lets a browser through"},
 		{Method: put, Path: "/api/sites/{id}/maintenance", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleSetMaintenance,
 			Section: secSites, Doc: "change the maintenance page (a field left out keeps its value; `{\"enabled\": true, \"title\": …, \"message\": …, \"retry_after_sec\": 3600, \"allow\": [\"203.0.113.0/24\"], \"allow_my_address\": false}`): on, visitors get a 503 with Retry-After and the page cache is bypassed; the addresses in `allow`, this server and a browser that opened `preview_url` still see the site; live at once, answers the settings"},
+		{Method: get, Path: "/api/sites/{id}/redirects", Policy: policyManage, Load: loadSite, Handle: s.handleGetRedirects,
+			Section: secSites, Doc: "the site's canonical host and redirect rules: `canonical`, `rules` (`match` exact or prefix, `from`, `to`, `status`), the `names` it may choose from and the www `counterpart` with whether the site `counterpart_served`"},
+		{Method: put, Path: "/api/sites/{id}/redirects", Policy: policyManage, MaxBody: redirectBody, Load: loadSite, Handle: s.handleSetRedirects,
+			Section: secSites, Doc: "change the canonical host and redirects (`{\"canonical\": \"www.example.com\", \"rules\": [{\"match\": \"prefix\", \"from\": \"/blog\", \"to\": \"/news\", \"status\": 301}]}`, a field left out keeps its value, `rules` replaces the list, at most 200): every other name goes to the canonical one with its path and query, an exact rule matches the path only and a prefix rule everything under it, the query is kept; live at once and never cached, the page cache is emptied; answers the settings"},
 		{Method: get, Path: "/api/sites/{id}/routing", Policy: policyAdmin, SessionOnly: true, Load: loadSite, Handle: s.handleGetRouting,
 			Section: secSites, Doc: "the site's routing block (`routing`, `default`, `custom`, `editable`) and the panel's vhost around it (`before`, `after`)"},
 		{Method: put, Path: "/api/sites/{id}/routing", Policy: policyAdmin, SessionOnly: true, MaxBody: routingBody, Load: loadSite, Handle: s.handleSetRouting,

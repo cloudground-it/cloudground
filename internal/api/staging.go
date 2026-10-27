@@ -106,6 +106,9 @@ func (st stagingService) record(prod state.Site, root string) (state.Site, siteS
 		s.Config.DevModeUntil = time.Time{}
 		// Nor the original's maintenance page, nor its key (the text may stay).
 		s.Config.Maintenance.Enabled, s.Config.Maintenance.Key = false, ""
+		// Nor its redirects (#83): the canonical host is the original's name
+		// and a rule's target may be the original itself.
+		s.Config.Redirects = state.SiteRedirects{}
 		return nil
 	})
 	if err != nil {

@@ -106,6 +106,9 @@ func prepare(in engine.Input) (*vhost, error) {
 	if err := site.CheckMaintenance(s.Config.Maintenance); err != nil {
 		return nil, err
 	}
+	if err := site.CheckRedirects(s.Config.Redirects, append([]string{s.Domain}, s.Aliases...)); err != nil {
+		return nil, err
+	}
 	v := &vhost{
 		in:       in,
 		php:      in.PHPSocket != "" && s.Type != state.SiteProxy && s.Type != state.SiteStatic,
@@ -150,6 +153,9 @@ func prepare(in engine.Input) (*vhost, error) {
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: routing: %w", s.Domain, err)
+	}
+	if err := checkRedirectLocations(s, v.parsed); err != nil {
+		return nil, err
 	}
 	return v, nil
 }
@@ -263,7 +269,11 @@ func (v *vhost) render() (before, block, after string) {
 	c.put(1, "location /.well-known/acme-challenge/ {")
 	c.put(2, "root "+in.ACMEWebroot+";")
 	c.put(1, "}", "location / {")
-	c.put(2, "return 301 https://$host$request_uri;")
+	if canon := s.Config.Redirects.Canonical; canon != "" {
+		c.putf(2, "return 301 https://%s$request_uri;", canon)
+	} else {
+		c.put(2, "return 301 https://$host$request_uri;")
+	}
 	c.put(1, "}")
 	c.put(0, "}", "", "server {")
 
@@ -289,6 +299,7 @@ func (v *vhost) render() (before, block, after string) {
 		c.put(2, "return 403;")
 		c.put(1, "}")
 	}
+	v.canonicalServer(&c)
 	v.maintenanceServer(&c)
 	if in.BasicAuthFile != "" {
 		c.put(1, "",
@@ -349,6 +360,8 @@ func (v *vhost) render() (before, block, after string) {
 			c.put(1, "}")
 		}
 	}
+
+	v.redirectServer(&c)
 
 	if s.Type != state.SiteProxy {
 		c.put(1, "",

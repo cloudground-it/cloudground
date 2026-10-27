@@ -1363,6 +1363,31 @@ recorded) only once nginx has them; an agent refusal stores nothing. Turning the
 the site's page cache (the policy bypassed it meanwhile, so it holds pages from before the work) and
 queues the quiet `cache.rewarm` of §6.2. Audit `site.maintenance`, detail `on`, `off` or `text`.
 Answer: 200, `{enabled, title, message, retry_after_sec, allow, preview_url?}`.
+### 3.18 Redirects and canonical host (#83, `site_redirects.go`)
+
+`GET /api/sites/{id}/redirects` and `PUT /api/sites/{id}/redirects` (manage, the PUT's body at most
+512 KiB). The settings are `config.redirects` (`canonical`, `rules`); what they make is
+internal/engine SPEC §4.10. The PUT changes the fields it names (a field left out keeps its value;
+`rules` replaces the whole list). The canonical host is trimmed and lower-cased; a prefix rule's path
+and target lose a trailing slash. Refused (400, the rule's message): `site.CheckRedirects` against the
+site's domain and aliases. The settings PATCH (§3.4) refuses to remove an alias that is the
+canonical host.
+
+As the maintenance page does: under the site's lock, the agent's `ApplySiteConfig` renders the site and the
+settings are stored (`MutateSiteApplied`, files recorded) only once nginx has them; an agent refusal
+(a routing block that already has a rule's location, `nginx -t`) stores nothing. Every change empties
+the site's page cache and queues the quiet `cache.rewarm` of §6.2: a redirect is decided before the
+cache is read and is never cached, but what the cache holds for a name or path that was redirected
+(and is served again once the redirect goes) is from before. Audit `site.redirects`, detail `rules`,
+`canonical` or `canonical off`. A staging copy starts with none.
+
+Answer: 200, `{canonical, rules, names, counterpart, counterpart_served}`: `names` are the domain and
+aliases (the choices for `canonical`); `counterpart` is the www name of a bare domain or the bare name
+of a www one, `counterpart_served` whether the site already has it as a name. Serving it takes an
+alias, which the settings PATCH adds (administrator) and which reissues a Let's Encrypt certificate
+for the new name (§3.4), so the certificate covers both names; a custom certificate gets that PATCH's
+warning.
+
 ### 3.17 Scheduled database cleanup (#78, `site_wpcleanup.go`)
 
 A WordPress or WooCommerce site (else 400 `not a WordPress site`) may have its database cleaned

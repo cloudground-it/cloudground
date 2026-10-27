@@ -216,6 +216,8 @@ var routePolicy = map[string]string{
 	"POST /api/sites/{id}/git-deploy/run":                        "manage",
 	"GET /api/sites/{id}/maintenance":                            "manage",
 	"PUT /api/sites/{id}/maintenance":                            "manage",
+	"GET /api/sites/{id}/redirects":                              "manage",
+	"PUT /api/sites/{id}/redirects":                              "manage",
 	"GET /api/changelog":                                         "auth",
 	"POST /api/account/whats-new":                                "auth",
 	"GET /api/sites/{id}/wp/cleanup":                             "auth",

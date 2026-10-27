@@ -93,7 +93,7 @@ In this order. "Security headers" is the set of §4.3.
    `off`, anything else `"Staging"`.
 4. Port 80: `listen 80` and `[::]:80`, the server names (domain then
    aliases), the ACME location (`root <ACMEWebroot>`), and everything else
-   `301` to `https://$host$request_uri`.
+   `301` to `https://$host$request_uri` (with a canonical host, to `https://<canonical>$request_uri`, §4.10).
 5. Port 443:
    - listen: `443 ssl http2` (both families), or with `HTTP2Directive`
      `443 ssl` and `http2 on;`; with `HTTP3` also `443 quic` (no
@@ -402,6 +402,47 @@ making some changes. Please come back in a little while.").
 hours) and redirects to `/`: opening it lets a browser through. The key is a bearer secret kept in
 the root-readable vhost and never in the API's view of the site (`Site.Public`); port 80, which
 only redirects and serves ACME challenges, is not affected.
+
+### 4.10 Redirects and canonical host (#83)
+
+A site may send some paths elsewhere and choose one of its names as the canonical one. The settings
+are the panel's (`config.redirects`, internal/api SPEC §3.18); the vhost file holds everything.
+Refused at every render: `site.CheckRedirects`.
+
+**What is accepted.** Nothing is escaped: paths and targets are kept to characters nginx gives no
+meaning (no space, quote, `;`, brace, backslash, `$` or `#`, no control character), and each is
+written inside double quotes all the same.
+
+- A rule is `match` (`exact` or `prefix`), `from`, `to` and `status` (301 or 302); at most 200 rules.
+- `from` is a path of the site, at most 512 characters of letters, digits and `. _ ~ - / + , : @ ! ( ) = *`:
+  no percent escape (nginx matches the decoded path, so it would never match), no empty, `.` or `..`
+  segment. A prefix rule's path has no trailing slash and is not the root.
+- `to` is a path (`/new`, with a `?query` for an exact rule) or an `http(s)://host[:port]/path`; at
+  most 1024 characters of the same set plus `%XX` escapes and `&`, `?`; a host name `ValidateDomain`
+  accepts, no credentials; never `//`, which would be another site. A rule that redirects to its own
+  path (a prefix rule to something below it) is a loop and is refused, and so are two rules for one
+  path, an exact and a prefix rule included (the prefix rule has the exact location too).
+- The canonical host is `""` or the site's domain or one of its aliases.
+
+**Locations**, in the 443 server after the refused visitors, the canonical host and the maintenance
+page and before the document root: an exact rule is `location = <from> { return <status> "<to>$is_args$args"; }`
+(the query string is kept unless `to` has its own); a prefix rule is that location for its own path
+and `location ^~ <from>/ { rewrite "^<from>/(.*)$" "<to>/$1" permanent|redirect; }`, so
+`/blog/a/b?x=1` goes to `/news/a/b?x=1`. The regex is the path with `regexp.QuoteMeta`; nginx gives
+the rewrite's query string on its own. Exact and `^~` locations are chosen before any regex
+location, so neither the static-file locations nor the routing block's regexes can answer a redirected
+path. The routing block cannot have the same location (nginx would refuse the file as a duplicate):
+`prepare` refuses with the location named. The rules are not in the cache: a location is not the
+PHP location, which alone reads and fills the page cache.
+
+**Canonical host.** In the 443 server, after the refused visitors' `if` and before the maintenance
+page: `if ($host != "<canonical>") { return 301 https://<canonical>$request_uri; }`. `$host` is
+lower case and has no port; `$request_uri` keeps the path and query as they came. Port 80 sends
+every name straight to `https://<canonical>$request_uri` (one hop, ACME location untouched). The
+maintenance page's key address belongs to the domain: opened on a name that is not canonical, it
+goes to the canonical one first.
+
+A staging copy has no redirects (its names are not the original's).
 
 ## 5. Page-cache policy (`velocity.PolicyFor`)
 

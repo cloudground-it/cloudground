@@ -82,6 +82,7 @@ var sections = []section{
 	{name: "external database server", run: (*harness).externalDatabaseServer},
 	{name: "external postgresql server", run: (*harness).externalPostgresServer},
 	{name: "migration safety snapshot", run: (*harness).migrationSafety},
+	{name: "site redirects", run: (*harness).redirects},
 	{name: "F9b site creation", run: (*harness).siteCreation, lane: "site creation"},
 	{name: "F9b Quarry service", run: (*harness).dbStudioService, fixtures: []string{fxWooSite, fxFeatureSite}},
 	{name: "wordpress teardown", run: (*harness).wordpressTeardown, fixtures: []string{fxFeatureSite, fxFeatureStaging}},

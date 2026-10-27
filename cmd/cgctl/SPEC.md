@@ -157,6 +157,18 @@ bypassed for 15, 30 or 60 minutes, `off` ends it now (`0`). Any other length is 
 given, `"message"`: the site answers visitors with a 503 page and Retry-After, or stops doing so.
 Anything but `on` or `off` is a usage error (exit 2). The answer is the page's settings, with the
 `preview_url` while it is on, printed as §3.
+## 6.6b redirects (#83)
+
+    cgctl redirects <site-id>
+    cgctl redirects <site-id> canonical <name|off>
+    cgctl redirects <site-id> rules <json>
+
+`GET` or `PUT /api/sites/{id}/redirects` (internal/api SPEC §3.18): the first prints the site's
+canonical host and rules; `canonical` sets the canonical host to one of the site's names (`off` for
+none); `rules` replaces the list with the JSON array given, which must parse (else a usage error,
+exit 2): `[{"match": "exact", "from": "/old", "to": "/new", "status": 301}]`. Anything else is a
+usage error. The answer is the site's settings, printed as §3.
+
 ## 6.7 cleanup (#78)
 
     cgctl cleanup <site-id> on [keep-revisions]
