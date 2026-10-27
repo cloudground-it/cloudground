@@ -7,6 +7,27 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.6.0
+
+Data. What changes for a person running the panel:
+
+- **external database servers**: register a MariaDB/MySQL or PostgreSQL server in Settings
+  (admin only; the password is encrypted and never shown again) and create a site's databases
+  and users there. Backups with their restore test, restores, the console, exports and Quarry
+  follow the database to its server (Quarry and the console are MariaDB/MySQL only for now).
+  PostgreSQL needs TLS; a site's main database stays on this server;
+- **restore one file or folder** from a backup, still behind a tested safety snapshot;
+- **download a backup** as an archive, streamed, for administrators and for operators on their own
+  sites, every download in the audit log; the archive is refused when the disk would not hold it,
+  and deleted once sent or after a day;
+- **new backup destinations**: Backblaze B2 and SFTP, next to S3-compatible storage and a local
+  folder; for SFTP the panel makes the key;
+- **move a site from another host**: give the old server's SSH/SFTP access, see a dry run (files,
+  size, WordPress or not, the host key, whether it fits), then CloudGround copies the files and the
+  database and imports them behind a safety snapshot. The password or key is used once and kept
+  nowhere. Administrators only;
+- fixed: the backup of a site whose PostgreSQL database had no tables failed its restore test.
+
 ## v0.5.0
 
 Remote access and AI. What changes for a person running the panel:
