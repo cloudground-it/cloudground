@@ -343,7 +343,7 @@ refused with `403`. The full contract is `internal/api/events/SPEC.md`.
 
 ### Assistants (MCP)
 
-The remote MCP server (SPEC §15), off by default: an administrator turns it on with the setting
+The remote MCP server (SPEC §16), off by default: an administrator turns it on with the setting
 `mcp`, and while it is off every route here answers `404`. Assistants register themselves, are
 authorised with OAuth 2.1 (authorisation code with PKCE) on the panel's consent page, and call
 tools at `/mcp` with a bearer token; destructive tools only record an action you confirm here.

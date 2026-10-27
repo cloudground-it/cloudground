@@ -46,7 +46,7 @@ const (
 	// decide), or one opened from the panel by an admin or an operator
 	// (SR-T4: a read-only account sees tables and structure only).
 	policyStudioData
-	// policyMCP: the MCP server's OAuth and /mcp rows (SPEC.md §15): the
+	// policyMCP: the MCP server's OAuth and /mcp rows (SPEC.md §16): the
 	// handler authenticates what it needs, and answers 404 while the MCP
 	// server is off.
 	policyMCP
@@ -249,7 +249,7 @@ type call struct {
 	// session's site; User is the panel account of one opened from the
 	// panel).
 	Studio *studioSession
-	// MCP is the assistant a call is made for (SPEC.md §15.7): the
+	// MCP is the assistant a call is made for (SPEC.md §16.7): the
 	// router's pipeline runs the tool's route as its account, which then
 	// counts as an API token does.
 	MCP *mcpCaller
@@ -273,7 +273,7 @@ func (c *call) Actor() string {
 }
 
 // ViaToken reports whether the caller authenticated with an API token, or
-// is an assistant (SPEC.md §15.7), which the routes treat the same way.
+// is an assistant (SPEC.md §16.7), which the routes treat the same way.
 func (c *call) ViaToken() bool { return c.Token.ID != 0 || c.MCP != nil }
 
 // CanAccess reports whether the caller may reach the site: an operator
@@ -323,7 +323,7 @@ func (s *Server) ConnectorRoutes() http.Handler {
 	return s.withCommonHeaders(mux)
 }
 
-// mcpMux serves the route table to the MCP server's tools (SPEC.md §15.7),
+// mcpMux serves the route table to the MCP server's tools (SPEC.md §16.7),
 // without the common headers: their calls come from inside the panel.
 func (s *Server) mcpMux() http.Handler {
 	s.mcpMuxOnce.Do(func() {

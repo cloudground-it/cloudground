@@ -118,7 +118,7 @@ var settingFields = map[string]setting{
 	// The weekly malware scan of every site (§11.7); on installs ClamAV.
 	"malware_scan": flagSetting(func(p *state.PanelSettings) *bool { return &p.MalwareScan },
 		"1", "", []string{"1", "true"}, []string{"", "0", "false"}, "must be 1 or empty"),
-	// The remote MCP server (§15); off by default, and turning it off
+	// The remote MCP server (§16); off by default, and turning it off
 	// revokes everything it issued (mcpSwitched).
 	"mcp": flagSetting(func(p *state.PanelSettings) *bool { return &p.MCPEnabled },
 		"1", "", []string{"1", "true"}, []string{"", "0", "false"}, "must be 1 or empty"),
@@ -466,7 +466,7 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request, c *ca
 		return
 	}
 	s.audit(c.Actor(), "settings.update", strings.Join(keys, ","), "")
-	// Turning the MCP server off revokes everything it issued (§15.1).
+	// Turning the MCP server off revokes everything it issued (§16.1).
 	if after, err := s.Store.PanelSettings(); err == nil && after.MCPEnabled != before.MCPEnabled {
 		if err := s.mcpSwitched(c.Actor(), before.MCPEnabled, after.MCPEnabled); err != nil {
 			internalError(w, "mcpSwitched", err, "the MCP server was turned off, but what it issued could not all be revoked: turn it off again")

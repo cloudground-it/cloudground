@@ -18,7 +18,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/version"
 )
 
-// The remote MCP server's endpoint and tools (SPEC.md §15.6–§15.8): JSON-RPC
+// The remote MCP server's endpoint and tools (SPEC.md §16.6–§16.8): JSON-RPC
 // over Streamable HTTP at /mcp, each tool one call of an existing route made
 // inside the panel as the grant's account.
 
@@ -145,7 +145,7 @@ type mcpCall struct {
 	summary      string
 }
 
-// mcpTool is one tool (SPEC.md §15.7).
+// mcpTool is one tool (SPEC.md §16.7).
 type mcpTool struct {
 	name, title, description string
 	area                     string // "" for reading

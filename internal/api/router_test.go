@@ -100,7 +100,7 @@ var sessionOnly = map[string]bool{
 	"PUT /api/account/password-signin":       true,
 	"POST /api/account/recovery-codes":       true,
 	"POST /api/users/{id}/2fa/reset":         true,
-	// An assistant's consent, grants and pending actions (SPEC.md §15).
+	// An assistant's consent, grants and pending actions (SPEC.md §16).
 	"GET /api/mcp/requests/{id}":          true,
 	"POST /api/mcp/requests/{id}/approve": true,
 	"POST /api/mcp/requests/{id}/deny":    true,

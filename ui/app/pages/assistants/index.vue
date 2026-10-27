@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * AI assistants (api SPEC §15): the ones connected to this account (an
+ * AI assistants (api SPEC §16): the ones connected to this account (an
  * administrator sees every account's) and the destructive actions they
  * asked for, which wait here for the person to confirm them.
  */

@@ -116,7 +116,7 @@ func (s *Server) routeTable() []route {
 		{Method: del, Path: "/api/users/{id}", Policy: policyAdmin, SessionOnly: true, Handle: s.handleDeleteUser,
 			Section: secUsers, Doc: "delete an account"},
 
-		// The remote MCP server (mcp_oauth.go, mcp_server.go; SPEC.md §15):
+		// The remote MCP server (mcp_oauth.go, mcp_server.go; SPEC.md §16):
 		// every row answers 404 while it is off.
 		{Method: get, Path: "/.well-known/oauth-protected-resource", Policy: policyMCP, Handle: plain(s.handleMCPResourceMetadata),
 			Section: secMCP, Doc: "the MCP resource's metadata (RFC 9728): where to authorise"},

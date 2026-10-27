@@ -50,7 +50,7 @@ type PanelSettings struct {
 	// comparable. Both are the JSON column mail.
 	Mail        MailRelay
 	AlertEmails string
-	// MCPEnabled turns on the remote MCP server (api SPEC §15); off by
+	// MCPEnabled turns on the remote MCP server (api SPEC §16); off by
 	// default.
 	MCPEnabled bool
 }

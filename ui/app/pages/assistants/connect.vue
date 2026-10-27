@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The consent page of the remote MCP server (api SPEC §15.4): an assistant
+ * The consent page of the remote MCP server (api SPEC §16.4): an assistant
  * asked to connect; the person decides what it may do and confirms it is
  * them. Reading is always granted; writing per area and per site.
  */

@@ -29,7 +29,7 @@ func (h *harness) routeMatrix(t *testing.T, op *apiClient, own, other int64, cro
 	probes := 0
 	for _, rt := range api.RouteSummaries() {
 		// The MCP server's rows judge their own callers and answer 404
-		// while it is off (api SPEC §15); section "mcp server" covers them.
+		// while it is off (api SPEC §16); section "mcp server" covers them.
 		if rt.Method == "" || rt.Role == "open" || rt.Role == "site token" || rt.Role == "mcp" {
 			continue
 		}

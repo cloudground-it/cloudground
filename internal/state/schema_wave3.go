@@ -252,7 +252,7 @@ var stepPasskeys = schemaStep{version: 30, stmts: []string{
 	`ALTER TABLE panel_settings ADD COLUMN require_2fa_all INTEGER NOT NULL DEFAULT 0`,
 }}
 
-// stepMCP adds the remote MCP server (#70, api SPEC §15): its switch, the
+// stepMCP adds the remote MCP server (#70, api SPEC §16): its switch, the
 // OAuth clients that registered, the grants a person consented to (their
 // tokens as hashes) and the destructive actions waiting for a person.
 var stepMCP = schemaStep{version: 32, stmts: []string{

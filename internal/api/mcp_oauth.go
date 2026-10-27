@@ -21,7 +21,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/throttle"
 )
 
-// The remote MCP server's authorisation (SPEC.md §15.1–§15.5): OAuth 2.1
+// The remote MCP server's authorisation (SPEC.md §16.1–§16.5): OAuth 2.1
 // with PKCE, dynamic client registration and resource indicators, the
 // consent being the panel's own sign-in. Off by default.
 
@@ -42,7 +42,7 @@ const (
 	mcpActionsPagePath = "/assistants"
 )
 
-// mcpAreas are what writing is granted for, per site (SPEC.md §15.2).
+// mcpAreas are what writing is granted for, per site (SPEC.md §16.2).
 var mcpAreas = []string{"cache", "backups", "deploys", "wp_updates", "sites"}
 
 // mcpScopes is what a grant allows: reading always, writing per area on
@@ -197,7 +197,7 @@ func (s *Server) mcpOff(w http.ResponseWriter) bool {
 	return true
 }
 
-// mcpBase is the base URL a request reached the panel at (SPEC.md §15.2).
+// mcpBase is the base URL a request reached the panel at (SPEC.md §16.2).
 func mcpBase(r *http.Request) string { return "https://" + r.Host }
 
 func tokenHash(token string) string { return state.TokenHash(token) }
@@ -684,7 +684,7 @@ func (s *Server) handleMCPRevokeGrant(w http.ResponseWriter, r *http.Request, c 
 	respond(w, http.StatusOK, map[string]string{"status": "revoked"})
 }
 
-// mcpSwitched follows a change of the setting mcp (SPEC.md §15.1): off
+// mcpSwitched follows a change of the setting mcp (SPEC.md §16.1): off
 // revokes everything the MCP server issued.
 func (s *Server) mcpSwitched(actor string, was, now bool) error {
 	switch {

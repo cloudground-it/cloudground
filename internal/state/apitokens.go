@@ -93,7 +93,7 @@ func revokeAPITokens(db interface {
 	if _, err := db.Exec(`DELETE FROM api_tokens WHERE user_id = ?`, userID); err != nil {
 		return err
 	}
-	// An assistant's grant (api SPEC §15.5) is a token too: what ends the
+	// An assistant's grant (api SPEC §16.5) is a token too: what ends the
 	// account's API tokens ends its grants.
 	_, err := db.Exec(`DELETE FROM mcp_grants WHERE user_id = ?`, userID)
 	return err

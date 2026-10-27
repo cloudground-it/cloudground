@@ -8,7 +8,7 @@ import (
 )
 
 // The remote MCP server's records (#70; SPEC.md, Entities; the rules are
-// internal/api/SPEC.md §15): the OAuth clients that registered, the grants a
+// internal/api/SPEC.md §16): the OAuth clients that registered, the grants a
 // person consented to, their tokens stored as SHA-256 only, and the
 // destructive actions waiting for a person to confirm them.
 
@@ -358,7 +358,7 @@ func (s *Store) FinishMCPAction(id int64, status, result string) error {
 }
 
 // ClearMCP deletes every client, grant and action, in one transaction:
-// turning the MCP server off (api SPEC §15.1).
+// turning the MCP server off (api SPEC §16.1).
 func (s *Store) ClearMCP() error {
 	return s.inTx(func(tx *sql.Tx) error {
 		for _, t := range []string{"mcp_actions", "mcp_grants", "mcp_clients"} {

@@ -146,7 +146,7 @@ func (sv *Service) confirmPasskey(a *attempt, u state.User, rp RP, raw []byte, u
 }
 
 // Confirm checks a proof for a change made outside this package (an
-// assistant's consent, its pending action: api SPEC §15), in an attempt of
+// assistant's consent, its pending action: api SPEC §16), in an attempt of
 // its own: the password while it signs in, and a current factor when the
 // account has two-factor. purpose names the change in the audit of a spent
 // recovery code.
