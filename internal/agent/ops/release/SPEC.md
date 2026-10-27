@@ -144,8 +144,11 @@ definition only affects new releases.)
   directory (`Lstat`; a symlink is `not_found`). `current` is replaced by a
   new link renamed over it (`sitefs.Symlink`: temporary name, `renameat`),
   so every request sees one release or the other. Then the site's PHP-FPM
-  master is reloaded (sites with PHP), so OPcache serves the new code, and
-  old releases are pruned (§7; a pruning failure is logged, not returned).
+  master is reloaded (sites with PHP), so OPcache serves the new code, then
+  nginx (its `open_file_cache` holds a path's descriptor for
+  `open_file_cache_valid`, 60s outside the page-cache location, so a static
+  file would come from the old release that long; measured by the e2e of
+  #24), and old releases are pruned (§7; a pruning failure is logged, not returned).
 - **Rollback** without an ID goes to the newest release **older** than the
   live one. It used to take the newest release that was not live: a release
   built but not promoted went live untested, and a second rollback undid
