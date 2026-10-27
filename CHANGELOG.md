@@ -7,6 +7,13 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.8.2
+
+What changes for a person running the panel:
+
+- the Traffic tab's chart is readable: page views and visitors are two lines with an axis, dates
+  and a tooltip on hover (or with the arrow keys), and the last 48 hours are thin bars.
+
 ## v0.8.1
 
 What changes for a person running the panel:
