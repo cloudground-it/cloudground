@@ -33,7 +33,7 @@ func recoverAdmin(args []string) error {
 	fs := flag.NewFlagSet("recover-admin", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	email := fs.String("email", "", "the account to reset (or to create, when the panel has none)")
-	disable2FA := fs.Bool("disable-2fa", false, "also turn two-factor off, for a lost device")
+	disable2FA := fs.Bool("disable-2fa", false, "also remove every second factor (authenticator app, passkeys, recovery codes), when they are lost")
 	statePath := fs.String("state", "", "the panel database (default: from the configuration)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, recoverHelp)

@@ -29,14 +29,16 @@ var Locales = []string{"it", "en", "fr", "es", "de"}
 func ValidLocale(l string) bool { return slices.Contains(Locales, l) }
 
 // userCols are the columns scanUser reads, from users aliased u.
-const userCols = `u.id, u.email, u.password_hash, u.role, u.first_name, u.last_name, u.locale, u.whats_new_seen, u.disabled, u.totp_enabled, u.created_at`
+const userCols = `u.id, u.email, u.password_hash, u.role, u.first_name, u.last_name, u.locale, u.whats_new_seen, u.disabled, u.totp_enabled, u.created_at,
+	u.password_signin, (SELECT COUNT(*) FROM user_passkeys pk WHERE pk.user_id = u.id),
+	(SELECT COUNT(*) FROM user_recovery_codes rc WHERE rc.user_id = u.id AND rc.used_at IS NULL)`
 
 // scanUser reads userCols, then whatever extra columns the query adds.
 func scanUser(row interface{ Scan(...any) error }, extra ...any) (User, error) {
 	var u User
 	var created string
 	dest := append([]any{&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.FirstName, &u.LastName, &u.Locale, &u.WhatsNewSeen,
-		&u.Disabled, &u.TOTPEnabled, &created}, extra...)
+		&u.Disabled, &u.TOTPEnabled, &created, &u.PasswordSignIn, &u.Passkeys, &u.RecoveryCodesLeft}, extra...)
 	if err := row.Scan(dest...); err != nil {
 		return User{}, err
 	}
@@ -159,7 +161,7 @@ func (s *Store) CreateAccount(nu NewUser) (User, error) {
 	}
 	s.publishUser(id)
 	return User{ID: id, Email: nu.Email, PasswordHash: nu.PasswordHash, Role: nu.Role,
-		FirstName: nu.FirstName, LastName: nu.LastName, SiteIDs: nu.SiteIDs, CreatedAt: parseTime(at)}, nil
+		FirstName: nu.FirstName, LastName: nu.LastName, SiteIDs: nu.SiteIDs, CreatedAt: parseTime(at), PasswordSignIn: true}, nil
 }
 
 // UserUpdate is the whole of what an admin edits on an account.
@@ -299,11 +301,12 @@ func (s *Store) SetUserWhatsNewSeen(id int64, release string) error {
 	return nil
 }
 
-// SetUserPassword replaces an account's password hash, and ends its
-// sessions and API tokens: whoever had the old password keeps nothing.
+// SetUserPassword replaces an account's password hash, turns its password
+// sign-in on, and ends its sessions and API tokens: whoever had the old
+// password keeps nothing.
 func (s *Store) SetUserPassword(id int64, hash string) error {
 	err := s.inTx(func(tx *sql.Tx) error {
-		res, err := tx.Exec(`UPDATE users SET password_hash = ? WHERE id = ?`, hash, id)
+		res, err := tx.Exec(`UPDATE users SET password_hash = ?, password_signin = 1 WHERE id = ?`, hash, id)
 		if err != nil {
 			return err
 		}

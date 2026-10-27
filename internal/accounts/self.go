@@ -60,27 +60,25 @@ type Enrolment struct {
 	Secret, URI string
 }
 
-// BeginTOTP makes a new pending secret. It takes the password, and a
-// current code when 2FA is already on: a stolen session alone must not be
-// able to put its own authenticator in the owner's place. The active secret
-// keeps working until the new one is confirmed.
-func (sv *Service) BeginTOTP(ctx context.Context, from Origin, u state.User, password, code string) (Enrolment, error) {
+// BeginTOTP makes a new pending secret once the proof checks out (SPEC
+// §2.4): the password, and a current factor when the account has
+// two-factor; a stolen session alone must not be able to put its own
+// authenticator in the owner's place. The active secret keeps working until
+// the new one is confirmed.
+func (sv *Service) BeginTOTP(ctx context.Context, from Origin, u state.User, rp RP, actor string, p Proof) (Enrolment, error) {
 	a, err := sv.gate(ctx, from, u.Email)
 	if err != nil {
 		return Enrolment{}, err
 	}
 	defer a.end()
-	if err := sv.checkPassword(ctx, a, u, password, msgWrongPassword); err != nil {
+	refusal := msgConfirmFactor
+	if fresh, err := sv.Store.GetUser(u.ID); err != nil {
 		return Enrolment{}, err
+	} else if fresh.TOTPEnabled {
+		refusal = "enter a code from your current authenticator to replace it"
 	}
-	active, on, err := sv.Store.UserTOTP(u.ID)
-	if err != nil {
+	if err := sv.confirm(ctx, a, u, rp, p, confirmation{refusal: refusal, purpose: "set up an authenticator app", actor: actor}); err != nil {
 		return Enrolment{}, err
-	}
-	if on {
-		if err := sv.spendCurrentCode(a, u, active, code, "enter a code from your current authenticator to replace it"); err != nil {
-			return Enrolment{}, err
-		}
 	}
 	secret := NewTOTPSecret()
 	if err := sv.Store.SetPendingTOTP(u.ID, secret); err != nil {
@@ -92,51 +90,51 @@ func (sv *Service) BeginTOTP(ctx context.Context, from Origin, u state.User, pas
 // ConfirmTOTP turns 2FA on with the pending secret once a code from it
 // matches, and ends the account's sessions but keepToken's. The store
 // activates exactly the secret the code was checked against: an enrolment
-// begun in between is refused, not switched on unchecked.
-func (sv *Service) ConfirmTOTP(u state.User, actor, code, keepToken string) error {
+// begun in between is refused, not switched on unchecked. When it is the
+// account's first factor, it returns its recovery codes, to show once.
+func (sv *Service) ConfirmTOTP(u state.User, actor, code, keepToken string) ([]string, error) {
 	pending, err := sv.Store.PendingTOTP(u.ID)
 	if err != nil || pending == "" {
-		return refuse(Invalid, "start enrollment first")
+		return nil, refuse(Invalid, "start enrollment first")
 	}
 	step, ok := MatchTOTP(pending, code, sv.now())
 	if !ok {
-		return refuse(Invalid, "code did not match — check your device clock")
+		return nil, refuse(Invalid, "code did not match — check your device clock")
+	}
+	before, err := sv.Store.GetUser(u.ID)
+	if err != nil {
+		return nil, err
 	}
 	// The confirming code is spent like a sign-in's: the watermark starts
 	// at its step, so it cannot also sign in (it could, once, before).
 	switch err := sv.Store.ActivatePendingTOTPAt(u.ID, pending, step); {
 	case errors.Is(err, state.ErrPendingChanged):
-		return refuse(Conflict, "another enrolment was started meanwhile: confirm with a code from the newest secret")
+		return nil, refuse(Conflict, "another enrolment was started meanwhile: confirm with a code from the newest secret")
 	case errors.Is(err, state.ErrNotFound):
-		return refuse(Invalid, "start enrollment first")
+		return nil, refuse(Invalid, "start enrollment first")
 	case err != nil:
-		return err
+		return nil, err
 	}
 	_ = sv.Store.RevokeOtherSessions(u.ID, keepToken)
 	sv.audit(actor, "2fa.enabled", "self", "")
-	return nil
+	if before.HasSecondFactor() {
+		return nil, nil
+	}
+	return sv.issueRecoveryCodes(u.ID)
 }
 
-// DisableTOTP turns 2FA off. Password and a fresh code are both needed, so
-// a stolen session cannot strip the factor; failures count as at sign-in.
-// The store also revokes the account's API tokens.
-func (sv *Service) DisableTOTP(ctx context.Context, from Origin, u state.User, actor, password, code, keepToken string) error {
+// DisableTOTP turns TOTP off once the proof checks out (SPEC §2.4), so a
+// stolen session cannot strip the factor; failures count as at sign-in. The
+// store also revokes the account's API tokens, and its recovery codes when
+// no passkey is left.
+func (sv *Service) DisableTOTP(ctx context.Context, from Origin, u state.User, rp RP, actor string, p Proof, keepToken string) error {
 	a, err := sv.gate(ctx, from, u.Email)
 	if err != nil {
 		return err
 	}
 	defer a.end()
-	if err := sv.checkPassword(ctx, a, u, password, msgWrongPassword); err != nil {
+	if err := sv.confirm(ctx, a, u, rp, p, confirmation{refusal: "enter a code from your authenticator to turn it off", purpose: "turn off the authenticator app", actor: actor}); err != nil {
 		return err
-	}
-	active, on, err := sv.Store.UserTOTP(u.ID)
-	if err != nil {
-		return err
-	}
-	if on {
-		if err := sv.spendCurrentCode(a, u, active, code, "enter a code from your authenticator to turn it off"); err != nil {
-			return err
-		}
 	}
 	if err := sv.Store.DisableUserTOTP(u.ID); err != nil {
 		return err

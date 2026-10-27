@@ -1,0 +1,1 @@
+import{Bn as e}from"./ePb2g_3_.js";import{s as t}from"./C3NJxjzA.js";function n(n){let r=e(null),i=e(null),a=e(!0);async function o(){try{r.value=await n(),i.value=null}catch(e){i.value=t(e)}finally{a.value=!1}}return o(),{data:r,error:i,pending:a,refresh:o}}export{n as t};

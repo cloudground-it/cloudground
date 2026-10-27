@@ -173,7 +173,7 @@ func TestRecoverDisablesTOTPOnlyWhenAsked(t *testing.T) {
 		t.Fatal("2FA switched off without being asked")
 	}
 	out = recoverOK(t, rec, Recovery{Email: "twofactor@example.com", DisableTOTP: true})
-	if !strings.Contains(out, "two-factor authentication was switched off") {
+	if !strings.Contains(out, "two-factor sign-in was removed") {
 		t.Fatalf("output:\n%s", out)
 	}
 	out = recoverOK(t, rec, Recovery{Email: "twofactor@example.com", DisableTOTP: true})

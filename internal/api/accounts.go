@@ -1,7 +1,12 @@
 package api
 
 import (
+	"encoding/json"
+	"net"
 	"net/http"
+	"net/url"
+	"regexp"
+	"strings"
 	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
@@ -89,8 +94,19 @@ func respondAccountErr(w http.ResponseWriter, err error) {
 		w.Header().Set("Retry-After", busyRetryAfter)
 	}
 	body := map[string]any{"error": ref.Msg}
+	if ref.PasswordOff {
+		body["password_off"] = true
+	}
 	if ref.SecondFactor {
 		body["totp_required"] = true
+		factors := ref.Factors
+		if factors == nil {
+			factors = []string{}
+		}
+		body["factors"] = factors
+		if ref.PasskeyOptions != nil {
+			body["passkey"] = ref.PasskeyOptions
+		}
 	}
 	respond(w, refusalStatus[ref.Kind], body)
 }
@@ -122,11 +138,56 @@ func (s *Server) handleBootstrap(w http.ResponseWriter, r *http.Request) {
 
 // signInBody is what setup and sign-in take.
 type signInBody struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Token    string `json:"token,omitempty"`
-	TOTP     string `json:"totp,omitempty"`
+	Email        string          `json:"email"`
+	Password     string          `json:"password"`
+	Token        string          `json:"token,omitempty"`
+	TOTP         string          `json:"totp,omitempty"`
+	RecoveryCode string          `json:"recovery_code,omitempty"`
+	Passkey      json.RawMessage `json:"passkey,omitempty"`
 }
+
+// signedIn is the answer to a sign-in: the account, and whether the 2FA
+// requirement holds it (the UI then goes straight to the setup).
+type signedIn struct {
+	state.User
+	EnrolRequired bool `json:"enrol_required"`
+}
+
+// relyingParty is the relying party a request reaches the panel as (SPEC.md
+// §2.10): the host name it was asked for, when that is a domain name, and
+// the origin the browser is on (§1.5 holds a write's Origin to that host).
+// The zero RP, for an IP address or a malformed host, makes the passkey
+// routes refuse.
+func (s *Server) relyingParty(r *http.Request) accounts.RP {
+	host := r.Host
+	name := host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		name = h
+	}
+	name = strings.TrimSuffix(strings.ToLower(name), ".")
+	if name == "" || net.ParseIP(strings.Trim(name, "[]")) != nil || !hostNameRe.MatchString(name) {
+		return accounts.RP{}
+	}
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		scheme := "https"
+		if s.InsecureCookies {
+			scheme = "http"
+		}
+		origin = scheme + "://" + host
+	}
+	u, err := url.Parse(origin)
+	if err != nil || !strings.EqualFold(u.Hostname(), name) {
+		return accounts.RP{}
+	}
+	// A secure context: HTTPS, or plain HTTP only in development.
+	if u.Scheme != "https" && (u.Scheme != "http" || !(s.InsecureCookies || name == "localhost")) {
+		return accounts.RP{}
+	}
+	return accounts.RP{ID: name, Origin: u.Scheme + "://" + strings.ToLower(u.Host)}
+}
+
+var hostNameRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`)
 
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	var in signInBody
@@ -150,14 +211,47 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	o := clientOrigin(r)
 	u, err := s.accounts.Login(r.Context(), accounts.SignIn{
-		Email: in.Email, Password: in.Password, Code: in.TOTP, Address: o.Address, Network: o.Network, Wide: o.Wide,
+		Email: in.Email, Password: in.Password, Code: in.TOTP, RecoveryCode: in.RecoveryCode, Passkey: in.Passkey,
+		RP: s.relyingParty(r), Address: o.Address, Network: o.Network, Wide: o.Wide,
 	})
 	if err != nil {
 		respondAccountErr(w, err)
 		return
 	}
 	if s.startSession(w, r, u) {
-		respond(w, http.StatusOK, u)
+		respond(w, http.StatusOK, signedIn{User: u, EnrolRequired: s.secondFactorPending(u)})
+	}
+}
+
+// handlePasskeySignInBegin issues the challenge of a sign-in with a passkey
+// alone (SPEC.md §2.3).
+func (s *Server) handlePasskeySignInBegin(w http.ResponseWriter, r *http.Request) {
+	opts, err := s.accounts.BeginPasskeySignIn(clientOrigin(r), s.relyingParty(r))
+	if err != nil {
+		respondAccountErr(w, err)
+		return
+	}
+	respond(w, http.StatusOK, opts)
+}
+
+// credentialBody carries a passkey ceremony's answer.
+type credentialBody struct {
+	Name       string          `json:"name,omitempty"`
+	Credential json.RawMessage `json:"credential"`
+}
+
+func (s *Server) handlePasskeySignIn(w http.ResponseWriter, r *http.Request) {
+	var in credentialBody
+	if !decodeOr400(w, r, &in) {
+		return
+	}
+	u, err := s.accounts.PasskeySignIn(clientOrigin(r), s.relyingParty(r), in.Credential)
+	if err != nil {
+		respondAccountErr(w, err)
+		return
+	}
+	if s.startSession(w, r, u) {
+		respond(w, http.StatusOK, signedIn{User: u, EnrolRequired: s.secondFactorPending(u)})
 	}
 }
 
@@ -210,18 +304,12 @@ func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request, c 
 	}
 }
 
-// secondFactorBody is what the enrolment and disable routes take.
-type secondFactorBody struct {
-	Password string `json:"password"`
-	Code     string `json:"code"`
-}
-
 func (s *Server) handleTOTPBegin(w http.ResponseWriter, r *http.Request, c *call) {
-	var in secondFactorBody
+	var in accounts.Proof
 	if !decodeOr400(w, r, &in) {
 		return
 	}
-	en, err := s.accounts.BeginTOTP(r.Context(), clientOrigin(r), c.User, in.Password, in.Code)
+	en, err := s.accounts.BeginTOTP(r.Context(), clientOrigin(r), c.User, s.relyingParty(r), c.Actor(), in)
 	if err != nil {
 		respondAccountErr(w, err)
 		return
@@ -245,19 +333,24 @@ func (s *Server) handleTOTPConfirm(w http.ResponseWriter, r *http.Request, c *ca
 	if !decodeOr400(w, r, &in) {
 		return
 	}
-	if err := s.accounts.ConfirmTOTP(c.User, c.Actor(), in.Code, s.sessionToken(r)); err != nil {
+	codes, err := s.accounts.ConfirmTOTP(c.User, c.Actor(), in.Code, s.sessionToken(r))
+	if err != nil {
 		respondAccountErr(w, err)
 		return
 	}
-	respond(w, http.StatusOK, map[string]string{"status": "two-factor enabled"})
+	out := map[string]any{"status": "two-factor enabled"}
+	if codes != nil {
+		out["recovery_codes"] = codes
+	}
+	respond(w, http.StatusOK, out)
 }
 
 func (s *Server) handleTOTPDisable(w http.ResponseWriter, r *http.Request, c *call) {
-	var in secondFactorBody
+	var in accounts.Proof
 	if !decodeOr400(w, r, &in) {
 		return
 	}
-	if err := s.accounts.DisableTOTP(r.Context(), clientOrigin(r), c.User, c.Actor(), in.Password, in.Code, s.sessionToken(r)); err != nil {
+	if err := s.accounts.DisableTOTP(r.Context(), clientOrigin(r), c.User, s.relyingParty(r), c.Actor(), in, s.sessionToken(r)); err != nil {
 		respondAccountErr(w, err)
 		return
 	}
@@ -301,4 +394,104 @@ func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request, c *
 		return
 	}
 	respond(w, http.StatusOK, u)
+}
+
+// Passkeys, recovery codes and password sign-in (SPEC.md §2.10–2.11).
+
+func (s *Server) handleListPasskeys(w http.ResponseWriter, r *http.Request, c *call) {
+	list, err := s.accounts.ListPasskeys(c.User)
+	if err != nil {
+		internalError(w, "Passkeys", err, "")
+		return
+	}
+	respond(w, http.StatusOK, list)
+}
+
+func (s *Server) handlePasskeyBegin(w http.ResponseWriter, r *http.Request, c *call) {
+	var in accounts.Proof
+	if !decodeOr400(w, r, &in) {
+		return
+	}
+	opts, err := s.accounts.BeginPasskey(r.Context(), clientOrigin(r), c.User, s.relyingParty(r), c.Actor(), in)
+	if err != nil {
+		respondAccountErr(w, err)
+		return
+	}
+	respond(w, http.StatusOK, opts)
+}
+
+func (s *Server) handlePasskeyFinish(w http.ResponseWriter, r *http.Request, c *call) {
+	var in credentialBody
+	if !decodeOr400(w, r, &in) {
+		return
+	}
+	pk, codes, err := s.accounts.FinishPasskey(c.User, s.relyingParty(r), c.Actor(), in.Name, in.Credential, s.sessionToken(r))
+	if err != nil {
+		respondAccountErr(w, err)
+		return
+	}
+	out := map[string]any{"passkey": pk}
+	if codes != nil {
+		out["recovery_codes"] = codes
+	}
+	respond(w, http.StatusCreated, out)
+}
+
+func (s *Server) handlePasskeyChallenge(w http.ResponseWriter, r *http.Request, c *call) {
+	opts, err := s.accounts.ProofChallenge(c.User, s.relyingParty(r))
+	if err != nil {
+		respondAccountErr(w, err)
+		return
+	}
+	respond(w, http.StatusOK, opts)
+}
+
+func (s *Server) handlePasskeyRemove(w http.ResponseWriter, r *http.Request, c *call) {
+	id, err := pathID(r)
+	if err != nil {
+		respondErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	var in accounts.Proof
+	if !decodeOr400(w, r, &in) {
+		return
+	}
+	if err := s.accounts.RemovePasskey(r.Context(), clientOrigin(r), c.User, s.relyingParty(r), c.Actor(), id, in, s.sessionToken(r)); err != nil {
+		respondAccountErr(w, err)
+		return
+	}
+	respond(w, http.StatusOK, map[string]string{"status": "removed"})
+}
+
+func (s *Server) handlePasswordSignIn(w http.ResponseWriter, r *http.Request, c *call) {
+	var in struct {
+		Enabled *bool `json:"enabled"`
+		accounts.Proof
+	}
+	if !decodeOr400(w, r, &in) {
+		return
+	}
+	if in.Enabled == nil {
+		respondErr(w, http.StatusBadRequest, "malformed request")
+		return
+	}
+	u, err := s.accounts.SetPasswordSignIn(r.Context(), clientOrigin(r), c.User, s.relyingParty(r), c.Actor(), *in.Enabled, in.Proof, s.sessionToken(r))
+	if err != nil {
+		respondAccountErr(w, err)
+		return
+	}
+	respond(w, http.StatusOK, u)
+}
+
+func (s *Server) handleRecoveryCodes(w http.ResponseWriter, r *http.Request, c *call) {
+	var in accounts.Proof
+	if !decodeOr400(w, r, &in) {
+		return
+	}
+	codes, err := s.accounts.RegenerateRecoveryCodes(r.Context(), clientOrigin(r), c.User, s.relyingParty(r), c.Actor(), in)
+	if err != nil {
+		respondAccountErr(w, err)
+		return
+	}
+	respond(w, http.StatusOK, map[string]any{"recovery_codes": codes})
 }

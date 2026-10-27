@@ -113,6 +113,43 @@ func buildCleanup(a []string) (request, error) {
 	return request{}, fmt.Errorf("%q is not on, off, preview or run", a[1])
 }
 
+// buildGitDeploy is cgctl git-deploy: a site's settings, turned on with the
+// repository (and branch and build command) or off, a deploy now, a new
+// webhook secret (and URL) or a new deploy key.
+func buildGitDeploy(a []string) (request, error) {
+	n, err := id(a[0])
+	if err != nil {
+		return request{}, err
+	}
+	path := fmt.Sprintf("/api/sites/%s/git-deploy", n)
+	if len(a) == 1 {
+		return request{method: "GET", path: path}, nil
+	}
+	switch a[1] {
+	case "run", "secret", "key", "off":
+		if len(a) > 2 {
+			return request{}, fmt.Errorf("%s takes no more arguments", a[1])
+		}
+		if a[1] == "off" {
+			return request{method: "PUT", path: path, body: map[string]any{"enabled": false}}, nil
+		}
+		return request{method: "POST", path: path + "/" + a[1], body: map[string]any{}}, nil
+	case "on":
+		if len(a) < 3 {
+			return request{}, errors.New("on needs the repository")
+		}
+		body := map[string]any{"enabled": true, "repo": a[2]}
+		if len(a) > 3 {
+			body["branch"] = a[3]
+		}
+		if len(a) > 4 {
+			body["build_command"] = a[4]
+		}
+		return request{method: "PUT", path: path, body: body}, nil
+	}
+	return request{}, fmt.Errorf("%q is not on, off, run, secret or key", a[1])
+}
+
 var commands = []command{
 	{words: []string{"sites", "list"}, build: get("/api/sites")},
 	{words: []string{"sites", "create"}, args: siteCreateArgs, min: 2, max: -1, build: buildSiteCreate},
@@ -240,6 +277,8 @@ var commands = []command{
 	})},
 	// A WordPress site's scheduled database cleanup (#78).
 	{words: []string{"cleanup"}, args: "<site-id> <on [keep-revisions]|off|preview|run>", min: 2, max: 3, build: buildCleanup},
+	// Deploying a branch of a repository on each push (#24).
+	{words: []string{"git-deploy"}, args: "<site-id> [on <repository> [branch] [build-command]|off|run|secret|key]", min: 1, max: 5, build: buildGitDeploy},
 	{words: []string{"blocklist", "block"}, args: "<address-or-cidr> [minutes]", min: 1, max: 2, password: true, build: blockRequest("POST", "/api/blocklist/blocks")},
 	{words: []string{"blocklist", "unblock"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("DELETE", "/api/blocklist/blocks")},
 	{words: []string{"blocklist", "allow"}, args: "<address-or-cidr>", min: 1, max: 1, password: true, build: blockRequest("POST", "/api/blocklist/allowed")},

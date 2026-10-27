@@ -18,6 +18,12 @@ index idx_jobs_site on jobs
   create index idx_jobs_site on jobs(site_id)
 index idx_jobs_status on jobs
   create index idx_jobs_status on jobs(status)
+index idx_mcp_actions_user on mcp_actions
+  create index idx_mcp_actions_user on mcp_actions(user_id)
+index idx_mcp_grants_prev on mcp_grants
+  create index idx_mcp_grants_prev on mcp_grants(prev_refresh_hash)
+index idx_mcp_grants_user on mcp_grants
+  create index idx_mcp_grants_user on mcp_grants(user_id)
 index idx_metric_samples_time on metric_samples
   create index idx_metric_samples_time on metric_samples(sampled_at)
 index idx_secrets_lookup on secrets
@@ -36,8 +42,16 @@ index idx_site_usage_site_time on site_usage
   create index idx_site_usage_site_time on site_usage(site_id,sampled_at)
 index idx_sites_staging_of on sites
   create index idx_sites_staging_of on sites(staging_of)
+index idx_user_passkeys_user on user_passkeys
+  create index idx_user_passkeys_user on user_passkeys(user_id)
+index idx_user_recovery_codes_user on user_recovery_codes
+  create index idx_user_recovery_codes_user on user_recovery_codes(user_id,code_hash)
 index idx_user_sites_site on user_sites
   create index idx_user_sites_site on user_sites(site_id)
+index idx_users_webauthn_id on users
+  create unique index idx_users_webauthn_id on users(webauthn_id)where webauthn_id is not null
+index site_git_deliveries_site on site_git_deliveries
+  create index site_git_deliveries_site on site_git_deliveries(site_id,id)
 index sqlite_autoindex_alerts_1 on alerts
   
 index sqlite_autoindex_alerts_2 on alerts
@@ -51,6 +65,12 @@ index sqlite_autoindex_db_servers_1 on db_servers
 index sqlite_autoindex_deployments_1 on deployments
   
 index sqlite_autoindex_managed_files_1 on managed_files
+  
+index sqlite_autoindex_mcp_clients_1 on mcp_clients
+  
+index sqlite_autoindex_mcp_grants_1 on mcp_grants
+  
+index sqlite_autoindex_mcp_grants_2 on mcp_grants
   
 index sqlite_autoindex_meta_1 on meta
   
@@ -70,11 +90,15 @@ index sqlite_autoindex_site_db_grants_1 on site_db_grants
   
 index sqlite_autoindex_site_db_users_1 on site_db_users
   
+index sqlite_autoindex_site_git_deploys_1 on site_git_deploys
+  
 index sqlite_autoindex_site_malware_findings_1 on site_malware_findings
   
 index sqlite_autoindex_site_usage_hourly_1 on site_usage_hourly
   
 index sqlite_autoindex_sites_1 on sites
+  
+index sqlite_autoindex_user_passkeys_1 on user_passkeys
   
 index sqlite_autoindex_user_sites_1 on user_sites
   
@@ -104,12 +128,18 @@ table jobs on jobs
   create table jobs(id integer primary key autoincrement,kind text not null,site_id integer not null default 0,status text not null,progress integer not null default 0,message text not null default '',log_head text not null default '',log_tail text not null default '',log_dropped integer not null default 0,error text not null default '',error_key text not null default '',error_args text not null default '',payload text not null default '{}',locks text not null default '[]',dedup_key text,quiet integer not null default 0,attempts integer not null default 0,cancel_requested integer not null default 0,background integer not null default 0,not_before text,created_at text not null,started_at text,finished_at text)
 table managed_files on managed_files
   create table managed_files(path text primary key,sha256 text not null,updated_at text not null)
+table mcp_actions on mcp_actions
+  create table mcp_actions(id integer primary key autoincrement,grant_id integer not null references mcp_grants(id)on delete cascade,user_id integer not null references users(id)on delete cascade,tool text not null,args text not null,summary text not null,status text not null default 'pending' check(status in('pending','done','failed','rejected','expired')),result text not null default '',created_at text not null,expires_at text not null,decided_at text not null default '')
+table mcp_clients on mcp_clients
+  create table mcp_clients(id text primary key,name text not null,redirect_uris text not null,created_at text not null,last_used_at text not null default '')
+table mcp_grants on mcp_grants
+  create table mcp_grants(id integer primary key autoincrement,user_id integer not null references users(id)on delete cascade,client_id text not null references mcp_clients(id)on delete cascade,scopes text not null,access_hash text not null unique,access_expires text not null,refresh_hash text not null unique,refresh_expires text not null,prev_refresh_hash text not null default '',created_at text not null,last_used_at text not null default '')
 table meta on meta
   create table meta(key text primary key,value text not null)
 table metric_samples on metric_samples
   create table metric_samples(id integer primary key autoincrement,cpu_headroom_pct integer not null,mem_headroom_pct integer not null,disk_headroom_pct integer not null,load1 real not null,sampled_at text not null)
 table panel_settings on panel_settings
-  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')),vulnerability_check integer not null default 1,malware_scan integer not null default 0,mail text not null default '{}')
+  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')),vulnerability_check integer not null default 1,malware_scan integer not null default 0,mail text not null default '{}',require_2fa_all integer not null default 0,mcp_enabled integer not null default 0)
 table schedule_state on schedule_state
   create table schedule_state(key text primary key,last_run text not null)
 table schema_migrations on schema_migrations
@@ -128,6 +158,10 @@ table site_db_grants on site_db_grants
   create table site_db_grants(user_id integer not null references site_db_users(id)on delete cascade,database_id integer not null references site_databases(id)on delete cascade,level text not null check(level in('all','read')),primary key(user_id,database_id))
 table site_db_users on site_db_users
   create table site_db_users(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,name text not null unique,secret text not null,created_at text not null,server_id integer not null default 0)
+table site_git_deliveries on site_git_deliveries
+  create table site_git_deliveries(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,at text not null,forge text not null,event text not null default '',ref text not null default '',commit_sha text not null default '',outcome text not null,detail text not null default '',deployment_id integer references deployments(id)on delete set null,task_id integer not null default 0)
+table site_git_deploys on site_git_deploys
+  create table site_git_deploys(site_id integer primary key references sites(id)on delete cascade,enabled integer not null default 0,repo text not null default '',branch text not null default 'main',build_command text not null default '',public_key text not null default '',hook_id text not null unique)
 table site_malware_findings on site_malware_findings
   create table site_malware_findings(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,path text not null,signature text not null,status text not null check(status in('open','quarantined','gone')),first_seen text not null,last_seen text not null,quarantined_at text not null default '',quarantine_id text not null default '',unique(site_id,path,signature))
 table site_malware_scans on site_malware_scans
@@ -144,10 +178,14 @@ table sites on sites
   create table sites(id integer primary key autoincrement,domain text not null unique,aliases text not null default '[]',type text not null,profile text not null,engine text not null default 'nginx',php_version text not null default '',system_user text not null,root_path text not null,status text not null,staging_of integer not null default 0,config text not null default '{}',created_at text not null,updated_at text not null,desired_generation integer not null default 1,applied_generation integer not null default 0,last_apply_error text not null default '')
 table sqlite_sequence on sqlite_sequence
   create table sqlite_sequence(name,seq)
+table user_passkeys on user_passkeys
+  create table user_passkeys(id integer primary key autoincrement,user_id integer not null references users(id)on delete cascade,credential_id blob not null unique,public_key blob not null,sign_count integer not null default 0,aaguid blob,transports text not null default '',backup_eligible integer not null default 0,backup_state integer not null default 0,rp_id text not null,name text not null,created_at text not null,last_used_at text not null default '')
+table user_recovery_codes on user_recovery_codes
+  create table user_recovery_codes(id integer primary key autoincrement,user_id integer not null references users(id)on delete cascade,code_hash text not null,used_at text)
 table user_sites on user_sites
   create table user_sites(user_id integer not null references users(id)on delete cascade,site_id integer not null references sites(id)on delete cascade,primary key(user_id,site_id))
 table users on users
-  create table users(id integer primary key autoincrement,email text not null unique,password_hash text not null,role text not null default 'admin',created_at text not null,totp_enabled integer not null default 0,totp_last_step integer not null default 0,first_name text not null default '',last_name text not null default '',disabled integer not null default 0,locale text not null default '',whats_new_seen text not null default '')
+  create table users(id integer primary key autoincrement,email text not null unique,password_hash text not null,role text not null default 'admin',created_at text not null,totp_enabled integer not null default 0,totp_last_step integer not null default 0,first_name text not null default '',last_name text not null default '',disabled integer not null default 0,locale text not null default '',whats_new_seen text not null default '',password_signin integer not null default 1,webauthn_id blob)
 
 columns of alerts
   0 | id | INTEGER | 0 | - | 1
@@ -312,6 +350,49 @@ columns of managed_files
   2 | updated_at | TEXT | 1 | - | 0
   index sqlite_autoindex_managed_files_1 unique=1 origin=pk partial=0 on 0:0:path
 
+columns of mcp_actions
+  0 | id | INTEGER | 0 | - | 1
+  1 | grant_id | INTEGER | 1 | - | 0
+  2 | user_id | INTEGER | 1 | - | 0
+  3 | tool | TEXT | 1 | - | 0
+  4 | args | TEXT | 1 | - | 0
+  5 | summary | TEXT | 1 | - | 0
+  6 | status | TEXT | 1 | 'pending' | 0
+  7 | result | TEXT | 1 | '' | 0
+  8 | created_at | TEXT | 1 | - | 0
+  9 | expires_at | TEXT | 1 | - | 0
+  10 | decided_at | TEXT | 1 | '' | 0
+  fk 0 | 0 | users | user_id | id | NO ACTION | CASCADE | NONE
+  fk 1 | 0 | mcp_grants | grant_id | id | NO ACTION | CASCADE | NONE
+  index idx_mcp_actions_user unique=0 origin=c partial=0 on 0:2:user_id
+
+columns of mcp_clients
+  0 | id | TEXT | 0 | - | 1
+  1 | name | TEXT | 1 | - | 0
+  2 | redirect_uris | TEXT | 1 | - | 0
+  3 | created_at | TEXT | 1 | - | 0
+  4 | last_used_at | TEXT | 1 | '' | 0
+  index sqlite_autoindex_mcp_clients_1 unique=1 origin=pk partial=0 on 0:0:id
+
+columns of mcp_grants
+  0 | id | INTEGER | 0 | - | 1
+  1 | user_id | INTEGER | 1 | - | 0
+  2 | client_id | TEXT | 1 | - | 0
+  3 | scopes | TEXT | 1 | - | 0
+  4 | access_hash | TEXT | 1 | - | 0
+  5 | access_expires | TEXT | 1 | - | 0
+  6 | refresh_hash | TEXT | 1 | - | 0
+  7 | refresh_expires | TEXT | 1 | - | 0
+  8 | prev_refresh_hash | TEXT | 1 | '' | 0
+  9 | created_at | TEXT | 1 | - | 0
+  10 | last_used_at | TEXT | 1 | '' | 0
+  fk 0 | 0 | mcp_clients | client_id | id | NO ACTION | CASCADE | NONE
+  fk 1 | 0 | users | user_id | id | NO ACTION | CASCADE | NONE
+  index idx_mcp_grants_prev unique=0 origin=c partial=0 on 0:8:prev_refresh_hash
+  index idx_mcp_grants_user unique=0 origin=c partial=0 on 0:1:user_id
+  index sqlite_autoindex_mcp_grants_1 unique=1 origin=u partial=0 on 0:4:access_hash
+  index sqlite_autoindex_mcp_grants_2 unique=1 origin=u partial=0 on 0:6:refresh_hash
+
 columns of meta
   0 | key | TEXT | 0 | - | 1
   1 | value | TEXT | 1 | - | 0
@@ -340,6 +421,8 @@ columns of panel_settings
   10 | vulnerability_check | INTEGER | 1 | 1 | 0
   11 | malware_scan | INTEGER | 1 | 0 | 0
   12 | mail | TEXT | 1 | '{}' | 0
+  13 | require_2fa_all | INTEGER | 1 | 0 | 0
+  14 | mcp_enabled | INTEGER | 1 | 0 | 0
 
 columns of schedule_state
   0 | key | TEXT | 0 | - | 1
@@ -413,6 +496,33 @@ columns of site_db_users
   fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
   index idx_site_db_users_site unique=0 origin=c partial=0 on 0:1:site_id
   index sqlite_autoindex_site_db_users_1 unique=1 origin=u partial=0 on 0:2:name
+
+columns of site_git_deliveries
+  0 | id | INTEGER | 0 | - | 1
+  1 | site_id | INTEGER | 1 | - | 0
+  2 | at | TEXT | 1 | - | 0
+  3 | forge | TEXT | 1 | - | 0
+  4 | event | TEXT | 1 | '' | 0
+  5 | ref | TEXT | 1 | '' | 0
+  6 | commit_sha | TEXT | 1 | '' | 0
+  7 | outcome | TEXT | 1 | - | 0
+  8 | detail | TEXT | 1 | '' | 0
+  9 | deployment_id | INTEGER | 0 | - | 0
+  10 | task_id | INTEGER | 1 | 0 | 0
+  fk 0 | 0 | deployments | deployment_id | id | NO ACTION | SET NULL | NONE
+  fk 1 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index site_git_deliveries_site unique=0 origin=c partial=0 on 0:1:site_id, 1:0:id
+
+columns of site_git_deploys
+  0 | site_id | INTEGER | 0 | - | 1
+  1 | enabled | INTEGER | 1 | 0 | 0
+  2 | repo | TEXT | 1 | '' | 0
+  3 | branch | TEXT | 1 | 'main' | 0
+  4 | build_command | TEXT | 1 | '' | 0
+  5 | public_key | TEXT | 1 | '' | 0
+  6 | hook_id | TEXT | 1 | - | 0
+  fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
+  index sqlite_autoindex_site_git_deploys_1 unique=1 origin=u partial=0 on 0:6:hook_id
 
 columns of site_malware_findings
   0 | id | INTEGER | 0 | - | 1
@@ -512,6 +622,32 @@ columns of sqlite_sequence
   0 | name |  | 0 | - | 0
   1 | seq |  | 0 | - | 0
 
+columns of user_passkeys
+  0 | id | INTEGER | 0 | - | 1
+  1 | user_id | INTEGER | 1 | - | 0
+  2 | credential_id | BLOB | 1 | - | 0
+  3 | public_key | BLOB | 1 | - | 0
+  4 | sign_count | INTEGER | 1 | 0 | 0
+  5 | aaguid | BLOB | 0 | - | 0
+  6 | transports | TEXT | 1 | '' | 0
+  7 | backup_eligible | INTEGER | 1 | 0 | 0
+  8 | backup_state | INTEGER | 1 | 0 | 0
+  9 | rp_id | TEXT | 1 | - | 0
+  10 | name | TEXT | 1 | - | 0
+  11 | created_at | TEXT | 1 | - | 0
+  12 | last_used_at | TEXT | 1 | '' | 0
+  fk 0 | 0 | users | user_id | id | NO ACTION | CASCADE | NONE
+  index idx_user_passkeys_user unique=0 origin=c partial=0 on 0:1:user_id
+  index sqlite_autoindex_user_passkeys_1 unique=1 origin=u partial=0 on 0:2:credential_id
+
+columns of user_recovery_codes
+  0 | id | INTEGER | 0 | - | 1
+  1 | user_id | INTEGER | 1 | - | 0
+  2 | code_hash | TEXT | 1 | - | 0
+  3 | used_at | TEXT | 0 | - | 0
+  fk 0 | 0 | users | user_id | id | NO ACTION | CASCADE | NONE
+  index idx_user_recovery_codes_user unique=0 origin=c partial=0 on 0:1:user_id, 1:2:code_hash
+
 columns of user_sites
   0 | user_id | INTEGER | 1 | - | 1
   1 | site_id | INTEGER | 1 | - | 2
@@ -533,4 +669,7 @@ columns of users
   9 | disabled | INTEGER | 1 | 0 | 0
   10 | locale | TEXT | 1 | '' | 0
   11 | whats_new_seen | TEXT | 1 | '' | 0
+  12 | password_signin | INTEGER | 1 | 1 | 0
+  13 | webauthn_id | BLOB | 0 | - | 0
+  index idx_users_webauthn_id unique=1 origin=c partial=1 on 0:13:webauthn_id
   index sqlite_autoindex_users_1 unique=1 origin=u partial=0 on 0:1:email

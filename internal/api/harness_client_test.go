@@ -19,6 +19,9 @@ type client struct {
 	t       *testing.T
 	base    string
 	cookies []*http.Cookie
+	// host, when set, is the Host the panel is asked for, with the
+	// matching https Origin (a browser on the panel's domain).
+	host string
 }
 
 // do sends one request, the body (when not nil) as JSON, and returns the
@@ -42,6 +45,10 @@ func (c *client) do(method, path string, body any) (*http.Response, []byte) {
 	}
 	for _, ck := range c.cookies {
 		req.AddCookie(ck)
+	}
+	if c.host != "" {
+		req.Host = c.host
+		req.Header.Set("Origin", "https://"+c.host)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

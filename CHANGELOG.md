@@ -7,6 +7,28 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.4.0
+
+WordPress care. What changes for a person running the panel:
+
+- WordPress updates, from the buttons or on a per-site schedule, run behind a restore-tested
+  snapshot: the site is measured before and after, and restored on its own when the update
+  breaks it; without a backup repository an update is refused;
+- weekly database cleanup for WordPress sites, off by default: expired transients go and each
+  post keeps its last N revisions, after a dry run and, the first time, a tested snapshot;
+  `cgctl cleanup`;
+- email from sites: PHP's `mail()` and `wp_mail` now go out through an SMTP relay, server-wide or
+  per site, with a test button and an SPF/DKIM/DMARC checklist; staging copies still send nothing;
+- email is a second channel for alerts, next to the webhook;
+- a maintenance page per site, from the Protection page or `cgctl maintenance`: visitors get a
+  503 with `Retry-After` and your title and message, while listed addresses and a preview link
+  still see the site;
+- development mode: a site's page cache is bypassed for 15, 30 or 60 minutes, then turns back
+  on by itself;
+- Ubuntu updates from the panel: the pending packages, security ones first, installed all at once
+  or only the security ones, and a notice when the server needs a reboot;
+- What's new: after an update, the panel shows what changed, from this changelog.
+
 ## v0.3.2
 
 A new logo, and the panel in the colours of cloudground.it. What changes for a person running

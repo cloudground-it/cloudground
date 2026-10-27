@@ -76,8 +76,39 @@ var settingFields = map[string]setting{
 		show:  func(p state.PanelSettings) string { return maskRepositoryCredentials(p.BackupRepository) },
 		parse: func(p *state.PanelSettings, v string) error { p.BackupRepository = v; return nil },
 	},
-	"require_2fa_admin": flagSetting(func(p *state.PanelSettings) *bool { return &p.Require2FAAdmin },
-		"1", "", []string{"1", "true"}, []string{"", "0", "false"}, "must be 1 or empty"),
+	// Who must have two-factor (§1.2 step 7): off, admins or all.
+	"require_2fa": {
+		show: func(p state.PanelSettings) string { return p.TwoFactorRequirement() },
+		parse: func(p *state.PanelSettings, v string) error {
+			if !p.SetTwoFactorRequirement(v) {
+				return errors.New("must be off, admins or all")
+			}
+			return nil
+		},
+	},
+	// The older form of require_2fa, kept for scripts: on makes an off
+	// requirement admins and leaves all alone; off makes it off.
+	"require_2fa_admin": {
+		show: func(p state.PanelSettings) string {
+			if p.TwoFactorRequirement() == state.Require2FAOff {
+				return ""
+			}
+			return "1"
+		},
+		parse: func(p *state.PanelSettings, v string) error {
+			switch {
+			case slices.Contains([]string{"1", "true"}, v):
+				if !p.Require2FAAll {
+					p.SetTwoFactorRequirement(state.Require2FAAdmins)
+				}
+			case slices.Contains([]string{"", "0", "false"}, v):
+				p.SetTwoFactorRequirement(state.Require2FAOff)
+			default:
+				return errors.New("must be 1 or empty")
+			}
+			return nil
+		},
+	},
 	"update_check": flagSetting(func(p *state.PanelSettings) *bool { return &p.UpdateCheck },
 		"", "0", []string{"", "1", "true"}, []string{"0", "false"}, "must be 0 or empty"),
 	// The daily lookup of the WordPress sites' versions in a public
@@ -86,6 +117,10 @@ var settingFields = map[string]setting{
 		"", "0", []string{"", "1", "true"}, []string{"0", "false"}, "must be 0 or empty"),
 	// The weekly malware scan of every site (§11.7); on installs ClamAV.
 	"malware_scan": flagSetting(func(p *state.PanelSettings) *bool { return &p.MalwareScan },
+		"1", "", []string{"1", "true"}, []string{"", "0", "false"}, "must be 1 or empty"),
+	// The remote MCP server (§16); off by default, and turning it off
+	// revokes everything it issued (mcpSwitched).
+	"mcp": flagSetting(func(p *state.PanelSettings) *bool { return &p.MCPEnabled },
 		"1", "", []string{"1", "true"}, []string{"", "0", "false"}, "must be 1 or empty"),
 	// The release channel the update check and the self-update follow.
 	"update_channel": {
@@ -263,6 +298,21 @@ func (s *Server) changeSettings(ctx context.Context, req map[string]string) ([]s
 			return nil, err
 		}
 	}
+	// The two forms of the requirement together (a page sending back the
+	// whole map) must agree; then the older one is redundant.
+	if legacy, both := req["require_2fa_admin"]; both {
+		if mode, also := req["require_2fa"]; also {
+			var p state.PanelSettings
+			if !p.SetTwoFactorRequirement(mode) {
+				return nil, decline(http.StatusBadRequest, "require_2fa: must be off, admins or all")
+			}
+			on := slices.Contains([]string{"1", "true"}, legacy)
+			if on != (p.TwoFactorRequirement() != state.Require2FAOff) {
+				return nil, decline(http.StatusBadRequest, "require_2fa: send require_2fa or require_2fa_admin, not both")
+			}
+			delete(req, "require_2fa_admin")
+		}
+	}
 	next := cur
 	for key, v := range req {
 		if slices.Contains(secretKeys, key) {
@@ -405,11 +455,23 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request, c *ca
 			return
 		}
 	}
+	before, err := s.Store.PanelSettings()
+	if err != nil {
+		internalError(w, "PanelSettings", err, "could not read the settings")
+		return
+	}
 	keys, err := s.changeSettings(r.Context(), req)
 	if err != nil {
 		fail(w, err)
 		return
 	}
 	s.audit(c.Actor(), "settings.update", strings.Join(keys, ","), "")
+	// Turning the MCP server off revokes everything it issued (§16.1).
+	if after, err := s.Store.PanelSettings(); err == nil && after.MCPEnabled != before.MCPEnabled {
+		if err := s.mcpSwitched(c.Actor(), before.MCPEnabled, after.MCPEnabled); err != nil {
+			internalError(w, "mcpSwitched", err, "the MCP server was turned off, but what it issued could not all be revoked: turn it off again")
+			return
+		}
+	}
 	s.handleGetSettings(w, r, c)
 }

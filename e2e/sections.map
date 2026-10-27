@@ -22,7 +22,7 @@
 # ------------------------------------------------------------------ groups --
 
 # Every section that sends requests to a hosted site through nginx.
-@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup
+@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup, git deploy webhook
 # Every section with a PHP site (its own FPM master, pool and slice).
 @php = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, protected paths, wordpress two-factor, wordpress hardening, dev mode, mail relay
 # Every section with a WordPress site (database, wp-cli, the connector).
@@ -112,7 +112,14 @@ internal/api/connector_purge.go        woocommerce, wordpress cache, migration i
 internal/api/cronjobs.go               wordpress cron, wordpress cache
 internal/api/site_database.go          woocommerce security, F9b site databases
 internal/api/deployments.go            wordpress safe push, wordpress releases, R-4.3 deploys and backups, R-4.5 site shell, security
-internal/api/deployflow.go             wordpress safe push, wordpress releases, R-4.3 deploys and backups, R-4.5 site shell, security
+internal/api/deployflow.go             wordpress safe push, wordpress releases, R-4.3 deploys and backups, R-4.5 site shell, security, git deploy webhook
+internal/api/git_deploy.go             git deploy webhook
+internal/api/git_hook.go               git deploy webhook
+internal/agent/ops/gitdeploy/**        git deploy webhook
+internal/agent/ops_gitdeploy.go        git deploy webhook
+internal/rpc/gitdeploy.go              git deploy webhook
+internal/state/git_deploy.go           git deploy webhook
+internal/site/gitdeploy.go             git deploy webhook
 internal/api/site_filemanager.go       security, wordpress staging
 internal/api/sitessh.go                wordpress sftp, R-4.5 site shell, R-4.6 cgctl tokens
 internal/api/routing.go                R-5.4 routing
@@ -122,7 +129,7 @@ internal/api/system_updates.go         ubuntu updates
 internal/api/drift_service.go          wordpress status and drift, security, R-0.7 reconcile
 internal/api/site_wordpress.go         woocommerce, wordpress cache, wordpress sftp, wordpress backups, migration import, wordpress releases, wordpress updates
 internal/api/wp_updates.go             wordpress updates
-internal/api/users.go                  security, R-4.3 accounts
+internal/api/users.go                  security, R-4.3 accounts, panel passkeys
 # The suite never reaches the release feed; it checks the channel it reports.
 internal/api/release_check.go          R-6.3 release channel
 internal/api/studio*.go                F4b Quarry, F9b Quarry service, SR tenant data
@@ -130,6 +137,8 @@ internal/api/site_wptools.go            F4b Quarry, SR tenant data
 internal/api/statement_limit.go        SR tenant data, F4b Quarry, F9b Quarry service, woocommerce security
 internal/api/sites_rollback.go         R-3.13 interrupted create, R-3.7 site lifecycle
 internal/api/apitokens.go              R-4.6 cgctl tokens, security
+# The remote MCP server (#70): its OAuth, endpoint and tools.
+internal/api/mcp_*.go                  mcp server
 internal/api/events/**                 F8 events
 # auth, sites, tasks, the job queue, server, recover: every request and
 # every site.
@@ -140,6 +149,13 @@ internal/jobs/**                       ALL
 # account exercise (every section signs in, so a queue that blocked every
 # sign-in would stop the run at its first login).
 internal/accounts/attempt.go           R-4.3 sign-in review, R-4.3 accounts, security
+# Passkeys, recovery codes and the proof that changes a factor (#156): a
+# sign-in with neither still goes through the password path every section
+# takes, which the catch-all below keeps.
+internal/accounts/passkeys.go          panel passkeys
+internal/accounts/softkey/**           panel passkeys
+internal/accounts/recovery.go          panel passkeys, R-4.3 accounts
+internal/accounts/proof.go             panel passkeys, R-4.3 accounts
 # Sign-in, sessions and the limits: every section signs in.
 internal/accounts/**                   ALL
 internal/throttle/**                   ALL
@@ -244,6 +260,7 @@ internal/agent/**                      ALL
 internal/agentrpc/limit.go             R-10.5 agent limits
 internal/agentrpc/**                   ALL
 internal/rpc/**                        ALL
+internal/state/mcp.go                  mcp server
 internal/state/**                      ALL
 internal/site/**                       ALL
 internal/version/**                    ALL
@@ -263,7 +280,7 @@ cmd/cgctl/statepeek.go                 R-6.5 upgrade
 # container run (make docker-install-test).
 cmd/cgctl/uninstall.go                 NONE
 cmd/cgctl/sitecreate.go                F9b site creation
-cmd/cgctl/commands.go                  R-4.6 cgctl tokens, F9b site creation, F9b site databases
+cmd/cgctl/commands.go                  R-4.6 cgctl tokens, F9b site creation, F9b site databases, git deploy webhook
 cmd/cgctl/**                           R-4.6 cgctl tokens
 cmd/cg-site-shell/**                   R-4.5 site shell, R-10.5 root boundary
 cmd/**                                 ALL

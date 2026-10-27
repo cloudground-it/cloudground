@@ -88,6 +88,19 @@ func (s *Server) handleResetUserPassword(w http.ResponseWriter, r *http.Request,
 	respond(w, http.StatusOK, map[string]string{"status": "password reset"})
 }
 
+func (s *Server) handleResetUserTwoFactor(w http.ResponseWriter, r *http.Request, c *call) {
+	id, err := pathID(r)
+	if err != nil {
+		respondErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := s.accounts.ResetTwoFactor(c.User, c.Actor(), id); err != nil {
+		respondAccountErr(w, err)
+		return
+	}
+	respond(w, http.StatusOK, map[string]string{"status": "two-factor reset"})
+}
+
 func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request, c *call) {
 	id, err := pathID(r)
 	if err != nil {

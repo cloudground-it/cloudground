@@ -341,7 +341,7 @@ func (s *Server) handleStudioHandoff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.secondFactorPending(user) {
-		respondErr(w, http.StatusForbidden, "two-factor authentication is required for admin accounts: enrol in Security before continuing")
+		respondErr(w, http.StatusForbidden, msgSecondFactorRequired)
 		return
 	}
 	st := &studioSession{mode: studioPanel, siteID: target.ID, panelUser: user.ID, panelKey: h.panelKey,
