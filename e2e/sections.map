@@ -96,8 +96,9 @@ internal/agent/ops/db/accounts.go      F9b site databases, SR tenant data, wordp
 internal/agent/ops/db/registry.go      F9b site databases, SR tenant data, wordpress backups
 internal/agent/ops/backup/databases.go F9b site databases, wordpress backups, R-4.3 deploys and backups
 internal/api/alert_service.go          wordpress status and drift, R-4.3 proxies and alerts, R-4.3 deploys and backups, mail relay
-internal/api/backup_service.go         wordpress backups, R-4.3 deploys and backups, F9b site databases, wordpress updates
-internal/api/backup_routes.go          wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, F9b site databases
+internal/api/backup_service.go         wordpress backups, R-4.3 deploys and backups, F9b site databases, wordpress updates, backup destinations and selective restore
+internal/api/backup_selective.go       backup destinations and selective restore
+internal/api/backup_routes.go          wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, F9b site databases, backup destinations and selective restore
 internal/api/backup_retention.go       wordpress backups
 internal/api/panel_settings.go         wordpress backups, R-4.6 backup interruption, R-6.3 release channel, R-10.5 root boundary, mail relay
 internal/api/mail*.go                  mail relay
@@ -144,6 +145,8 @@ internal/throttle/**                   ALL
 internal/agent/ops/dbstudio/wordpress.go wordpress cleanup, F4b Quarry, SR tenant data
 internal/agent/ops/dbstudio/**         F4b Quarry, F9b Quarry service, SR tenant data
 internal/api/site_wpcleanup.go         wordpress cleanup
+internal/agent/ops/backup/archive.go   backup destinations and selective restore
+internal/agent/ops/backup/restore.go   wordpress backups, R-4.3 deploys and backups, SR tenant data, R-10.5 root boundary, F9b site databases, backup destinations and selective restore
 internal/agent/ops/backup/**           wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, SR tenant data, R-10.5 root boundary, F9b site databases
 internal/agent/ops_backup.go           wordpress backups, R-4.6 backup interruption, helper units, R-10.5 root boundary
 internal/agent/host/restic.go          wordpress backups, R-4.6 backup interruption, helper units, R-10.5 root boundary
@@ -177,6 +180,7 @@ internal/tune/**                       @wordpress, SR tenant data
 internal/agent/ops/files/**            security, wordpress staging, R-10.5 root boundary
 internal/agent/ops/sftp/**             wordpress sftp, R-4.5 site shell, R-10.5 root boundary
 internal/siteshell/**                  R-4.5 site shell, R-10.5 root boundary
+internal/agent/host/restic_sftp.go     backup destinations and selective restore
 internal/agent/host/accounts_force.go  R-4.5 site shell
 internal/agent/ops_files_sftp.go       wordpress sftp, security, wordpress staging, R-4.5 site shell
 internal/agent/ops/migration/**        migration import

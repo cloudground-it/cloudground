@@ -71,6 +71,7 @@ var sections = []section{
 	{name: "mail relay", run: (*harness).mailRelay, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
 	{name: "R-4.6 cgctl tokens", run: (*harness).cgctlTokens, fixtures: []string{fxFeatureSite}},
 	{name: "R-4.6 backup interruption", run: (*harness).backupInterruption, fixtures: []string{fxFeatureSite}},
+	{name: "backup destinations and selective restore", run: (*harness).backupSelective},
 	{name: "helper units", run: (*harness).helperUnits, fixtures: []string{fxFeatureSite}},
 	{name: "R-4.3 deploys and backups", run: (*harness).deploysAndBackups, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
 	{name: "firewall", run: (*harness).firewall},
