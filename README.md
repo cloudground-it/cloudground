@@ -10,10 +10,13 @@
 
 A self-hosted control panel for one Ubuntu server, built to make websites fast and changes safe.
 
-Create a WordPress, WooCommerce, PHP, Laravel, static or reverse-proxy site and it starts out
+Create a WordPress, WooCommerce, PHP, Laravel, Node.js, Python, static or reverse-proxy site and it starts out
 cached, tuned for the machine, isolated from its neighbours and backed up off the server. Changes
 go through a staging copy first, and a release that measures slower than production is not
 promoted.
+
+**[Try the demo](https://get.cloudground.it/demo/)**: the real panel with sample data, in your
+browser (nothing you do there leaves it). Website and guide: [cloudground.it](https://cloudground.it).
 
 > **Status: pre-release.** CloudGround has had a full internal security review but no external
 > audit yet ([SECURITY.md](./SECURITY.md)). Run it on servers you can rebuild, and keep backups
