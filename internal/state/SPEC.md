@@ -9,7 +9,8 @@ it is derived from the system except the observations named below
 
 | Entity | Table | Notes |
 | --- | --- | --- |
-| Users, sessions, setup tokens, site assignments | `users`, `sessions`, `setup_tokens`, `user_sites` | see Accounts below; `users.locale` (migration 12) holds the chosen interface language; `users.whats_new_seen` (migration 28, #106, `SetUserWhatsNewSeen`) the release whose changelog entry the account last saw, `''` until one; migration 16 dropped `totp_secret` and `totp_pending` |
+| Users, sessions, setup tokens, site assignments | `users`, `sessions`, `setup_tokens`, `user_sites` | see Accounts below; `users.locale` (migration 12) holds the chosen interface language; `users.whats_new_seen` (migration 28, #106, `SetUserWhatsNewSeen`) the release whose changelog entry the account last saw, `''` until one; migration 16 dropped `totp_secret` and `totp_pending`; migration 30 (#156) added `users.password_signin` (default 1) and `users.webauthn_id` (the account's random WebAuthn user handle, NULL until its first passkey) |
+| Passkeys, recovery codes | `user_passkeys`, `user_recovery_codes` | migration 30 (#156, `passkeys.go`, api SPEC §2.10–2.11): a passkey row per credential (`credential_id` unique across the panel, COSE `public_key`, `sign_count`, `aaguid`, `transports`, `backup_eligible`, `backup_state`, `rp_id`, `name`, `created_at`, `last_used_at`); a recovery code row per code (`code_hash` the hex SHA-256, `used_at` NULL while unused); both go with their account (cascade) |
 | Sites | `sites` | desired config (JSON `config` column, unchanged) plus `desired_generation`, `applied_generation`, `last_apply_error` |
 | Jobs (the tasks of the UI) | `jobs` | migration 15 replaced `tasks` (R-4.2): status, bounded log, payload, locks, dedup key; see internal/jobs/SPEC.md. `error_key`, `error_args` (added to `tasks` by migration 14, carried over): a failure's translation key and its values (JSON), when the error was a `KeyedError` (an agent error with a key), beside the English `error` |
 | Deployments | `deployments` | a state machine (R-4.3, `deployments.go`; the statuses and moves are internal/api/SPEC.md §4.2): `MoveDeployment(id, from, to, update)` takes a deployment from one of `from` to `to` in one `BEGIN IMMEDIATE` transaction and refuses (`*StateError`, `ErrDeploymentState`) a move the table lacks or a deployment no longer in `from`; becoming `promoted` (and `CreateDeployment` of a live record) makes the site's other promoted deployment `superseded` in the same transaction; `RecordRollback(site, release)` makes the live one `rolled_back` and the record of `release` `promoted`, refusing (`ErrNeverLive`) a release whose record was never live or is `regressed`; `RecordInitialRelease(site, status)` (a record of provisioning's release `initial` when the site has none, checked and inserted in one transaction; a site names each release once, `UNIQUE (site_id, release_id)` since the first schema), `RollbackTarget` (the live one's `rollback_to`, else the newest superseded), `SyncLive(site, release)` (the records follow what the server serves), `DeploymentMeta` (`rollback_to`, `regressed`, `note`). Migration 18: at most one `promoted` row per site (`idx_deployments_live`, unique, partial); of the rows promoted before it the newest stays, the others become `superseded`; a `guarding` row the old panel left becomes `created` (it had built its release) or `failed` (none); columns `rollback_to`, `regressed`, `note` |
@@ -20,7 +21,9 @@ it is derived from the system except the observations named below
 | Site vulnerabilities | `site_vulnerabilities` | migration 25 (#31, `site_vulnerabilities.go`, api SPEC §11.6): one row per site, `checked_at` (the last complete check, `''` before one), `attempted_at`, `error`, `report` (JSON: core version, components looked up, findings); `RecordVulnCheck` replaces the row, `RecordVulnCheckError` sets only the attempt and its error (findings kept); a site that no longer exists is skipped; `SiteVulnReport`, `VulnReports`; deleting a site takes its row (cascade) |
 | Site malware | `site_malware_scans`, `site_malware_findings` | migration 26 (#76, `site_malware.go`, api SPEC §11.7): one scan row per site (`scanned_at` the last complete scan, `attempted_at`, `error`, `files`, `signatures`, `duration_ms`, `engine`, `database`); one finding per site, path and signature (UNIQUE), `status` `open`, `quarantined` or `gone` (CHECK). `RecordMalwareScan` (one transaction): every file found is open (`first_seen` kept while it stays open, new when it comes back), every other open one gone, at most 2 000 kept per site; `RecordMalwareScanError` keeps the findings; `SetMalwareFindingStatus` marks a file's open findings quarantined (with the quarantine's id) or gone; `SiteMalwareScan`, `LastMalwareScans`, `MalwareFindings`, `OpenMalwareFindings`, `GetMalwareFinding`; deleting a site takes its rows (cascade) |
 | Block list | `blocklist`, `blocklist_settings` | migration 27 (#21, `blocklist.go`, internal/blocklist SPEC, api SPEC §7.4): one row per `(kind, prefix)`, `kind` `block` or `allow` (UNIQUE: `PutBlockEntry` of a pair already there replaces its source, note, failures, time and expiry); `expires_at` fixed-width UTC text (NULL: until removed), `PruneBlockEntries(now)` deletes the blocks ended by `now`; `BlocklistSettings` is one JSON row, the defaults while there is none |
+| Git deploy | `site_git_deploys`, `site_git_deliveries` | migration 31 (#24, `git_deploy.go`, api SPEC §15): one `site_git_deploys` row per site (`site_id` PK, cascade; `enabled`, `repo`, `branch`, `build_command`, `public_key`, `hook_id` UNIQUE: what the webhook URL carries); the webhook secret and the deploy key's private half are the sealed secrets `site.<id>.git_webhook_secret` and `site.<id>.git_deploy_key`. `GitDeploy(site)` (`ErrNotFound` before it was turned on), `GitDeployByHook(hookID)` (one indexed read), `SaveGitDeploy` (an upsert; a `hook_id` another site holds is `ErrGitHookTaken`; a new hook id is how the URL is rotated). `site_git_deliveries`: one row per authenticated delivery (`site_id` cascade, `at`, `forge`, `event`, `ref`, `commit_sha`, `outcome`, `detail`, `deployment_id` NULL when none (SET NULL when the deployment goes), `task_id`); `AddGitDelivery` keeps the newest 30 of the site, `GitDeliveries(site)` newest first, `SetGitDeliveryTask`, `SetGitDeliveryCommit` (the commit a deployment was built from, for the deliveries that named none) |
 | Panel settings | `panel_settings` | one typed row, `id = 1`; `vulnerability_check` (migration 25, default 1); `malware_scan` (migration 26, default 0); `mail` (migration 29, #77, api SPEC §14), JSON `{relay: {host, port, security, username, from}, alert_emails}`, default `{}` (the relay's password is the secret `mail_password`) |
+| MCP server | `mcp_clients`, `mcp_grants`, `mcp_actions` | migration 32 (#70, `mcp.go`, api SPEC §16): a client per dynamic registration (`id` the `client_id`, `name`, `redirect_uris` as JSON, `created_at`, `last_used_at`); a grant per consent (`user_id`, `client_id`, `scopes` as JSON, `access_hash` and `refresh_hash` the SHA-256 of the current tokens, unique, with their expiries, `prev_refresh_hash` the one rotated out, `created_at`, `last_used_at`); a pending action per destructive tool call (`grant_id`, `user_id`, `tool`, `args` JSON, `summary`, `status`, `result`, `created_at`, `expires_at`, `decided_at`). Deleting a user deletes its grants and actions, deleting a client or a grant its grants and actions (cascade); `revokeAPITokens` deletes the user's grants too; `ClearMCP` empties the three tables in one transaction. `panel_settings.mcp_enabled` (default 0) is the switch |
 | Secrets | `secrets` | encrypted values; `site_id` set for `site.<id>.*` names; `lookup` (migration 19): the hex SHA-256 of a connector token, unique, NULL for every other secret |
 | Per-site observed state | `site_status` | `cert_expiry`, `cert_error` |
 | Alerts | `alerts` | migration 19 (R-4.3), replacing `alert_dismissals`: one row per condition, see invariant 6 |
@@ -95,6 +98,8 @@ it is derived from the system except the observations named below
    with a default, lets SQLite enforce types, and maps directly onto sqlc
    later. A JSON blob would bring back the untyped bag we are removing.
    Defaults: empty strings, `require_2fa_admin = false`,
+   `require_2fa_all = false` (migration 30: the two make the requirement
+   `off`, `admins` or `all`, api SPEC §1.2 step 7),
    `update_check = true`, `update_channel = 'stable'` (migration 21; a CHECK
    keeps it `stable` or `beta`). An empty `probe_target` means the built-in
    `https://127.0.0.1`.
@@ -310,10 +315,27 @@ them are in `internal/api/SPEC.md` §2.
   secret); `UserTOTP` returns the active
   secret and whether 2FA is on: on with no readable secret is an error, never
   "off"; `DisableUserTOTP` turns it off, deletes both secrets and the
-  account's API tokens; `MarkTOTPStepUsed` moves the replay watermark
+  account's API tokens, and its recovery codes when it has no passkey; `MarkTOTPStepUsed` moves the replay watermark
   forward only, and reports whether the step was fresh. All but
   `DisableUserTOTP`, `MarkTOTPStepUsed` and the enabled flag need the key
   (`ErrNoSecretKey`).
+- **Passkeys and recovery codes** (#156). `User` carries `PasswordSignIn`,
+  `Passkeys` and `RecoveryCodesLeft`, read with the account. `WebAuthnID`
+  makes the account's user handle on first use (32 random bytes, kept);
+  `UserByWebAuthnID`. `AddPasskey` (refuses a credential id already stored:
+  `ErrPasskeyTaken`), `Passkeys(user)`, `PasskeyByCredentialID`,
+  `RecordPasskeyUse(id, counter)`, `RemovePasskey(user, id)` (`ErrNotFound`
+  for one of another account; `ErrLastPasskey` for the last one while
+  password sign-in is off; when no factor is left, the recovery codes and
+  API tokens go in the same transaction). `ReplaceRecoveryCodes(user,
+  hashes)` swaps the whole set in one transaction; `SpendRecoveryCode(user,
+  hash)` is one `UPDATE … WHERE used_at IS NULL` and reports whether it
+  spent one. `SetPasswordSignIn(user, on)` (off refuses an account without
+  a passkey: `ErrNoPasskey`). `ResetSecondFactors(user)` removes TOTP,
+  passkeys and recovery codes, turns password sign-in on and ends the
+  account's sessions and API tokens; it needs no key, so host recovery can
+  run it. `SetUserPassword` also turns password sign-in on. None of these
+  needs the secret key: nothing in them is secret.
 - **Events.** Every change to an account publishes `user.changed` and
   `session.revoked` for it (its open streams re-check their session);
   ending sessions publishes `session.revoked`.

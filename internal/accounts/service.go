@@ -35,6 +35,14 @@ type Error struct {
 	// SecondFactor marks a sign-in refused over the second factor, so the
 	// UI asks for (another) code.
 	SecondFactor bool
+	// Factors are the second factors the account can answer with (totp,
+	// passkey, recovery_code), and PasskeyOptions the WebAuthn request
+	// options of a fresh challenge when it has a passkey (SPEC §2.3 step 7).
+	Factors        []string
+	PasskeyOptions any
+	// PasswordOff marks a sign-in refused because the account's password
+	// sign-in is off, so the UI offers its passkey.
+	PasswordOff bool
 }
 
 func (e *Error) Error() string { return e.Msg }
@@ -130,6 +138,9 @@ type Service struct {
 
 	// turns evaluates one check per e-mail at a time (attempt.go).
 	turns *throttle.Lanes
+	// ceremonies are the WebAuthn challenges waiting for an answer
+	// (passkeys.go).
+	ceremonies *ceremonies
 }
 
 // Origin is where a request comes from (SPEC §2.7): the address, for the
@@ -168,7 +179,7 @@ func (sv *Service) gate(ctx context.Context, o Origin, email string) (*attempt, 
 // New returns a service with the default limits.
 func New(store *state.Store, audit func(actor, action, subject, detail string)) *Service {
 	decoy() // hash the decoy now, not during the first sign-in
-	return &Service{Store: store, Limits: DefaultLimits(), Audit: audit, turns: throttle.NewLanes(AccountQueue)}
+	return &Service{Store: store, Limits: DefaultLimits(), Audit: audit, turns: throttle.NewLanes(AccountQueue), ceremonies: newCeremonies()}
 }
 
 // failed reports a failed sign-in from address to Failed.
@@ -241,13 +252,20 @@ func (sv *Service) checkCode(a *attempt, u state.User, secret, code, address str
 		}
 		return codeReused, nil
 	}
+	sv.wrongFactor(a, u, address)
+	return codeWrong, nil
+}
+
+// wrongFactor counts a wrong second-factor code or recovery code: a failure
+// of a, and one towards the code cap; the one that reaches the cap is
+// audited as login.2fa_brute.
+func (sv *Service) wrongFactor(a *attempt, u state.User, address string) {
 	a.Fail()
 	sv.Limits.Codes.Allow(u.Email)
 	if sv.Limits.Codes.Blocked(u.Email) {
 		sv.audit(u.Email, "login.2fa_brute", "panel",
 			fmt.Sprintf("%d wrong two-factor codes within an hour (last from %s): codes refused until the hour passes", CodeCap, address))
 	}
-	return codeWrong, nil
 }
 
 // printable is s with control characters replaced, for an audit field a

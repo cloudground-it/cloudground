@@ -32,7 +32,9 @@ type fixture struct {
 	o       *Ops
 	site    state.Site
 	reloads int
-	owner   sitefs.Owner
+	// nginxReloads counts nginx reloads (open_file_cache, SPEC §4).
+	nginxReloads int
+	owner        sitefs.Owner
 }
 
 func newSite(t *testing.T, typ state.SiteType) *fixture {
@@ -48,6 +50,10 @@ func newSite(t *testing.T, typ state.SiteType) *fixture {
 		Open: func(s state.Site) (*sitefs.Root, error) { return sitefs.Open(s.RootPath, f.owner) },
 		ReloadPHP: func(_ context.Context, s state.Site) error {
 			f.reloads++
+			return nil
+		},
+		ReloadNginx: func(context.Context) error {
+			f.nginxReloads++
 			return nil
 		},
 	}
@@ -137,8 +143,8 @@ func TestDeployPromoteRollback(t *testing.T) {
 	if _, err := f.o.Promote(ctx, rpc.ReleaseParams{Site: f.site, ReleaseID: id}); err != nil {
 		t.Fatal(err)
 	}
-	if f.current(t) != "releases/"+id || f.reloads != 1 {
-		t.Fatalf("current -> %s after %d PHP reloads", f.current(t), f.reloads)
+	if f.current(t) != "releases/"+id || f.reloads != 1 || f.nginxReloads != 1 {
+		t.Fatalf("current -> %s after %d PHP and %d nginx reloads", f.current(t), f.reloads, f.nginxReloads)
 	}
 	out, err := f.o.Rollback(ctx, rpc.ReleaseParams{Site: f.site})
 	if err != nil || out["current"] != site.InitialRelease || f.current(t) != "releases/initial" {

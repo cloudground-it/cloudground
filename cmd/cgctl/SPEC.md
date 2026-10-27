@@ -169,6 +169,23 @@ revisions of a post stay (1–100) if given; `preview` is the dry run, `POST …
 `run` is `POST …/cleanup/run`, which answers a task (`--wait` as for any task). Anything else, or a
 number out of range, is a usage error (exit 2).
 
+## 6.8 git-deploy (#24)
+
+    cgctl git-deploy <site-id>
+    cgctl git-deploy <site-id> on <repository> [branch] [build-command]
+    cgctl git-deploy <site-id> off
+    cgctl git-deploy <site-id> run
+    cgctl git-deploy <site-id> secret
+    cgctl git-deploy <site-id> key
+
+Without a verb it is `GET /api/sites/<id>/git-deploy` (internal/api SPEC §15.2): the settings, the
+webhook's path, its secret, the deploy key's public half and the latest deliveries, printed as §3.
+`on` is `PUT` of `{"enabled": true, "repo": …}` with `"branch"` and `"build_command"` when given
+(the build command is one argument, so it is quoted); `off` sends `{"enabled": false}`. `run` is
+`POST …/git-deploy/run`, which answers a task (`--wait` as for any task); `secret` is `POST
+…/secret` (a new secret and a new URL) and `key` is `POST …/key` (a new deploy key). Anything else
+is a usage error (exit 2).
+
 ## 7. update and uninstall (R-6.4, R-6.5)
 
 `cgctl update` and `cgctl uninstall`, like `install` and `doctor`, run as root on the server and

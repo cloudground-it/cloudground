@@ -494,7 +494,7 @@ func (s *Server) studioCall(w http.ResponseWriter, r *http.Request, p policy, c 
 		return http.StatusUnauthorized, msgStudioPanel
 	}
 	if s.secondFactorPending(user) {
-		return http.StatusForbidden, "two-factor authentication is required for admin accounts: enrol in Security before continuing"
+		return http.StatusForbidden, msgSecondFactorRequired
 	}
 	if p == policyStudioData && c.ReadOnly() {
 		return http.StatusForbidden, msgStudioReadOnly

@@ -24,28 +24,61 @@ import (
 //	manage  admins and operators (operators on their own sites only)
 //	admin   admins only
 var routePolicy = map[string]string{
-	"POST /api/setup":           "public",
-	"POST /api/login":           "public",
-	"GET /api/bootstrap":        "public",
-	"GET /api/session":          "public",
-	"GET /healthz":              "public",
-	"/":                         "public",
-	"POST /api/connector/purge": "token",
+	"POST /api/setup":               "public",
+	"POST /api/login":               "public",
+	"POST /api/login/passkey/begin": "public",
+	"POST /api/login/passkey":       "public",
+	"GET /api/bootstrap":            "public",
+	"GET /api/session":              "public",
+	"GET /healthz":                  "public",
+	"/":                             "public",
+	"POST /api/connector/purge":     "token",
+	// The git webhook is judged by its signature (git_hook.go).
+	"POST /hooks/git/{hook}": "token",
 
-	"POST /api/logout":                  "auth",
-	"POST /api/account/password":        "auth",
-	"POST /api/account/2fa/begin":       "auth",
-	"POST /api/account/2fa/confirm":     "auth",
-	"POST /api/account/2fa/disable":     "auth",
-	"GET /api/account/sessions":         "auth",
-	"DELETE /api/account/sessions/{id}": "auth",
-	"PUT /api/account/profile":          "auth",
+	// The MCP server's OAuth and /mcp rows authenticate themselves (and
+	// answer 404 while it is off): mcp_test.go covers them.
+	"GET /.well-known/oauth-protected-resource":     "mcp",
+	"GET /.well-known/oauth-protected-resource/mcp": "mcp",
+	"GET /.well-known/oauth-authorization-server":   "mcp",
+	"POST /oauth/register":                          "mcp",
+	"GET /oauth/authorize":                          "mcp",
+	"POST /oauth/token":                             "mcp",
+	"POST /oauth/revoke":                            "mcp",
+	"POST /mcp":                                     "mcp",
+	"GET /mcp":                                      "mcp",
+	"DELETE /mcp":                                   "mcp",
+	"GET /api/mcp/requests/{id}":                    "auth",
+	"POST /api/mcp/requests/{id}/approve":           "auth",
+	"POST /api/mcp/requests/{id}/deny":              "auth",
+	"GET /api/mcp/grants":                           "auth",
+	"DELETE /api/mcp/grants/{id}":                   "auth",
+	"GET /api/mcp/actions":                          "auth",
+	"POST /api/mcp/actions/{id}/confirm":            "auth",
+	"POST /api/mcp/actions/{id}/reject":             "auth",
 
-	"GET /api/users":                "global",
-	"POST /api/users":               "admin",
-	"DELETE /api/users/{id}":        "admin",
-	"PUT /api/users/{id}":           "admin",
-	"POST /api/users/{id}/password": "admin",
+	"POST /api/logout":                       "auth",
+	"POST /api/account/password":             "auth",
+	"POST /api/account/2fa/begin":            "auth",
+	"POST /api/account/2fa/confirm":          "auth",
+	"POST /api/account/2fa/disable":          "auth",
+	"GET /api/account/sessions":              "auth",
+	"DELETE /api/account/sessions/{id}":      "auth",
+	"PUT /api/account/profile":               "auth",
+	"GET /api/account/passkeys":              "auth",
+	"POST /api/account/passkeys/begin":       "auth",
+	"POST /api/account/passkeys/finish":      "auth",
+	"POST /api/account/passkeys/challenge":   "auth",
+	"POST /api/account/passkeys/{id}/remove": "auth",
+	"PUT /api/account/password-signin":       "auth",
+	"POST /api/account/recovery-codes":       "auth",
+
+	"GET /api/users":                 "global",
+	"POST /api/users":                "admin",
+	"DELETE /api/users/{id}":         "admin",
+	"PUT /api/users/{id}":            "admin",
+	"POST /api/users/{id}/password":  "admin",
+	"POST /api/users/{id}/2fa/reset": "admin",
 
 	// Backups' downloads and the SFTP destination's key (SPEC.md §5.7, §5.8).
 	"POST /api/backups/{id}/archive":    "manage",
@@ -167,6 +200,11 @@ var routePolicy = map[string]string{
 	"POST /api/sites/{id}/protected-paths":                       "manage",
 	"PUT /api/sites/{id}/blocking":                               "manage",
 	"PUT /api/sites/{id}/dev-mode":                               "manage",
+	"GET /api/sites/{id}/git-deploy":                             "manage",
+	"PUT /api/sites/{id}/git-deploy":                             "manage",
+	"POST /api/sites/{id}/git-deploy/secret":                     "manage",
+	"POST /api/sites/{id}/git-deploy/key":                        "manage",
+	"POST /api/sites/{id}/git-deploy/run":                        "manage",
 	"GET /api/sites/{id}/maintenance":                            "manage",
 	"PUT /api/sites/{id}/maintenance":                            "manage",
 	"GET /api/changelog":                                         "auth",
@@ -295,7 +333,7 @@ func TestEveryRouteEnforcesItsPolicy(t *testing.T) {
 	for _, role := range roles {
 		for _, pattern := range s.routePatterns {
 			policy := routePolicy[pattern]
-			if policy == "token" || policy == "" {
+			if policy == "token" || policy == "mcp" || policy == "" {
 				continue
 			}
 			method, path := "GET", pattern

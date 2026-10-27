@@ -41,6 +41,10 @@ const (
 	SiteSecretStagingPassword = "staging_password"
 	// SiteSecretMailPassword is the site's own mail relay's (#77).
 	SiteSecretMailPassword = "mail_password"
+	// The site's git deploy (#24): the webhook's secret, and the deploy
+	// key's private half.
+	SiteSecretGitWebhook = "git_webhook_secret"
+	SiteSecretGitKey     = "git_deploy_key"
 )
 
 // panelSecrets are the panel-wide secret names, also as the settings keys
@@ -178,9 +182,16 @@ func (s *Store) aead() (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
+// maxSecretLen bounds a sealed value: the largest secret kept (a deploy
+// key's private half) is a few hundred bytes.
+const maxSecretLen = 64 << 10
+
 // seal encrypts value for name; the name is authenticated with it, so a
 // sealed value moved to another name does not open.
 func (s *Store) seal(name, value string) ([]byte, error) {
+	if len(value) > maxSecretLen {
+		return nil, fmt.Errorf("secret %s: over %d bytes", name, maxSecretLen)
+	}
 	a, err := s.aead()
 	if err != nil {
 		return nil, err

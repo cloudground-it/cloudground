@@ -67,13 +67,14 @@ is `401`; with one whose role the marker does not allow, `403`.
 | Marker | Who may call |
 | :-- | :-- |
 | **open** | anyone; no session needed |
-| **site token** | the site's connector token, in place of a session |
+| **site token** | the site's connector token, or the signature of a git webhook, in place of a session |
 | **auth** | every signed-in role |
 | **global** | `admin` and `readonly`; server-wide data is closed to `operator` |
 | **manage** | `admin`, or an `operator` on a site assigned to it |
 | **admin** | `admin` alone |
 | **dbstudio** | a Quarry session (see Quarry below), never a panel session or an API token |
 | **dbstudio data** | a Quarry session that may read the rows: a database user's, or one opened from the panel by an `admin` or `operator` |
+| **mcp** |  |
 
 An `operator` sees and touches only assigned sites (and their staging copies); requests for any
 other site, or for another site's backups, releases or cron jobs, return `404`, not `403`, so the
@@ -92,13 +93,29 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 - Unknown fields are rejected. Request bodies are capped at 4 MiB, except:
   - `POST /api/setup`: 8 KiB
   - `POST /api/login`: 8 KiB
+  - `POST /api/login/passkey/begin`: 8 KiB
+  - `POST /api/login/passkey`: 8 KiB
   - `POST /api/account/password`: 8 KiB
   - `POST /api/account/2fa/begin`: 8 KiB
   - `POST /api/account/2fa/disable`: 8 KiB
+  - `POST /api/account/passkeys/begin`: 8 KiB
+  - `POST /api/account/passkeys/finish`: 64 KiB
+  - `POST /api/account/passkeys/challenge`: 8 KiB
+  - `POST /api/account/passkeys/{id}/remove`: 8 KiB
+  - `PUT /api/account/password-signin`: 8 KiB
+  - `POST /api/account/recovery-codes`: 8 KiB
   - `PUT /api/account/profile`: 8 KiB
   - `POST /api/account/whats-new`: 8 KiB
   - `POST /api/users`: 8 KiB
   - `POST /api/users/{id}/password`: 8 KiB
+  - `POST /oauth/register`: 64 KiB
+  - `POST /oauth/token`: 8 KiB
+  - `POST /oauth/revoke`: 8 KiB
+  - `POST /mcp`: 64 KiB
+  - `POST /api/mcp/requests/{id}/approve`: 8 KiB
+  - `POST /api/mcp/requests/{id}/deny`: 8 KiB
+  - `POST /api/mcp/actions/{id}/confirm`: 8 KiB
+  - `POST /api/mcp/actions/{id}/reject`: 8 KiB
   - `POST /api/tokens`: 8 KiB
   - `POST /api/sites/{id}/protected-paths`: 8 KiB
   - `DELETE /api/sites/{id}/protected-paths`: 8 KiB
@@ -108,6 +125,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
   - `PUT /api/sites/{id}/wp/cleanup`: 8 KiB
+  - `PUT /api/sites/{id}/git-deploy`: 8 KiB
+  - `POST /hooks/git/{hook}`: 1 MiB
   - `POST /api/backups/{id}/archive`: 8 KiB
   - `PUT /api/sites/{id}/uptime`: 8 KiB
   - `PUT /api/sites/{id}/mail`: 8 KiB
@@ -152,7 +171,9 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | :-- | :-- | :-- | :-- |
 | `GET` | `/api/bootstrap` | open | has the first admin been created yet |
 | `POST` | `/api/setup` | open | create the first admin with the one-time setup token |
-| `POST` | `/api/login` | open | start a session |
+| `POST` | `/api/login` | open | start a session: `email`, `password`, and one second factor when the account has two-factor (`totp`, `recovery_code` or `passkey`, an assertion); a refusal for the second factor lists the account's `factors` and carries `passkey` request options |
+| `POST` | `/api/login/passkey/begin` | open | start signing in with a passkey alone: WebAuthn request options |
+| `POST` | `/api/login/passkey` | open | sign in with a passkey alone (`credential`, an assertion with user verification) and start a session |
 | `POST` | `/api/logout` | auth, session only | sign out and delete the session |
 | `GET` | `/api/session` | open | the signed-in account, or `{"user": null}` |
 | `GET` | `/healthz` | open | liveness: `200` when the agent answers, `503` when it does not |
@@ -163,9 +184,16 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | Method | Path | Access | What it does |
 | :-- | :-- | :-- | :-- |
 | `POST` | `/api/account/password` | auth, session only | change your own password |
-| `POST` | `/api/account/2fa/begin` | auth, session only | start TOTP enrolment (requires your password); returns the secret |
+| `POST` | `/api/account/2fa/begin` | auth, session only | start TOTP enrolment (a proof: your password, and a current factor when you have two-factor); returns the secret |
 | `POST` | `/api/account/2fa/confirm` | auth, session only | confirm with a code and switch 2FA on |
-| `POST` | `/api/account/2fa/disable` | auth, session only | disable 2FA (requires your password and a current code) |
+| `POST` | `/api/account/2fa/disable` | auth, session only | turn TOTP off (a proof: your password and a current factor) |
+| `GET` | `/api/account/passkeys` | auth, session only | your passkeys |
+| `POST` | `/api/account/passkeys/begin` | auth, session only | start adding a passkey (a proof); returns WebAuthn creation options |
+| `POST` | `/api/account/passkeys/finish` | auth, session only | store the passkey (`name`, `credential`); with your first factor, returns your recovery codes |
+| `POST` | `/api/account/passkeys/challenge` | auth, session only | WebAuthn request options for confirming a change with one of your passkeys |
+| `POST` | `/api/account/passkeys/{id}/remove` | auth, session only | remove one of your passkeys (a proof) |
+| `PUT` | `/api/account/password-signin` | auth, session only | turn your password sign-in on or off (`enabled` and a proof; off takes a verified passkey) |
+| `POST` | `/api/account/recovery-codes` | auth, session only | new recovery codes in place of the old ones (a proof) |
 | `GET` | `/api/account/sessions` | auth, session only | your active sessions |
 | `DELETE` | `/api/account/sessions/{id}` | auth, session only | revoke one |
 | `PUT` | `/api/account/profile` | auth, session only | your first and last name and interface language |
@@ -179,7 +207,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `GET` | `/api/users` | global | every account |
 | `POST` | `/api/users` | admin, session only | create one — `role` is `admin`, `operator` or `readonly`; an operator needs `site_ids` |
 | `PUT` | `/api/users/{id}` | admin, session only | change an account's role, sites or name, or disable it |
-| `POST` | `/api/users/{id}/password` | admin, session only | set a new password for another account |
+| `POST` | `/api/users/{id}/password` | admin, session only | set a new password for another account (turns its password sign-in back on) |
+| `POST` | `/api/users/{id}/2fa/reset` | admin, session only | remove another account's second factors (TOTP, passkeys, recovery codes) when they are lost |
 | `DELETE` | `/api/users/{id}` | admin, session only | delete an account |
 
 ### Tokens
@@ -300,6 +329,12 @@ curl -sk --cookie cookies https://panel.example.com/api/sites \
 | `POST` | `/api/sites/{id}/deployments` | manage | create a release from `source_dir`, which must be inside the site's own directory |
 | `POST` | `/api/deployments/{id}/promote` | manage | promote a built release (`created`, `superseded`, `rolled_back` or the live one); 409 for any other status |
 | `POST` | `/api/sites/{id}/rollback` | manage | roll back to the release that was live before the current one, or to `deployment_id` (one that was live); 409 when there is none |
+| `GET` | `/api/sites/{id}/git-deploy` | manage | the site's git deploy: `enabled`, `repo`, `branch`, `build_command`, the webhook's `webhook_path` and `secret`, the deploy key's `public_key` and the latest `deliveries` |
+| `PUT` | `/api/sites/{id}/git-deploy` | manage | turn git deploy on or off and set the repository (`https://`, `ssh://`, `user@host:path` or a `file://` path inside the site), the `branch` (default `main`) and an optional `build_command` run as the site user; the first time on makes the webhook URL, its secret and the deploy key |
+| `POST` | `/api/sites/{id}/git-deploy/secret` | manage | make a new webhook secret and a new webhook URL; the old URL stops answering; 409 when git deploy was never turned on |
+| `POST` | `/api/sites/{id}/git-deploy/key` | manage | make a new deploy key and return its public half; 409 when git deploy was never turned on |
+| `POST` | `/api/sites/{id}/git-deploy/run` | manage | deploy the branch's tip now, as a push would (`202`, `task`, `release_id`, `deployment_id`; `coalesced` when a deploy was already waiting); 409 when git deploy is off |
+| `POST` | `/hooks/git/{hook}` | site token | the git webhook of GitHub, GitLab and Gitea: authenticated by `X-Hub-Signature-256`, `X-Gitea-Signature` or `X-Gitlab-Token`, answers `401` to anything else (an unknown hook and a wrong signature alike) and `429` after too many failures; a push to the site's branch queues a release and its promotion, a ping answers `pong`, anything else is `ignored` |
 | `POST` | `/api/sites/{id}/staging` | manage | make a staging copy of the site |
 | `POST` | `/api/sites/{id}/staging/recreate` | manage | delete the staging copy and clone production again |
 | `GET` | `/api/sites/{id}/staging/credentials` | manage | the staging copy's URL and the user and password protecting it |
@@ -587,6 +622,34 @@ refused with `403`. The full contract is `internal/api/events/SPEC.md`.
 | Method | Path | Access | What it does |
 | :-- | :-- | :-- | :-- |
 | `POST` | `/api/connector/purge` | site token | the WordPress connector's purge request |
+
+### Assistants (MCP)
+
+The remote MCP server (SPEC §16), off by default: an administrator turns it on with the setting
+`mcp`, and while it is off every route here answers `404`. Assistants register themselves, are
+authorised with OAuth 2.1 (authorisation code with PKCE) on the panel's consent page, and call
+tools at `/mcp` with a bearer token; destructive tools only record an action you confirm here.
+
+| Method | Path | Access | What it does |
+| :-- | :-- | :-- | :-- |
+| `GET` | `/.well-known/oauth-protected-resource` | mcp | the MCP resource's metadata (RFC 9728): where to authorise |
+| `GET` | `/.well-known/oauth-protected-resource/mcp` | mcp | the same, at the path-specific address |
+| `GET` | `/.well-known/oauth-authorization-server` | mcp | the authorisation server's metadata (RFC 8414) |
+| `POST` | `/oauth/register` | mcp | register a public client (RFC 7591): `client_name`, `redirect_uris` |
+| `GET` | `/oauth/authorize?response_type=code&client_id=&redirect_uri=&code_challenge=&code_challenge_method=S256&state=&resource=` | mcp | start an authorisation: redirects to the panel's consent page |
+| `POST` | `/oauth/token` | mcp | exchange a code (with its PKCE verifier) or a refresh token for tokens; form-encoded |
+| `POST` | `/oauth/revoke` | mcp | revoke a grant by one of its tokens (RFC 7009) |
+| `POST` | `/mcp` | mcp | the MCP endpoint (Streamable HTTP, JSON answers): `Authorization: Bearer cgm_…` |
+| `GET` | `/mcp` | mcp | `405`: the server starts no stream |
+| `DELETE` | `/mcp` | mcp | `405`: the server keeps no session |
+| `GET` | `/api/mcp/requests/{id}` | auth, session only | an authorisation request waiting for your consent |
+| `POST` | `/api/mcp/requests/{id}/approve` | auth, session only | consent: `write` (`{area: [site ids]}`) and a proof; returns the `redirect` |
+| `POST` | `/api/mcp/requests/{id}/deny` | auth, session only | refuse; returns the `redirect` |
+| `GET` | `/api/mcp/grants` | auth, session only | the assistants connected to your account (an admin's: every account's) |
+| `DELETE` | `/api/mcp/grants/{id}` | auth, session only | disconnect one |
+| `GET` | `/api/mcp/actions` | auth, session only | the destructive actions your assistants asked for |
+| `POST` | `/api/mcp/actions/{id}/confirm` | auth, session only | confirm one (a proof): it runs now |
+| `POST` | `/api/mcp/actions/{id}/reject` | auth, session only | reject one |
 
 These calls carry the site's own bearer token instead of a session, and a token purges only URLs on
 the domains of the site it belongs to.

@@ -83,6 +83,10 @@ PEM, wp-admin, cron** (the syntax), file names and paths.
 | user (panel) / system user | utente / utente di sistema | utilisateur / utilisateur système | usuario / usuario del sistema | Benutzer / Systembenutzer |
 | administrator / operator / read-only | amministratore / operatore / sola lettura | administrateur / opérateur / lecture seule | administrador / operador / solo lectura | Administrator / Operator / Nur Lesen |
 | two-step verification | verifica in due passaggi | validation en deux étapes | verificación en dos pasos | Zwei-Faktor-Authentifizierung |
+| passkey | passkey (f.) | clé d'accès | llave de acceso | Passkey (m.) |
+| recovery code | codice di recupero | code de récupération | código de recuperación | Wiederherstellungscode |
+| AI assistant (MCP) | assistente AI | assistant IA | asistente de IA | KI-Assistent |
+| password sign-in | accesso con password | connexion par mot de passe | inicio de sesión con contraseña | Anmeldung mit Passwort |
 | session | sessione | session | sesión | Sitzung |
 | sign in / sign out | accedi / esci | se connecter / se déconnecter | iniciar sesión / cerrar sesión | anmelden / abmelden |
 | drift (config changed outside the panel) | modifica esterna | modification externe | cambio externo | externe Änderung |

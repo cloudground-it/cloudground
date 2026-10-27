@@ -3,6 +3,7 @@ package accounts
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/state"
@@ -43,8 +44,13 @@ func (sv *Service) Setup(ctx context.Context, email, password, token string) (st
 // SignIn is a sign-in attempt.
 type SignIn struct {
 	Email, Password string
-	// Code is the second factor's, empty when none was given.
-	Code string
+	// Code, RecoveryCode and Passkey (an assertion, as JSON) are the second
+	// factor; at most one is given, each empty when absent.
+	Code, RecoveryCode string
+	Passkey            []byte
+	// RP is the relying party the request reached the panel as, for a
+	// passkey (passkeys.go).
+	RP RP
 	// Address is the client's (SPEC §2.7), for the log; Network is the
 	// address's network (the address for IPv4, its /64 for IPv6), which
 	// the per-address limits count. An empty Network counts Address. Wide
@@ -63,7 +69,15 @@ const (
 	msgCodeRequired = "two-factor code required"
 	msgCodeWrong    = "invalid two-factor code"
 	msgCodeReused   = "that two-factor code has already been used — wait for the next one"
+	msgRecoveryBad  = "invalid recovery code"
+	msgDisabled     = "this account is disabled — ask an administrator"
+	msgPasswordOff  = "password sign-in is turned off for this account — sign in with a passkey"
 )
+
+// factorsGiven counts the second factors a sign-in carries.
+func (in SignIn) factorsGiven() int {
+	return Proof{Code: in.Code, RecoveryCode: in.RecoveryCode, Passkey: in.Passkey}.factors()
+}
 
 func secondFactor(msg string) error {
 	return &Error{Kind: Unauthorized, Msg: msg, SecondFactor: true}
@@ -74,6 +88,9 @@ func secondFactor(msg string) error {
 func (sv *Service) Login(ctx context.Context, in SignIn) (state.User, error) {
 	if len(in.Email) > MaxEmailLen || len(in.Password) > MaxPasswordLen {
 		return state.User{}, refuse(Invalid, msgMalformed)
+	}
+	if in.factorsGiven() > 1 {
+		return state.User{}, refuse(Invalid, msgOneFactor)
 	}
 	email := strings.ToLower(strings.TrimSpace(in.Email))
 	o := in.origin()
@@ -113,11 +130,15 @@ func (sv *Service) Login(ctx context.Context, in SignIn) (state.User, error) {
 	// Only now, so that the answer does not tell which addresses exist.
 	if u.Disabled {
 		sv.audit(u.Email, "login.disabled", "panel", in.Address)
-		return state.User{}, refuse(Forbidden, "this account is disabled — ask an administrator")
+		return state.User{}, refuse(Forbidden, msgDisabled)
 	}
-	if u.TOTPEnabled {
+	if !u.PasswordSignIn {
+		sv.audit(u.Email, "login.password_off", "panel", in.Address)
+		return state.User{}, &Error{Kind: Forbidden, Msg: msgPasswordOff, PasswordOff: true}
+	}
+	if u.HasSecondFactor() {
 		if err := sv.checkSecondFactor(a, u, in); err != nil {
-			return state.User{}, err
+			return state.User{}, sv.withFactors(err, u, in.RP)
 		}
 	}
 	sv.Limits.AddressAccount.Reset(pair)
@@ -127,13 +148,48 @@ func (sv *Service) Login(ctx context.Context, in SignIn) (state.User, error) {
 }
 
 // checkSecondFactor is step 7, reached only with the right password: the
-// answer then says a code is needed, which the UI must know to ask for one.
+// answer then says a factor is needed, which the UI must know to ask for
+// one.
 func (sv *Service) checkSecondFactor(a *attempt, u state.User, in SignIn) error {
 	if sv.Limits.Codes.Blocked(u.Email) {
 		return &Error{Kind: Throttled, Msg: msgCodesCapped, SecondFactor: true}
 	}
-	if in.Code == "" {
+	switch {
+	case len(in.Passkey) > 0:
+		switch _, res, err := sv.verifyPasskey(u, in.RP, in.Passkey, purposeSecondFactor, false); {
+		case err != nil:
+			return err
+		case res != passkeyOK:
+			action := "login.passkey_failed"
+			if res == passkeyCloned {
+				action = "login.passkey_cloned"
+			}
+			sv.wrongFactor(a, u, in.Address)
+			sv.audit(u.Email, action, "panel", in.Address)
+			return secondFactor(msgPasskeyFailed)
+		}
+		return nil
+	case in.RecoveryCode != "":
+		left, ok, err := sv.spendRecoveryCode(u, in.RecoveryCode)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			sv.wrongFactor(a, u, in.Address)
+			sv.audit(u.Email, "login.recovery_failed", "panel", in.Address)
+			sv.failed(in.Address)
+			return secondFactor(msgRecoveryBad)
+		}
+		sv.audit(u.Email, "login.recovery_code", "panel", fmt.Sprintf("from %s; %s", in.Address, codesLeft(left)))
+		return nil
+	case in.Code == "":
 		return secondFactor(msgCodeRequired)
+	case !u.TOTPEnabled:
+		// A code for an account without TOTP is a wrong code.
+		sv.wrongFactor(a, u, in.Address)
+		sv.audit(u.Email, "login.totp_failed", "panel", in.Address)
+		sv.failed(in.Address)
+		return secondFactor(msgCodeWrong)
 	}
 	// A secret that cannot be read is a failure, never a skipped factor.
 	secret, _, err := sv.Store.UserTOTP(u.ID)
@@ -155,4 +211,32 @@ func (sv *Service) checkSecondFactor(a *attempt, u state.User, in SignIn) error 
 		return secondFactor(msgCodeReused)
 	}
 	return nil
+}
+
+// withFactors adds to a second-factor refusal the factors the account can
+// answer with and, when it has a passkey at rp, a fresh challenge for one.
+func (sv *Service) withFactors(err error, u state.User, rp RP) error {
+	ref, ok := IsRefusal(err)
+	if !ok || !ref.SecondFactor {
+		return err
+	}
+	fresh, gerr := sv.Store.GetUser(u.ID)
+	if gerr != nil {
+		fresh = u
+	}
+	var factors []string
+	if fresh.TOTPEnabled {
+		factors = append(factors, "totp")
+	}
+	// A challenge that cannot be issued (none at rp, too many waiting)
+	// leaves the other factors: it never fails the sign-in.
+	if opts, cerr := sv.assertionChallenge(fresh, rp, purposeSecondFactor, "preferred"); cerr == nil && opts != nil {
+		factors = append(factors, "passkey")
+		ref.PasskeyOptions = opts
+	}
+	if fresh.RecoveryCodesLeft > 0 {
+		factors = append(factors, "recovery_code")
+	}
+	ref.Factors = factors
+	return ref
 }

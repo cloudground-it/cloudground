@@ -78,11 +78,11 @@ func (f *fixture) user(t *testing.T, email, role string) state.User {
 // enrol turns 2FA on for u and returns its secret.
 func (f *fixture) enrol(t *testing.T, u state.User) string {
 	t.Helper()
-	en, err := f.sv.BeginTOTP(bg, here, u, pw, "")
+	en, err := f.sv.BeginTOTP(bg, here, u, RP{}, u.Email, Proof{Password: pw, Code: ""})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := f.sv.ConfirmTOTP(u, u.Email, f.code(en.Secret, 0), ""); err != nil {
+	if _, err := f.sv.ConfirmTOTP(u, u.Email, f.code(en.Secret, 0), ""); err != nil {
 		t.Fatal(err)
 	}
 	return en.Secret
@@ -336,7 +336,7 @@ func TestSecondFactorCap(t *testing.T) {
 	_, err = f.sv.Login(bg, SignIn{Email: u.Email, Password: "wrong-password", Address: "y"})
 	wantRefusal(t, err, Unauthorized, msgBadLogin)
 	// Disabling 2FA is capped the same way.
-	err = f.sv.DisableTOTP(bg, here, u, u.Email, pw, f.code(secret, 0), "")
+	err = f.sv.DisableTOTP(bg, here, u, RP{}, u.Email, Proof{Password: pw, Code: f.code(secret, 0)}, "")
 	wantRefusal(t, err, Throttled, msgCodesCapped)
 	f.at = f.at.Add(61 * time.Minute)
 	if _, err := f.sv.Login(bg, SignIn{Email: u.Email, Password: pw, Code: f.code(secret, 0), Address: "y"}); err != nil {
@@ -351,7 +351,7 @@ func TestBeginCountsAWrongCode(t *testing.T) {
 	u := f.user(t, "tfa@example.com", "admin")
 	f.enrol(t, u)
 	before := f.sv.Limits.Codes.Count(u.Email)
-	_, err := f.sv.BeginTOTP(bg, here, u, pw, "000000")
+	_, err := f.sv.BeginTOTP(bg, here, u, RP{}, u.Email, Proof{Password: pw, Code: "000000"})
 	wantRefusal(t, err, Forbidden, "enter a code from your current authenticator to replace it")
 	if f.sv.Limits.Codes.Count(u.Email) != before+1 || f.sv.Limits.Delays.Failures(u.Email) != 1 {
 		t.Fatalf("codes %d, failures %d", f.sv.Limits.Codes.Count(u.Email), f.sv.Limits.Delays.Failures(u.Email))
@@ -380,7 +380,7 @@ func TestConfirmingCodeIsSpent(t *testing.T) {
 func TestConfirmActivatesTheCheckedSecret(t *testing.T) {
 	f := newFixture(t)
 	u := f.user(t, "a@example.com", "admin")
-	first, err := f.sv.BeginTOTP(bg, here, u, pw, "")
+	first, err := f.sv.BeginTOTP(bg, here, u, RP{}, u.Email, Proof{Password: pw, Code: ""})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +401,7 @@ func TestConfirmActivatesTheCheckedSecret(t *testing.T) {
 		f.st.SetPendingTOTP(u.ID, second) // the second begin, mid-confirm
 		return f.at
 	}
-	err = f.sv.ConfirmTOTP(u, u.Email, f.code(first.Secret, 0), "")
+	_, err = f.sv.ConfirmTOTP(u, u.Email, f.code(first.Secret, 0), "")
 	wantRefusal(t, err, Conflict, "")
 	if _, on, _ := f.st.UserTOTP(u.ID); on {
 		t.Fatal("the racing enrolment was switched on")
@@ -459,11 +459,11 @@ func TestOwnAccountChanges(t *testing.T) {
 	}
 
 	// Enrolment needs the password, and keeps 2FA off until confirmed.
-	_, err = f.sv.BeginTOTP(bg, here, u, "wrong-password", "")
+	_, err = f.sv.BeginTOTP(bg, here, u, RP{}, u.Email, Proof{Password: "wrong-password", Code: ""})
 	wantRefusal(t, err, Forbidden, msgWrongPassword)
-	err = f.sv.ConfirmTOTP(u, u.Email, "123456", "")
+	_, err = f.sv.ConfirmTOTP(u, u.Email, "123456", "")
 	wantRefusal(t, err, Invalid, "start enrollment first")
-	en, err := f.sv.BeginTOTP(bg, here, u, "brand-new-password", "")
+	en, err := f.sv.BeginTOTP(bg, here, u, RP{}, u.Email, Proof{Password: "brand-new-password", Code: ""})
 	if err != nil || !strings.HasPrefix(en.URI, "otpauth://totp/CloudGround:a@example.com?") || !strings.HasSuffix(en.URI, "&secret="+en.Secret) {
 		t.Fatalf("begin = %+v %v", en, err)
 	}
@@ -471,11 +471,11 @@ func TestOwnAccountChanges(t *testing.T) {
 	if f.code(en.Secret, 0) == wrong {
 		wrong = "111111"
 	}
-	err = f.sv.ConfirmTOTP(u, u.Email, wrong, "")
+	_, err = f.sv.ConfirmTOTP(u, u.Email, wrong, "")
 	wantRefusal(t, err, Invalid, "code did not match — check your device clock")
 	f.st.CreateSession("this-device", u.ID, time.Hour)
 	f.st.CreateSession("stolen", u.ID, time.Hour)
-	if err := f.sv.ConfirmTOTP(u, u.Email, f.code(en.Secret, 0), "this-device"); err != nil {
+	if _, err := f.sv.ConfirmTOTP(u, u.Email, f.code(en.Secret, 0), "this-device"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.st.UserForSession("stolen"); err == nil {
@@ -486,12 +486,12 @@ func TestOwnAccountChanges(t *testing.T) {
 	}
 
 	// Replacing the authenticator needs a current code, spent once.
-	_, err = f.sv.BeginTOTP(bg, here, u, "brand-new-password", "")
+	_, err = f.sv.BeginTOTP(bg, here, u, RP{}, u.Email, Proof{Password: "brand-new-password", Code: ""})
 	wantRefusal(t, err, Forbidden, "enter a code from your current authenticator to replace it")
 	// The confirming code (offset 0) is spent: the next step's code does.
-	_, err = f.sv.BeginTOTP(bg, here, u, "brand-new-password", f.code(en.Secret, 0))
+	_, err = f.sv.BeginTOTP(bg, here, u, RP{}, u.Email, Proof{Password: "brand-new-password", Code: f.code(en.Secret, 0)})
 	wantRefusal(t, err, Forbidden, "enter a code from your current authenticator to replace it")
-	next, err := f.sv.BeginTOTP(bg, here, u, "brand-new-password", f.code(en.Secret, 1))
+	next, err := f.sv.BeginTOTP(bg, here, u, RP{}, u.Email, Proof{Password: "brand-new-password", Code: f.code(en.Secret, 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -503,14 +503,14 @@ func TestOwnAccountChanges(t *testing.T) {
 	}
 
 	// Disabling needs password and a fresh code; the spent one does not do.
-	err = f.sv.DisableTOTP(bg, here, u, u.Email, "brand-new-password", "", "this-device")
+	err = f.sv.DisableTOTP(bg, here, u, RP{}, u.Email, Proof{Password: "brand-new-password", Code: ""}, "this-device")
 	wantRefusal(t, err, Forbidden, "enter a code from your authenticator to turn it off")
-	err = f.sv.DisableTOTP(bg, here, u, u.Email, "brand-new-password", f.code(en.Secret, 1), "this-device")
+	err = f.sv.DisableTOTP(bg, here, u, RP{}, u.Email, Proof{Password: "brand-new-password", Code: f.code(en.Secret, 1)}, "this-device")
 	wantRefusal(t, err, Forbidden, "enter a code from your authenticator to turn it off")
 	f.at = f.at.Add(30 * time.Second) // a step later: offset 1 is fresh again
-	err = f.sv.DisableTOTP(bg, here, u, u.Email, "wrong-password", f.code(en.Secret, 1), "this-device")
+	err = f.sv.DisableTOTP(bg, here, u, RP{}, u.Email, Proof{Password: "wrong-password", Code: f.code(en.Secret, 1)}, "this-device")
 	wantRefusal(t, err, Forbidden, msgWrongPassword)
-	if err := f.sv.DisableTOTP(bg, here, u, u.Email, "brand-new-password", f.code(en.Secret, 1), "this-device"); err != nil {
+	if err := f.sv.DisableTOTP(bg, here, u, RP{}, u.Email, Proof{Password: "brand-new-password", Code: f.code(en.Secret, 1)}, "this-device"); err != nil {
 		t.Fatal(err)
 	}
 	if _, on, _ := f.st.UserTOTP(u.ID); on {

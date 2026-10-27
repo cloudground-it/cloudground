@@ -42,6 +42,11 @@ type Ops struct {
 	// ReloadPHP reloads the site's PHP-FPM master, so OPcache drops the
 	// code of the release that was live. Nil reloads nothing.
 	ReloadPHP func(context.Context, state.Site) error
+	// ReloadNginx reloads nginx after current moved: its open_file_cache
+	// keeps a path's descriptor for open_file_cache_valid (60s), so without
+	// a reload a static file is served from the old release that long.
+	// Nil reloads nothing.
+	ReloadNginx func(context.Context) error
 	// Keep is how many releases older than the live one survive a promote
 	// (0 means DefaultKeep).
 	Keep int
@@ -351,7 +356,7 @@ func (o *Ops) Rollback(ctx context.Context, p rpc.ReleaseParams) (map[string]str
 
 // activate swaps current to releases/<id> (a new link renamed over the old
 // one, so every request sees one release or the other), reloads PHP and
-// prunes.
+// nginx, and prunes.
 func (o *Ops) activate(ctx context.Context, r *sitefs.Root, s state.Site, id string) (map[string]string, error) {
 	// Lstat: a release must be a real directory. A symlink in its place
 	// would make current, and nginx's document root, point wherever it
@@ -365,6 +370,11 @@ func (o *Ops) activate(ctx context.Context, r *sitefs.Root, s state.Site, id str
 	}
 	if s.PHPVersion != "" && o.ReloadPHP != nil {
 		if err := o.ReloadPHP(ctx, s); err != nil {
+			return nil, err
+		}
+	}
+	if o.ReloadNginx != nil {
+		if err := o.ReloadNginx(ctx); err != nil {
 			return nil, err
 		}
 	}
