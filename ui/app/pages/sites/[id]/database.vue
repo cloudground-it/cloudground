@@ -31,6 +31,14 @@ const { data, pending, refresh } = useLive(() => api.get<SiteDatabases>(`${base.
 })
 const databases = computed(() => data.value?.databases ?? [])
 const users = computed(() => data.value?.users ?? [])
+// External servers (#30): picked when a database or a user is made, shown
+// beside what is on one, with where an application connects.
+const available = computed(() => data.value?.available_servers ?? [])
+const serverItems = computed(() => [{ value: 0, label: t('dbs.thisServer') }, ...available.value.map(s => ({ value: s.id, label: s.kind === 'postgres' ? `${s.name} (PostgreSQL)` : s.name }))])
+// Quarry, the SQL console and the table list are MariaDB's for now.
+const isPostgres = (server: number) => (data.value?.servers ?? []).some(s => s.id === server && s.kind === 'postgres')
+const serverName = (id: number) => id === 0 ? t('dbs.thisServer') : (data.value?.servers ?? []).find(s => s.id === id)?.name ?? `#${id}`
+const external = computed(() => (data.value?.servers ?? []).filter(s => s.id !== 0))
 
 const NAME_RE = /^[a-z][a-z0-9_]{2,47}$/
 const nameError = (n: string) => n && !NAME_RE.test(n) ? t('dbs.nameRule') : undefined
@@ -61,15 +69,17 @@ const count = (n: number) => n < 0 ? '—' : fmtNumber(n, undefined, locale.valu
 
 // ---- databases ----
 const newDB = ref('')
+const newDBServer = ref(0)
 const addingDB = ref(false)
 function startAddDB() {
   newDB.value = ''
+  newDBServer.value = 0
   addingDB.value = true
 }
 async function createDB() {
   const name = newDB.value.trim()
   if (!NAME_RE.test(name)) return
-  if (await run(() => api.post(`${base.value}/databases`, { name }), t('dbs.dbCreating', { name }))) {
+  if (await run(() => api.post(`${base.value}/databases`, { name, server_id: newDBServer.value }), t('dbs.dbCreating', { name }))) {
     newDB.value = ''
     addingDB.value = false
   }
@@ -108,7 +118,9 @@ const levelsOf = (u?: SiteDBUser): Record<string, Level> => {
   return out
 }
 
-const newUser = reactive({ name: '', password: '', levels: {} as Record<string, Level> })
+const newUser = reactive({ name: '', password: '', server: 0, levels: {} as Record<string, Level> })
+// A user is on one server and reaches only the databases that are on it.
+const databasesOn = (server: number) => databases.value.filter(d => (d.server_id ?? 0) === server)
 watch(databases, () => {
   newUser.levels = { ...levelsOf(), ...Object.fromEntries(Object.entries(newUser.levels).filter(([k]) => databases.value.some(d => d.name === k))) }
 }, { immediate: true })
@@ -117,6 +129,7 @@ const addingUser = ref(false)
 function startAddUser() {
   newUser.name = ''
   newUser.password = ''
+  newUser.server = 0
   newUser.levels = levelsOf()
   addingUser.value = true
 }
@@ -137,7 +150,7 @@ async function createUser() {
   const name = newUser.name.trim()
   let res: { password?: string } | undefined
   const ok = await run(async () => {
-    res = await api.post<{ password?: string }>(`${base.value}/database-users`, { name, password: newUser.password, grants: toGrants(newUser.levels) })
+    res = await api.post<{ password?: string }>(`${base.value}/database-users`, { name, password: newUser.password, server_id: newUser.server, grants: toGrants(newUser.levels) })
   }, t('dbs.userCreated', { name }))
   if (!ok) return
   addingUser.value = false
@@ -155,6 +168,7 @@ async function dropUser(name: string) {
 
 // Privileges of an existing user.
 const editing = ref<SiteDBUser | null>(null)
+const editable = computed(() => databasesOn(editing.value?.server_id ?? 0))
 const editLevels = ref<Record<string, Level>>({})
 function editGrants(u: SiteDBUser) {
   editing.value = u
@@ -227,6 +241,7 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
             <UTooltip v-if="d.primary" :text="t('dbs.primaryHint')">
               <UBadge color="info" variant="subtle" :label="t('dbs.primary')" />
             </UTooltip>
+            <UBadge v-if="d.server_id" color="neutral" variant="outline" icon="i-cg-database" :label="serverName(d.server_id)" />
           </span>
           <span class="mt-1 flex flex-wrap gap-1.5 md:hidden">
             <UBadge v-for="x in accessOf(d.name)" :key="x.user" :color="x.level === 'all' ? 'info' : 'neutral'" variant="outline" size="sm" class="mono" :label="`${x.user} · ${levelLabel(x.level)}`" />
@@ -246,7 +261,7 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
         </template>
         <template #actions-cell="{ row: { original: d } }">
           <span class="flex items-center justify-end gap-1">
-            <UButton size="sm" color="neutral" variant="outline" icon="i-cg-external-link" :label="t('dbs.openStudio')" :aria-label="t('dbs.openStudio')" :ui="{ label: 'hidden sm:inline' }" @click="openStudio(d.name)" />
+            <UButton v-if="!isPostgres(d.server_id)" size="sm" color="neutral" variant="outline" icon="i-cg-external-link" :label="t('dbs.openStudio')" :aria-label="t('dbs.openStudio')" :ui="{ label: 'hidden sm:inline' }" @click="openStudio(d.name)" />
             <UDropdownMenu v-if="canManage" :items="dbMenu(d.name, d.primary)" :content="{ align: 'end' }">
               <UButton size="sm" color="neutral" variant="ghost" square icon="i-cg-more-horizontal" :aria-label="t('ux.common.moreFor', { name: d.name })" />
             </UDropdownMenu>
@@ -254,9 +269,17 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
         </template>
       </UTable>
       <template #footer>
-        <p class="m-0 text-[13px] text-muted">
-          {{ t('studio.panelHint') }}
-        </p>
+        <div class="flex flex-col gap-1">
+          <p class="m-0 text-[13px] text-muted">
+            {{ t('studio.panelHint') }}
+          </p>
+          <p v-for="s in external" :key="s.id" class="m-0 text-[13px] text-muted">
+            {{ t('dbs.connectAt', { server: s.name, host: `${s.host}:${s.port}`, tls: s.tls === 'required' ? t('dbs.connectTls') : t('dbs.connectNoTls') }) }}
+          </p>
+          <p v-if="external.some(s => s.kind === 'postgres')" class="m-0 text-[13px] text-muted">
+            {{ t('dbs.pgNotYet') }}
+          </p>
+        </div>
       </template>
     </PanelSection>
 
@@ -282,6 +305,7 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
             <UTooltip v-if="u.primary" :text="t('dbs.primaryUserHint')">
               <UBadge color="info" variant="subtle" :label="t('dbs.primary')" />
             </UTooltip>
+            <UBadge v-if="u.server_id" color="neutral" variant="outline" icon="i-cg-database" :label="serverName(u.server_id)" />
           </span>
           <span class="mt-1 flex flex-wrap gap-1.5 md:hidden">
             <UBadge v-for="g in u.grants ?? []" :key="g.database" :color="g.level === 'all' ? 'info' : 'neutral'" variant="outline" size="sm" class="mono" :label="`${g.database} · ${levelLabel(g.level)}`" />
@@ -310,6 +334,9 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
           <UFormField :label="t('db.name')" :help="t('dbs.nameHint')" :error="nameError(newDB)" name="name">
             <UInput v-model="newDB" class="w-full font-mono" placeholder="shop_data" autocomplete="off" spellcheck="false" autofocus />
           </UFormField>
+          <UFormField v-if="available.length" :label="t('dbs.server')" :help="t('dbs.serverHelp')" class="mt-4" name="server">
+            <USelect v-model="newDBServer" :items="serverItems" class="w-full sm:w-64" />
+          </UFormField>
         </UForm>
       </template>
       <template #footer>
@@ -329,9 +356,12 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
           <UFormField :label="t('common.password')" :hint="t('common.optional')" :help="t('dbs.passwordHelp')" :error="passwordError(newUser.password)" name="password">
             <UInput v-model="newUser.password" type="password" autocomplete="new-password" class="w-full font-mono" />
           </UFormField>
-          <UFormField v-if="databases.length" :label="t('dbs.privileges')">
+          <UFormField v-if="available.length" :label="t('dbs.server')" :help="t('dbs.userServerHelp')" name="server">
+            <USelect v-model="newUser.server" :items="serverItems" class="w-full sm:w-64" />
+          </UFormField>
+          <UFormField v-if="databasesOn(newUser.server).length" :label="t('dbs.privileges')">
             <div class="flex flex-col divide-y divide-default border-y border-default">
-              <div v-for="d in databases" :key="d.name" class="flex flex-wrap items-center justify-between gap-3 py-2">
+              <div v-for="d in databasesOn(newUser.server)" :key="d.name" class="flex flex-wrap items-center justify-between gap-3 py-2">
                 <span class="mono text-[13px] text-highlighted">{{ d.name }}</span>
                 <USelect v-model="newUser.levels[d.name]" :items="levelItems" size="sm" class="w-44" :aria-label="t('ux.dbs.levelOn', { name: d.name })" />
               </div>
@@ -349,11 +379,11 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
 
     <UModal :open="!!editing" :title="editing ? t('dbs.grantsTitle', { name: editing.name }) : ''" @update:open="v => { if (!v) editing = null }">
       <template #body>
-        <p v-if="!databases.length" class="m-0 text-sm text-muted">
+        <p v-if="!editable.length" class="m-0 text-sm text-muted">
           {{ t('dbs.noDatabases') }}
         </p>
         <div v-else class="flex flex-col divide-y divide-default border-y border-default">
-          <div v-for="d in databases" :key="d.name" class="flex flex-wrap items-center justify-between gap-3 py-2">
+          <div v-for="d in editable" :key="d.name" class="flex flex-wrap items-center justify-between gap-3 py-2">
             <span class="mono text-[13px] text-highlighted">{{ d.name }}</span>
             <USelect v-model="editLevels[d.name]" :items="levelItems" size="sm" class="w-44" :aria-label="t('ux.dbs.levelOn', { name: d.name })" />
           </div>

@@ -22,9 +22,11 @@ var ErrDBNameTaken = errors.New("the name is already in use on this server")
 
 // SiteDatabase is one of a site's databases.
 type SiteDatabase struct {
-	ID        int64     `json:"id"`
-	SiteID    int64     `json:"site_id"`
-	Name      string    `json:"name"`
+	ID     int64  `json:"id"`
+	SiteID int64  `json:"site_id"`
+	Name   string `json:"name"`
+	// ServerID is the external server it is on (0: the box's own).
+	ServerID  int64     `json:"server_id"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -37,9 +39,11 @@ type DBGrant struct {
 // DBUser is one of a site's database accounts. Secret is the name of the
 // secret holding its password.
 type DBUser struct {
-	ID        int64     `json:"id"`
-	SiteID    int64     `json:"site_id"`
-	Name      string    `json:"name"`
+	ID     int64  `json:"id"`
+	SiteID int64  `json:"site_id"`
+	Name   string `json:"name"`
+	// ServerID is the external server it is on (0: the box's own).
+	ServerID  int64     `json:"server_id"`
 	Secret    string    `json:"-"`
 	Grants    []DBGrant `json:"grants"`
 	CreatedAt time.Time `json:"created_at"`
@@ -68,7 +72,7 @@ func taken(err error) error {
 
 // ListSiteDatabases returns a site's databases by name.
 func (s *Store) ListSiteDatabases(siteID int64) ([]SiteDatabase, error) {
-	rows, err := s.db.Query(`SELECT id, site_id, name, created_at FROM site_databases WHERE site_id = ? ORDER BY name`, siteID)
+	rows, err := s.db.Query(`SELECT id, site_id, name, server_id, created_at FROM site_databases WHERE site_id = ? ORDER BY name`, siteID)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +81,7 @@ func (s *Store) ListSiteDatabases(siteID int64) ([]SiteDatabase, error) {
 	for rows.Next() {
 		var d SiteDatabase
 		var at string
-		if err := rows.Scan(&d.ID, &d.SiteID, &d.Name, &at); err != nil {
+		if err := rows.Scan(&d.ID, &d.SiteID, &d.Name, &d.ServerID, &at); err != nil {
 			return nil, err
 		}
 		d.CreatedAt = parseTime(at)
@@ -91,8 +95,8 @@ func (s *Store) ListSiteDatabases(siteID int64) ([]SiteDatabase, error) {
 func (s *Store) SiteDatabaseByName(siteID int64, name string) (SiteDatabase, error) {
 	var d SiteDatabase
 	var at string
-	err := s.db.QueryRow(`SELECT id, site_id, name, created_at FROM site_databases WHERE site_id = ? AND name = ?`, siteID, name).
-		Scan(&d.ID, &d.SiteID, &d.Name, &at)
+	err := s.db.QueryRow(`SELECT id, site_id, name, server_id, created_at FROM site_databases WHERE site_id = ? AND name = ?`, siteID, name).
+		Scan(&d.ID, &d.SiteID, &d.Name, &d.ServerID, &at)
 	if errors.Is(err, sql.ErrNoRows) {
 		return SiteDatabase{}, ErrNotFound
 	}
@@ -115,9 +119,15 @@ func (s *Store) DBNameInUse(name string, users bool) (bool, error) {
 // AddSiteDatabase records a new database of the site. A name in use
 // anywhere is ErrDBNameTaken.
 func (s *Store) AddSiteDatabase(siteID int64, name string) (SiteDatabase, error) {
+	return s.AddSiteDatabaseOn(siteID, name, 0)
+}
+
+// AddSiteDatabaseOn is AddSiteDatabase on an external server (0: the box's
+// own).
+func (s *Store) AddSiteDatabaseOn(siteID int64, name string, serverID int64) (SiteDatabase, error) {
 	at := now()
-	d := SiteDatabase{SiteID: siteID, Name: name, CreatedAt: parseTime(at)}
-	err := s.db.QueryRow(`INSERT INTO site_databases (site_id, name, created_at) VALUES (?, ?, ?) RETURNING id`, siteID, name, at).Scan(&d.ID)
+	d := SiteDatabase{SiteID: siteID, Name: name, ServerID: serverID, CreatedAt: parseTime(at)}
+	err := s.db.QueryRow(`INSERT INTO site_databases (site_id, name, server_id, created_at) VALUES (?, ?, ?, ?) RETURNING id`, siteID, name, serverID, at).Scan(&d.ID)
 	if err != nil {
 		return SiteDatabase{}, taken(err)
 	}
@@ -142,7 +152,7 @@ func (s *Store) RemoveSiteDatabase(siteID int64, name string) error {
 // ListDBUsers returns a site's database accounts by name, with their
 // grants.
 func (s *Store) ListDBUsers(siteID int64) ([]DBUser, error) {
-	rows, err := s.db.Query(`SELECT id, site_id, name, secret, created_at FROM site_db_users WHERE site_id = ? ORDER BY name`, siteID)
+	rows, err := s.db.Query(`SELECT id, site_id, name, secret, server_id, created_at FROM site_db_users WHERE site_id = ? ORDER BY name`, siteID)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +161,7 @@ func (s *Store) ListDBUsers(siteID int64) ([]DBUser, error) {
 	for rows.Next() {
 		var u DBUser
 		var at string
-		if err := rows.Scan(&u.ID, &u.SiteID, &u.Name, &u.Secret, &at); err != nil {
+		if err := rows.Scan(&u.ID, &u.SiteID, &u.Name, &u.Secret, &u.ServerID, &at); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -213,6 +223,11 @@ func (s *Store) DBUserByName(siteID int64, name string) (DBUser, error) {
 // under secret) and grants, all or nothing. A name in use anywhere is
 // ErrDBNameTaken; a grant on a database the site does not have is an error.
 func (s *Store) AddDBUser(siteID int64, name, secret, password string, grants []DBGrant) (DBUser, error) {
+	return s.AddDBUserOn(siteID, name, secret, password, grants, 0)
+}
+
+// AddDBUserOn is AddDBUser on an external server (0: the box's own).
+func (s *Store) AddDBUserOn(siteID int64, name, secret, password string, grants []DBGrant, serverID int64) (DBUser, error) {
 	if !strings.HasPrefix(secret, SiteSecretPrefix(siteID)) {
 		return DBUser{}, fmt.Errorf("the secret of a database account of site %d must be one of its secrets", siteID)
 	}
@@ -223,8 +238,8 @@ func (s *Store) AddDBUser(siteID int64, name, secret, password string, grants []
 	defer tx.Rollback()
 	at := now()
 	var id int64
-	if err := tx.QueryRow(`INSERT INTO site_db_users (site_id, name, secret, created_at) VALUES (?, ?, ?, ?) RETURNING id`,
-		siteID, name, secret, at).Scan(&id); err != nil {
+	if err := tx.QueryRow(`INSERT INTO site_db_users (site_id, name, secret, server_id, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id`,
+		siteID, name, secret, serverID, at).Scan(&id); err != nil {
 		return DBUser{}, taken(err)
 	}
 	if err := writeGrants(tx, siteID, id, grants); err != nil {

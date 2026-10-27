@@ -2002,6 +2002,93 @@ of its databases and users (the agent's `DeleteSite`, by its record) and the
 rows go with the site. Staging copies only the primary (§3.7). Tests:
 `site_databases_test.go`; e2e `F9b site databases`.
 
+#### 6.5.1 External MariaDB and MySQL servers (#30, `db_servers.go`)
+
+Every database used to live in the one MariaDB on the box. An administrator can register **other
+MariaDB or MySQL servers** (a provider's managed one, one on another host) and pick one when a
+database is created. The box's own server is the implicit server 0, `"this server"`; a registered
+one has an id, a name and the connection the agent uses.
+
+A server is `{id, name, host, port, tls, ca_cert, admin_user}` (table `db_servers`, migration 33,
+state SPEC) and one sealed secret, `dbserver.<id>.admin_password`. `name` is `^[a-z][a-z0-9-]{1,31}$`
+and unique; `host` a host name or an IP address (at most 253 characters, no spaces, no `/`, no
+`@`); `port` 1–65535 (3306 when left out); `tls` is `required` (the default: the connection and
+every account made on the server insist on TLS, and the server's certificate is checked against
+`ca_cert`, a PEM bundle of public certificates, or the system's authorities when it is empty) or
+`off`; `admin_user` the account the agent administers with, one that may create databases and
+accounts and grant privileges (`ALL PRIVILEGES … WITH GRANT OPTION`). Its password is a secret of
+§12: never returned (`password_set`), `••••••••` or left out keeps it.
+
+| Route (policy) | Does |
+| --- | --- |
+| `GET /api/db-servers` (`global`) | `[{id, name, kind: "mariadb", host, port, tls, ca_cert, admin_user, password_set, databases}]`, `databases` the number of databases on it |
+| `POST /api/db-servers` (`admin`) | registers a server after the agent has connected to it with the credentials (`TestDBServer`: a refusal is **400** with the server's own message, nothing stored). 201 with the row. Audit `dbserver.create`, detail the name |
+| `PUT /api/db-servers/{id}` (`admin`) | changes any field, tested again; 404 for an unknown id. Audit `dbserver.update` |
+| `POST /api/db-servers/{id}/test` (`admin`) | connects now: 200 `{ok: true, version}`, or 502 with the error |
+| `DELETE /api/db-servers/{id}` (`admin`) | 409 `drop its databases first` while any database is on it; the secret goes. Audit `dbserver.delete` |
+
+All five are session or API-token routes of an administrator: the host and port are somewhere the
+agent, as root, connects to, and the credentials are the server's.
+
+**The agent's copy.** The agent holds the servers' connections **in memory only**
+(`SetDBServers`, internal/agent/ops/db SPEC §9): the panel pushes the whole list, with the
+passwords opened from the store, after every change, and whenever the agent answers a call with
+`unavailable: unknown database server` (it restarted, or has not been told yet): `Server.Agent` is
+wrapped so that one such answer pushes the list and repeats the call once. No password is written
+to disk by the agent.
+
+**Databases.** `POST /api/sites/{id}/databases` takes `server_id` (absent or 0: this server; any
+other must be a registered one, else **400** `unknown database server`); the row is recorded with
+it and `CreateDatabase` carries it. A database lives on one server for good. `GET databases` adds
+`server_id` to each database and user, a `servers` list of the connections the site's
+databases use (`{id, name, host, port, tls}`; `id` 0 for this server) so the page can tell where an
+application connects, and `available_servers` (`{id, name}` of every registered server) for the
+picker of whoever manages the site, who cannot read `GET /api/db-servers`. `POST database-users` takes `server_id` too, used when the user has no
+grants; with grants the user is on the server of their databases, which must be **one** (else 400
+`a user's databases must be on one server`); `PUT …/grants` the same. The primary database and
+its account are always on this server. The user's password is the secret of §6.5 as before; on an
+external server the account is `<user>@'%'` and, with `tls` required, `REQUIRE SSL`, so it can
+reach the server from the box and nowhere insecurely.
+
+**What follows the database.** The agent routes by the database's record: the console (`DBQuery`),
+the table list, export and import, backups (`mariadb-dump` over the network, with TLS when
+required) and restores (a staged replacement inside that server), the restore test (the dump is
+checked in a scratch database on this server, whichever server it came from), and Quarry's sessions
+(a scoped account made on that server). A site's **staging copy** and a **migration** use the
+primary database, so they stay on this server. Deleting a site drops its databases and users on
+every server by the agent's record.
+
+**Not here.** Moving a database between servers; the primary database on an external server; a
+server whose administrator account cannot create accounts (the registration says so); PostgreSQL
+(#81 builds on this section).
+
+Tests: `db_servers_test.go` (the routes and their refusals, the sealed secret, the push and the
+retry, a database created on a server and a refusal to delete one in use, the grants rule).
+e2e `external database server`.
+
+#### 6.5.2 External PostgreSQL servers (#81)
+
+The registry of §6.5.1 holds PostgreSQL servers too: `kind` is `mariadb` (the default, MySQL
+servers included) or `postgres`, chosen when it is registered and never changed. A `postgres`
+server:
+
+- needs **TLS**: `tls: "off"` is **400** `PostgreSQL needs TLS`; the port defaults to 5432;
+- has `backup`: `provider` (the default: the provider backs it up, and CloudGround leaves its
+  databases out of a site's backups) or `dump` (`pg_dump` over TLS with the usual restore test,
+  ops/db SPEC §9.1); a `mariadb` server is always `dump`;
+- is tested by the agent with `SELECT version()` and a check that the account may create roles and
+  databases (`rolcreaterole`/`rolcreatedb` or superuser): a refusal is 400 with the reason.
+
+The view of a server gains `kind` and `backup`. **Sites that may use it:** PostgreSQL is offered for
+`php` and `laravel` sites only (`site.SupportsPostgres`): `POST databases` or `POST database-users` on
+a PostgreSQL server for another type is **400** `PostgreSQL is offered for PHP and Laravel sites`, and
+`available_servers` of such a site leaves PostgreSQL servers out. A name is the same namespace as on
+MariaDB, and a user is on one server (§6.5.1). The password rule is the same.
+
+**Not for PostgreSQL yet** (the agent answers `invalid`): the SQL console, the table list,
+the database import/export of Quarry and Quarry's own sessions. A plain export (`POST database/export`),
+import and the backups, restores and restore test work (ops/db SPEC §9.1).
+
 ### 6.4 Quarry (Fase 9b: a service of its own)
 
 Quarry is served at `/quarry` from the same build of the interface

@@ -355,7 +355,7 @@ func (o *Ops) rollbackable(ctx context.Context, s *db.Session, names []string) (
 		where.WriteString("(EVENT_OBJECT_SCHEMA = ? AND EVENT_OBJECT_TABLE = ?)")
 		targs = append(targs, t.schema, t.table)
 	}
-	n, err := o.DB.MariaDB.QueryStrings(ctx, fmt.Sprintf(simTriggersQuery, where.String()), targs...)
+	n, err := s.Maria().QueryStrings(ctx, fmt.Sprintf(simTriggersQuery, where.String()), targs...)
 	if err != nil {
 		return "", fmt.Errorf("check for triggers: %w", err)
 	}
@@ -366,14 +366,14 @@ func (o *Ops) rollbackable(ctx context.Context, s *db.Session, names []string) (
 	for schema := range schemas {
 		sargs = append(sargs, schema)
 	}
-	n, err = o.DB.MariaDB.QueryStrings(ctx, fmt.Sprintf(simRoutinesQuery, placeholders(len(schemas)), in), append(sargs, args...)...)
+	n, err = s.Maria().QueryStrings(ctx, fmt.Sprintf(simRoutinesQuery, placeholders(len(schemas)), in), append(sargs, args...)...)
 	if err != nil {
 		return "", fmt.Errorf("check for stored functions: %w", err)
 	}
 	if len(n) != 1 || n[0] != "0" {
 		return "it names a stored function or package, which may change what a rollback cannot undo", nil
 	}
-	n, err = o.DB.MariaDB.QueryStrings(ctx, fmt.Sprintf(simUDFsQuery, in), args...)
+	n, err = s.Maria().QueryStrings(ctx, fmt.Sprintf(simUDFsQuery, in), args...)
 	if err != nil {
 		return "", fmt.Errorf("check for loadable functions: %w", err)
 	}

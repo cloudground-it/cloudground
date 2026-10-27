@@ -125,6 +125,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
   - `PUT /api/sites/{id}/wp/cleanup`: 8 KiB
+  - `POST /api/db-servers`: 256 KiB
+  - `PUT /api/db-servers/{id}`: 256 KiB
   - `PUT /api/sites/{id}/git-deploy`: 8 KiB
   - `POST /hooks/git/{hook}`: 1 MiB
   - `PUT /api/sites/{id}/uptime`: 8 KiB
@@ -376,6 +378,11 @@ and text sent for a binary file `409`.
 
 | Method | Path | Access | What it does |
 | :-- | :-- | :-- | :-- |
+| `GET` | `/api/db-servers` | global | the registered external MariaDB and MySQL servers (the box's own is server 0): `name`, `host`, `port`, `tls`, `ca_cert`, `admin_user`, whether its password is set (never the password) and how many databases are on it |
+| `POST` | `/api/db-servers` | admin | register an external server (`name`, `host`, `port` 3306, `tls` `required` or `off`, `ca_cert`, `admin_user`, `admin_password`); the agent connects first and a refusal is 400 with the server's own message |
+| `PUT` | `/api/db-servers/{id}` | admin | change an external server, tested again; the password is kept when left out or `••••••••` |
+| `POST` | `/api/db-servers/{id}/test` | admin | connect to the server now: `{ok, version}`, or 502 with the error |
+| `DELETE` | `/api/db-servers/{id}` | admin | forget an external server and its password; 409 while a database or a database user is on it |
 | `GET` | `/api/sites/{id}/databases` | auth | the site's databases (`name`, `primary`, `size_bytes`, `tables`; -1 when unknown) and database users with their `grants` (`database`, `level`: `all` or `read`) |
 | `POST` | `/api/sites/{id}/databases` | manage | create a database: `name` (3–48 of `a-z0-9_`, a letter first, never a reserved or system name, unique on the server) — returns `202` and a task |
 | `DELETE` | `/api/sites/{id}/databases/{name}?confirm=` | manage | delete a database (not the primary); `confirm` is its name; its backups are kept — returns `202` and a task |

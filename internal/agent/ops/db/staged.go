@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 )
 
@@ -27,7 +28,11 @@ import (
 //     the live database is now exactly the dump.
 //  4. Commit drops hold and scratch; Unretire and Unswap undo 3 and 2.
 type Staged struct {
-	o       *Ops
+	o *Ops
+	// m is the adapter of the server the live database is on, where the
+	// scratch and holding databases are made too (SPEC §9).
+	m       host.MariaDB
+	server  int64
 	live    string
 	scratch string
 	hold    string
@@ -56,12 +61,23 @@ func (o *Ops) Stage(ctx context.Context, live, path string) (*Staged, error) {
 		return nil, err
 	}
 	h := hex.EncodeToString(suffix)
-	s := &Staged{o: o, live: live, scratch: stageScratch + h, hold: stageHold + h}
+	server, err := o.serverOf(ctx, live)
+	if err != nil {
+		return nil, err
+	}
+	m, err := o.mariaOfServer(server)
+	if err != nil {
+		return nil, err
+	}
+	s := &Staged{o: o, m: m, server: server, live: live, scratch: stageScratch + h, hold: stageHold + h}
 	cs, coll, err := o.charset(ctx, live)
 	if err != nil {
 		return nil, err
 	}
-	if err := o.MariaDB.Exec(ctx, "CREATE DATABASE `"+s.scratch+"` CHARACTER SET "+cs+" COLLATE "+coll); err != nil {
+	o.scratch.set(s.scratch, server)
+	o.scratch.set(s.hold, server)
+	if err := m.Exec(ctx, "CREATE DATABASE `"+s.scratch+"` CHARACTER SET "+cs+" COLLATE "+coll); err != nil {
+		s.forget()
 		return nil, fmt.Errorf("create the staging database: %w", err)
 	}
 	fail := func(err error) (*Staged, error) {
@@ -71,7 +87,7 @@ func (o *Ops) Stage(ctx context.Context, live, path string) (*Staged, error) {
 	if err := o.ImportFile(ctx, s.scratch, path); err != nil {
 		return fail(err)
 	}
-	views, err := o.MariaDB.QueryStrings(ctx, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE <> 'BASE TABLE'", s.scratch)
+	views, err := m.QueryStrings(ctx, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE <> 'BASE TABLE'", s.scratch)
 	if err != nil {
 		return fail(fmt.Errorf("list the staged tables: %w", err))
 	}
@@ -93,7 +109,7 @@ func (s *Staged) Tables() []string { return slices.Clone(s.tables) }
 // Value reads one column of the staged table (scratch, before the swap)
 // where key = value: a WordPress option, say. "" when there is no such row.
 func (s *Staged) Value(ctx context.Context, table, column, key, value string) (string, error) {
-	got, err := s.o.MariaDB.QueryStrings(ctx, "SELECT "+ident(column)+" FROM "+ident(s.scratch)+"."+ident(table)+" WHERE "+ident(key)+" = ? LIMIT 1", value)
+	got, err := s.m.QueryStrings(ctx, "SELECT "+ident(column)+" FROM "+ident(s.scratch)+"."+ident(table)+" WHERE "+ident(key)+" = ? LIMIT 1", value)
 	if err != nil || len(got) == 0 {
 		return "", err
 	}
@@ -103,7 +119,7 @@ func (s *Staged) Value(ctx context.Context, table, column, key, value string) (s
 // Swap puts the dump's tables in the live database in one statement,
 // moving the live tables they replace into hold.
 func (s *Staged) Swap(ctx context.Context) error {
-	if err := s.o.MariaDB.Exec(ctx, "CREATE DATABASE `"+s.hold+"`"); err != nil {
+	if err := s.m.Exec(ctx, "CREATE DATABASE `"+s.hold+"`"); err != nil {
 		return fmt.Errorf("create the holding database: %w", err)
 	}
 	live, err := s.o.baseTables(ctx, s.live)
@@ -179,6 +195,7 @@ func (s *Staged) Unswap(ctx context.Context) error {
 	if len(s.retired) == 0 {
 		s.drop(ctx, s.hold)
 	}
+	s.forget()
 	return nil
 }
 
@@ -187,6 +204,7 @@ func (s *Staged) Unswap(ctx context.Context) error {
 func (s *Staged) Commit(ctx context.Context) {
 	s.drop(ctx, s.hold)
 	s.drop(ctx, s.scratch)
+	s.forget()
 }
 
 // Hold names the database the replaced tables are in until Commit (for an
@@ -201,7 +219,7 @@ func (s *Staged) rename(ctx context.Context, moves []string) error {
 	if len(moves) == 0 {
 		return nil
 	}
-	return s.o.MariaDB.Exec(ctx, "RENAME TABLE "+strings.Join(moves, ", "))
+	return s.m.Exec(ctx, "RENAME TABLE "+strings.Join(moves, ", "))
 }
 
 // drop drops a staging database on its own deadline: it runs on failures
@@ -209,14 +227,24 @@ func (s *Staged) rename(ctx context.Context, moves []string) error {
 func (s *Staged) drop(ctx context.Context, database string) {
 	dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Minute)
 	defer cancel()
-	if err := s.o.MariaDB.Exec(dctx, "DROP DATABASE IF EXISTS `"+database+"`"); err != nil {
+	if err := s.m.Exec(dctx, "DROP DATABASE IF EXISTS `"+database+"`"); err != nil {
 		s.o.log().Warn("drop a staging database", "database", database, "err", err)
 	}
 }
 
+// forget lets the router forget the scratch databases once they are gone.
+func (s *Staged) forget() {
+	s.o.scratch.forget(s.scratch)
+	s.o.scratch.forget(s.hold)
+}
+
 // baseTables lists a database's tables.
 func (o *Ops) baseTables(ctx context.Context, database string) ([]string, error) {
-	got, err := o.MariaDB.QueryStrings(ctx, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME", database)
+	m, err := o.maria(ctx, database)
+	if err != nil {
+		return nil, err
+	}
+	got, err := m.QueryStrings(ctx, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME", database)
 	if err != nil {
 		return nil, fmt.Errorf("list the tables of %s: %w", database, err)
 	}

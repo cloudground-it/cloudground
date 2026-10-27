@@ -121,7 +121,7 @@ func (o *Ops) restoreTest(ctx context.Context, repo host.Repo, s state.Site, id,
 		}
 		// WordPress's own tables are in the primary database only.
 		primary := s.Config.Database.Enabled && !s.Config.Database.External && d.Name == s.Config.Database.Name
-		tables, err := o.DB.VerifyDump(ctx, d.Path, wordpress && primary, d.Tables)
+		tables, err := o.DB.VerifyDumpOf(ctx, d.Name, d.Path, wordpress && primary, d.Tables)
 		if err != nil {
 			return "", fmt.Errorf("database restore test failed (%s): %w", d.Name, err)
 		}

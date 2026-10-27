@@ -105,6 +105,9 @@ type MariaDBAdmin struct {
 	Socket  string // /run/mysqld/mysqld.sock
 	WorkDir string // where scoped defaults files go (root-only)
 	Tools   Exec   // runs mariadb-dump and the mariadb client
+	// Remote, when set, points the adapter at an external server instead of
+	// the socket (mariadb_remote.go).
+	Remote *RemoteServer
 
 	mu sync.Mutex
 	db *sql.DB
@@ -131,7 +134,11 @@ func (m *MariaDBAdmin) rootDB() (*sql.DB, error) {
 	if m.db != nil {
 		return m.db, nil
 	}
-	conn, err := mysql.NewConnector(RootConfig(m.Socket))
+	cfg, err := m.rootConfig()
+	if err != nil {
+		return nil, err
+	}
+	conn, err := mysql.NewConnector(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -172,6 +179,7 @@ func (m *MariaDBAdmin) Close() error {
 }
 
 func (m *MariaDBAdmin) Exec(ctx context.Context, query string, args ...any) error {
+	query = m.q(query)
 	if m.execFn != nil {
 		return m.execFn(ctx, query, args...)
 	}
@@ -184,6 +192,7 @@ func (m *MariaDBAdmin) Exec(ctx context.Context, query string, args ...any) erro
 }
 
 func (m *MariaDBAdmin) QueryStrings(ctx context.Context, query string, args ...any) ([]string, error) {
+	query = m.q(query)
 	if m.queryFn != nil {
 		return m.queryFn(ctx, query, args...)
 	}
@@ -245,6 +254,18 @@ func newScopedCredentials() (user, password string, err error) {
 // unix_socket). What the server's own client files would give is written
 // here: the socket and utf8mb4.
 func writeDefaultsFile(dir, socket, user, password string) (string, error) {
+	return writeClientFile(dir, func(string) string {
+		if socket == "" {
+			return ""
+		}
+		return "socket=" + OptionValue(socket) + "\n"
+	}, nil, user, password)
+}
+
+// writeClientFile is writeDefaultsFile for any server: conn gives the lines
+// that say where it is, and for a TLS server with a CA of its own the CA is
+// written beside the file (name + ".ca", root-only, removed with it).
+func writeClientFile(dir string, conn func(caFile string) string, remote *RemoteServer, user, password string) (string, error) {
 	f, err := os.CreateTemp(dir, ".dbq-*.cnf")
 	if err != nil {
 		return "", err
@@ -252,22 +273,26 @@ func writeDefaultsFile(dir, socket, user, password string) (string, error) {
 	name := f.Name()
 	fail := func(err error) (string, error) {
 		f.Close()
-		os.Remove(name)
+		removeClientFile(name)
 		return "", err
 	}
 	if err := f.Chmod(0o600); err != nil {
 		return fail(err)
 	}
-	body := "[client]\nuser=" + user + "\npassword=" + password + "\n"
-	if socket != "" {
-		body += "socket=" + OptionValue(socket) + "\n"
+	caFile := ""
+	if remote != nil && remote.TLS && remote.CACert != "" {
+		caFile = name + ".ca"
+		if err := os.WriteFile(caFile, []byte(remote.CACert), 0o600); err != nil {
+			return fail(err)
+		}
 	}
+	body := "[client]\nuser=" + user + "\npassword=" + password + "\n" + conn(caFile)
 	body += "default-character-set=utf8mb4\n"
 	if _, err := f.WriteString(body); err != nil {
 		return fail(err)
 	}
 	if err := f.Close(); err != nil {
-		os.Remove(name)
+		removeClientFile(name)
 		return "", err
 	}
 	return name, nil
@@ -303,16 +328,12 @@ func (m *MariaDBAdmin) scopedAccount(ctx context.Context, database, privileges s
 	if err := m.Exec(ctx, fmt.Sprintf("GRANT %s ON `%s`.* TO ?@'localhost'", privileges, GrantPattern(database)), user); err != nil {
 		return nil, errors.Join(fmt.Errorf("grant scoped database user: %w", err), drop())
 	}
-	file, err := writeDefaultsFile(m.WorkDir, m.Socket, user, password)
+	file, err := m.writeFile(user, password)
 	if err != nil {
 		return nil, errors.Join(err, drop())
 	}
 	return &ScopedAccount{User: user, Password: password, DefaultsFile: file, cleanup: func() error {
-		rmErr := os.Remove(file)
-		if errors.Is(rmErr, os.ErrNotExist) {
-			rmErr = nil
-		}
-		return errors.Join(rmErr, drop())
+		return errors.Join(removeClientFile(file), drop())
 	}}, nil
 }
 
@@ -320,6 +341,11 @@ func (m *MariaDBAdmin) scopedAccount(ctx context.Context, database, privileges s
 // optionally, some of its tables.
 func DumpArgs(database string, tables ...string) []string {
 	return append([]string{"--protocol=socket", "--single-transaction", database}, tables...)
+}
+
+// dumpArgs is DumpArgs for this server (the protocol).
+func (m *MariaDBAdmin) dumpArgs(database string, tables ...string) []string {
+	return append([]string{m.protocolArg(), "--single-transaction", database}, tables...)
 }
 
 // ImportArgs is the mariadb client argv for a sandboxed import (R-0.1):
@@ -330,6 +356,11 @@ func DumpArgs(database string, tables ...string) []string {
 // The defaults file must come first.
 func ImportArgs(defaultsFile, database string) []string {
 	return []string{DefaultsArg(defaultsFile), "--sandbox", "--local-infile=0", "--protocol=socket", "--one-database", database}
+}
+
+// importArgs is ImportArgs for this server (the protocol).
+func (m *MariaDBAdmin) importArgs(defaultsFile, database string) []string {
+	return []string{DefaultsArg(defaultsFile), "--sandbox", "--local-infile=0", m.protocolArg(), "--one-database", database}
 }
 
 // DefaultsArg makes the client read file and no other option file
@@ -344,6 +375,15 @@ func (m *MariaDBAdmin) Dump(ctx context.Context, database string, w io.Writer, t
 		if !ValidTableName(t) {
 			return fmt.Errorf("invalid table name %q", t)
 		}
+	}
+	if m.Remote != nil {
+		acct, err := m.adminClientFile()
+		if err != nil {
+			return err
+		}
+		args := append([]string{DefaultsArg(acct.DefaultsFile)}, m.dumpArgs(database, tables...)...)
+		_, err = m.Tools.Run(ctx, Cmd{Name: "mariadb-dump", Args: args, Stdout: w, Timeout: DataTimeout})
+		return errors.Join(err, acct.Close())
 	}
 	_, err := m.Tools.Run(ctx, Cmd{Name: "mariadb-dump", Args: DumpArgs(database, tables...), Stdout: w, Timeout: DataTimeout})
 	return err
@@ -382,7 +422,7 @@ func (m *MariaDBAdmin) DumpAs(ctx context.Context, as Credentials, database stri
 	if err != nil {
 		return err
 	}
-	args := append([]string{DefaultsArg(acct.DefaultsFile)}, DumpArgs(database, tables...)...)
+	args := append([]string{DefaultsArg(acct.DefaultsFile)}, m.dumpArgs(database, tables...)...)
 	_, err = m.Tools.Run(ctx, Cmd{Name: "mariadb-dump", Args: args, Stdout: w, Timeout: DataTimeout})
 	return errors.Join(err, acct.Close())
 }
@@ -409,16 +449,11 @@ func (m *MariaDBAdmin) loginAccount(as Credentials) (*ScopedAccount, error) {
 	if err := as.valid(); err != nil {
 		return nil, err
 	}
-	file, err := writeDefaultsFile(m.WorkDir, m.Socket, as.User, OptionValue(as.Password))
+	file, err := m.writeFile(as.User, OptionValue(as.Password))
 	if err != nil {
 		return nil, err
 	}
-	return &ScopedAccount{User: as.User, DefaultsFile: file, cleanup: func() error {
-		if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-		return nil
-	}}, nil
+	return &ScopedAccount{User: as.User, DefaultsFile: file, cleanup: func() error { return removeClientFile(file) }}, nil
 }
 
 // ImportAs is the account an import runs as (SR-T7).
@@ -460,6 +495,8 @@ func (m *MariaDBAdmin) Import(ctx context.Context, database string, r io.Reader,
 	switch {
 	case as.Login != nil:
 		acct, err = m.loginAccount(*as.Login)
+	case as.Site != "" && m.Remote != nil:
+		acct, err = m.adminClientFile()
 	case as.Site != "":
 		acct, err = m.borrow(ctx, as.Site)
 	case as.Triggers:
@@ -473,11 +510,11 @@ func (m *MariaDBAdmin) Import(ctx context.Context, database string, r io.Reader,
 	pr, pw := io.Pipe()
 	rewrote := make(chan error, 1)
 	go func() {
-		_, err := RewriteDefiners(pw, r, as.definer())
+		_, err := RewriteDefiners(pw, r, m.definerOf(as))
 		pw.CloseWithError(err)
 		rewrote <- err
 	}()
-	_, err = m.Tools.Run(ctx, Cmd{Name: "mariadb", Args: ImportArgs(acct.DefaultsFile, database), Stdin: pr, Stdout: io.Discard, Timeout: DataTimeout})
+	_, err = m.Tools.Run(ctx, Cmd{Name: "mariadb", Args: m.importArgs(acct.DefaultsFile, database), Stdin: pr, Stdout: io.Discard, Timeout: DataTimeout})
 	// The client may stop reading first (it failed): unblock the filter.
 	pr.CloseWithError(errImportEnded)
 	ferr := <-rewrote
@@ -525,18 +562,14 @@ func (m *MariaDBAdmin) borrow(ctx context.Context, user string) (*ScopedAccount,
 		defer cancel()
 		return m.Exec(dctx, "ALTER USER ?@'localhost' IDENTIFIED VIA "+plugin+" USING ?", user, auth)
 	}
-	file, err := writeDefaultsFile(m.WorkDir, m.Socket, user, password)
+	file, err := m.writeFile(user, password)
 	if err != nil {
 		err = errors.Join(err, restore())
 		return release(err)
 	}
 	return &ScopedAccount{User: user, Password: password, DefaultsFile: file, cleanup: func() error {
 		defer lock.Unlock()
-		rmErr := os.Remove(file)
-		if errors.Is(rmErr, os.ErrNotExist) {
-			rmErr = nil
-		}
-		return errors.Join(rmErr, restore())
+		return errors.Join(removeClientFile(file), restore())
 	}}, nil
 }
 
@@ -562,6 +595,9 @@ func (m *MariaDBAdmin) authOf(ctx context.Context, user string) (plugin, auth st
 }
 
 func (m *MariaDBAdmin) Unborrow(ctx context.Context, tenant func(user string) bool) error {
+	if m.Remote != nil {
+		return nil // nothing is borrowed on an external server
+	}
 	users, err := m.QueryStrings(ctx, "SELECT User FROM mysql.global_priv WHERE Host = 'localhost' AND JSON_LENGTH(Priv, '$.auth_or') > 1")
 	if err != nil {
 		return fmt.Errorf("list the site accounts an import left signed in: %w", err)

@@ -385,7 +385,79 @@ one named `site_<n>`). Kept rollback points in
 holding database, which after a migration cut short may be the only copy of
 a site's previous tables: it is logged by name for the operator.
 
-## 9. Not here
+## 9. External servers (#30, `servers.go`)
+
+A database or an account may be on a registered **external** MariaDB or MySQL server instead of
+the box's own (internal/api SPEC §6.5.1). Server 0 is the box's; any other id is one the panel
+pushed.
+
+- **The table.** `SetDBServers{Servers: [{id, host, port, tls, ca_cert, admin_user,
+  admin_password}]}` replaces the agent's list, in memory only (never written to disk; the
+  passwords are secrets of the panel's store). A server that disappears or changes loses its
+  adapter and open pool. `TestDBServer{Server}` connects with the credentials given, runs `SELECT
+  VERSION()`, and checks the administrator can create accounts (`SHOW GRANTS` names `ALL PRIVILEGES`
+  with `GRANT OPTION`, or `CREATE USER` and `CREATE`): `{version}`, or `invalid` with the reason.
+  A call that names a server the agent has no connection for is `unavailable`, `unknown database
+  server <id>` (the panel pushes and repeats).
+- **The record** gains the server of each database (`servers`: database → id, absent for the
+  box's) and of each account (`server`). Names stay one namespace across servers: a name any
+  site has anywhere is a conflict, as before. `CreateDatabase{ServerID}` and
+  `CreateDatabaseUser{ServerID}` record the server with the name; every later handler finds it
+  from the record, so `DropDatabase`, grants, the console, tables, export, import, backups,
+  restores and Quarry need no new parameter. A user's grants may name only databases of its own
+  server (`invalid`).
+- **Routing.** `Ops.maria(ctx, database)` is the adapter of the database's server; `mariaOfUser`
+  the account's; `scratch` databases (the staged replacement's `cgm_` and `cgh_`) are made on, and
+  routed to, the server of the database they stage (`Staged.maria`). Calls that name no database
+  (the startup sweep, `SET GLOBAL`, the tuning, the record's rebuild) are the box's.
+- **The adapter** is `host.MariaDBAdmin` with `Remote` set (host SPEC, mariadb): the same SQL, an
+  account's host part `'localhost'` read as `'%'`, TLS as the server's setting says, `REQUIRE SSL`
+  on every account made when TLS is required. An import into a database of an external server runs
+  the sandboxed client as the administrator, scoped by `--one-database`, with every `DEFINER`
+  clause rewritten to the site's account on `'%'` (a managed server rarely lets the agent read
+  `mysql.global_priv`, which borrowing a site's account needs).
+- **Not on an external server:** the startup sweep (its accounts and scratch databases are dropped
+  by the code that made them, also when it fails), `Unborrow`, tuning, the primary database.
+
+Tests: `servers_test.go` (routing by the record, the grants rule, a name in use on another server,
+an unknown server), host `TestRemoteAdapter…` (the host rewrite, `REQUIRE SSL`, the client
+arguments, the defaults file).
+
+### 9.1 PostgreSQL servers (#81, `postgres.go`)
+
+A server pushed with `kind: "postgres"` is PostgreSQL (TLS is always required). Everything §9 says
+about the record and routing holds; what differs is the SQL (`host.PostgresAdmin`, host SPEC):
+
+- **A database** `<db>` is made with an owner role `cgo_<db>` (`NOLOGIN`; the prefix is one
+  `ClaimableBy` reserves, so no site can name it): `CREATE ROLE`, the administrator made a member of
+  it, `CREATE DATABASE <db> OWNER cgo_<db>`, `REVOKE ALL … FROM PUBLIC` on the database and on schema
+  `public`, which `cgo_<db>` owns. Dropping it revokes the accounts' grants, drops the database
+  (`WITH (FORCE)`) and the role.
+- **An account** is `CREATE ROLE <user> LOGIN PASSWORD … CONNECTION LIMIT 50` (a password is quoted
+  as a literal; the password rule already bans `'` `"` `\`). Grants: **all** makes it a member of
+  `cgo_<db>` and sets `role = cgo_<db>` for its sessions on that database (`ALTER ROLE … IN DATABASE`),
+  so everything it creates is the owner's and every all-user sees it; **read** gives `CONNECT`, `USAGE`
+  on `public`, `SELECT` on its tables and sequences now and, through default privileges of
+  `cgo_<db>`, later. Revoking undoes each. The same record-first rules and conflicts as §2.
+  The administrator is also made a member of each account (a non-superuser may only end the
+  sessions of roles it is a member of), and an account's sessions are ended before it is dropped.
+  The administrator needs only `CREATEROLE` and `CREATEDB`; `DROP DATABASE … WITH (FORCE)` is tried
+  again for a few seconds when it answers `42501` (an autovacuum worker, which gives way to the lock).
+- **Dump** is `pg_dump`; **import, restore and `empty`** run the dump through `Restore` as the owner
+  role, after `empty` has dropped and recreated schema `public` (owned by `cgo_<db>`) and re-applied
+  every read grant of the record: dropping the database instead would lose its `CONNECT` grants.
+  **`TableNames`** counts the tables of schema `public`. **`VerifyDump`** names the database: for
+  PostgreSQL the dump is restored into a scratch database `cgv_<16 hex>` on the same server, owned
+  by a scratch owner role, and its tables counted.
+- **List** reads `pg_database_size` and the table count of each database.
+- **Not for PostgreSQL yet:** the SQL console, the table list and Quarry's sessions
+  (`invalid`, "not available for PostgreSQL databases yet"); staging and migration (primary
+  databases are never on an external server).
+- **Backups.** A server pushed with `backup_dumps: false` (the provider backs it up) has its databases
+  left out of a site's backup, its restore plan and its restore test; with `true`, the dump and the
+  restore test above.
+
+## 10. Not here
 
 Quarry (`ops/dbstudio`). The backup's restic plumbing, the restore's
 file swap, staging's URL rewrite and the migration's tree are their own

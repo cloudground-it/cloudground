@@ -60,6 +60,8 @@ index sqlite_autoindex_api_tokens_1 on api_tokens
   
 index sqlite_autoindex_blocklist_1 on blocklist
   
+index sqlite_autoindex_db_servers_1 on db_servers
+  
 index sqlite_autoindex_deployments_1 on deployments
   
 index sqlite_autoindex_managed_files_1 on managed_files
@@ -118,6 +120,8 @@ table blocklist_settings on blocklist_settings
   create table blocklist_settings(id integer primary key check(id=1),settings text not null)
 table cron_jobs on cron_jobs
   create table cron_jobs(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,schedule text not null,command text not null,description text not null default '',enabled integer not null default 1,last_run text,last_status text not null default '',created_at text not null)
+table db_servers on db_servers
+  create table db_servers(id integer primary key autoincrement,name text not null unique,kind text not null default 'mariadb',host text not null,port integer not null,tls text not null default 'required' check(tls in('required','off')),ca_cert text not null default '',admin_user text not null,created_at text not null,backup text not null default 'dump' check(backup in('dump','provider')))
 table deployments on deployments
   create table deployments(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,release_id text not null,path text not null,checksum text not null default '',status text not null,guard_json text not null default '',created_at text not null,promoted_at text,rollback_to text not null default '',regressed integer not null default 0,note text not null default '',unique(site_id,release_id))
 table drift_events on drift_events
@@ -151,11 +155,11 @@ table settings on settings
 table setup_tokens on setup_tokens
   create table setup_tokens(token_hash text primary key,expires_at text not null,used integer not null default 0)
 table site_databases on site_databases
-  create table site_databases(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,name text not null unique,created_at text not null)
+  create table site_databases(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,name text not null unique,created_at text not null,server_id integer not null default 0)
 table site_db_grants on site_db_grants
   create table site_db_grants(user_id integer not null references site_db_users(id)on delete cascade,database_id integer not null references site_databases(id)on delete cascade,level text not null check(level in('all','read')),primary key(user_id,database_id))
 table site_db_users on site_db_users
-  create table site_db_users(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,name text not null unique,secret text not null,created_at text not null)
+  create table site_db_users(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,name text not null unique,secret text not null,created_at text not null,server_id integer not null default 0)
 table site_git_deliveries on site_git_deliveries
   create table site_git_deliveries(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,at text not null,forge text not null,event text not null default '',ref text not null default '',commit_sha text not null default '',outcome text not null,detail text not null default '',deployment_id integer references deployments(id)on delete set null,task_id integer not null default 0)
 table site_git_deploys on site_git_deploys
@@ -276,6 +280,19 @@ columns of cron_jobs
   8 | created_at | TEXT | 1 | - | 0
   fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
   index idx_cron_site unique=0 origin=c partial=0 on 0:1:site_id
+
+columns of db_servers
+  0 | id | INTEGER | 0 | - | 1
+  1 | name | TEXT | 1 | - | 0
+  2 | kind | TEXT | 1 | 'mariadb' | 0
+  3 | host | TEXT | 1 | - | 0
+  4 | port | INTEGER | 1 | - | 0
+  5 | tls | TEXT | 1 | 'required' | 0
+  6 | ca_cert | TEXT | 1 | '' | 0
+  7 | admin_user | TEXT | 1 | - | 0
+  8 | created_at | TEXT | 1 | - | 0
+  9 | backup | TEXT | 1 | 'dump' | 0
+  index sqlite_autoindex_db_servers_1 unique=1 origin=u partial=0 on 0:1:name
 
 columns of deployments
   0 | id | INTEGER | 0 | - | 1
@@ -460,6 +477,7 @@ columns of site_databases
   1 | site_id | INTEGER | 1 | - | 0
   2 | name | TEXT | 1 | - | 0
   3 | created_at | TEXT | 1 | - | 0
+  4 | server_id | INTEGER | 1 | 0 | 0
   fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
   index idx_site_databases_site unique=0 origin=c partial=0 on 0:1:site_id
   index sqlite_autoindex_site_databases_1 unique=1 origin=u partial=0 on 0:2:name
@@ -479,6 +497,7 @@ columns of site_db_users
   2 | name | TEXT | 1 | - | 0
   3 | secret | TEXT | 1 | - | 0
   4 | created_at | TEXT | 1 | - | 0
+  5 | server_id | INTEGER | 1 | 0 | 0
   fk 0 | 0 | sites | site_id | id | NO ACTION | CASCADE | NONE
   index idx_site_db_users_site unique=0 origin=c partial=0 on 0:1:site_id
   index sqlite_autoindex_site_db_users_1 unique=1 origin=u partial=0 on 0:2:name

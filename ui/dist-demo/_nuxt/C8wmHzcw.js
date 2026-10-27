@@ -1,0 +1,1 @@
+import{lt as e}from"./ePb2g_3_.js";var t=Symbol(`current-site`);function n(){let n=e(t);if(!n)throw Error(`useCurrentSite outside a site page`);return n}export{n,t};

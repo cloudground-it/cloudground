@@ -101,8 +101,8 @@ func TestCapabilitiesCache(t *testing.T) {
 		t.Fatalf("the agent down: the last answer serves: %v %v", c.PHPVersions, err)
 	}
 
-	fresh, _, _ := testServer(t)
-	fresh.Agent.(*fakeAgent).setErr(name, agentrpc.Wrap(agentrpc.CodeUnavailable, "The agent is not running", fmt.Errorf("dial")))
+	fresh, freshAgent, _ := testServer(t)
+	freshAgent.setErr(name, agentrpc.Wrap(agentrpc.CodeUnavailable, "The agent is not running", fmt.Errorf("dial")))
 	if _, err := fresh.capabilities(ctx); err == nil {
 		t.Fatal("no answer ever: the error")
 	}

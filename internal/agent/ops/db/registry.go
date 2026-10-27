@@ -31,6 +31,10 @@ type registryFile struct {
 	Version   int                     `json:"version"`
 	Databases map[string]int64        `json:"databases"`
 	Users     map[string]registryUser `json:"users"`
+	// Servers is the external server of each database that is on one
+	// (database → server id); a database not in it is on the box's own
+	// server (#30, SPEC §9).
+	Servers map[string]int64 `json:"servers,omitempty"`
 }
 
 // registryUser is an account: its site and its grants (database → all or
@@ -38,6 +42,8 @@ type registryFile struct {
 type registryUser struct {
 	Site   int64             `json:"site"`
 	Grants map[string]string `json:"grants"`
+	// Server is the external server the account is on (0: the box's own).
+	Server int64 `json:"server,omitempty"`
 }
 
 // Registry is the record, loaded once.
@@ -100,6 +106,9 @@ func (r *Registry) read(ctx context.Context) (f registryFile, rebuilt bool, err 
 	}
 	if f.Users == nil {
 		f.Users = map[string]registryUser{}
+	}
+	if f.Servers == nil {
+		f.Servers = map[string]int64{}
 	}
 	return f, rebuilt, nil
 }
@@ -213,16 +222,20 @@ func (r *Registry) view(ctx context.Context, fn func(f *registryFile)) error {
 }
 
 func cloneRecord(f registryFile) registryFile {
-	out := registryFile{Version: f.Version, Databases: make(map[string]int64, len(f.Databases)), Users: make(map[string]registryUser, len(f.Users))}
+	out := registryFile{Version: f.Version, Databases: make(map[string]int64, len(f.Databases)), Users: make(map[string]registryUser, len(f.Users)),
+		Servers: make(map[string]int64, len(f.Servers))}
 	for k, v := range f.Databases {
 		out.Databases[k] = v
+	}
+	for k, v := range f.Servers {
+		out.Servers[k] = v
 	}
 	for k, u := range f.Users {
 		g := make(map[string]string, len(u.Grants))
 		for d, l := range u.Grants {
 			g[d] = l
 		}
-		out.Users[k] = registryUser{Site: u.Site, Grants: g}
+		out.Users[k] = registryUser{Site: u.Site, Grants: g, Server: u.Server}
 	}
 	return out
 }
@@ -232,6 +245,39 @@ func (r *Registry) DatabaseOwner(ctx context.Context, name string) (int64, error
 	var id int64
 	err := r.view(ctx, func(f *registryFile) { id = f.Databases[name] })
 	return id, err
+}
+
+// DatabaseServer returns the external server a database is on (0: the box's
+// own).
+func (r *Registry) DatabaseServer(ctx context.Context, name string) (int64, error) {
+	var id int64
+	err := r.view(ctx, func(f *registryFile) { id = f.Servers[name] })
+	return id, err
+}
+
+// UserServer returns the external server an account is on (0: the box's own).
+func (r *Registry) UserServer(ctx context.Context, name string) (int64, error) {
+	var id int64
+	err := r.view(ctx, func(f *registryFile) { id = f.Users[name].Server })
+	return id, err
+}
+
+// SiteOfDatabase returns the accounts that have a grant on database, each
+// with all its grants (database → level).
+func (r *Registry) SiteOfDatabase(ctx context.Context, database string) (map[string]map[string]string, error) {
+	out := map[string]map[string]string{}
+	err := r.view(ctx, func(f *registryFile) {
+		for u, ru := range f.Users {
+			if _, ok := ru.Grants[database]; ok {
+				g := map[string]string{}
+				for d, l := range ru.Grants {
+					g[d] = l
+				}
+				out[u] = g
+			}
+		}
+	})
+	return out, err
 }
 
 // UserOwner returns the site an account is recorded for, or 0.

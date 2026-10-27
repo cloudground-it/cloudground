@@ -1,0 +1,26 @@
+{
+  "params": {
+    "full": {
+      "servers": [
+        {
+          "kind": "Kind",
+          "backup_dumps": true,
+          "id": 7,
+          "host": "Host",
+          "port": 7,
+          "tls": true,
+          "ca_cert": "CACert",
+          "admin_user": "AdminUser",
+          "admin_password": "AdminPassword"
+        }
+      ]
+    },
+    "zero": {
+      "servers": null
+    }
+  },
+  "result": {
+    "full": {},
+    "zero": {}
+  }
+}

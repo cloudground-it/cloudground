@@ -235,6 +235,28 @@ Exit codes, from the man pages and **measured** on Ubuntu 24.04 (shadow
 - **Fake:** `FakeAccounts`, an in-memory user/group/membership database with
   the same typed errors, plus `Locked`, `Expired` and `Password` state.
 
+## postgres — an external PostgreSQL server (#81)
+
+`PostgresAdmin` (`NewPostgres(RemoteServer, workDir, exec)`, `postgres.go`) administers an external
+PostgreSQL server; there is no PostgreSQL on the box.
+
+- **Statements:** `pgx` as `AdminUser`, one pool per database (`""` is `postgres`), `sslmode=require`
+  with `tls.Config{ServerName: Host}` verified against `CACert` or the system's authorities: TLS or
+  no connection, never a fallback to plain text. Statements go as text (simple protocol): identifiers
+  are checked (`ValidPGName`: lowercase letters, digits, `_`, at most 63) and quoted
+  (`QuotePGIdent`), values quoted (`QuotePGLiteral`).
+- **Tools:** `pg_dump` and `psql` run by `systemd-run` as a **dynamic user** with a read-only file
+  system, no home, a private `/tmp`, no capabilities, `AF_INET`/`AF_INET6` only, 1 GiB of memory and the
+  data timeout. The password and the CA reach them as service credentials (files in a `0700`
+  directory of the work directory, removed after the run), never an argument; host, port, user,
+  database and `PGSSLMODE=verify-full` are environment. The reason: a dump is the tenant's data, and
+  `psql` runs the meta-commands in it (`\!` runs a shell), so nothing it reads may hold anything of
+  this machine or of the administrator.
+- `Dump` is `pg_dump --format=plain --no-owner --no-acl` as the administrator. `Restore(database,
+  role, r)` makes a short-lived login role `cgq_<16 hex>` allowed to act as `role` (the database's
+  owner role), runs `psql -v ON_ERROR_STOP=1 --single-transaction` as it with `role=<role>` (objects are
+  then the owner's), and drops the login afterwards, whatever happens.
+
 ## mariadb — admin over the driver, dump and import over the tools
 
 Interface `MariaDB`: `Exec`, `QueryStrings`, `ScopedAccount`, `Dump`, `DumpAs`, `Import`, `Unborrow`.
@@ -254,6 +276,18 @@ The agent's database domain over it is `internal/agent/ops/db`.
   `_` and `%` (`site\_1`), so a grant is on one database (SR-T2).
 - Driver errors are returned as `*mysql.MySQLError` (test with `errors.As`,
   read `.Number`), never matched by text.
+- **A remote server (#30).** `MariaDBAdmin.Remote` (`RemoteServer{ID, Host, Port, TLS, CACert,
+  AdminUser, AdminPassword}`, `NewRemoteMariaDB`) points the same adapter at an external MariaDB or
+  MySQL server: the admin connection is the driver over TCP as `AdminUser` (with
+  `tls.Config{ServerName: Host}` verified against `CACert` or the system's authorities when `TLS`;
+  the driver's plain connection otherwise), and `Exec`/`QueryStrings` read an account's host part
+  `'localhost'` (and `` `localhost` ``) as `'%'` and add `REQUIRE SSL` to a `CREATE USER` or `ALTER
+  USER … WITH MAX_USER_CONNECTIONS` when `TLS`. The tools reach it with `--protocol=tcp` and a
+  defaults file (still `0600`, still the only option file read) that names `host`, `port` and, with
+  TLS, `ssl-ca` (the CA written beside it, or the system bundle) and `ssl-verify-server-cert`. An
+  `ImportAs.Site` import runs as the administrator in that file with `--one-database`, its DEFINER
+  clauses read as the site's account on `` `%` ``, because borrowing a site's account needs
+  `mysql.global_priv`; `Unborrow` does nothing. Errors never include the password.
 - **`ScopedAccount(ctx, db, readOnly)`** — the semantics of the agent's
   `scopedDBUser`, unchanged:
   - account `cgq_<16 hex>@localhost`, a 32-character base64url password,

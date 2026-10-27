@@ -21,7 +21,22 @@ import (
 
 // Dump streams database (or only tables of it) into w.
 func (o *Ops) Dump(ctx context.Context, database string, w io.Writer, tables ...string) error {
-	if err := o.MariaDB.Dump(ctx, database, w, tables...); err != nil {
+	if pg, ok, err := o.pgOfDatabase(ctx, database); err != nil {
+		return err
+	} else if ok {
+		if len(tables) > 0 {
+			return agentrpc.Invalid("a PostgreSQL database is dumped whole")
+		}
+		if err := pg.Dump(ctx, database, w); err != nil {
+			return fmt.Errorf("dump %s: %w", database, err)
+		}
+		return nil
+	}
+	m, err := o.maria(ctx, database)
+	if err != nil {
+		return err
+	}
+	if err := m.Dump(ctx, database, w, tables...); err != nil {
 		return fmt.Errorf("dump %s: %w", database, err)
 	}
 	return nil
@@ -44,12 +59,25 @@ func (o *Ops) DumpFile(ctx context.Context, database, path string, tables ...str
 // ImportFile feeds the SQL file at path to database through the sandboxed
 // client, as an account scoped to that database.
 func (o *Ops) ImportFile(ctx context.Context, database, path string) error {
+	if pg, ok, err := o.pgOfDatabase(ctx, database); err != nil {
+		return err
+	} else if ok {
+		return o.importPG(ctx, pg, database, ownerRole(database), path)
+	}
+	return o.importFileMaria(ctx, database, path)
+}
+
+func (o *Ops) importFileMaria(ctx context.Context, database, path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	if err := o.MariaDB.Import(ctx, database, f, o.importAs(ctx, database)); err != nil {
+	m, err := o.maria(ctx, database)
+	if err != nil {
+		return err
+	}
+	if err := m.Import(ctx, database, f, o.importAs(ctx, database)); err != nil {
 		return fmt.Errorf("import into %s: %w", database, err)
 	}
 	return nil
@@ -139,7 +167,11 @@ var charsetRe = regexp.MustCompile(`^[a-z0-9_]{1,64}$`)
 // it cannot be read as names.
 func (o *Ops) charset(ctx context.Context, database string) (string, string, error) {
 	cs, coll := "utf8mb4", "utf8mb4_unicode_ci"
-	got, err := o.MariaDB.QueryStrings(ctx,
+	m, err := o.maria(ctx, database)
+	if err != nil {
+		return "", "", err
+	}
+	got, err := m.QueryStrings(ctx,
 		"SELECT CONCAT(DEFAULT_CHARACTER_SET_NAME, ' ', DEFAULT_COLLATION_NAME) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?", database)
 	if err != nil {
 		return "", "", fmt.Errorf("read the character set of %s: %w", database, err)
@@ -158,14 +190,23 @@ func (o *Ops) empty(ctx context.Context, database string) error {
 	if !ValidName(database) {
 		return agentrpc.Invalid("invalid database name")
 	}
+	if pg, ok, err := o.pgOfDatabase(ctx, database); err != nil {
+		return err
+	} else if ok {
+		return o.emptyPG(ctx, pg, database)
+	}
 	cs, coll, err := o.charset(ctx, database)
 	if err != nil {
 		return err
 	}
-	if err := o.MariaDB.Exec(ctx, "DROP DATABASE IF EXISTS `"+database+"`"); err != nil {
+	m, err := o.maria(ctx, database)
+	if err != nil {
+		return err
+	}
+	if err := m.Exec(ctx, "DROP DATABASE IF EXISTS `"+database+"`"); err != nil {
 		return fmt.Errorf("empty %s: %w", database, err)
 	}
-	if err := o.MariaDB.Exec(ctx, "CREATE DATABASE `"+database+"` CHARACTER SET "+cs+" COLLATE "+coll); err != nil {
+	if err := m.Exec(ctx, "CREATE DATABASE `"+database+"` CHARACTER SET "+cs+" COLLATE "+coll); err != nil {
 		return fmt.Errorf("recreate %s: %w", database, err)
 	}
 	return nil

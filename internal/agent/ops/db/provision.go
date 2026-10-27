@@ -30,11 +30,16 @@ func (o *Ops) Exists(ctx context.Context, name string) (bool, error) {
 	if !site.ValidDBName(name) {
 		return false, agentrpc.Invalid("invalid database name")
 	}
-	return o.exists(ctx, name)
+	return o.exists(ctx, 0, name)
 }
 
-func (o *Ops) exists(ctx context.Context, name string) (bool, error) {
-	got, err := o.MariaDB.QueryStrings(ctx, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?", name)
+// exists reports whether server (0: the box's own) has a database called name.
+func (o *Ops) exists(ctx context.Context, server int64, name string) (bool, error) {
+	m, err := o.mariaOfServer(server)
+	if err != nil {
+		return false, err
+	}
+	got, err := m.QueryStrings(ctx, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?", name)
 	if err != nil {
 		return false, fmt.Errorf("look for the database %s: %w", name, err)
 	}
@@ -46,7 +51,16 @@ func (o *Ops) TableNames(ctx context.Context, database string) ([]string, error)
 	if !o.known(ctx, database) || scratchNameRe.MatchString(database) {
 		return nil, agentrpc.Invalid("invalid database name")
 	}
-	return o.MariaDB.QueryStrings(ctx, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?", database)
+	if pg, ok, err := o.pgOfDatabase(ctx, database); err != nil {
+		return nil, err
+	} else if ok {
+		return tablesPG(ctx, pg, database)
+	}
+	m, err := o.maria(ctx, database)
+	if err != nil {
+		return nil, err
+	}
+	return m.QueryStrings(ctx, "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?", database)
 }
 
 func (o *Ops) tuneFile() string {

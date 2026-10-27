@@ -9,7 +9,8 @@
           "database": "Database",
           "level": "Level"
         }
-      ]
+      ],
+      "server_id": 7
     },
     "zero": {
       "site": "@state.Site",
