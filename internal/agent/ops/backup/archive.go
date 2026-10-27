@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agent/sitefs"
@@ -99,15 +102,22 @@ func (o *Ops) ArchiveSnapshot(ctx context.Context, p rpc.ArchiveParams) (rpc.Arc
 	if err != nil {
 		return rpc.ArchiveResult{}, err
 	}
-	var dumps []dumpFile
+	var parts []dbPart
 	if part != "files" {
-		parts, err := o.databaseParts(ctx, repo, s, files)
-		if err != nil {
+		if parts, err = o.databaseParts(ctx, repo, s, files); err != nil {
 			return rpc.ArchiveResult{}, err
 		}
 		if part == "database" && len(parts) == 0 {
 			return rpc.ArchiveResult{}, agentrpc.Invalid("snapshot %s holds no database", p.SnapshotID)
 		}
+	}
+	// Room first (SPEC §12): the selection's restore size, the dumps twice
+	// (the work copy, then the archive) and a margin.
+	if err := o.checkArchiveRoom(ctx, repo, dir, part, files.ID, parts); err != nil {
+		return rpc.ArchiveResult{}, err
+	}
+	var dumps []dumpFile
+	if len(parts) > 0 {
 		if dumps, err = o.fetchDumps(ctx, repo, parts, work); err != nil {
 			return rpc.ArchiveResult{}, err
 		}
@@ -169,6 +179,106 @@ func (o *Ops) archiveFiles(ctx context.Context, repo host.Repo, s state.Site, id
 		err = fmt.Errorf("read the snapshot's files: %w", rerr)
 	}
 	return err
+}
+
+// archiveMargin is the room kept beyond an archive's estimated size: a
+// tenth of it, and at least this much.
+const archiveMargin = 512 << 20
+
+// restoreSize is `restic stats --mode restore-size` of snapshots, in bytes.
+func (o *Ops) restoreSize(ctx context.Context, repo host.Repo, ids ...string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	out, err := o.run(ctx, repo, planTimeout, append([]string{"stats", "--mode", "restore-size", "--json"}, ids...)...)
+	if err != nil {
+		return 0, fmt.Errorf("measure the backup: %w", err)
+	}
+	var st struct {
+		TotalSize int64 `json:"total_size"`
+	}
+	if err := json.Unmarshal(lastJSONLine(out), &st); err != nil {
+		return 0, fmt.Errorf("measure the backup: %w", err)
+	}
+	return st.TotalSize, nil
+}
+
+// lastJSONLine is the last line of out that starts a JSON object.
+func lastJSONLine(out []byte) []byte {
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if l := strings.TrimSpace(lines[i]); strings.HasPrefix(l, "{") {
+			return []byte(l)
+		}
+	}
+	return out
+}
+
+// archiveNeed is the room an archive of the selection takes: the files'
+// restore size (gzip only shrinks it), each dump twice, and the margin.
+func archiveNeed(files, dumps int64) int64 {
+	n := files + 2*dumps
+	margin := n / 10
+	if margin < archiveMargin {
+		margin = archiveMargin
+	}
+	return n + margin
+}
+
+// checkArchiveRoom refuses an archive that would not fit in dir's
+// filesystem (conflict: the server, not the request, lacks room).
+func (o *Ops) checkArchiveRoom(ctx context.Context, repo host.Repo, dir, part, filesID string, parts []dbPart) error {
+	var filesSize, dumpSize int64
+	var err error
+	if part != "database" {
+		if filesSize, err = o.restoreSize(ctx, repo, filesID); err != nil {
+			return err
+		}
+	}
+	var ids []string
+	if part != "files" {
+		for _, p := range parts {
+			ids = append(ids, p.ID)
+		}
+	}
+	if dumpSize, err = o.restoreSize(ctx, repo, ids...); err != nil {
+		return err
+	}
+	need := archiveNeed(filesSize, dumpSize)
+	free, err := o.freeSpace(dir)
+	if err != nil {
+		return err
+	}
+	if need > free {
+		return agentrpc.Conflict("not enough free space on the server to prepare this download: it needs about %s and %s is free", humanBytes(need), humanBytes(free))
+	}
+	return nil
+}
+
+// freeSpace is the room free for root in dir.
+func (o *Ops) freeSpace(dir string) (int64, error) {
+	if o.FreeSpace != nil {
+		return o.FreeSpace(dir)
+	}
+	var st unix.Statfs_t
+	if err := unix.Statfs(dir, &st); err != nil {
+		return 0, err
+	}
+	return int64(st.Bavail) * int64(st.Bsize), nil
+}
+
+// humanBytes is n in binary units, for a message.
+func humanBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 
 // retar copies a tar stream into tw with every entry under files/, the

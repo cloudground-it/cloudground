@@ -1449,7 +1449,10 @@ backup. `part` is `full` (the default: both), `files` or `database`.
 - `POST /api/backups/{id}/archive` queues `backup.archive` under the
   repository's lock: the agent writes the archive into its own root-only
   folder (ops/backup SPEC §12), never into the site's tree, after checking
-  the snapshot is the site's (SR-T6). The job's result names the size.
+  the snapshot is the site's (SR-T6) and that the server has room for it:
+  without room the job fails with the agent's conflict (409), `not enough
+  free space on the server to prepare this download: it needs about … and
+  … is free`, and nothing is written. The job's result names the size.
 - `GET /api/backups/{id}/archive?part=` streams it, in chunks read from
   the agent (4 MiB each, as Quarry's exports, §6.4), with
   `Content-Type: application/gzip`, `Content-Disposition: attachment;

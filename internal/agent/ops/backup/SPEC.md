@@ -361,6 +361,14 @@ A download of a backup (internal/api SPEC §5.7). `Part` is `full`
    into a root-only work file, then appended). `database` with a snapshot
    that has no database part is `invalid`.
 3. Every archive in `ArchiveDir` older than a day is removed first.
+   **Room**: before any dump is fetched, the selection is measured with
+   `restic stats --mode restore-size --json` (the files snapshot unless
+   `database`, the database parts unless `files`), and the archive needs
+   the files' size, each dump twice (its work copy, then the archive) and
+   a margin of a tenth (at least 512 MiB). More than `statfs` says is free
+   for root on `ArchiveDir`'s filesystem → `conflict` ("not enough free
+   space on the server to prepare this download: it needs about … and … is
+   free"), nothing written.
 4. Result: the name and the size.
 
 `ReadArchiveChunk` reads `Length` bytes (at most 16 MiB) at `Offset` of

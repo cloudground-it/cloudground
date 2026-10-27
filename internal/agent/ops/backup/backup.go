@@ -79,6 +79,9 @@ type Ops struct {
 	// ArchiveDir holds the downloadable archives of backups (SPEC §12); ""
 	// is DefaultArchiveDir.
 	ArchiveDir string
+	// FreeSpace reports the bytes free for root in dir; nil reads statfs
+	// (tests replace it).
+	FreeSpace func(dir string) (int64, error)
 	// Hostname scopes retention to this server; nil is os.Hostname.
 	Hostname func() (string, error)
 	Log      *slog.Logger

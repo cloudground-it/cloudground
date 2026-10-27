@@ -4,11 +4,17 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/cloudground-it/cloudground/internal/agent/host"
+	"github.com/cloudground-it/cloudground/internal/agentrpc"
 
 	"github.com/cloudground-it/cloudground/internal/agent/sitefs"
 	"github.com/cloudground-it/cloudground/internal/rpc"
@@ -162,5 +168,55 @@ func TestPutBackReplacesOnlyThePath(t *testing.T) {
 		if e.Name()[0] == '.' {
 			t.Fatalf("a temporary was left: %s", e.Name())
 		}
+	}
+}
+
+// statsRestic answers `restic stats` with a size per snapshot ID.
+type statsRestic struct {
+	host.Restic
+	sizes map[string]int64
+	calls [][]string
+}
+
+func (s *statsRestic) Run(_ context.Context, _ host.Repo, args ...string) ([]byte, error) {
+	s.calls = append(s.calls, args)
+	var total int64
+	for _, a := range args {
+		total += s.sizes[a]
+	}
+	return []byte(fmt.Sprintf("noise\n{\"total_size\":%d,\"total_file_count\":3}\n", total)), nil
+}
+
+func TestArchiveRoomIsCheckedFirst(t *testing.T) {
+	fake := &statsRestic{sizes: map[string]int64{"files1": 3 << 30, "db1": 1 << 30}}
+	free := int64(5 << 30)
+	o := &Ops{Restic: fake, FreeSpace: func(string) (int64, error) { return free, nil }}
+	repo := host.Repo{URL: "/var/backups/cloudground/r", Password: "pw"}
+	parts := []dbPart{{ID: "db1", Name: "wp"}}
+
+	// Files 3 GiB + the dump twice 2 GiB + a tenth: more than 5 GiB.
+	err := o.checkArchiveRoom(context.Background(), repo, t.TempDir(), "full", "files1", parts)
+	if agentrpc.CodeOf(err) != agentrpc.CodeConflict || !strings.Contains(err.Error(), "not enough free space") {
+		t.Fatalf("a full archive that does not fit: %v", err)
+	}
+	// The files alone, 3 GiB and the 512 MiB margin, fit.
+	if err := o.checkArchiveRoom(context.Background(), repo, t.TempDir(), "files", "files1", parts); err != nil {
+		t.Fatalf("files only: %v", err)
+	}
+	// The database alone measures only its parts.
+	fake.calls = nil
+	if err := o.checkArchiveRoom(context.Background(), repo, t.TempDir(), "database", "files1", parts); err != nil {
+		t.Fatalf("database only: %v", err)
+	}
+	for _, c := range fake.calls {
+		if slices.Contains(c, "files1") {
+			t.Fatalf("a database archive measured the files: %v", c)
+		}
+	}
+	if got := archiveNeed(100, 0); got != 100+archiveMargin {
+		t.Fatalf("the margin's floor: %d", got)
+	}
+	if got := archiveNeed(10<<30, 0); got != 11<<30 {
+		t.Fatalf("a tenth: %d", got)
 	}
 }
