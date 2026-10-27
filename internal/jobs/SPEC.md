@@ -261,6 +261,7 @@ Locks as in §3. "Resumable" = has `Run`; "rerun" = `Rerun`.
 | `deploy.safe-push` | production | `site` ×2 | rerun | | payload `{deployment_id, staging_id, only, paths, force}`; a rerun resumes from the deployment's status (measures, promotes or verifies again); a cancel during the measurement stops it before production is touched; after the build it runs to its end (a cut verification would roll back) |
 | `wp.cleanup` | site | `site`, and the repository's | no | | background when the schedule queues it; dedup `wp.cleanup:<site>`; a dry run, a tested snapshot before the site's first cleanup, the cleanup (internal/api/SPEC.md §3.17) |
 | `wpcleanup.sweep` | — | — | rerun | quiet | enqueues the due `wp.cleanup` jobs |
+| `traffic.collect` | — | — | rerun | quiet | the agent reads what every site's access log gained into its traffic aggregates (internal/api/SPEC.md §11.8) |
 | `wp.update` | site | `site`, `repo` | no | | payload `{site_id, domain, what}`; a tested snapshot, the update, a health check and a rollback when it fails (internal/api/SPEC.md §6.2.3); a cancel stops it before the update |
 | `wp.update.scheduled` | site | `site`, `repo` (the repository as configured when it starts) | yes | | background; payload `{site_id, domain, what}`; dedup `wp.update.scheduled:<site>`; as `wp.update`; never rerun (the next slot is); canceled before it ran: the site's schedule key is cleared |
 | `database.import`, `dbstudio.import`, `migration.import` | site | `site` | no | | |
@@ -317,6 +318,7 @@ Recurring work is a schedule that enqueues a job:
 | `devmode.sweep` | 1 min | memory | yes |
 | `wpcleanup.sweep` | 5 min | memory (each site's `wpcleanup:site:<id>`: weekly, at the site's own slot) | yes |
 | `wp.update.sweep` | 5 min | memory (each site's `wp.update.site.<id>`: daily or weekly, at the site's hour) | yes |
+| `traffic.collect` | 5 min | memory | yes |
 | `drift.scan` | 5 min | memory | yes |
 | `alerts.notify` | 5 min | memory | yes, after the others |
 | `certificate.sweep` | 12 h | `schedule_state` key `cert.renew` | only when due |
