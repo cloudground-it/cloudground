@@ -22,7 +22,7 @@
 # ------------------------------------------------------------------ groups --
 
 # Every section that sends requests to a hosted site through nginx.
-@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup
+@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup, cloudflare
 # Every section with a PHP site (its own FPM master, pool and slice).
 @php = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, protected paths, wordpress two-factor, wordpress hardening, dev mode, mail relay
 # Every section with a WordPress site (database, wp-cli, the connector).
@@ -78,7 +78,12 @@ internal/api/vulndb.go                 wordpress vulnerabilities
 internal/api/malware.go                malware scan
 internal/agent/ops/malware/**          malware scan
 internal/agent/ops_malware.go          malware scan
-internal/api/blocklist.go              blocklist
+internal/api/blocklist.go              blocklist, cloudflare
+internal/api/site_cloudflare.go        cloudflare
+internal/api/cloudflare.go             cloudflare, wordpress cache
+internal/cfips/**                      cloudflare, blocklist
+internal/engine/nginx/cloudflare.go    cloudflare
+internal/agent/ops/sites/cloudflare.go cloudflare
 internal/api/site_blocking.go          site blocking
 internal/api/site_devmode.go           dev mode
 internal/api/site_maintenance.go       maintenance page
@@ -187,7 +192,7 @@ internal/agent/ops/system/drift.go     wordpress status and drift, site resource
 internal/agent/ops/system/usage.go     site resources
 internal/agent/ops/system/firewall.go  firewall
 internal/agent/ops/blocklist/countries.go site blocking
-internal/agent/ops/blocklist/**        blocklist
+internal/agent/ops/blocklist/**        blocklist, cloudflare
 internal/agent/ops_blocklist.go        blocklist
 internal/blocklist/geo.go              site blocking
 internal/blocklist/**                  blocklist, site blocking
