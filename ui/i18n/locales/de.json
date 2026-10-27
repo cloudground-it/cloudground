@@ -2108,8 +2108,6 @@
     "cacheNote": "Von den Anfragen, die über den Seiten-Cache liefen",
     "errors": "Serverfehler",
     "errorsNote": "5xx-Antworten; {n} nicht gefunden oder abgewiesen (4xx)",
-    "dayTitle": "{date}: {views} Seitenaufrufe, {visitors} Besucher",
-    "hourTitle": "{time}: {views} Seitenaufrufe",
     "chartAria": "Letzte {days} Tage: {views} Seitenaufrufe, {visitors} Besucher",
     "last48": "Seitenaufrufe, letzte 48 Stunden",
     "emptyRange": "In diesem Zeitraum wurde nichts protokolliert.",

@@ -43,34 +43,31 @@ const cells = computed(() => {
   ]
 })
 
-// Bars: page views (blue) with the visitors (ink) inside each day's bar.
-const W = 600
-const H = 180
-const dayBars = computed(() => {
-  const d = data.value?.days ?? []
-  const max = Math.max(1, ...d.map(x => x.pageviews))
-  const step = W / Math.max(1, d.length)
-  return d.map((x, i) => ({
+// The two charts: page views and visitors per day, page views per hour.
+const num = (n: number) => fmtNumber(n, 0, locale.value)
+const daySeries = computed(() => [
+  { key: 'pageviews', label: t('traffic.pageviews'), color: 'var(--cg-series-1)' },
+  { key: 'visitors', label: t('traffic.visitors'), color: 'var(--cg-series-2)' }
+])
+const dayPoints = computed(() => (data.value?.days ?? []).map((x) => {
+  const d = new Date(`${x.date}T00:00:00Z`)
+  return {
     key: x.date,
-    x: i * step + step * 0.15,
-    w: step * 0.7,
-    h: (x.pageviews / max) * (H - 10),
-    hv: (x.visitors / max) * (H - 10),
-    title: t('traffic.dayTitle', { date: new Date(`${x.date}T00:00:00Z`).toLocaleDateString(locale.value, { timeZone: 'UTC' }), views: x.pageviews, visitors: x.visitors })
-  }))
-})
-const hourBars = computed(() => {
-  const h = data.value?.hours ?? []
-  const max = Math.max(1, ...h.map(x => x.pageviews))
-  const step = W / Math.max(1, h.length)
-  return h.map((x, i) => ({
+    label: d.toLocaleDateString(locale.value, { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' }),
+    short: d.toLocaleDateString(locale.value, { timeZone: 'UTC', day: 'numeric', month: 'short' }),
+    values: { pageviews: x.pageviews, visitors: x.visitors }
+  }
+}))
+const hourSeries = computed(() => [{ key: 'pageviews', label: t('traffic.pageviews'), color: 'var(--cg-series-1)' }])
+const hourPoints = computed(() => (data.value?.hours ?? []).map((x) => {
+  const d = new Date(x.time)
+  return {
     key: x.time,
-    x: i * step + step * 0.1,
-    w: step * 0.8,
-    h: (x.pageviews / max) * (H / 2 - 6),
-    title: t('traffic.hourTitle', { time: new Date(x.time).toLocaleString(locale.value, { weekday: 'short', hour: '2-digit', minute: '2-digit' }), views: x.pageviews })
-  }))
-})
+    label: d.toLocaleString(locale.value, { weekday: 'short', hour: '2-digit', minute: '2-digit' }),
+    short: d.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' }),
+    values: { pageviews: x.pageviews }
+  }
+}))
 const chartLabel = computed(() => {
   const v = data.value
   return v ? t('traffic.chartAria', { days: range.value, views: v.totals.pageviews, visitors: v.totals.visitors }) : ''
@@ -93,32 +90,11 @@ const empty = computed(() => !!data.value && data.value.totals.requests === 0)
       <div class="cg-grid sm:grid-cols-2 xl:grid-cols-3">
         <StatCell v-for="c in cells" :key="c.key" :label="c.label" :value="c.value" :unit="c.unit" :note="c.note" />
       </div>
-      <figure class="m-0 flex flex-col gap-2">
-        <figcaption class="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted">
-          <span class="flex items-center gap-2"><span class="inline-block size-2.5 bg-cg-blue" aria-hidden="true" />{{ t('traffic.pageviews') }}</span>
-          <span class="flex items-center gap-2"><span class="inline-block size-2.5 bg-[var(--cg-ink)]" aria-hidden="true" />{{ t('traffic.visitors') }}</span>
-        </figcaption>
-        <svg :viewBox="`0 0 ${W} ${H}`" class="h-48 w-full" preserveAspectRatio="none" role="img" :aria-label="chartLabel">
-          <line x1="0" :y1="H - 0.5" :x2="W" :y2="H - 0.5" stroke="currentColor" class="text-muted" stroke-opacity="0.4" />
-          <g v-for="b in dayBars" :key="b.key">
-            <title>{{ b.title }}</title>
-            <rect :x="b.x" :y="H - b.h" :width="b.w" :height="b.h" fill="var(--cg-blue)" />
-            <rect :x="b.x + b.w * 0.25" :y="H - b.hv" :width="b.w * 0.5" :height="b.hv" fill="var(--cg-ink)" />
-          </g>
-        </svg>
-      </figure>
-      <figure class="m-0 flex flex-col gap-2">
-        <figcaption class="text-[13px] text-muted">
-          {{ t('traffic.last48') }}
-        </figcaption>
-        <svg :viewBox="`0 0 ${W} ${H / 2}`" class="h-24 w-full" preserveAspectRatio="none" role="img" :aria-label="t('traffic.last48')">
-          <line x1="0" :y1="H / 2 - 0.5" :x2="W" :y2="H / 2 - 0.5" stroke="currentColor" class="text-muted" stroke-opacity="0.4" />
-          <g v-for="b in hourBars" :key="b.key">
-            <title>{{ b.title }}</title>
-            <rect :x="b.x" :y="H / 2 - b.h" :width="b.w" :height="b.h" fill="var(--cg-blue)" />
-          </g>
-        </svg>
-      </figure>
+      <TimeChart :points="dayPoints" :series="daySeries" :label="chartLabel" :format="num" />
+      <div class="flex flex-col gap-2">
+        <span class="text-[13px] text-muted">{{ t('traffic.last48') }}</span>
+        <TimeChart :points="hourPoints" :series="hourSeries" kind="bar" :height="140" :label="t('traffic.last48')" :format="num" />
+      </div>
     </div>
     <template v-if="data" #footer>
       <span class="text-[13px] text-muted">

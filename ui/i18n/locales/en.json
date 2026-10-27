@@ -2108,8 +2108,6 @@
     "cacheNote": "Of the requests that went through the page cache",
     "errors": "Server errors",
     "errorsNote": "5xx answers; {n} not found or refused (4xx)",
-    "dayTitle": "{date}: {views} page views, {visitors} visitors",
-    "hourTitle": "{time}: {views} page views",
     "chartAria": "Last {days} days: {views} page views, {visitors} visitors",
     "last48": "Page views, last 48 hours",
     "emptyRange": "Nothing was logged in this period.",
