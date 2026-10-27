@@ -89,17 +89,20 @@ internal/api/php_extensions.go         PHP extensions and backup hour
 internal/api/site_settings.go          site resources, R-4.3 site settings, wordpress slow request, R-4.7 capabilities, R-4.2 job queue, wordpress cache, wordpress sftp
 internal/api/staging.go                wordpress staging, wordpress safe push, wordpress backups, wordpress teardown
 internal/api/site_certs.go             wordpress certificates, wordpress status and drift
-internal/api/site_databases.go         F9b site databases, external database server
-internal/api/db_servers.go             external database server
-internal/state/db_servers.go           external database server
-internal/rpc/dbservers.go              external database server
-internal/agent/ops/db/servers.go       external database server
-internal/agent/host/mariadb_remote.go  external database server
+internal/api/site_databases.go         F9b site databases, external database server, external postgresql server
+internal/api/db_servers.go             external database server, external postgresql server
+internal/state/db_servers.go           external database server, external postgresql server
+internal/rpc/dbservers.go              external database server, external postgresql server
+internal/agent/ops/db/servers.go       external database server, external postgresql server
+internal/agent/host/mariadb_remote.go  external database server, external postgresql server
+internal/agent/host/postgres.go        external postgresql server
+internal/agent/ops/db/postgres.go      external postgresql server
+internal/site/postgres.go              external postgresql server
 internal/api/site_create_db.go         F9b site creation, F9b site databases
 internal/api/dns_check.go              F9b site creation
-internal/agent/ops/db/accounts.go      F9b site databases, SR tenant data, wordpress backups, external database server
-internal/agent/ops/db/registry.go      F9b site databases, SR tenant data, wordpress backups, external database server
-internal/agent/ops/backup/databases.go F9b site databases, wordpress backups, R-4.3 deploys and backups, external database server
+internal/agent/ops/db/accounts.go      F9b site databases, SR tenant data, wordpress backups, external database server, external postgresql server
+internal/agent/ops/db/registry.go      F9b site databases, SR tenant data, wordpress backups, external database server, external postgresql server
+internal/agent/ops/backup/databases.go F9b site databases, wordpress backups, R-4.3 deploys and backups, external database server, external postgresql server
 internal/api/alert_service.go          wordpress status and drift, R-4.3 proxies and alerts, R-4.3 deploys and backups, mail relay
 internal/api/backup_service.go         wordpress backups, R-4.3 deploys and backups, F9b site databases, wordpress updates
 internal/api/backup_routes.go          wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, F9b site databases
@@ -190,8 +193,8 @@ internal/agent/ops/db/provision.go     @wordpress, SR tenant data
 internal/agent/ops/db/console.go       woocommerce security, wordpress backups, SR tenant data
 # The restore test of a dump, and the sweep at agent start.
 internal/agent/ops/db/sweep.go         wordpress backups, woocommerce security, R-3.9 certificates and panel, SR tenant data
-internal/agent/ops/db/**               woocommerce security, wordpress backups, wordpress staging, wordpress safe push, migration import, woocommerce teardown, SR tenant data, F9b site databases, external database server
-internal/agent/ops_db.go               woocommerce security, wordpress backups, migration import, SR tenant data, F9b site databases, external database server
+internal/agent/ops/db/**               woocommerce security, wordpress backups, wordpress staging, wordpress safe push, migration import, woocommerce teardown, SR tenant data, F9b site databases, external database server, external postgresql server
+internal/agent/ops_db.go               woocommerce security, wordpress backups, migration import, SR tenant data, F9b site databases, external database server, external postgresql server
 internal/agent/dbtools.go              woocommerce security, wordpress backups, migration import
 internal/agent/host/mariadb.go         @wordpress, SR tenant data
 internal/tune/**                       @wordpress, SR tenant data

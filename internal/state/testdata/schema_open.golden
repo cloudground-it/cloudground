@@ -119,7 +119,7 @@ table blocklist_settings on blocklist_settings
 table cron_jobs on cron_jobs
   create table cron_jobs(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,schedule text not null,command text not null,description text not null default '',enabled integer not null default 1,last_run text,last_status text not null default '',created_at text not null)
 table db_servers on db_servers
-  create table db_servers(id integer primary key autoincrement,name text not null unique,kind text not null default 'mariadb',host text not null,port integer not null,tls text not null default 'required' check(tls in('required','off')),ca_cert text not null default '',admin_user text not null,created_at text not null)
+  create table db_servers(id integer primary key autoincrement,name text not null unique,kind text not null default 'mariadb',host text not null,port integer not null,tls text not null default 'required' check(tls in('required','off')),ca_cert text not null default '',admin_user text not null,created_at text not null,backup text not null default 'dump' check(backup in('dump','provider')))
 table deployments on deployments
   create table deployments(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,release_id text not null,path text not null,checksum text not null default '',status text not null,guard_json text not null default '',created_at text not null,promoted_at text,rollback_to text not null default '',regressed integer not null default 0,note text not null default '',unique(site_id,release_id))
 table drift_events on drift_events
@@ -287,6 +287,7 @@ columns of db_servers
   6 | ca_cert | TEXT | 1 | '' | 0
   7 | admin_user | TEXT | 1 | - | 0
   8 | created_at | TEXT | 1 | - | 0
+  9 | backup | TEXT | 1 | 'dump' | 0
   index sqlite_autoindex_db_servers_1 unique=1 origin=u partial=0 on 0:1:name
 
 columns of deployments

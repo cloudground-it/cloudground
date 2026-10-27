@@ -180,6 +180,13 @@ var stepDBServers = schemaStep{version: 33, stmts: []string{
 	`ALTER TABLE site_db_users ADD COLUMN server_id INTEGER NOT NULL DEFAULT 0`,
 }}
 
+// stepPostgres lets an external server be PostgreSQL (#81, api SPEC §6.5.2):
+// whether a site's backup dumps its databases or the provider backs the
+// server up (every server before is MariaDB and dumped).
+var stepPostgres = schemaStep{version: 34, stmts: []string{
+	`ALTER TABLE db_servers ADD COLUMN backup TEXT NOT NULL DEFAULT 'dump' CHECK (backup IN ('dump', 'provider'))`,
+}}
+
 // stepMail keeps the server-wide mail relay and the alert recipients
 // (#77, api SPEC §14) as one JSON value; the relay's password is a secret.
 var stepMail = schemaStep{version: 29, stmts: []string{

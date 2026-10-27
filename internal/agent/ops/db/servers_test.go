@@ -26,6 +26,16 @@ func (f fakeServers) Maria(id int64) (host.MariaDB, error) {
 	return nil, UnknownServer(id)
 }
 
+func (f fakeServers) Kind(id int64) (string, error) {
+	if _, ok := f.m[id]; ok {
+		return "mariadb", nil
+	}
+	return "", UnknownServer(id)
+}
+func (f fakeServers) Postgres(id int64) (*host.PostgresAdmin, error) { return nil, UnknownServer(id) }
+func (f fakeServers) AdminUser(int64) string                         { return "admin" }
+func (f fakeServers) BackedUp(int64) bool                            { return true }
+
 func (f fakeServers) Target(id int64) (Target, error) {
 	if _, ok := f.m[id]; ok {
 		return Target{Net: "tcp", Addr: "db.example.com:3306"}, nil
@@ -281,5 +291,31 @@ func TestRemotesTable(t *testing.T) {
 	}
 	if _, err := r.Target(1); err == nil {
 		t.Fatal("a server that was taken out has a target")
+	}
+}
+
+type providerBacked struct{ fakeServers }
+
+func (providerBacked) BackedUp(id int64) bool { return id != 7 }
+
+// A database on a server its provider backs up is left out of a site's
+// backup; the others are dumped.
+func TestBackedUpDatabasesLeavesOutProviderBackedServers(t *testing.T) {
+	f, _ := externalFixture(t)
+	ctx := context.Background()
+	if _, err := f.o.CreateDB(ctx, rpc.SiteDatabaseParams{Site: f.site, Name: "shop_data", ServerID: 7}); err != nil {
+		t.Fatal(err)
+	}
+	all, _ := f.o.BackedUpDatabases(ctx, f.site)
+	if strings.Join(all, ",") != "shop_data,site_3" {
+		t.Fatalf("every server dumped: %v", all)
+	}
+	f.o.Servers = providerBacked{fakeServers: f.o.Servers.(fakeServers)}
+	got, err := f.o.BackedUpDatabases(ctx, f.site)
+	if err != nil || strings.Join(got, ",") != "site_3" {
+		t.Fatalf("provider-backed server left out: %v %v", got, err)
+	}
+	if all, _ := f.o.SiteDatabases(ctx, f.site); len(all) != 2 {
+		t.Fatalf("the site still has both: %v", all)
 	}
 }

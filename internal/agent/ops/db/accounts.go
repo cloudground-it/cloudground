@@ -171,6 +171,11 @@ func (o *Ops) CreateDB(ctx context.Context, p rpc.SiteDatabaseParams) (map[strin
 	if err := p.Validate(); err != nil {
 		return nil, agentrpc.Invalid("%s", err)
 	}
+	if pg, ok, err := o.pgOfServer(p.ServerID); err != nil {
+		return nil, err
+	} else if ok {
+		return o.createDBPG(ctx, p, pg)
+	}
 	reg := o.registry()
 	owner, err := reg.DatabaseOwner(ctx, p.Name)
 	if err != nil {
@@ -258,6 +263,15 @@ func (o *Ops) DropDB(ctx context.Context, p rpc.SiteDatabaseParams) (map[string]
 	rec, err := o.registry().Site(ctx, p.Site.ID)
 	if err != nil {
 		return nil, err
+	}
+	if pg, ok, err := o.pgOfDatabase(ctx, name); err != nil {
+		return nil, err
+	} else if ok {
+		if err := o.dropDBPG(ctx, pg, name); err != nil {
+			return nil, fmt.Errorf("drop the database %s: %w", name, err)
+		}
+		o.forgetDatabase(ctx, name)
+		return map[string]string{"dropped": name}, nil
 	}
 	m, err := o.maria(ctx, name)
 	if err != nil {
@@ -376,6 +390,11 @@ func (o *Ops) CreateUser(ctx context.Context, p rpc.DBUserParams) (map[string]st
 	if err := checkPassword(p.Password); err != nil {
 		return nil, err
 	}
+	if pg, ok, err := o.pgOfServer(p.ServerID); err != nil {
+		return nil, err
+	} else if ok {
+		return o.createUserPG(ctx, p, pg)
+	}
 	reg := o.registry()
 	owner, err := reg.UserOwner(ctx, p.User)
 	if err != nil {
@@ -474,6 +493,19 @@ func (o *Ops) DropUser(ctx context.Context, p rpc.DBUserParams) (map[string]stri
 	if primaryUser(p.Site, p.User) {
 		return nil, agentrpc.Conflict("%s is the account the site's application signs in with", p.User)
 	}
+	if pg, ok, err := o.pgOfUser(ctx, p.User); err != nil {
+		return nil, err
+	} else if ok {
+		rec, err := o.registry().Site(ctx, p.Site.ID)
+		if err != nil {
+			return nil, err
+		}
+		if err := o.dropUserPG(ctx, pg, p.User, rec.Users[p.User]); err != nil {
+			return nil, fmt.Errorf("drop the database user %s: %w", p.User, err)
+		}
+		o.forgetUser(ctx, p.User)
+		return map[string]string{"dropped": p.User}, nil
+	}
 	m, err := o.mariaOfUser(ctx, p.User)
 	if err != nil {
 		return nil, err
@@ -508,11 +540,19 @@ func (o *Ops) SetGrants(ctx context.Context, p rpc.DBUserParams) (map[string]str
 	if err := o.sameServer(ctx, server, want); err != nil {
 		return nil, err
 	}
-	m, err := o.mariaOfServer(server)
+	rec, err := o.registry().Site(ctx, p.Site.ID)
 	if err != nil {
 		return nil, err
 	}
-	rec, err := o.registry().Site(ctx, p.Site.ID)
+	if pg, ok, err := o.pgOfServer(server); err != nil {
+		return nil, err
+	} else if ok {
+		if err := o.applyGrantsPG(ctx, pg, p.User, rec.Users[p.User], want); err != nil {
+			return nil, err
+		}
+		return map[string]string{"user": p.User}, nil
+	}
+	m, err := o.mariaOfServer(server)
 	if err != nil {
 		return nil, err
 	}
@@ -531,6 +571,14 @@ func (o *Ops) SetPassword(ctx context.Context, p rpc.DBUserParams) (map[string]s
 	}
 	if err := checkPassword(p.Password); err != nil {
 		return nil, err
+	}
+	if pg, ok, err := o.pgOfUser(ctx, p.User); err != nil {
+		return nil, err
+	} else if ok {
+		if err := pg.Exec(ctx, "", "ALTER ROLE "+host.QuotePGIdent(p.User)+" PASSWORD "+host.QuotePGLiteral(p.Password)); err != nil {
+			return nil, fmt.Errorf("change the password of %s: %w", p.User, err)
+		}
+		return map[string]string{"user": p.User}, nil
 	}
 	m, err := o.mariaOfUser(ctx, p.User)
 	if err != nil {
@@ -615,6 +663,21 @@ func (o *Ops) List(ctx context.Context, p rpc.DBListParams) (rpc.DBListResult, e
 	stats := map[string][2]int64{}
 	failed := map[int64]bool{}
 	for server, names := range byServer {
+		if pg, ok, perr := o.pgOfServer(server); perr != nil || ok {
+			if perr == nil {
+				var st map[string][2]int64
+				if st, perr = o.listPG(ctx, pg, names); perr == nil {
+					for d, v := range st {
+						stats[d] = v
+					}
+					continue
+				}
+			}
+			o.log().Warn("read the sizes of a site's databases", "site", p.Site.Domain, "server", server, "err", perr)
+			out.StatsError = "the sizes could not be read"
+			failed[server] = true
+			continue
+		}
 		m, err := o.mariaOfServer(server)
 		var rows []string
 		if err == nil {
@@ -698,9 +761,16 @@ func (o *Ops) DropSite(ctx context.Context, siteID int64) error {
 	}
 	var errs []error
 	for _, u := range sortedUsers(rec.Users) {
-		m, err := o.mariaOfUser(ctx, u)
-		if err == nil {
-			err = m.Exec(ctx, "DROP USER IF EXISTS ?@'localhost'", u)
+		var err error
+		if pg, ok, perr := o.pgOfUser(ctx, u); perr != nil {
+			err = perr
+		} else if ok {
+			err = o.dropUserPG(ctx, pg, u, rec.Users[u])
+		} else {
+			var m host.MariaDB
+			if m, err = o.mariaOfUser(ctx, u); err == nil {
+				err = m.Exec(ctx, "DROP USER IF EXISTS ?@'localhost'", u)
+			}
 		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("drop the database user %s: %w", u, err))
@@ -709,9 +779,16 @@ func (o *Ops) DropSite(ctx context.Context, siteID int64) error {
 		o.forgetUser(ctx, u)
 	}
 	for _, d := range rec.Databases {
-		m, err := o.maria(ctx, d)
-		if err == nil {
-			err = m.Exec(ctx, "DROP DATABASE IF EXISTS `"+d+"`")
+		var err error
+		if pg, ok, perr := o.pgOfDatabase(ctx, d); perr != nil {
+			err = perr
+		} else if ok {
+			err = o.dropDBPG(ctx, pg, d)
+		} else {
+			var m host.MariaDB
+			if m, err = o.maria(ctx, d); err == nil {
+				err = m.Exec(ctx, "DROP DATABASE IF EXISTS `"+d+"`")
+			}
 		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("drop the database %s: %w", d, err))

@@ -771,7 +771,8 @@
     "userServerHelp": "Ein Benutzer gehört zu einem Server und erreicht nur die Datenbanken darauf.",
     "connectAt": "Anwendungen verbinden sich mit {server} unter {host}, {tls}.",
     "connectTls": "mit TLS-Pflicht",
-    "connectNoTls": "ohne TLS"
+    "connectNoTls": "ohne TLS",
+    "pgNotYet": "Quarry und die SQL-Konsole sind für PostgreSQL-Datenbanken noch nicht verfügbar."
   },
   "dbservers": {
     "title": "Datenbankserver",
@@ -800,7 +801,17 @@
     "removeHint": "Der Server und sein gespeichertes Passwort werden hier vergessen. Der Server selbst bleibt unberührt.",
     "databases": "Keine Datenbank | Eine Datenbank | {n} Datenbanken",
     "inUse": "Lösche zuerst seine Datenbanken",
-    "edit": "Bearbeiten"
+    "edit": "Bearbeiten",
+    "kind": "Art",
+    "kindMariadb": "MariaDB oder MySQL",
+    "kindPostgres": "PostgreSQL",
+    "pgTls": "PostgreSQL braucht immer TLS: Die Verbindung ist verschlüsselt und das Zertifikat des Servers wird geprüft.",
+    "backup": "Backups",
+    "backupProvider": "Der Provider sichert ihn",
+    "backupDump": "CloudGround erstellt einen Dump",
+    "backupProviderHelp": "Das Backup einer Website lässt die Datenbanken dieses Servers aus: Die Backups des Providers sind seine Sache.",
+    "backupDumpHelp": "Das Backup einer Website sichert jede Datenbank mit pg_dump über TLS, und der Wiederherstellungstest spielt den Dump in eine temporäre Datenbank desselben Servers ein. Auf dieser Maschine wird postgresql-client gebraucht.",
+    "pgAdminHelp": "Eine Rolle mit CREATEROLE und CREATEDB (oder ein Superuser): CloudGround legt damit Datenbanken und Rollen an."
   },
   "files": {
     "deleted": "Gelöscht",

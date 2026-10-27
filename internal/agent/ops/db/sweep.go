@@ -90,6 +90,20 @@ func (o *Ops) Sweep(ctx context.Context) error {
 // least one. A WordPress dump must make an options table. The throwaway
 // database is always dropped.
 func (o *Ops) VerifyDump(ctx context.Context, path string, wordpress bool, want int) (int, error) {
+	return o.VerifyDumpOf(ctx, "", path, wordpress, want)
+}
+
+// VerifyDumpOf is VerifyDump of a dump of database: a PostgreSQL database's
+// is restored into a scratch database of its own server.
+func (o *Ops) VerifyDumpOf(ctx context.Context, database, path string, wordpress bool, want int) (int, error) {
+	if database != "" {
+		if pg, ok, err := o.pgOfDatabase(ctx, database); err != nil {
+			return 0, err
+		} else if ok {
+			id, _ := o.serverOf(ctx, database)
+			return o.verifyPG(ctx, pg, o.pgAdmin(id), path, want)
+		}
+	}
 	suffix := make([]byte, 8)
 	if _, err := rand.Read(suffix); err != nil {
 		return 0, err

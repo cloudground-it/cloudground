@@ -235,6 +235,28 @@ Exit codes, from the man pages and **measured** on Ubuntu 24.04 (shadow
 - **Fake:** `FakeAccounts`, an in-memory user/group/membership database with
   the same typed errors, plus `Locked`, `Expired` and `Password` state.
 
+## postgres — an external PostgreSQL server (#81)
+
+`PostgresAdmin` (`NewPostgres(RemoteServer, workDir, exec)`, `postgres.go`) administers an external
+PostgreSQL server; there is no PostgreSQL on the box.
+
+- **Statements:** `pgx` as `AdminUser`, one pool per database (`""` is `postgres`), `sslmode=require`
+  with `tls.Config{ServerName: Host}` verified against `CACert` or the system's authorities: TLS or
+  no connection, never a fallback to plain text. Statements go as text (simple protocol): identifiers
+  are checked (`ValidPGName`: lowercase letters, digits, `_`, at most 63) and quoted
+  (`QuotePGIdent`), values quoted (`QuotePGLiteral`).
+- **Tools:** `pg_dump` and `psql` run by `systemd-run` as a **dynamic user** with a read-only file
+  system, no home, a private `/tmp`, no capabilities, `AF_INET`/`AF_INET6` only, 1 GiB of memory and the
+  data timeout. The password and the CA reach them as service credentials (files in a `0700`
+  directory of the work directory, removed after the run), never an argument; host, port, user,
+  database and `PGSSLMODE=verify-full` are environment. The reason: a dump is the tenant's data, and
+  `psql` runs the meta-commands in it (`\!` runs a shell), so nothing it reads may hold anything of
+  this machine or of the administrator.
+- `Dump` is `pg_dump --format=plain --no-owner --no-acl` as the administrator. `Restore(database,
+  role, r)` makes a short-lived login role `cgq_<16 hex>` allowed to act as `role` (the database's
+  owner role), runs `psql -v ON_ERROR_STOP=1 --single-transaction` as it with `role=<role>` (objects are
+  then the owner's), and drops the login afterwards, whatever happens.
+
 ## mariadb — admin over the driver, dump and import over the tools
 
 Interface `MariaDB`: `Exec`, `QueryStrings`, `ScopedAccount`, `Dump`, `DumpAs`, `Import`, `Unborrow`.

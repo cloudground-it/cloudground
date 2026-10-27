@@ -21,7 +21,10 @@ type DBServer struct {
 	Host string `json:"host"`
 	Port int    `json:"port"`
 	// TLS is "required" or "off".
-	TLS       string `json:"tls"`
+	TLS string `json:"tls"`
+	// Backup is "dump" (a site's backup dumps its databases) or "provider"
+	// (the provider backs the server up; PostgreSQL only).
+	Backup    string `json:"backup"`
 	CACert    string `json:"ca_cert"`
 	AdminUser string `json:"admin_user"`
 	// Databases and Users count what is on the server (list only).
@@ -47,11 +50,17 @@ func DBServerSecret(id int64) string {
 	return "dbserver." + strconv.FormatInt(id, 10) + ".admin_password"
 }
 
-const dbServerCols = `id, name, kind, host, port, tls, ca_cert, admin_user`
+const dbServerCols = `id, name, kind, host, port, tls, ca_cert, admin_user, backup`
+
+// DB server backup modes.
+const (
+	DBServerBackupDump     = "dump"
+	DBServerBackupProvider = "provider"
+)
 
 func scanDBServer(row interface{ Scan(...any) error }) (DBServer, error) {
 	var d DBServer
-	err := row.Scan(&d.ID, &d.Name, &d.Kind, &d.Host, &d.Port, &d.TLS, &d.CACert, &d.AdminUser)
+	err := row.Scan(&d.ID, &d.Name, &d.Kind, &d.Host, &d.Port, &d.TLS, &d.CACert, &d.AdminUser, &d.Backup)
 	return d, err
 }
 
@@ -65,8 +74,11 @@ func (s *Store) CreateDBServer(d DBServer, password string) (DBServer, error) {
 	if d.Kind == "" {
 		d.Kind = "mariadb"
 	}
-	err = tx.QueryRow(`INSERT INTO db_servers (name, kind, host, port, tls, ca_cert, admin_user, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-		d.Name, d.Kind, d.Host, d.Port, d.TLS, d.CACert, d.AdminUser, now()).Scan(&d.ID)
+	if d.Backup == "" {
+		d.Backup = DBServerBackupDump
+	}
+	err = tx.QueryRow(`INSERT INTO db_servers (name, kind, host, port, tls, ca_cert, admin_user, backup, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+		d.Name, d.Kind, d.Host, d.Port, d.TLS, d.CACert, d.AdminUser, d.Backup, now()).Scan(&d.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return DBServer{}, ErrDBServerNameTaken
@@ -101,7 +113,7 @@ func (s *Store) ListDBServers() ([]DBServer, error) {
 	list := []DBServer{}
 	for rows.Next() {
 		var d DBServer
-		if err := rows.Scan(&d.ID, &d.Name, &d.Kind, &d.Host, &d.Port, &d.TLS, &d.CACert, &d.AdminUser, &d.Databases, &d.Users); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &d.Kind, &d.Host, &d.Port, &d.TLS, &d.CACert, &d.AdminUser, &d.Backup, &d.Databases, &d.Users); err != nil {
 			return nil, err
 		}
 		list = append(list, d)
@@ -121,8 +133,8 @@ func (s *Store) UpdateDBServer(d DBServer, password string) error {
 		return err
 	}
 	defer tx.Rollback()
-	res, err := tx.Exec(`UPDATE db_servers SET name = ?, host = ?, port = ?, tls = ?, ca_cert = ?, admin_user = ? WHERE id = ?`,
-		d.Name, d.Host, d.Port, d.TLS, d.CACert, d.AdminUser, d.ID)
+	res, err := tx.Exec(`UPDATE db_servers SET name = ?, host = ?, port = ?, tls = ?, ca_cert = ?, admin_user = ?, backup = ? WHERE id = ?`,
+		d.Name, d.Host, d.Port, d.TLS, d.CACert, d.AdminUser, d.Backup, d.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return ErrDBServerNameTaken

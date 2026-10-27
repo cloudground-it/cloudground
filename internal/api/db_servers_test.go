@@ -303,3 +303,114 @@ func TestAgentRestartedGetsTheServersAgain(t *testing.T) {
 		t.Fatalf("pushed %+v", set)
 	}
 }
+
+// §6.5.2: a PostgreSQL server needs TLS, is backed up by its provider unless
+// asked otherwise, is offered to PHP and Laravel sites only, and tells the
+// agent what it is.
+func TestPostgresServers(t *testing.T) {
+	s, agent, ts := testServer(t)
+	admin := setupAdmin(t, s, ts)
+	agent.mu.Lock()
+	agent.results[agentrpc.TestDBServer.Name()] = rpc.DBServerTestResult{Version: "PostgreSQL 16.4"}
+	agent.mu.Unlock()
+	reg := func(body map[string]any) (int, dbServerView) {
+		body["host"], body["admin_user"], body["admin_password"] = "pg.example.com", "cgadmin", "pg-admin-secret"
+		resp, b := admin.do("POST", dbsPath, body)
+		var v dbServerView
+		_ = json.Unmarshal(b, &v)
+		return resp.StatusCode, v
+	}
+	if code, _ := reg(map[string]any{"name": "pgoff", "kind": "postgres", "tls": "off"}); code != http.StatusBadRequest {
+		t.Fatalf("PostgreSQL without TLS: %d", code)
+	}
+	if code, _ := reg(map[string]any{"name": "weird", "kind": "oracle"}); code != http.StatusBadRequest {
+		t.Fatalf("an unknown kind: %d", code)
+	}
+	if code, _ := reg(map[string]any{"name": "mdbprov", "backup": "provider"}); code != http.StatusBadRequest {
+		t.Fatalf("a MariaDB server the provider backs up: %d", code)
+	}
+	code, pgs := reg(map[string]any{"name": "pgmanaged", "kind": "postgres"})
+	if code != http.StatusCreated || pgs.Kind != "postgres" || pgs.Port != 5432 || pgs.TLS != "required" || pgs.Backup != "provider" {
+		t.Fatalf("register PostgreSQL: %d %+v", code, pgs)
+	}
+	agent.mu.Lock()
+	test, _ := agent.lastParams[agentrpc.TestDBServer.Name()].(rpc.DBServerParams)
+	set, _ := agent.lastParams[agentrpc.SetDBServers.Name()].(rpc.SetDBServersParams)
+	agent.mu.Unlock()
+	if test.Kind != "postgres" || !test.TLS || test.Port != 5432 || test.BackupDumps {
+		t.Fatalf("TestDBServer params %+v", test)
+	}
+	if len(set.Servers) != 1 || set.Servers[0].Kind != "postgres" || set.Servers[0].BackupDumps {
+		t.Fatalf("SetDBServers params %+v", set)
+	}
+	// Dumps on request; the kind never changes; TLS cannot go off.
+	if resp, b := admin.do("PUT", fmt.Sprintf("%s/%d", dbsPath, pgs.ID), map[string]any{"backup": "dump"}); resp.StatusCode != 200 || !strings.Contains(string(b), `"backup":"dump"`) {
+		t.Fatalf("backup dump: %d %s", resp.StatusCode, b)
+	}
+	agent.mu.Lock()
+	set, _ = agent.lastParams[agentrpc.SetDBServers.Name()].(rpc.SetDBServersParams)
+	agent.mu.Unlock()
+	if len(set.Servers) != 1 || !set.Servers[0].BackupDumps {
+		t.Fatalf("the agent was not told: %+v", set)
+	}
+	if resp, _ := admin.do("PUT", fmt.Sprintf("%s/%d", dbsPath, pgs.ID), map[string]any{"kind": "mariadb"}); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("a kind change: %d", resp.StatusCode)
+	}
+	if resp, _ := admin.do("PUT", fmt.Sprintf("%s/%d", dbsPath, pgs.ID), map[string]any{"tls": "off"}); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("TLS off on PostgreSQL: %d", resp.StatusCode)
+	}
+	_, mdb := reg(map[string]any{"name": "mdb"})
+
+	// Which sites may use it.
+	static := seedActiveSite(t, s, "static.example.com", state.SiteStatic, "", 0)
+	php := seedActiveSite(t, s, "php.example.com", state.SitePHP, "8.4", 0)
+	lara := seedActiveSite(t, s, "lara.example.com", state.SiteLaravel, "8.4", 0)
+	wp := seedActiveSite(t, s, "wp.example.com", state.SiteWordPress, "8.4", 0)
+	avail := func(id int64) string {
+		_, b := admin.do("GET", fmt.Sprintf("/api/sites/%d/databases", id), nil)
+		var l dbListView
+		_ = json.Unmarshal(b, &l)
+		var names []string
+		for _, c := range l.Available {
+			names = append(names, c.Name+":"+c.Kind)
+		}
+		return strings.Join(names, ",")
+	}
+	if got := avail(static.ID); got != "mdb:mariadb" {
+		t.Fatalf("a static site is offered %q", got)
+	}
+	if got := avail(wp.ID); got != "mdb:mariadb" {
+		t.Fatalf("a WordPress site is offered %q", got)
+	}
+	for _, id := range []int64{php.ID, lara.ID} {
+		if got := avail(id); got != "mdb:mariadb,pgmanaged:postgres" {
+			t.Fatalf("a PHP or Laravel site is offered %q", got)
+		}
+	}
+	for _, site := range []state.Site{static, wp} {
+		resp, b := admin.do("POST", fmt.Sprintf("/api/sites/%d/databases", site.ID), map[string]any{"name": "pg_data", "server_id": pgs.ID})
+		if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(b), "PHP and Laravel") {
+			t.Fatalf("%s: %d %s", site.Type, resp.StatusCode, b)
+		}
+		resp, b = admin.do("POST", fmt.Sprintf("/api/sites/%d/database-users", site.ID), map[string]any{"name": "pg_user", "password": "a-good-password-1", "server_id": pgs.ID})
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("%s user: %d %s", site.Type, resp.StatusCode, b)
+		}
+	}
+	resp, b := admin.do("POST", fmt.Sprintf("/api/sites/%d/databases", php.ID), map[string]any{"name": "pg_data", "server_id": pgs.ID})
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("a PHP site's PostgreSQL database: %d %s", resp.StatusCode, b)
+	}
+	waitTaskEnd(t, s, taskOf(t, b).ID)
+	// A user of the PostgreSQL server with grants; mixed with MariaDB is refused.
+	resp, b = admin.do("POST", fmt.Sprintf("/api/sites/%d/database-users", php.ID), map[string]any{"name": "pg_user", "password": "a-good-password-1",
+		"grants": []state.DBGrant{{Database: "pg_data", Level: "all"}}})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("a PostgreSQL user: %d %s", resp.StatusCode, b)
+	}
+	resp, b = admin.do("POST", fmt.Sprintf("/api/sites/%d/database-users", php.ID), map[string]any{"name": "mdb_user", "password": "a-good-password-1", "server_id": mdb.ID,
+		"grants": []state.DBGrant{{Database: "pg_data", Level: "read"}}})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("a user of another server granted a PostgreSQL database: %d %s", resp.StatusCode, b)
+	}
+}

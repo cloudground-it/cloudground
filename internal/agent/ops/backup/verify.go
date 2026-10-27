@@ -121,7 +121,7 @@ func (o *Ops) restoreTest(ctx context.Context, repo host.Repo, s state.Site, id,
 		}
 		// WordPress's own tables are in the primary database only.
 		primary := s.Config.Database.Enabled && !s.Config.Database.External && d.Name == s.Config.Database.Name
-		tables, err := o.DB.VerifyDump(ctx, d.Path, wordpress && primary, d.Tables)
+		tables, err := o.DB.VerifyDumpOf(ctx, d.Name, d.Path, wordpress && primary, d.Tables)
 		if err != nil {
 			return "", fmt.Errorf("database restore test failed (%s): %w", d.Name, err)
 		}
@@ -160,8 +160,38 @@ func failDetail(err error) string {
 	return agentrpc.RedactCredentials(msg)
 }
 
-// looksLikeSQL reads the dump's head only: a multi-gigabyte database is not
-// loaded into memory to look at 4 KiB.
+// pgDumpHeader and pgDumpEnd are the first and the last comment of a plain
+// pg_dump: the header (as the file's first two lines, `--` then this one) and
+// the closing line it writes only when it has dumped everything. An empty
+// PostgreSQL database has no CREATE TABLE to recognise it by, so these are
+// what it is recognised by: both, never one.
+const (
+	pgDumpHeader = "--\n-- PostgreSQL database dump\n"
+	pgDumpEnd    = "\n-- PostgreSQL database dump complete\n"
+)
+
+// pgDumpIntact reports whether f, whose first bytes are head, is a whole
+// pg_dump: it starts with the header and its last 4 KiB hold the closing
+// line, so a dump that stopped half way is refused. Only the two ends are
+// read.
+func pgDumpIntact(f *os.File, head string) bool {
+	if !strings.HasPrefix(head, pgDumpHeader) {
+		return false
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	tail := make([]byte, 4096)
+	n, err := f.ReadAt(tail, max(fi.Size()-int64(len(tail)), 0))
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false
+	}
+	return strings.Contains("\n"+string(tail[:n]), pgDumpEnd)
+}
+
+// looksLikeSQL reads the dump's head only (and, for a PostgreSQL dump, its
+// tail): a multi-gigabyte database is not loaded into memory to look at 4 KiB.
 func looksLikeSQL(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -176,7 +206,7 @@ func looksLikeSQL(path string) error {
 	case err != nil && !errors.Is(err, io.ErrUnexpectedEOF):
 		return err
 	}
-	if s := string(head[:n]); !strings.Contains(s, "CREATE TABLE") && !strings.Contains(s, "MariaDB dump") {
+	if s := string(head[:n]); !strings.Contains(s, "CREATE TABLE") && !strings.Contains(s, "MariaDB dump") && !pgDumpIntact(f, s) {
 		return agentrpc.Invalid("the database dump does not look like SQL")
 	}
 	return nil

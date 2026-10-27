@@ -771,7 +771,8 @@
     "userServerHelp": "Un utilisateur est sur un seul serveur et n'atteint que les bases qui s'y trouvent.",
     "connectAt": "Les applications se connectent à {server} sur {host}, {tls}.",
     "connectTls": "avec TLS obligatoire",
-    "connectNoTls": "sans TLS"
+    "connectNoTls": "sans TLS",
+    "pgNotYet": "Quarry et la console SQL ne sont pas encore disponibles pour les bases PostgreSQL."
   },
   "dbservers": {
     "title": "Serveurs de base de données",
@@ -800,7 +801,17 @@
     "removeHint": "Le serveur et son mot de passe enregistré sont oubliés ici. Le serveur lui-même n'est pas touché.",
     "databases": "Aucune base | Une base | {n} bases",
     "inUse": "Supprimez d'abord ses bases",
-    "edit": "Modifier"
+    "edit": "Modifier",
+    "kind": "Type",
+    "kindMariadb": "MariaDB ou MySQL",
+    "kindPostgres": "PostgreSQL",
+    "pgTls": "PostgreSQL exige toujours TLS : la connexion est chiffrée et le certificat du serveur est vérifié.",
+    "backup": "Sauvegardes",
+    "backupProvider": "L'hébergeur le sauvegarde",
+    "backupDump": "CloudGround en fait un dump",
+    "backupProviderHelp": "La sauvegarde d'un site laisse de côté les bases de ce serveur : les sauvegardes de l'hébergeur sont les siennes.",
+    "backupDumpHelp": "La sauvegarde d'un site exporte chaque base avec pg_dump via TLS, et le test de restauration la restaure dans une base temporaire du même serveur. Il faut postgresql-client sur cette machine.",
+    "pgAdminHelp": "Un rôle avec CREATEROLE et CREATEDB (ou un superutilisateur) : CloudGround crée les bases et les rôles avec lui."
   },
   "files": {
     "deleted": "Supprimé",
