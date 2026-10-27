@@ -439,6 +439,10 @@ about the record and routing holds; what differs is the SQL (`host.PostgresAdmin
   so everything it creates is the owner's and every all-user sees it; **read** gives `CONNECT`, `USAGE`
   on `public`, `SELECT` on its tables and sequences now and, through default privileges of
   `cgo_<db>`, later. Revoking undoes each. The same record-first rules and conflicts as §2.
+  The administrator is also made a member of each account (a non-superuser may only end the
+  sessions of roles it is a member of), and an account's sessions are ended before it is dropped.
+  The administrator needs only `CREATEROLE` and `CREATEDB`; `DROP DATABASE … WITH (FORCE)` is tried
+  again for a few seconds when it answers `42501` (an autovacuum worker, which gives way to the lock).
 - **Dump** is `pg_dump`; **import, restore and `empty`** run the dump through `Restore` as the owner
   role, after `empty` has dropped and recreated schema `public` (owned by `cgo_<db>`) and re-applied
   every read grant of the record: dropping the database instead would lose its `CONNECT` grants.
