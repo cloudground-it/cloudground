@@ -49,6 +49,8 @@ PEM, wp-admin, cron** (the syntax), file names and paths.
 | cache warming | riscaldamento cache | préchauffage du cache | precarga de la caché | Cache-Vorwärmen |
 | development mode | modalità sviluppo | mode développement | modo desarrollo | Entwicklungsmodus |
 | maintenance page | pagina di manutenzione | page de maintenance | página de mantenimiento | Wartungsseite |
+| redirect | reindirizzamento | redirection | redirección | Weiterleitung |
+| canonical host | host canonico | hôte canonique | host canónico | kanonischer Host |
 | database cleanup | pulizia del database | nettoyage de la base de données | limpieza de la base de datos | Datenbankbereinigung |
 | staging | staging | staging (m.), *environnement de staging* | staging (m.), *entorno de staging* | Staging (n.) |
 | production | produzione | production | producción | Produktion / Live-Website |

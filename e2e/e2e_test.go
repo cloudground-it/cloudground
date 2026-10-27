@@ -79,6 +79,7 @@ var sections = []section{
 	{name: "R-4.3 proxies and alerts", run: (*harness).proxiesAlerts, fixtures: []string{fxFeatureSite}},
 	{name: "F9b site databases", run: (*harness).siteDatabases, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
 	{name: "migration safety snapshot", run: (*harness).migrationSafety},
+	{name: "site redirects", run: (*harness).redirects},
 	{name: "F9b site creation", run: (*harness).siteCreation, lane: "site creation"},
 	{name: "F9b Quarry service", run: (*harness).dbStudioService, fixtures: []string{fxWooSite, fxFeatureSite}},
 	{name: "wordpress teardown", run: (*harness).wordpressTeardown, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
