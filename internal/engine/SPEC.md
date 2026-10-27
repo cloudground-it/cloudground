@@ -32,6 +32,7 @@ in the rendered comments (they are part of the output and stay with it) and
 | `ProtectedPaths` | the site's protected paths (#26), each `{Path, File}`: the path and its password file (§4.5) |
 | `AuthLogSocket` | the agent's datagram socket for failed sign-ins (#21, §4.6); empty logs none |
 | `Blocking` | the visitors the site refuses (#25, §4.7): addresses, user agents, countries already resolved to their prefixes, and this machine's addresses (never refused); nil refuses nobody |
+| `CloudflareInclude` | the file of Cloudflare's ranges (`<ConfDir>/cloudground-cloudflare.inc`) when the visitor's address comes from Cloudflare (#22, §4.11); empty: it does not |
 
 `Renderer` has `SiteFiles(Input) (path → content)`, `GlobalFiles()` and
 `Routing(Input) (RoutingView)` (§7.5).
@@ -44,6 +45,7 @@ in the rendered comments (they are part of the output and stay with it) and
 | `<ConfDir>/cloudground-cache-<id>.conf` (default `/etc/nginx/conf.d`) | the policy caches: the cache zone (§3.2) |
 | `<ConfDir>/cloudground-block-<id>.conf` | `Blocking` set: the site's refused visitors (§4.7) |
 | `<ConfDir>/cloudground-global.conf` | `GlobalFiles`: http-level maps and tuning (§3.1) |
+| `<ConfDir>/cloudground-cloudflare.inc`, `<ConfDir>/cloudground-banned.conf` | written by the agent, not the renderer (ops/sites SPEC §10): Cloudflare's ranges and the server's block list, for `CloudflareInclude` (§4.11) |
 
 Refused before anything is rendered:
 
@@ -69,7 +71,10 @@ arguments do not bypass, else `$request_uri`), `$cg_no_store` (upstream
 (`Authorization` or `X-CloudGround-Probe` present); for the block list
 (§4.6), the map `$cg_auth_failed` (the upstream's `X-CloudGround-Auth` on a
 POST, empty for any other method) and the log format `cloudground_auth`
-(`$remote_addr $cg_auth_failed`). Every comment is part of the file.
+(`$remote_addr $cg_auth_failed`); for the static assets location (§4), the map
+`$cg_asset_failed` (`1` for a status that is not 2xx or 3xx, else empty), and
+`variables_hash_max_size 2048` (the sites' maps outgrow the default 1024). Every
+comment is part of the file.
 
 ### 3.2 Cache zone
 
@@ -93,12 +98,13 @@ In this order. "Security headers" is the set of §4.3.
    `off`, anything else `"Staging"`.
 4. Port 80: `listen 80` and `[::]:80`, the server names (domain then
    aliases), the ACME location (`root <ACMEWebroot>`), and everything else
-   `301` to `https://$host$request_uri`.
+   `301` to `https://$host$request_uri` (with a canonical host, to `https://<canonical>$request_uri`, §4.10).
 5. Port 443:
    - listen: `443 ssl http2` (both families), or with `HTTP2Directive`
      `443 ssl` and `http2 on;`; with `HTTP3` also `443 quic` (no
      `reuseport`: the installer's default server holds the only one);
    - server names, `server_tokens off`;
+   - with `CloudflareInclude`, the visitor's address and the block list (§4.11);
    - with `Blocking`, `if ($cg_block_<id>) { return 403; }` (§4.7);
    - staging: `auth_basic $cg_staging_realm_<id>` and the password file;
    - protected paths: `auth_basic $cg_auth_realm_<id>` and
@@ -133,8 +139,8 @@ In this order. "Security headers" is the set of §4.3.
      more regex test, measured with the benchmarks); with hardening
      (§4.8), the readme location and the login path's exact location; the static
      assets location (css, js, mjs, images, fonts, mp4, webm, pdf: `expires
-     30d`, `Cache-Control: public, immutable`, the security headers, no
-     access log, `gzip_static on`, `try_files $uri =404`); then
+     30d`, `Cache-Control: public, immutable`, the security headers, the
+     access log for failed requests only (`if=$cg_asset_failed`), `gzip_static on`, `try_files $uri =404`); then
      - static site: the routing block, default `try_files $uri $uri/
        /index.html =404`;
      - PHP site (a socket, and neither static nor proxy): the routing block,
@@ -402,6 +408,81 @@ making some changes. Please come back in a little while.").
 hours) and redirects to `/`: opening it lets a browser through. The key is a bearer secret kept in
 the root-readable vhost and never in the API's view of the site (`Site.Public`); port 80, which
 only redirects and serves ACME challenges, is not affected.
+
+### 4.10 Redirects and canonical host (#83)
+
+A site may send some paths elsewhere and choose one of its names as the canonical one. The settings
+are the panel's (`config.redirects`, internal/api SPEC §3.18); the vhost file holds everything.
+Refused at every render: `site.CheckRedirects`.
+
+**What is accepted.** Nothing is escaped: paths and targets are kept to characters nginx gives no
+meaning (no space, quote, `;`, brace, backslash, `$` or `#`, no control character), and each is
+written inside double quotes all the same.
+
+- A rule is `match` (`exact` or `prefix`), `from`, `to` and `status` (301 or 302); at most 200 rules.
+- `from` is a path of the site, at most 512 characters of letters, digits and `. _ ~ - / + , : @ ! ( ) = *`:
+  no percent escape (nginx matches the decoded path, so it would never match), no empty, `.` or `..`
+  segment. A prefix rule's path has no trailing slash and is not the root.
+- `to` is a path (`/new`, with a `?query` for an exact rule) or an `http(s)://host[:port]/path`; at
+  most 1024 characters of the same set plus `%XX` escapes and `&`, `?`; a host name `ValidateDomain`
+  accepts, no credentials; never `//`, which would be another site. A rule that redirects to its own
+  path (a prefix rule to something below it) is a loop and is refused, and so are two rules for one
+  path, an exact and a prefix rule included (the prefix rule has the exact location too).
+- The canonical host is `""` or the site's domain or one of its aliases.
+
+**Locations**, in the 443 server after the refused visitors, the canonical host and the maintenance
+page and before the document root: an exact rule is `location = <from> { return <status> "<to>$is_args$args"; }`
+(the query string is kept unless `to` has its own); a prefix rule is that location for its own path
+and `location ^~ <from>/ { rewrite "^<from>/(.*)$" "<to>/$1" permanent|redirect; }`, so
+`/blog/a/b?x=1` goes to `/news/a/b?x=1`. The regex is the path with `regexp.QuoteMeta`; nginx gives
+the rewrite's query string on its own. Exact and `^~` locations are chosen before any regex
+location, so neither the static-file locations nor the routing block's regexes can answer a redirected
+path. The routing block cannot have the same location (nginx would refuse the file as a duplicate):
+`prepare` refuses with the location named. The rules are not in the cache: a location is not the
+PHP location, which alone reads and fills the page cache.
+
+**Canonical host.** In the 443 server, after the refused visitors' `if` and before the maintenance
+page: `if ($host != "<canonical>") { return 301 https://<canonical>$request_uri; }`. `$host` is
+lower case and has no port; `$request_uri` keeps the path and query as they came. Port 80 sends
+every name straight to `https://<canonical>$request_uri` (one hop, ACME location untouched). The
+maintenance page's key address belongs to the domain: opened on a name that is not canonical, it
+goes to the canonical one first.
+
+A staging copy has no redirects (its names are not the original's).
+### 4.11 Visitors behind Cloudflare (#22)
+
+A site behind Cloudflare's proxy sees every request come from Cloudflare's
+addresses. With `CloudflareInclude` (the panel's `config.cloudflare.real_ip`,
+internal/api SPEC §3.20), in the 443 server right after `server_tokens`:
+
+```
+# Behind Cloudflare: the visitor's address is CF-Connecting-IP, from Cloudflare's ranges only.
+include <ConfDir>/cloudground-cloudflare.inc;
+real_ip_header CF-Connecting-IP;
+if ($cg_banned) { return 403; }
+```
+
+- The include holds one `set_real_ip_from <prefix>;` per Cloudflare range
+  and nothing else (ops/sites SPEC §10). A connection from any other
+  address keeps its own, whatever header it carries; `real_ip_recursive`
+  stays off (the header is one address, set by Cloudflare).
+- The realip module's server-level handler runs in the post-read phase,
+  before anything else reads the address, so `$remote_addr` is the
+  visitor's for every `geo` that reads it (refused visitors §4.7, the
+  maintenance allow list §4.9, `$cg_banned`), the access log, the failed
+  sign-ins' log (§4.6), and the `X-Real-IP` and `X-Forwarded-For` a proxy
+  site sends upstream. The machine's own requests (warmer, uptime check)
+  do not come from Cloudflare's ranges, so they keep their address and
+  their exemptions.
+- `$cg_banned` is the server's block list as an http-level `geo`
+  (`cloudground-banned.conf`, ops/sites SPEC §10): netfilter sees
+  Cloudflare's address on these requests, never the visitor's, so the list
+  is enforced here as well. The server rewrite phase runs before the page
+  cache is read: a blocked visitor never gets a cached page.
+- A routing block cannot change any of it: the realip directives are not
+  on its allowlist (§7.3).
+- Port 80 is unchanged (it only redirects and serves ACME challenges).
+- Off: none of this, so a site not behind Cloudflare pays nothing.
 
 ## 5. Page-cache policy (`velocity.PolicyFor`)
 

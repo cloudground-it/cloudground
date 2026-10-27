@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,6 +21,9 @@ type request struct {
 	body         any
 	siteSummary  bool
 	warnings     []string
+	// download: the answer is a file, streamed to this path ("-" for the
+	// standard output) instead of printed as JSON (#84).
+	download string
 }
 
 // command maps words on the command line to an API call.
@@ -150,6 +154,59 @@ func buildGitDeploy(a []string) (request, error) {
 	return request{}, fmt.Errorf("%q is not on, off, run, secret or key", a[1])
 }
 
+// buildRedirects is `redirects <site-id> [canonical <name|off> | rules <json>]`
+// (#83): the site's settings, its canonical host, or the whole list of rules.
+func buildRedirects(a []string) (request, error) {
+	n, err := id(a[0])
+	if err != nil {
+		return request{}, err
+	}
+	path := fmt.Sprintf("/api/sites/%s/redirects", n)
+	switch {
+	case len(a) == 1:
+		return request{method: "GET", path: path}, nil
+	case len(a) == 3 && a[1] == "canonical":
+		name := a[2]
+		if name == "off" {
+			name = ""
+		}
+		return request{method: "PUT", path: path, body: map[string]any{"canonical": name}}, nil
+	case len(a) == 3 && a[1] == "rules":
+		var rules []any
+		if err := json.Unmarshal([]byte(a[2]), &rules); err != nil {
+			return request{}, fmt.Errorf("the rules are a JSON array ([{\"match\": \"exact\", \"from\": \"/old\", \"to\": \"/new\", \"status\": 301}]): %w", err)
+		}
+		return request{method: "PUT", path: path, body: map[string]any{"rules": rules}}, nil
+	}
+	return request{}, fmt.Errorf("usage: redirects <site-id> [canonical <name|off> | rules <json>]")
+}
+
+// logFileRe is a log the panel lets a site's managers download
+// (rpc.ValidSiteLogName); a name that is not one is a usage error here, so it
+// is also never a path to write to.
+var logFileRe = regexp.MustCompile(`^(access|error)\.log(\.[0-9]{1,3})?(\.gz)?$`)
+
+// buildLogs is `logs <site-id> [<file> [<output>|-]]` (#84): the logs a site
+// has, or one downloaded to a file of the same name in the current directory
+// (never over a file that exists).
+func buildLogs(a []string) (request, error) {
+	n, err := id(a[0])
+	if err != nil {
+		return request{}, err
+	}
+	if len(a) == 1 {
+		return request{method: "GET", path: fmt.Sprintf("/api/sites/%s/logs/files", n)}, nil
+	}
+	if !logFileRe.MatchString(a[1]) {
+		return request{}, fmt.Errorf("%q is not a log: access.log, access.log.1, access.log.2.gz, error.log, …", a[1])
+	}
+	out := a[1]
+	if len(a) > 2 {
+		out = a[2]
+	}
+	return request{method: "GET", path: fmt.Sprintf("/api/sites/%s/logs/download?file=%s", n, a[1]), download: out}, nil
+}
+
 var commands = []command{
 	{words: []string{"sites", "list"}, build: get("/api/sites")},
 	{words: []string{"sites", "create"}, args: siteCreateArgs, min: 2, max: -1, build: buildSiteCreate},
@@ -275,6 +332,10 @@ var commands = []command{
 		}
 		return body, nil
 	})},
+	// A site's canonical host and redirect rules (#83).
+	{words: []string{"redirects"}, args: "<site-id> [canonical <name|off> | rules <json>]", min: 1, max: 3, build: buildRedirects},
+	// A site's whole access and error logs, current and rotated (#84).
+	{words: []string{"logs"}, args: "<site-id> [<file> [<output>|-]]", min: 1, max: 3, build: buildLogs},
 	// A WordPress site's scheduled database cleanup (#78).
 	{words: []string{"cleanup"}, args: "<site-id> <on [keep-revisions]|off|preview|run>", min: 2, max: 3, build: buildCleanup},
 	// Deploying a branch of a repository on each push (#24).

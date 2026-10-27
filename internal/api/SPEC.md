@@ -1222,7 +1222,7 @@ failure); any other error 500 with its text.
 - `POST /certificate` (manage): no ACME e-mail → 412 `set acme_email in settings first`; a malformed body → 400 `malformed request` (an empty one is fine); `wildcard` needs the Cloudflare token (412 `set cloudflare_api_token in settings first (…)`; a secret-store failure → 500); job `certificate.issue` renders the site as stored when it runs, marks that generation applied, records `wildcard_cert` as applied directly (`MutateSiteApplied`) and records the files. 202 `{task}`, audited after the enqueue.
 - `GET /certificate` (signed in): `exists`, `hsts`, and when it exists `not_after` (RFC 3339, UTC), `days_left`, `issuer`, `custom`; `last_renewal_error` when the last renewal failed.
 - `PUT|DELETE /certificate/custom` (manage): PUT needs `fullchain` and `key` (400 `fullchain and key (PEM) are required`); an agent refusal defaults to 400; files recorded; audited `certificate.custom.install|remove`; 200 `{"status": "ok"}` for PUT. DELETE (back to Let's Encrypt) then queues `certificate.issue` for the site's names as they are now (aliases added over the custom certificate got no reissue, so the certificate it goes back to may not cover them), audited `certificate.issue` (`back to Let's Encrypt`): 200 `{"status": "ok", "task"}`; with no ACME e-mail, or a queue that refuses, 200 `{"status": "ok", "warning"}` and nothing queued.
-- `POST /purge` (manage): an empty body purges everything; a malformed one is 400 `malformed request`, never a full purge; 200 with the agent's `{removed}`; audited `cache.purge` (`<n> urls, <m> removed`).
+- `POST /purge` (manage): an empty body purges everything; a malformed one is 400 `malformed request`, never a full purge; 200 with the agent's `{removed}`; audited `cache.purge` (`<n> urls, <m> removed`, then `, cloudflare purged` or `, cloudflare failed` when the site purges Cloudflare's cache too). With the CDN purge of §3.20, the answer also has `cdn` (`purged` or `failed`) and, on a failure, `cdn_error`; a CDN failure never fails the purge (the server's cache is already empty).
 - A managed file belongs to a site (`siteOwnsPath`) by exact name, never by substring (`cg-site-1` is not `cg-site-10`): `<domain>.conf`, `cloudground-cache-<id>.conf`, `<user>.conf`, `cloudground-php-<user>.service` and the files of its `.service.d` directory, `<domain>.htpasswd`, `<domain>.path-*.htpasswd` (a protected path's, #26), `cloudground-block-<id>.conf` (its refused visitors, #25), and anything under `<root>/`. After a full render (`recordRendered`) the files it wrote are recorded and the site's other configuration files are no longer tracked; files under the root (the connector, installed by deploys) are left alone. `pruneOrphanManagedFiles` drops per-site records (`cg-site-` in the name or its directory's, `.htpasswd`, under the sites' root) that belong to no site; it reports the pass complete only when the records were read and the sites' root was known.
 
 ### 3.10 Names lock and the public root
@@ -1363,6 +1363,31 @@ recorded) only once nginx has them; an agent refusal stores nothing. Turning the
 the site's page cache (the policy bypassed it meanwhile, so it holds pages from before the work) and
 queues the quiet `cache.rewarm` of §6.2. Audit `site.maintenance`, detail `on`, `off` or `text`.
 Answer: 200, `{enabled, title, message, retry_after_sec, allow, preview_url?}`.
+### 3.18 Redirects and canonical host (#83, `site_redirects.go`)
+
+`GET /api/sites/{id}/redirects` and `PUT /api/sites/{id}/redirects` (manage, the PUT's body at most
+512 KiB). The settings are `config.redirects` (`canonical`, `rules`); what they make is
+internal/engine SPEC §4.10. The PUT changes the fields it names (a field left out keeps its value;
+`rules` replaces the whole list). The canonical host is trimmed and lower-cased; a prefix rule's path
+and target lose a trailing slash. Refused (400, the rule's message): `site.CheckRedirects` against the
+site's domain and aliases. The settings PATCH (§3.4) refuses to remove an alias that is the
+canonical host.
+
+As the maintenance page does: under the site's lock, the agent's `ApplySiteConfig` renders the site and the
+settings are stored (`MutateSiteApplied`, files recorded) only once nginx has them; an agent refusal
+(a routing block that already has a rule's location, `nginx -t`) stores nothing. Every change empties
+the site's page cache and queues the quiet `cache.rewarm` of §6.2: a redirect is decided before the
+cache is read and is never cached, but what the cache holds for a name or path that was redirected
+(and is served again once the redirect goes) is from before. Audit `site.redirects`, detail `rules`,
+`canonical` or `canonical off`. A staging copy starts with none.
+
+Answer: 200, `{canonical, rules, names, counterpart, counterpart_served}`: `names` are the domain and
+aliases (the choices for `canonical`); `counterpart` is the www name of a bare domain or the bare name
+of a www one, `counterpart_served` whether the site already has it as a name. Serving it takes an
+alias, which the settings PATCH adds (administrator) and which reissues a Let's Encrypt certificate
+for the new name (§3.4), so the certificate covers both names; a custom certificate gets that PATCH's
+warning.
+
 ### 3.17 Scheduled database cleanup (#78, `site_wpcleanup.go`)
 
 A WordPress or WooCommerce site (else 400 `not a WordPress site`) may have its database cleaned
@@ -1397,6 +1422,91 @@ each active WordPress site with the schedule on whose weekly slot, `(id×53+60) 
 Monday 00:00 UTC, has passed since it was last queued (`wpcleanup:site:<id>`). A site the sweep
 sees for the first time is only noted, as the malware scan does: turning the schedule on does not
 clean at once (Clean now is there for that). A job that fails is an alert, as any task.
+
+### 3.19 Log downloads (#84, `site_logs.go`)
+
+The log viewer (`GET /api/sites/{id}/logs`, any signed-in account that can see the site) shows the last
+lines. For the accounts that manage the site (`manage`: administrators and the site's operators; not
+read-only accounts, who get 403) there are the whole files:
+
+- `GET /api/sites/{id}/logs/files` → 200 `{files: [{name, size, modified}]}`: the site's access and
+  error logs, current first, then rotated ones, compressed or not (agent `ListSiteLogs`,
+  internal/agent/ops/system SPEC §3b).
+- `GET /api/sites/{id}/logs/download?file=<name>`: the log streamed (agent `ReadSiteLogChunk`, one 4 MiB
+  chunk at a time: the API never holds more). `file` is `rpc.ValidSiteLogName` (`access.log`,
+  `access.log.1`, `access.log.2.gz`, `error.log`, …), else **400** before the agent is asked: no
+  slash, dot segment or other file can be named, and the directory is always the one of the site in the
+  route (an extra `site` or `domain` query is ignored). A log that is not there is **404**
+  `no such log`. The answer has `Content-Disposition: attachment; filename="<domain>-<name>"`,
+  `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Content-Type: application/gzip` for
+  `.gz` and `text/plain` otherwise. A rotated file (`….log.<n>…`) has its `Content-Length`; the
+  current one has none, since nginx is writing it, and is read until the agent has no more bytes. A
+  failure after the first chunk ends the body short (the headers are gone).
+
+Audit `site.logs.download`, subject the domain, detail the file name, written when the first chunk has
+been read. `cgctl logs` is the command-line form (cmd/cgctl SPEC §6.6c).
+### 3.20 Cloudflare (#22, `site_cloudflare.go`, `cloudflare.go`)
+
+A site served through Cloudflare's proxy (the orange cloud) may take the
+visitor's address from Cloudflare, and may have its purges empty
+Cloudflare's cache of it too. `config.cloudflare` holds `real_ip` (bool)
+and `zone_id` (the zone's ID; `""` sends no purge to Cloudflare).
+
+**Routes.** `GET /api/sites/{id}/cloudflare` (any caller who can see the
+site) and `PUT /api/sites/{id}/cloudflare` (manage, body at most 1 KiB)
+`{real_ip?, zone_id?}`: a field left out keeps its value; `zone_id` is
+trimmed and lower-cased, and must be `""` or 32 hexadecimal digits (400
+`zone_id must be the zone's 32-character ID, from the Overview page of the
+domain in Cloudflare's dashboard`). Both answer `{real_ip, zone_id,
+purge_ready, ranges_updated_at?}`: `purge_ready` is a zone and the token
+(below) both set; `ranges_updated_at` the time of the list of ranges in use
+(absent: the shipped list). As the maintenance page (§3.16): under the
+site's lock, `real_ip` turned on first sends the panel's ranges to the
+agent (`SetCloudflareRanges`), then `ApplySiteConfig` renders the site with
+the new settings and they are stored (`MutateSiteApplied`, files recorded)
+only once nginx has them; an agent refusal stores nothing. Audit
+`site.cloudflare`, detail `real_ip=on|off zone=set|none`.
+
+**Visitor addresses.** With `real_ip`, nginx takes the address in
+`CF-Connecting-IP` only from a connection that comes from one of
+Cloudflare's published ranges, and from nowhere else (internal/engine SPEC
+§4.11): a request sent straight to the server keeps its own address,
+whatever headers it carries. The server's block list, a site's refused
+visitors and maintenance allow list, the failed sign-ins and the access
+logs all go by that address, so trusting the header from anywhere else
+would let anyone pick the address they are judged by.
+
+**The ranges** (internal/cfips): the shipped list, replaced by a fetched
+one. The `cloudflare.ranges` job (jobs SPEC §8, §9: daily, and at the first
+wake after a start) runs only while a site has `real_ip` on: `GET
+https://api.cloudflare.com/client/v4/ips` (10 s, at most 64 KiB), the
+JSON's `result.ipv4_cidrs` and `result.ipv6_cidrs`, checked by `cfips.Parse`
+(a list it refuses is not used). The good list is stored (`meta` key
+`cloudflare_ranges`, `{v4, v6, fetched_at}`) and sent to the agent
+(`SetCloudflareRanges`, every run: the agent rewrites its file only when it
+changed). A failed fetch fails the job (quiet: logged, no alert) and
+keeps the list in use; the next run tries again (Cloudflare changes its
+ranges rarely). The same list (stored, else shipped) is what the DNS check
+(§3.14) calls Cloudflare and what the block list never blocks (§7.4).
+
+**CDN purge.** It rides on the purge paths: `POST /api/sites/{id}/purge`
+(§3.9) and the connector's (§8). After the agent has emptied the server's
+cache, a site with a `zone_id`, while the panel secret
+`cloudflare_purge_token` is set, has the panel call `POST
+https://api.cloudflare.com/client/v4/zones/<zone_id>/purge_cache` with the
+token as a bearer: everything → `{"hosts": [domain, aliases…]}` (only the
+site's own names, never the whole zone, which may serve other sites); some
+URLs → `{"files": […]}` with only the URLs on the site's names, 30 to a
+request. 15 s in all. A failure is Cloudflare's first error message (or
+the transport's) and is logged. The panel's route waits for it (the answer
+of §3.9); the connector's answer does not (the call runs in the
+background, so a WordPress save is not held up by Cloudflare).
+
+**The token** is its own secret, `cloudflare_purge_token` (§12), sealed like
+every secret, separate from the DNS token `cloudflare_api_token`: the
+settings page asks for a token with only the zone permission Cache Purge,
+so a leaked one can empty caches and nothing else. It is only ever sent to
+`api.cloudflare.com`.
 
 ### 3.11 Tests
 
@@ -2471,7 +2581,7 @@ wrong two-factor code: §2.3, §2.7), and the agent's sshd and WordPress
 readers, which the watcher drains with `BlocklistFailures`. Each failure
 goes to one in-memory `blocklist.Tracker` with the settings as stored now
 and the exempt set (loopback, this machine's addresses from its
-interfaces, the allowlist). An address that does not parse (`unix`: the API
+interfaces, the allowlist, and Cloudflare's ranges, §3.20). An address that does not parse (`unix`: the API
 socket reached without nginx) is not counted. A unit that reaches the
 threshold is stored as a block: source the failure's, `failures` the
 threshold, ending `ban_minutes` from now; a block of the same unit that
@@ -2503,8 +2613,9 @@ the firewall's: SPEC §1.2 step 6):
   `minutes` 0 (until removed) to 525600. Refused (400): what does not parse,
   a block wider than /8 or /16, a prefix holding the caller's own address
   (`… holds your own address (<a>): you would lock yourself out`), and one
-  overlapping loopback, this machine or an allowed prefix (`… holds this
-  server, loopback or an allowed address: those are never blocked`). A
+  overlapping loopback, this machine, Cloudflare's ranges or an allowed
+  prefix (`… holds this server, loopback, Cloudflare's network or an
+  allowed address: those are never blocked`). A
   prefix already blocked gets the new note and end. Audit
   `blocklist.block`, subject the prefix, detail `until <time>` or `until
   removed`.
@@ -2580,7 +2691,9 @@ site's WordPress connector with `Authorization: Bearer <site token>`.
 4. `all` purges the whole site. Otherwise only the URLs whose host is the
    site's domain or one of its aliases are kept (others are dropped without
    an error); none left → 200 `{"removed":0}` without calling the agent.
-   `PurgeCache` → 200, the agent's result.
+   `PurgeCache` → 200, the agent's result. A site that purges Cloudflare's
+   cache too (§3.20) then has the same URLs (or its names, for `all`) sent
+   to Cloudflare in the background: the answer does not wait for it.
 
 ## 9. Tasks (R-4.3)
 
@@ -3038,6 +3151,34 @@ the site's slice, and the agent's CPU.
   - a file the agent no longer finds → the finding is `gone`, 409 `the file is no longer there`;
   - either way an alert evaluation follows.
 
+### 11.8 Traffic statistics (#33, `traffic.go`)
+
+Each site's visitor statistics come from its own nginx access log, read on
+the server: no script in the pages, no cookie, no third party. The agent
+parses the logs and keeps aggregates only (internal/traffic SPEC,
+ops/traffic SPEC); no address, and nothing that identifies a visitor, is
+kept beyond the day's unique-visitor sketch, and the panel never sees one.
+
+The `traffic.collect` job (quiet; every maintenance tick, five minutes, and
+`POST /api/system/maintenance`) sends the agent every site (`id`, `domain`)
+in one `TrafficCollect`. The agent reads what each log gained since the
+last round, at most 32 MiB per site per round (the rest waits for the
+next), never on a request's path: nginx writes the log as ever, and the
+parsing runs in the agent, on the panel's schedule. A site the panel no
+longer has loses its aggregates at the next round.
+
+- `GET /api/sites/{id}/traffic?days=7|30|90` (signed in, the site's
+  readers; 7 by default, another value → 400): the agent's `TrafficStats`
+  as it answers: `days` (every day of the range, oldest first, UTC, zero
+  when nothing was logged), `hours` (the last 48 hours, oldest first),
+  `totals` (the range summed), `top_pages` and `top_not_found` (20 each,
+  over the range), `collected_at` (the last round that read the site's
+  log; absent before one). Each day and the totals: `requests`,
+  `pageviews`, `visitors`, `bots`, `bytes`, `status_2xx` … `status_5xx`,
+  `cache_hit`, `cache_miss`, `cache_bypass`; each hour `requests` and
+  `pageviews`. `visitors` is per day; the totals add the days up (a
+  visitor of two days counts twice), which the page says.
+
 ## 12. Settings (R-4.3)
 
 `/api/settings` is a flat map of string keys (the settings page and cgctl
@@ -3073,6 +3214,9 @@ use it). Each key is a field of `state.PanelSettings` or a secret.
 - Secrets: `backup_password`, `backup_s3_secret_key`, `backup_b2_account_id`,
   `backup_b2_account_key` (§5.8), `cloudflare_api_token`,
   `mail_password` show `••••••••` when set and `""` when not; `notify_webhook` is shown in
+  else 400 `<key>: …`), and the read-only `panel_domain`.
+- Secrets: `backup_password`, `backup_s3_secret_key`, `cloudflare_api_token`,
+  `cloudflare_purge_token` (§3.20), `mail_password` show `••••••••` when set and `""` when not; `notify_webhook` is shown in
   full to an admin and as `<scheme>://<host>/••••••••` to anyone else.
 - `GET` (global): the map. 500 `could not read the settings`.
 - `PUT` (admin), a partial map. With an API token (§1.2.1), first: a key

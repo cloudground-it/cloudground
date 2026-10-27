@@ -122,6 +122,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/sites/{id}/blocking`: 64 KiB
   - `PUT /api/sites/{id}/dev-mode`: 8 KiB
   - `PUT /api/sites/{id}/maintenance`: 8 KiB
+  - `PUT /api/sites/{id}/redirects`: 512 KiB
+  - `PUT /api/sites/{id}/cloudflare`: 8 KiB
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
   - `PUT /api/sites/{id}/wp/cleanup`: 8 KiB
@@ -239,13 +241,18 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `PUT` | `/api/sites/{id}/dev-mode` | manage | development mode: the page cache is bypassed for `{"minutes": 15}`, 30 or 60 (again while it runs: the time starts over), then switched back on by the panel, which empties the cache and warms it again; `0` ends it now; answers `dev_mode_until` (null when off); 409 on a site with no page cache |
 | `GET` | `/api/sites/{id}/maintenance` | manage | the maintenance page: `enabled`, `title`, `message`, `retry_after_sec`, `allow` and, while it is on, the `preview_url` that lets a browser through |
 | `PUT` | `/api/sites/{id}/maintenance` | manage | change the maintenance page (a field left out keeps its value; `{"enabled": true, "title": …, "message": …, "retry_after_sec": 3600, "allow": ["203.0.113.0/24"], "allow_my_address": false}`): on, visitors get a 503 with Retry-After and the page cache is bypassed; the addresses in `allow`, this server and a browser that opened `preview_url` still see the site; live at once, answers the settings |
+| `GET` | `/api/sites/{id}/redirects` | manage | the site's canonical host and redirect rules: `canonical`, `rules` (`match` exact or prefix, `from`, `to`, `status`), the `names` it may choose from and the www `counterpart` with whether the site `counterpart_served` |
+| `PUT` | `/api/sites/{id}/redirects` | manage | change the canonical host and redirects (`{"canonical": "www.example.com", "rules": [{"match": "prefix", "from": "/blog", "to": "/news", "status": 301}]}`, a field left out keeps its value, `rules` replaces the list, at most 200): every other name goes to the canonical one with its path and query, an exact rule matches the path only and a prefix rule everything under it, the query is kept; live at once and never cached, the page cache is emptied; answers the settings |
+| `GET` | `/api/sites/{id}/cloudflare` | auth | the site behind Cloudflare: `real_ip` (visitor addresses from `CF-Connecting-IP`, trusted from Cloudflare's ranges only), `zone_id`, `purge_ready` (a zone and the purge token set) and `ranges_updated_at` (absent: the shipped list) |
+| `PUT` | `/api/sites/{id}/cloudflare` | manage | change it (a field left out keeps its value; `{"real_ip": true, "zone_id": "<32 hex digits>"}`, `""` for no zone): live at once, answers the settings; with a zone and `cloudflare_purge_token` set, every purge also empties Cloudflare's cache of the site |
 | `GET` | `/api/sites/{id}/routing` | admin, session only | the site's routing block (`routing`, `default`, `custom`, `editable`) and the panel's vhost around it (`before`, `after`) |
 | `PUT` | `/api/sites/{id}/routing` | admin, session only | replace the routing block (`{"routing": "…"}`, `""` restores the default): checked, then live only if `nginx -t` passes |
 | `GET` | `/api/sites/{id}/certificate` | auth | whether the site has a certificate, its issuer and expiry, and the last renewal error |
 | `POST` | `/api/sites/{id}/certificate` | manage | request a Let's Encrypt certificate now |
 | `PUT` | `/api/sites/{id}/certificate/custom` | manage | install your own certificate: `{fullchain, key}` in PEM |
 | `DELETE` | `/api/sites/{id}/certificate/custom` | manage | remove it and go back to Let's Encrypt: the certificate for the site's current names is requested (`{status, task}`; `{status, warning}` without an ACME e-mail) |
-| `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache |
+| `GET` | `/api/sites/{id}/traffic` | auth | visitor statistics from the site's access log, built on the server (no cookie, no third party): `?days=7|30|90` (7 by default) answers `days`, `hours` (the last 48), `totals`, `top_pages`, `top_not_found` and `collected_at`; each day `requests`, `pageviews`, `visitors` (per day), `bots`, `bytes`, `status_2xx`…`status_5xx`, `cache_hit`, `cache_miss`, `cache_bypass` |
+| `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache (`{"urls": […]}` for some pages only); for a site with a Cloudflare zone, Cloudflare's too (`cdn`: `purged` or `failed`, with `cdn_error`) |
 | `POST` | `/api/sites/{id}/warm` | manage | fill the page cache from the sitemap |
 | `GET` | `/api/sites/{id}/wp/cleanup` | auth | the scheduled database cleanup of a WordPress site: `enabled`, `keep_revisions`, `last_run`, `next_run` and whether `backups_ready` |
 | `PUT` | `/api/sites/{id}/wp/cleanup` | manage | turn the weekly cleanup (expired transients deleted, revisions trimmed to `keep_revisions` per post, 1–100) on or off (`{"enabled": true, "keep_revisions": 5}`); 412 turning it on without backups configured |
@@ -253,6 +260,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `POST` | `/api/sites/{id}/wp/cleanup/run` | manage | clean the database now (a dry run is logged first, a tested snapshot is taken before a site's first cleanup) — returns `202` and a task; 412 without backups configured |
 | `GET` | `/api/sites/{id}/cache-stats` | auth | APCu hits, misses and memory in use |
 | `GET` | `/api/sites/{id}/logs?source=` | auth | tail one of the site's own logs: `access`, `error`, `php` or `cleanup` |
+| `GET` | `/api/sites/{id}/logs/files` | manage | the site's access and error logs that can be downloaded, current and rotated (`files`: `name`, `size`, `modified`) |
+| `GET` | `/api/sites/{id}/logs/download?file=` | manage | download one log in full, streamed (`file` is `access.log`, `access.log.1`, `access.log.2.gz`, `error.log`, …; a rotated one has its length, the current one is sent as it is); audited |
 | `POST` | `/api/sites/{id}/migration` | manage | bring in a site from a files archive and a SQL dump |
 | `POST` | `/api/sites/{id}/migration/pull/estimate` | admin | dry run of a pull from another host over SSH/SFTP: files, bytes, WordPress or not, the host's key, whether it fits |
 | `POST` | `/api/sites/{id}/migration/pull` | admin | pull a site from another host over SSH/SFTP (a password or key, single-use) and import it behind a safety snapshot |

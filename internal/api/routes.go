@@ -29,6 +29,7 @@ const (
 const (
 	smallBody      = 8 << 10   // credentials and profile fields
 	blockingBody   = 64 << 10  // a site's blocking rules: 500 networks, 50 user agents
+	redirectBody   = 512 << 10 // a site's redirect rules: 200 of up to 1.5 KB
 	certBody       = 256 << 10 // a PEM chain and key
 	dbEditBody     = 16 << 20  // a batch of row changes
 	fileUploadBody = maxPanelTransfer
@@ -192,6 +193,14 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "the maintenance page: `enabled`, `title`, `message`, `retry_after_sec`, `allow` and, while it is on, the `preview_url` that lets a browser through"},
 		{Method: put, Path: "/api/sites/{id}/maintenance", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleSetMaintenance,
 			Section: secSites, Doc: "change the maintenance page (a field left out keeps its value; `{\"enabled\": true, \"title\": …, \"message\": …, \"retry_after_sec\": 3600, \"allow\": [\"203.0.113.0/24\"], \"allow_my_address\": false}`): on, visitors get a 503 with Retry-After and the page cache is bypassed; the addresses in `allow`, this server and a browser that opened `preview_url` still see the site; live at once, answers the settings"},
+		{Method: get, Path: "/api/sites/{id}/redirects", Policy: policyManage, Load: loadSite, Handle: s.handleGetRedirects,
+			Section: secSites, Doc: "the site's canonical host and redirect rules: `canonical`, `rules` (`match` exact or prefix, `from`, `to`, `status`), the `names` it may choose from and the www `counterpart` with whether the site `counterpart_served`"},
+		{Method: put, Path: "/api/sites/{id}/redirects", Policy: policyManage, MaxBody: redirectBody, Load: loadSite, Handle: s.handleSetRedirects,
+			Section: secSites, Doc: "change the canonical host and redirects (`{\"canonical\": \"www.example.com\", \"rules\": [{\"match\": \"prefix\", \"from\": \"/blog\", \"to\": \"/news\", \"status\": 301}]}`, a field left out keeps its value, `rules` replaces the list, at most 200): every other name goes to the canonical one with its path and query, an exact rule matches the path only and a prefix rule everything under it, the query is kept; live at once and never cached, the page cache is emptied; answers the settings"},
+		{Method: get, Path: "/api/sites/{id}/cloudflare", Policy: policySignedIn, Load: loadSite, Handle: s.handleGetCloudflare,
+			Section: secSites, Doc: "the site behind Cloudflare: `real_ip` (visitor addresses from `CF-Connecting-IP`, trusted from Cloudflare's ranges only), `zone_id`, `purge_ready` (a zone and the purge token set) and `ranges_updated_at` (absent: the shipped list)"},
+		{Method: put, Path: "/api/sites/{id}/cloudflare", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleSetCloudflare,
+			Section: secSites, Doc: "change it (a field left out keeps its value; `{\"real_ip\": true, \"zone_id\": \"<32 hex digits>\"}`, `\"\"` for no zone): live at once, answers the settings; with a zone and `cloudflare_purge_token` set, every purge also empties Cloudflare's cache of the site"},
 		{Method: get, Path: "/api/sites/{id}/routing", Policy: policyAdmin, SessionOnly: true, Load: loadSite, Handle: s.handleGetRouting,
 			Section: secSites, Doc: "the site's routing block (`routing`, `default`, `custom`, `editable`) and the panel's vhost around it (`before`, `after`)"},
 		{Method: put, Path: "/api/sites/{id}/routing", Policy: policyAdmin, SessionOnly: true, MaxBody: routingBody, Load: loadSite, Handle: s.handleSetRouting,
@@ -204,8 +213,10 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "install your own certificate: `{fullchain, key}` in PEM"},
 		{Method: del, Path: "/api/sites/{id}/certificate/custom", Policy: policyManage, Load: loadSite, Handle: s.handleCustomCertificate,
 			Section: secSites, Doc: "remove it and go back to Let's Encrypt: the certificate for the site's current names is requested (`{status, task}`; `{status, warning}` without an ACME e-mail)"},
+		{Method: get, Path: "/api/sites/{id}/traffic", Policy: policySignedIn, Load: loadSite, Handle: s.handleTraffic,
+			Section: secSites, Doc: "visitor statistics from the site's access log, built on the server (no cookie, no third party): `?days=7|30|90` (7 by default) answers `days`, `hours` (the last 48), `totals`, `top_pages`, `top_not_found` and `collected_at`; each day `requests`, `pageviews`, `visitors` (per day), `bots`, `bytes`, `status_2xx`…`status_5xx`, `cache_hit`, `cache_miss`, `cache_bypass`"},
 		{Method: post, Path: "/api/sites/{id}/purge", Policy: policyManage, Load: loadSite, Handle: s.handlePurge,
-			Section: secSites, Doc: "empty the site's page cache"},
+			Section: secSites, Doc: "empty the site's page cache (`{\"urls\": […]}` for some pages only); for a site with a Cloudflare zone, Cloudflare's too (`cdn`: `purged` or `failed`, with `cdn_error`)"},
 		{Method: post, Path: "/api/sites/{id}/warm", Policy: policyManage, Load: loadSite, Handle: s.handleWarmCache,
 			Section: secSites, Doc: "fill the page cache from the sitemap"},
 		{Method: get, Path: "/api/sites/{id}/wp/cleanup", Policy: policySignedIn, Load: loadSite, Handle: s.handleGetWPCleanup,
@@ -220,6 +231,10 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "APCu hits, misses and memory in use"},
 		{Method: get, Path: "/api/sites/{id}/logs", Query: "source=", Policy: policySignedIn, Load: loadSite, Handle: s.handleSiteLog,
 			Section: secSites, Doc: "tail one of the site's own logs: `access`, `error`, `php` or `cleanup`"},
+		{Method: get, Path: "/api/sites/{id}/logs/files", Policy: policyManage, Load: loadSite, Handle: s.handleListSiteLogs,
+			Section: secSites, Doc: "the site's access and error logs that can be downloaded, current and rotated (`files`: `name`, `size`, `modified`)"},
+		{Method: get, Path: "/api/sites/{id}/logs/download", Query: "file=", Policy: policyManage, Load: loadSite, Handle: s.handleDownloadSiteLog,
+			Section: secSites, Doc: "download one log in full, streamed (`file` is `access.log`, `access.log.1`, `access.log.2.gz`, `error.log`, …; a rotated one has its length, the current one is sent as it is); audited"},
 		{Method: post, Path: "/api/sites/{id}/migration", Policy: policyManage, Load: loadSite, Handle: s.handleImportMigration,
 			Section: secSites, Doc: "bring in a site from a files archive and a SQL dump"},
 		{Method: post, Path: "/api/sites/{id}/migration/pull/estimate", Policy: policyAdmin, Load: loadSite, MaxBody: pullBody, Handle: s.handlePullEstimate,

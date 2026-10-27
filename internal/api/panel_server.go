@@ -139,6 +139,14 @@ type Server struct {
 	blocklistEvery time.Duration
 	localAddrs     func() []netip.Addr
 
+	// Cloudflare (cloudflare.go, #22): cfRanges caches the ranges in use
+	// (nil: read the store again); cloudflareAPI and cloudflareClient
+	// replace Cloudflare's API and the client that calls it (tests).
+	cfMu             sync.Mutex
+	cfRanges         *cfRangesInUse
+	cloudflareAPI    string
+	cloudflareClient *http.Client
+
 	// dnsChecks limits the DNS readiness check; dnsLookup resolves its
 	// names (nil: the system resolver; tests replace it) (dns_check.go).
 	dnsChecks dnsGate

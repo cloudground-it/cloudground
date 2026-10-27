@@ -55,6 +55,9 @@ type Ops struct {
 	GeoDir string
 	GeoURL func(month string) string
 	HTTP   *http.Client
+	// Banned gives the applied list to nginx for the sites behind
+	// Cloudflare (SPEC §3, ops/sites SPEC §10); nil gives it nowhere.
+	Banned func(ctx context.Context, block, allow []netip.Prefix) error
 
 	mu      sync.Mutex
 	pending map[pendingKey]int
@@ -181,6 +184,13 @@ func (o *Ops) Apply(ctx context.Context, p rpc.BlocklistApplyParams) (rpc.Blockl
 	}
 	if err != nil {
 		return rpc.BlocklistApplyResult{}, fmt.Errorf("nft: %w", err)
+	}
+	// The sites behind Cloudflare, whose visitors netfilter cannot see
+	// (SPEC §3, ops/sites SPEC §10).
+	if o.Banned != nil {
+		if err := o.Banned(ctx, block, allow); err != nil {
+			return rpc.BlocklistApplyResult{}, fmt.Errorf("nginx: %w", err)
+		}
 	}
 	return rpc.BlocklistApplyResult{Blocked: len(block), Allowed: len(allow)}, nil
 }

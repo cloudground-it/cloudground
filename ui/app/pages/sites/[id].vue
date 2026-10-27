@@ -77,10 +77,14 @@ const links = computed(() => {
   // mail() of a PHP site goes through the panel's relay (#77).
   if (s.php_version) more.push({ label: t('tabs.mail'), icon: 'i-cg-bell', to: `${base.value}/mail` })
   more.push({ label: t('tabs.resources'), icon: 'i-cg-gauge', to: `${base.value}/resources` })
+  // Visitor statistics from the access log (#33); a proxy site is logged too.
+  more.push({ label: t('tabs.traffic'), icon: 'i-cg-chart-bar', to: `${base.value}/traffic` })
   more.push(
     { label: t('tabs.sftp'), icon: 'i-cg-key', to: `${base.value}/sftp` },
     // A staging copy asks for its own password everywhere already.
     ...(s.staging_of ? [] : [{ label: t('tabs.protection'), icon: 'i-cg-lock', to: `${base.value}/protection` }]),
+    // Its names are not the original's, and it has no redirects of its own (#83).
+    ...(s.staging_of ? [] : [{ label: t('tabs.redirects'), icon: 'i-cg-external-link', to: `${base.value}/redirects` }]),
     // The routing block is nginx configuration: an administrator's (R-5.4).
     ...(isAdmin.value ? [{ label: t('tabs.vhost'), icon: 'i-cg-file-code', to: `${base.value}/vhost` }] : []),
     { label: t('tabs.migration'), icon: 'i-cg-import', to: `${base.value}/migration` },

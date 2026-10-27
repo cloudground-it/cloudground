@@ -150,7 +150,7 @@ const mailSecurity = computed({
   get: () => form.value.mail_security || 'starttls',
   set: (v: string) => { form.value.mail_security = v }
 })
-const securityItems = computed(() => (['starttls', 'tls', 'none'] as const).map(v => ({ value: v, label: t(`mail.security.${v}`) })))
+const securityItems = computed(() => (['starttls', 'tls', 'none']).map(v => ({ value: v, label: t(`mail.security.${v}`) })))
 const testTo = ref('')
 async function testMail() {
   await run(() => api.post('/api/settings/mail/test', { to: testTo.value }), t('mail.testSent'))
@@ -326,9 +326,12 @@ async function selfUpdate() {
                 <UFormField :label="t('settings.cloudflare')" :help="t('settings.cloudflareHint')">
                   <UInput v-model="form.cloudflare_api_token" type="password" autocomplete="off" class="w-full font-mono" :disabled="!isAdmin" />
                 </UFormField>
+                <UFormField :label="t('settings.cloudflarePurge')" :help="t('settings.cloudflarePurgeHint')">
+                  <UInput v-model="form.cloudflare_purge_token" type="password" autocomplete="off" class="w-full font-mono" :disabled="!isAdmin" />
+                </UFormField>
               </div>
               <template v-if="isAdmin" #footer>
-                <UButton :label="t('common.save')" :loading="busy" @click="save(['acme_email', 'cloudflare_api_token'])" />
+                <UButton :label="t('common.save')" :loading="busy" @click="save(['acme_email', 'cloudflare_api_token', 'cloudflare_purge_token'])" />
               </template>
             </PanelSection>
 

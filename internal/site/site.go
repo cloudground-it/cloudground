@@ -243,6 +243,9 @@ func Validate(sitesRoot string, s state.Site) (Valid, error) {
 	if err := CheckMaintenance(s.Config.Maintenance); err != nil {
 		return Valid{}, err
 	}
+	if err := CheckRedirects(s.Config.Redirects, append([]string{s.Domain}, s.Aliases...)); err != nil {
+		return Valid{}, err
+	}
 	if err := CheckWPCleanup(s.Config.WPCleanup); err != nil {
 		return Valid{}, err
 	}

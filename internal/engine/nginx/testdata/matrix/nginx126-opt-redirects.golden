@@ -1,0 +1,181 @@
+## /etc/nginx/conf.d/cloudground-cache-216.conf
+# Written by CloudGround: page-cache zone of c216.example.test (site 216).
+fastcgi_cache_path /srv/cgt/cache/c216.example.test levels=1:2 keys_zone=cg_216:32m
+                   max_size=1024m inactive=604800s use_temp_path=off;
+## /etc/nginx/sites-enabled/c216.example.test.conf
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+# Site: c216.example.test (id 216, type wordpress, profile balanced)
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name c216.example.test www.c216.example.test;
+
+    location /.well-known/acme-challenge/ {
+        root /srv/cgt/acme;
+    }
+    location / {
+        return 301 https://www.c216.example.test$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name c216.example.test www.c216.example.test;
+    server_tokens off;
+
+    # Canonical host (SPEC §4.10): the site's other names go to this one, path and
+    # query kept. The server rewrite phase runs before the page cache is read.
+    if ($host != "www.c216.example.test") {
+        return 301 https://www.c216.example.test$request_uri;
+    }
+
+    # Send small responses at once. With Ubuntu's tcp_nopush and no
+    # tcp_nodelay, the last packet of a kept-alive reply waits for the peer's
+    # delayed ACK (40 ms); measured, that cut cached req/s by about ten times.
+    tcp_nodelay on;
+    tcp_nopush off;
+
+    ssl_certificate /srv/cgt/fallback/cert.pem;
+    ssl_certificate_key /srv/cgt/fallback/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:cg_ssl:10m;
+
+    # Log lines go out in 64 KiB batches, at least once a second.
+    access_log /srv/cgt/log/c216.example.test/access.log cloudground buffer=64k flush=1s;
+    error_log /srv/cgt/log/c216.example.test/error.log warn;
+    # A failed WordPress sign-in also goes to the agent, which counts it
+    # towards blocking the address (SPEC §4.6). Unbuffered, and only the
+    # requests the connector marked: every other request logs nothing here.
+    access_log syslog:server=unix:/run/cloudground/auth-log.sock,nohostname,tag=cloudground cloudground_auth if=$cg_auth_failed;
+
+    client_max_body_size 128m;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    # The site's redirects (SPEC §4.10). Prefix and exact locations are chosen
+    # before any regex location, and neither reads nor fills the page cache.
+    location = /old-page {
+        return 301 "/new-page$is_args$args";
+    }
+    location = /shop/ {
+        return 302 "/store/?src=old";
+    }
+    location = /blog {
+        return 301 "/news$is_args$args";
+    }
+    location ^~ /blog/ {
+        rewrite "^/blog/(.*)$" "/news/$1" permanent;
+    }
+    location = /docs/v1 {
+        return 302 "https://docs.example.org/v1$is_args$args";
+    }
+    location ^~ /docs/v1/ {
+        rewrite "^/docs/v1/(.*)$" "https://docs.example.org/v1/$1" redirect;
+    }
+    location = /a.b+c(d) {
+        return 301 "/$is_args$args";
+    }
+    location ^~ /a.b+c(d)/ {
+        rewrite "^/a\.b\+c\(d\)/(.*)$" "/$1" permanent;
+    }
+
+    root /srv/cgt/sites/c216.example.test/current;
+    index index.php index.html index.htm;
+    disable_symlinks if_not_owner from=$document_root;
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+
+    # Leftovers are never served: backup and editor copies, SQL dumps, copies
+    # of wp-config.php and archives at the top of the root (SPEC §4.4).
+    location ~* (?:\.(?:bak|old|orig|save|swp|swo|sql|sql\.(?:gz|bz2|xz|zst|zip))|~|/wp-config\.php.+|^/[^/]+\.(?:tar|tar\.(?:gz|bz2|xz|zst)|tgz|tbz2|txz|zip|7z|rar))$ {
+        return 404;
+    }
+
+    # Uploads are data: a .php a plugin let through is never run (SR-T9).
+    location ~* ^/wp-content/uploads/.*\.php$ {
+        deny all;
+    }
+
+    location ~* \.(css|js|mjs|jpg|jpeg|png|gif|webp|avif|svg|ico|woff|woff2|ttf|eot|otf|mp4|webm|pdf)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+        # A served asset is not worth a log line; one that failed (a missing
+        # image) is, for the traffic statistics' not-found list (#33).
+        access_log /srv/cgt/log/c216.example.test/access.log cloudground buffer=64k flush=1s if=$cg_asset_failed;
+        # A deploy writes .gz copies; send those rather than gzip each time.
+        gzip_static on;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    # Who skips the page cache: POSTs, query strings, the session cookies
+    # and the paths below (logins, carts, the admin) are always rendered.
+    set $cg_skip_216 0;
+    if ($request_method = POST) {
+        set $cg_skip_216 1;
+    }
+    if ($cg_args_bypass) {
+        set $cg_skip_216 1;
+    }
+    if ($http_cookie ~* "wordpress_logged_in_|wp-postpass_|comment_author_|woocommerce_cart_hash|woocommerce_items_in_cart|wp_woocommerce_session_") {
+        set $cg_skip_216 1;
+    }
+    if ($request_uri ~* "^/wp-admin([/?]|$)|^/wp-login\.php([/?]|$)|^/wp-cron\.php([/?]|$)|^/xmlrpc\.php([/?]|$)|^/wp-json/|^/feed([/?]|$)") {
+        set $cg_skip_216 1;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTPS on;
+        fastcgi_pass unix:/srv/cgt/php/cg-site-216/php.sock;
+        fastcgi_read_timeout 120s;
+        fastcgi_buffers 16 32k;
+        fastcgi_buffer_size 64k;
+        # The connector's mark of a failed sign-in is for the log, not the client.
+        fastcgi_hide_header X-CloudGround-Auth;
+
+        # Page cache. PHP is always asked for gzip, so each page is stored once,
+        # compressed; gunzip serves the few clients that do not accept it.
+        fastcgi_param HTTP_ACCEPT_ENCODING "gzip";
+        gunzip on;
+        # After a purge an open descriptor may serve the old file for 1s at most.
+        open_file_cache_valid 1s;
+        fastcgi_cache cg_216;
+        fastcgi_cache_key "$scheme$request_method$host$cg_key";
+        fastcgi_cache_valid 200 301 600s;
+        fastcgi_cache_valid 404 60s;
+        fastcgi_cache_methods GET HEAD;
+        fastcgi_cache_bypass $cg_skip_216 $cg_private_req;
+        fastcgi_no_cache $cg_skip_216 $cg_no_store $cg_private_req;
+        # One request renders a missing page; the others wait for it.
+        fastcgi_cache_lock on;
+        fastcgi_cache_lock_timeout 5s;
+        # Expired or failing: answer from the old copy, refresh in background.
+        fastcgi_cache_use_stale updating error timeout invalid_header http_500 http_503;
+        fastcgi_cache_background_update on;
+        # The key fixes the encoding, so Vary is not needed. Set-Cookie still
+        # counts: a reply that sets a cookie stays out of the cache, or every
+        # later visitor would receive that cookie.
+        fastcgi_ignore_headers Cache-Control Expires Vary;
+        add_header X-CloudGround-Cache $upstream_cache_status always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    }
+}

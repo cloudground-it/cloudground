@@ -2,6 +2,8 @@ package blocklist
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"os"
@@ -174,5 +176,25 @@ func TestApply(t *testing.T) {
 	refused := newOps(&host.FakeExec{Respond: func(host.FakeCall) host.FakeReply { return host.FakeReply{Code: 1, Stderr: "syntax"} }})
 	if _, err := refused.Apply(context.Background(), rpc.BlocklistApplyParams{}); err == nil {
 		t.Fatal("an nft failure was not an error")
+	}
+}
+
+// The sites behind Cloudflare get the list after netfilter (SPEC §3).
+func TestApplyGivesNginxTheList(t *testing.T) {
+	o := newOps(&host.FakeExec{})
+	var got []string
+	o.Banned = func(_ context.Context, block, allow []netip.Prefix) error {
+		got = append(got, fmt.Sprint(block), fmt.Sprint(allow))
+		return nil
+	}
+	if _, err := o.Apply(context.Background(), rpc.BlocklistApplyParams{Block: []string{"203.0.113.0/24", "203.0.113.9"}, Allow: []string{"198.51.100.7"}}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(got, " ") != "[203.0.113.0/24] [198.51.100.7/32]" {
+		t.Fatalf("nginx got %v", got)
+	}
+	o.Banned = func(context.Context, []netip.Prefix, []netip.Prefix) error { return errors.New("[emerg] test") }
+	if _, err := o.Apply(context.Background(), rpc.BlocklistApplyParams{}); err == nil || !strings.HasPrefix(err.Error(), "nginx: ") {
+		t.Fatalf("an nginx failure = %v", err)
 	}
 }

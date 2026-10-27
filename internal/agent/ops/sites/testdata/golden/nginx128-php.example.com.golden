@@ -88,6 +88,17 @@ map $request_method $cg_auth_failed {
     default  "";
 }
 log_format cloudground_auth '$remote_addr $cg_auth_failed';
+
+# The static assets location logs only the requests that went wrong (SPEC
+# §4): a 4xx or 5xx, so a missing image is a not-found in the traffic
+# statistics (#33).
+map $status $cg_asset_failed {
+    ~^[23]   "";
+    default  1;
+}
+# Each site's maps add variables: with a few dozen sites the default hash of
+# 1024 is too small and nginx -t warns that it falls back to a slower one.
+variables_hash_max_size 2048;
 ## /ROOT/nginx/sites-enabled/php.example.com.conf -rw-r--r--
 # Managed by CloudGround — do not edit. Changes are detected as drift.
 # Site: php.example.com (id 2, type php, profile balanced)
@@ -162,7 +173,9 @@ server {
     add_header X-Frame-Options SAMEORIGIN always;
     add_header Referrer-Policy strict-origin-when-cross-origin always;
     add_header Alt-Svc 'h3=":443"; ma=86400' always;
-        access_log off;
+        # A served asset is not worth a log line; one that failed (a missing
+        # image) is, for the traffic statistics' not-found list (#33).
+        access_log /ROOT/logs/php.example.com/access.log cloudground buffer=64k flush=1s if=$cg_asset_failed;
         # A deploy writes .gz copies; send those rather than gzip each time.
         gzip_static on;
         try_files $uri =404;

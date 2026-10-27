@@ -342,6 +342,10 @@ func checkAliases(pc *patchCheck, p *sitePatch) (string, error) {
 		}
 		clean = append(clean, a)
 	}
+	// The canonical host (#83) is a name the site must keep.
+	if canon := pc.site.Config.Redirects.Canonical; canon != "" && canon != pc.site.Domain && !slices.Contains(clean, canon) {
+		return "alias " + canon + " is the site's canonical host: choose another canonical host first", nil
+	}
 	// The caller holds aliasesMu from here to the write.
 	taken, err := nameOwners(pc.srv.Store, clean, pc.site.ID)
 	if err != nil {

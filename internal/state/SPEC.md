@@ -28,7 +28,7 @@ it is derived from the system except the observations named below
 | Secrets | `secrets` | encrypted values; `site_id` set for `site.<id>.*` names; `lookup` (migration 19): the hex SHA-256 of a connector token, unique, NULL for every other secret |
 | Per-site observed state | `site_status` | `cert_expiry`, `cert_error` |
 | Alerts | `alerts` | migration 19 (R-4.3), replacing `alert_dismissals`: one row per condition, see invariant 6 |
-| Panel bookkeeping | `meta` | `rendered_version`, `secret_key_check` |
+| Panel bookkeeping | `meta` | `rendered_version`, `secret_key_check`, `cloudflare_ranges` (#22: the last good list of Cloudflare's ranges, JSON `{v4, v6, fetched_at}`; `CloudflareRanges`, `SetCloudflareRanges`) |
 | API tokens | `api_tokens` | migration 13: owner, name, SHA-256 of the secret (`token_hash`, unique), a display `hint`, optional expiry, `last_used_at` (written at most once a minute). Resolving a token refuses an expired one, a disabled owner and an owner who is not an admin; revoking deletes the row; the writes that end a user's sessions (`UpdatePassword`, `SetUserPassword`, `DisableUserTOTP`, and `UpdateUserAccess` when it disables or demotes) delete their tokens in the same transaction; deleting the user deletes their tokens |
 | Legacy key/value | `settings` | emptied by the v1 import; no Go API reads or writes it any more |
 
@@ -47,6 +47,7 @@ it is derived from the system except the observations named below
    | `backup_b2_account_id`, `backup_b2_account_key` | Backblaze B2 credentials (#23) |
    | `backup_sftp_key` | the panel's private key for an SFTP backup destination (#23) |
    | `cloudflare_api_token` | DNS token for wildcard certificates |
+   | `cloudflare_purge_token` | Cloudflare token for the CDN purge (#22): the zone permission Cache Purge only |
    | `notify_webhook` | alert webhook URL: whoever holds it can post as the panel |
    | `site.<id>.db_password` | the password of the site's primary database user (the one made with the site) |
    | `site.<id>.db_user.<name>` | the password of another of the site's database users (migration 22) |

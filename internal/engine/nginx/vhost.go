@@ -106,6 +106,9 @@ func prepare(in engine.Input) (*vhost, error) {
 	if err := site.CheckMaintenance(s.Config.Maintenance); err != nil {
 		return nil, err
 	}
+	if err := site.CheckRedirects(s.Config.Redirects, append([]string{s.Domain}, s.Aliases...)); err != nil {
+		return nil, err
+	}
 	v := &vhost{
 		in:       in,
 		php:      in.PHPSocket != "" && s.Type != state.SiteProxy && s.Type != state.SiteStatic,
@@ -150,6 +153,9 @@ func prepare(in engine.Input) (*vhost, error) {
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: routing: %w", s.Domain, err)
+	}
+	if err := checkRedirectLocations(s, v.parsed); err != nil {
+		return nil, err
 	}
 	return v, nil
 }
@@ -263,7 +269,11 @@ func (v *vhost) render() (before, block, after string) {
 	c.put(1, "location /.well-known/acme-challenge/ {")
 	c.put(2, "root "+in.ACMEWebroot+";")
 	c.put(1, "}", "location / {")
-	c.put(2, "return 301 https://$host$request_uri;")
+	if canon := s.Config.Redirects.Canonical; canon != "" {
+		c.putf(2, "return 301 https://%s$request_uri;", canon)
+	} else {
+		c.put(2, "return 301 https://$host$request_uri;")
+	}
 	c.put(1, "}")
 	c.put(0, "}", "", "server {")
 
@@ -280,6 +290,17 @@ func (v *vhost) render() (before, block, after string) {
 			"listen 443 quic;", "listen [::]:443 quic;")
 	}
 	c.put(1, "server_name "+names+";", "server_tokens off;")
+	if in.CloudflareInclude != "" {
+		c.put(1, "",
+			"# Behind Cloudflare (SPEC §4.11): the visitor's address is CF-Connecting-IP,",
+			"# taken only from Cloudflare's ranges. Netfilter sees Cloudflare's address,",
+			"# so the server's block list ($cg_banned) is enforced here too.",
+			"include "+in.CloudflareInclude+";",
+			"real_ip_header CF-Connecting-IP;",
+			"if ($cg_banned) {")
+		c.put(2, "return 403;")
+		c.put(1, "}")
+	}
 	if in.Blocking != nil {
 		c.put(1, "",
 			"# Visitors this site refuses: addresses, countries, user agents (SPEC",
@@ -289,6 +310,7 @@ func (v *vhost) render() (before, block, after string) {
 		c.put(2, "return 403;")
 		c.put(1, "}")
 	}
+	v.canonicalServer(&c)
 	v.maintenanceServer(&c)
 	if in.BasicAuthFile != "" {
 		c.put(1, "",
@@ -350,6 +372,8 @@ func (v *vhost) render() (before, block, after string) {
 		}
 	}
 
+	v.redirectServer(&c)
+
 	if s.Type != state.SiteProxy {
 		c.put(1, "",
 			"root "+in.DocRoot+";",
@@ -389,7 +413,9 @@ func (v *vhost) render() (before, block, after string) {
 			`location ~* \.(css|js|mjs|jpg|jpeg|png|gif|webp|avif|svg|ico|woff|woff2|ttf|eot|otf|mp4|webm|pdf)$ {`)
 		c.put(2, "expires 30d;", `add_header Cache-Control "public, immutable";`)
 		v.headers(&c)
-		c.put(2, "access_log off;",
+		c.put(2, "# A served asset is not worth a log line; one that failed (a missing",
+			"# image) is, for the traffic statistics' not-found list (#33).",
+			"access_log "+v.in.LogDir+"/access.log cloudground buffer=64k flush=1s if=$cg_asset_failed;",
 			"# A deploy writes .gz copies; send those rather than gzip each time.",
 			"gzip_static on;", "try_files $uri =404;")
 		c.put(1, "}")

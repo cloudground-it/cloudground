@@ -23,6 +23,7 @@ flowchart LR
 | --- | --- |
 | [Build and test](./build-and-test.md) | build the binaries and the UI, run what every commit must pass, regenerate the generated files |
 | [Run the end-to-end suite](./e2e.md) | choose the e2e sections a change touches, show a new check fails on the old build, run the full gate |
+| [The panel's demo](./demo.md) | build the interface against sample data, see how nothing it does leaves the browser, add a page's sample data |
 | [Install, update and uninstall a server](./install-update-uninstall.md) | install (pinned and verified), move a server to a newer release and what is kept or rolled back, take CloudGround away with or without its sites |
 
 ## Reference

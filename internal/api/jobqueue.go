@@ -325,6 +325,8 @@ func (s *Server) registerJobKinds() {
 		"devmode.sweep":         s.runDevModeSweep,
 		"wpcleanup.sweep":       s.runWPCleanupSweep,
 		"wp.update.sweep":       s.runWPUpdateSweep,
+		"cloudflare.ranges":     s.runCloudflareRanges,
+		"traffic.collect":       s.runTrafficCollect,
 	} {
 		q.Register(jobs.Kind{Name: name, Quiet: true, Run: run, Rerun: true})
 	}
@@ -355,11 +357,13 @@ func (s *Server) schedules() []jobs.Schedule {
 		every("devmode.sweep", time.Minute, jobs.InTick),
 		every("wpcleanup.sweep", 5*time.Minute, jobs.InTick),
 		every("wp.update.sweep", 5*time.Minute, jobs.InTick),
+		every("traffic.collect", 5*time.Minute, jobs.InTick),
 		cert,
 		every("drift.scan", 5*time.Minute, jobs.InTick, jobs.RenderLock),
 		every("alerts.notify", 5*time.Minute, jobs.AfterTick),
 		every("jobs.prune", 6*time.Hour, jobs.NotInTick),
 		every("backup.prune", 24*time.Hour, jobs.NotInTick),
+		every("cloudflare.ranges", 24*time.Hour, jobs.NotInTick),
 	}
 }
 

@@ -311,3 +311,40 @@ func (s *Store) SetRenderedVersion(v string) error {
 		metaRenderedVersion, v)
 	return err
 }
+
+const metaCloudflareRanges = "cloudflare_ranges"
+
+// CloudflareRanges is the last good list of Cloudflare's ranges the panel
+// fetched (#22, internal/api SPEC §3.20).
+type CloudflareRanges struct {
+	V4        []string  `json:"v4"`
+	V6        []string  `json:"v6"`
+	FetchedAt time.Time `json:"fetched_at"`
+}
+
+// CloudflareRanges is the stored list; ok is false when there is none.
+func (s *Store) CloudflareRanges() (r CloudflareRanges, ok bool, err error) {
+	var v string
+	err = s.db.QueryRow(`SELECT value FROM meta WHERE key=?`, metaCloudflareRanges).Scan(&v)
+	if errors.Is(err, sql.ErrNoRows) {
+		return CloudflareRanges{}, false, nil
+	}
+	if err != nil {
+		return CloudflareRanges{}, false, err
+	}
+	if err := json.Unmarshal([]byte(v), &r); err != nil {
+		return CloudflareRanges{}, false, fmt.Errorf("stored Cloudflare ranges: %w", err)
+	}
+	return r, true, nil
+}
+
+// SetCloudflareRanges stores a fetched list.
+func (s *Store) SetCloudflareRanges(r CloudflareRanges) error {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec(`INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
+		metaCloudflareRanges, string(b))
+	return err
+}
