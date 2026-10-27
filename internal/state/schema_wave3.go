@@ -187,6 +187,36 @@ var stepPostgres = schemaStep{version: 34, stmts: []string{
 	`ALTER TABLE db_servers ADD COLUMN backup TEXT NOT NULL DEFAULT 'dump' CHECK (backup IN ('dump', 'provider'))`,
 }}
 
+// stepFunctions makes functions a server-wide resource (#143 v0.9.0,
+// internal/functions SPEC §1, api SPEC §17): one row per function, its own
+// host names, the functions domain and the v0.8.x migration's marker. A
+// secret's value is the sealed fn.<id>.<NAME>, its token fn.<id>.token.
+var stepFunctions = schemaStep{version: 35, stmts: []string{
+	`CREATE TABLE functions (
+		id           INTEGER PRIMARY KEY AUTOINCREMENT,
+		name         TEXT NOT NULL UNIQUE,
+		runtime      TEXT NOT NULL,
+		version      TEXT NOT NULL,
+		memory_mb    INTEGER NOT NULL,
+		timeout_sec  INTEGER NOT NULL,
+		schedule     TEXT NOT NULL DEFAULT '',
+		env          TEXT NOT NULL DEFAULT '{}',
+		secrets      TEXT NOT NULL DEFAULT '[]',
+		auth         TEXT NOT NULL DEFAULT 'public' CHECK (auth IN ('public', 'token')),
+		cors_origins TEXT NOT NULL DEFAULT '[]',
+		release      TEXT NOT NULL DEFAULT '',
+		created_at   TEXT NOT NULL,
+		updated_at   TEXT NOT NULL
+	)`,
+	`CREATE TABLE function_domains (
+		function_id INTEGER NOT NULL REFERENCES functions(id) ON DELETE CASCADE,
+		domain      TEXT NOT NULL UNIQUE
+	)`,
+	`CREATE INDEX idx_function_domains_function ON function_domains (function_id)`,
+	`ALTER TABLE panel_settings ADD COLUMN functions_domain TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE panel_settings ADD COLUMN functions_migration TEXT NOT NULL DEFAULT ''`,
+}}
+
 // stepMail keeps the server-wide mail relay and the alert recipients
 // (#77, api SPEC §14) as one JSON value; the relay's password is a secret.
 var stepMail = schemaStep{version: 29, stmts: []string{

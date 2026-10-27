@@ -10,6 +10,8 @@ index idx_cron_site on cron_jobs
   create index idx_cron_site on cron_jobs(site_id)
 index idx_deployments_live on deployments
   create unique index idx_deployments_live on deployments(site_id)where status='promoted'
+index idx_function_domains_function on function_domains
+  create index idx_function_domains_function on function_domains(function_id)
 index idx_jobs_dedup on jobs
   create unique index idx_jobs_dedup on jobs(dedup_key)where dedup_key is not null and status in('queued','running')
 index idx_jobs_listed on jobs
@@ -63,6 +65,10 @@ index sqlite_autoindex_blocklist_1 on blocklist
 index sqlite_autoindex_db_servers_1 on db_servers
   
 index sqlite_autoindex_deployments_1 on deployments
+  
+index sqlite_autoindex_function_domains_1 on function_domains
+  
+index sqlite_autoindex_functions_1 on functions
   
 index sqlite_autoindex_managed_files_1 on managed_files
   
@@ -124,6 +130,10 @@ table deployments on deployments
   create table deployments(id integer primary key autoincrement,site_id integer not null references sites(id)on delete cascade,release_id text not null,path text not null,checksum text not null default '',status text not null,guard_json text not null default '',created_at text not null,promoted_at text,rollback_to text not null default '',regressed integer not null default 0,note text not null default '',unique(site_id,release_id))
 table drift_events on drift_events
   create table drift_events(id integer primary key autoincrement,path text not null,expected_hash text not null,actual_hash text not null,status text not null default 'open',detected_at text not null,resolved_at text)
+table function_domains on function_domains
+  create table function_domains(function_id integer not null references functions(id)on delete cascade,domain text not null unique)
+table functions on functions
+  create table functions(id integer primary key autoincrement,name text not null unique,runtime text not null,version text not null,memory_mb integer not null,timeout_sec integer not null,schedule text not null default '',env text not null default '{}',secrets text not null default '[]',auth text not null default 'public' check(auth in('public','token')),cors_origins text not null default '[]',release text not null default '',created_at text not null,updated_at text not null)
 table jobs on jobs
   create table jobs(id integer primary key autoincrement,kind text not null,site_id integer not null default 0,status text not null,progress integer not null default 0,message text not null default '',log_head text not null default '',log_tail text not null default '',log_dropped integer not null default 0,error text not null default '',error_key text not null default '',error_args text not null default '',payload text not null default '{}',locks text not null default '[]',dedup_key text,quiet integer not null default 0,attempts integer not null default 0,cancel_requested integer not null default 0,background integer not null default 0,not_before text,created_at text not null,started_at text,finished_at text)
 table managed_files on managed_files
@@ -139,7 +149,7 @@ table meta on meta
 table metric_samples on metric_samples
   create table metric_samples(id integer primary key autoincrement,cpu_headroom_pct integer not null,mem_headroom_pct integer not null,disk_headroom_pct integer not null,load1 real not null,sampled_at text not null)
 table panel_settings on panel_settings
-  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')),vulnerability_check integer not null default 1,malware_scan integer not null default 0,mail text not null default '{}',require_2fa_all integer not null default 0,mcp_enabled integer not null default 0)
+  create table panel_settings(id integer primary key check(id=1),acme_email text not null default '',panel_domain text not null default '',probe_target text not null default '',backup_repository text not null default '',backup_s3_access_key text not null default '',backup_s3_region text not null default '',require_2fa_admin integer not null default 0,update_check integer not null default 1,update_channel text not null default 'stable' check(update_channel in('stable','beta')),vulnerability_check integer not null default 1,malware_scan integer not null default 0,mail text not null default '{}',require_2fa_all integer not null default 0,mcp_enabled integer not null default 0,functions_domain text not null default '',functions_migration text not null default '')
 table schedule_state on schedule_state
   create table schedule_state(key text primary key,last_run text not null)
 table schema_migrations on schema_migrations
@@ -316,6 +326,30 @@ columns of drift_events
   5 | detected_at | TEXT | 1 | - | 0
   6 | resolved_at | TEXT | 0 | - | 0
 
+columns of function_domains
+  0 | function_id | INTEGER | 1 | - | 0
+  1 | domain | TEXT | 1 | - | 0
+  fk 0 | 0 | functions | function_id | id | NO ACTION | CASCADE | NONE
+  index idx_function_domains_function unique=0 origin=c partial=0 on 0:0:function_id
+  index sqlite_autoindex_function_domains_1 unique=1 origin=u partial=0 on 0:1:domain
+
+columns of functions
+  0 | id | INTEGER | 0 | - | 1
+  1 | name | TEXT | 1 | - | 0
+  2 | runtime | TEXT | 1 | - | 0
+  3 | version | TEXT | 1 | - | 0
+  4 | memory_mb | INTEGER | 1 | - | 0
+  5 | timeout_sec | INTEGER | 1 | - | 0
+  6 | schedule | TEXT | 1 | '' | 0
+  7 | env | TEXT | 1 | '{}' | 0
+  8 | secrets | TEXT | 1 | '[]' | 0
+  9 | auth | TEXT | 1 | 'public' | 0
+  10 | cors_origins | TEXT | 1 | '[]' | 0
+  11 | release | TEXT | 1 | '' | 0
+  12 | created_at | TEXT | 1 | - | 0
+  13 | updated_at | TEXT | 1 | - | 0
+  index sqlite_autoindex_functions_1 unique=1 origin=u partial=0 on 0:1:name
+
 columns of jobs
   0 | id | INTEGER | 0 | - | 1
   1 | kind | TEXT | 1 | - | 0
@@ -424,6 +458,8 @@ columns of panel_settings
   12 | mail | TEXT | 1 | '{}' | 0
   13 | require_2fa_all | INTEGER | 1 | 0 | 0
   14 | mcp_enabled | INTEGER | 1 | 0 | 0
+  15 | functions_domain | TEXT | 1 | '' | 0
+  16 | functions_migration | TEXT | 1 | '' | 0
 
 columns of schedule_state
   0 | key | TEXT | 0 | - | 1
