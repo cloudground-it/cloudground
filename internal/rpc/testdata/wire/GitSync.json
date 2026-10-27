@@ -1,0 +1,30 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "repo": "Repo",
+      "branch": "Branch",
+      "deploy_key": "DeployKey",
+      "build_command": "BuildCommand",
+      "release_id": "ReleaseID"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "repo": "",
+      "branch": "",
+      "release_id": ""
+    }
+  },
+  "result": {
+    "full": {
+      "commit": "Commit",
+      "source_dir": "SourceDir",
+      "output": "Output",
+      "failed": "Failed"
+    },
+    "zero": {
+      "commit": "",
+      "source_dir": ""
+    }
+  }
+}

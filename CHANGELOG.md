@@ -7,6 +7,54 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.5.0
+
+Remote access and AI. What changes for a person running the panel:
+
+- **passkeys** for panel accounts: a second factor after the password, or the whole sign-in with
+  fingerprint, face or PIN; several per account, named and removable. They work when the panel is
+  opened at its domain over HTTPS, not at its IP address;
+- **recovery codes**: ten single-use codes for when the phone is lost, shown once and made anew on
+  demand; a lost factor can now be replaced without root;
+- **required two-step verification**, set in Settings → Access: off, for administrators or for
+  every account; an account that must set it up is sent to its Security page after the password;
+- changing a factor asks for the password and a current factor; an administrator can reset
+  another account's factors;
+- **deploy from Git**: a per-site webhook for GitHub, GitLab, Gitea and Forgejo builds a release
+  from a branch and makes it live, with the usual rollback. The repository is fetched and the
+  optional build command runs as the site user; private repositories use a deploy key the panel
+  makes. On the Releases tab, or `cgctl git-deploy`;
+- **a remote MCP server**, off by default: turned on in Settings → Access, it lets AI assistants
+  (Claude, ChatGPT and other MCP clients) read and manage the server with OAuth. Each connection is
+  approved with the password and a second factor, can only write where it was allowed to, and
+  destructive actions (restore, staging push, deleting a site) wait for a confirmation in the
+  panel. Turning it off disconnects every assistant. It needs the panel on its own domain with a
+  trusted certificate;
+- fixed: after a release was made live or rolled back, a static file could still come from the
+  previous release for up to a minute.
+
+## v0.4.0
+
+WordPress care. What changes for a person running the panel:
+
+- WordPress updates, from the buttons or on a per-site schedule, run behind a restore-tested
+  snapshot: the site is measured before and after, and restored on its own when the update
+  breaks it; without a backup repository an update is refused;
+- weekly database cleanup for WordPress sites, off by default: expired transients go and each
+  post keeps its last N revisions, after a dry run and, the first time, a tested snapshot;
+  `cgctl cleanup`;
+- email from sites: PHP's `mail()` and `wp_mail` now go out through an SMTP relay, server-wide or
+  per site, with a test button and an SPF/DKIM/DMARC checklist; staging copies still send nothing;
+- email is a second channel for alerts, next to the webhook;
+- a maintenance page per site, from the Protection page or `cgctl maintenance`: visitors get a
+  503 with `Retry-After` and your title and message, while listed addresses and a preview link
+  still see the site;
+- development mode: a site's page cache is bypassed for 15, 30 or 60 minutes, then turns back
+  on by itself;
+- Ubuntu updates from the panel: the pending packages, security ones first, installed all at once
+  or only the security ones, and a notice when the server needs a reboot;
+- What's new: after an update, the panel shows what changed, from this changelog.
+
 ## v0.3.2
 
 A new logo, and the panel in the colours of cloudground.it. What changes for a person running

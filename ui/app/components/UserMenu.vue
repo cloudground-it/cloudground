@@ -24,6 +24,10 @@ const items = computed<DropdownMenuItem[][]>(() => [
     icon: 'i-cg-lock',
     to: '/security'
   }, {
+    label: t('assistants.title'),
+    icon: 'i-cg-plug',
+    to: '/assistants'
+  }, {
     label: t('whatsnew.title'),
     icon: 'i-cg-release',
     to: '/whats-new'

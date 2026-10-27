@@ -28,7 +28,9 @@ func (h *harness) routeMatrix(t *testing.T, op *apiClient, own, other int64, cro
 	var anonWrong, opWrong []string
 	probes := 0
 	for _, rt := range api.RouteSummaries() {
-		if rt.Method == "" || rt.Role == "open" || rt.Role == "site token" {
+		// The MCP server's rows judge their own callers and answer 404
+		// while it is off (api SPEC §16); section "mcp server" covers them.
+		if rt.Method == "" || rt.Role == "open" || rt.Role == "site token" || rt.Role == "mcp" {
 			continue
 		}
 		id := "999999" // no such backup or release: 404 whoever asks

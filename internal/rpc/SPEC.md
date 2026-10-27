@@ -64,6 +64,7 @@ handler.
 | `RestoreParams` | `Mode`, trimmed and lower-cased, is empty (full), `full`, `files` or `database` | `restore mode must be full, files, or database` |
 | `ForgetSnapshotParams` | `SnapshotID` is 8 to 64 hex digits | `invalid snapshot id` |
 | `RemoveReleasesParams` | at most 100 `ReleaseIDs`, each a release ID (never `initial`) | `at most 100 releases at a time`, `invalid release id "<id>"` |
+| `GitSyncParams` | `ReleaseID` a release ID, never `initial`; `Repo`, `Branch` and `BuildCommand` the rules of `site.CheckGitRepo` (the site's root the only place a `file://` repository may be), `CheckGitBranch`, `CheckGitBuildCommand` (internal/api SPEC §15.1); `DeployKey`, when set, exactly one OpenSSH private key block of at most 4 096 bytes | `invalid release id "<id>"`, the check's own sentence, `the deploy key is not one OpenSSH private key` |
 | `DeployParams` | `ReleaseID` is a release ID (`site.ValidReleaseID`: a canonical upper-case ULID, or one of the two older forms) | `invalid release id "<id>"` |
 | `ReleaseParams` | `ReleaseID` is empty (rollback to the previous), `initial` or a release ID | `invalid release id "<id>"` |
 | `MigrationParams` | `ReleaseID` is a release ID | `invalid migration release id` |

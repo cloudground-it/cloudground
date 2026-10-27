@@ -21,7 +21,7 @@ var policyRequires = map[policy]string{
 	policyManage:   "`admin`, or an `operator` on a site assigned to it",
 	policyGlobal:   "`admin` and `readonly`; server-wide data is closed to `operator`",
 	policyAdmin:    "`admin` alone",
-	policyToken:    "the site's connector token, in place of a session",
+	policyToken:    "the site's connector token, or the signature of a git webhook, in place of a session",
 	// Quarry's own session (its cookie), never the panel's.
 	policyStudio:     "a Quarry session (see Quarry below), never a panel session or an API token",
 	policyStudioData: "a Quarry session that may read the rows: a database user's, or one opened from the panel by an `admin` or `operator`",

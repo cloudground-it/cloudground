@@ -137,4 +137,6 @@ async function createRelease() {
       <span v-if="sourceDir" class="mono min-w-0 text-xs [overflow-wrap:anywhere] text-muted">{{ sourceDir }}</span>
     </template>
   </PanelSection>
+
+  <SiteGitDeploy v-if="canManage" />
 </template>

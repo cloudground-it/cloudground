@@ -170,6 +170,30 @@ func (sv *Service) ResetPassword(ctx context.Context, me state.User, actor strin
 	return nil
 }
 
+// ResetTwoFactor removes every second factor of account id (TOTP,
+// passkeys, recovery codes), turns its password sign-in on and ends its
+// sessions and API tokens (SPEC §2.5): how an admin helps someone who lost
+// every factor. Never one's own.
+func (sv *Service) ResetTwoFactor(me state.User, actor string, id int64) error {
+	if me.ID == id {
+		return refuse(Invalid, "manage your own two-factor from Security")
+	}
+	target, err := sv.Store.GetUser(id)
+	if errors.Is(err, state.ErrNotFound) {
+		return refuse(NotFound, msgNoUser)
+	}
+	if err != nil {
+		return err
+	}
+	if err := sv.Store.ResetSecondFactors(id); errors.Is(err, state.ErrNotFound) {
+		return refuse(NotFound, msgNoUser)
+	} else if err != nil {
+		return err
+	}
+	sv.audit(actor, "user.2fa_reset", target.Email, secondFactors(target))
+	return nil
+}
+
 // DeleteUser removes account id, never one's own nor the last enabled
 // admin. The audit names who was removed.
 func (sv *Service) DeleteUser(me state.User, actor string, id int64) error {
