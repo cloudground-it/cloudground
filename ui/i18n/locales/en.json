@@ -314,7 +314,8 @@
     "vhost": "Vhost",
     "protection": "Protected paths",
     "resources": "Resources",
-    "security": "Security"
+    "security": "Security",
+    "traffic": "Traffic"
   },
   "overview": {
     "certificate": "Certificate",
@@ -1826,5 +1827,36 @@
   "proof": {
     "factorHint": "Then confirm with a second factor.",
     "passkeyOnly": "Confirm with a passkey that checks it is you: your fingerprint, face or device PIN."
+  },
+  "traffic": {
+    "title": "Traffic",
+    "hint": "Built on this server from the site’s nginx access log, every five minutes.",
+    "days": "{n} days",
+    "pageviews": "Page views",
+    "pageviewsNote": "Pages people opened, without bots, assets or admin pages",
+    "visitors": "Visitors",
+    "visitorsNote": "Distinct visitors per day, added up over the days",
+    "requests": "Requests",
+    "botsNote": "{pct}% from bots and scripts",
+    "bandwidth": "Data sent",
+    "bandwidthNote": "Response bodies, as nginx logged them",
+    "cacheHits": "Served from the cache",
+    "cacheNote": "Of the requests that went through the page cache",
+    "errors": "Server errors",
+    "errorsNote": "5xx answers; {n} not found or refused (4xx)",
+    "dayTitle": "{date}: {views} page views, {visitors} visitors",
+    "hourTitle": "{time}: {views} page views",
+    "chartAria": "Last {days} days: {views} page views, {visitors} visitors",
+    "last48": "Page views, last 48 hours",
+    "emptyRange": "Nothing was logged in this period.",
+    "notYet": "No statistics yet. The access log is read every five minutes.",
+    "privacy": "No cookies, no scripts in your pages, no third parties. Visitors’ addresses are never stored.",
+    "collectedAt": "Last read {at}.",
+    "topPages": "Top pages",
+    "notFound": "Not found",
+    "notFoundHint": "Addresses that answered 404: broken links, or scanners probing for files.",
+    "path": "Path",
+    "hits": "Requests",
+    "none": "Nothing yet."
   }
 }

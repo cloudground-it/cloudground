@@ -314,7 +314,8 @@
     "vhost": "Vhost",
     "protection": "Rutas protegidas",
     "resources": "Recursos",
-    "security": "Seguridad"
+    "security": "Seguridad",
+    "traffic": "Tráfico"
   },
   "overview": {
     "certificate": "Certificado",
@@ -1826,5 +1827,36 @@
   "proof": {
     "factorHint": "Después confirma con un segundo factor.",
     "passkeyOnly": "Confirma con una llave de acceso que compruebe que eres tú: huella, cara o PIN del dispositivo."
+  },
+  "traffic": {
+    "title": "Tráfico",
+    "hint": "Calculado en este servidor a partir del registro de acceso de nginx del sitio, cada cinco minutos.",
+    "days": "{n} días",
+    "pageviews": "Páginas vistas",
+    "pageviewsNote": "Páginas que abrieron personas, sin bots, recursos estáticos ni páginas de administración",
+    "visitors": "Visitantes",
+    "visitorsNote": "Visitantes distintos por día, sumados en el periodo",
+    "requests": "Peticiones",
+    "botsNote": "{pct}% de bots y scripts",
+    "bandwidth": "Datos enviados",
+    "bandwidthNote": "El cuerpo de las respuestas, tal como lo registra nginx",
+    "cacheHits": "Servidas desde la caché",
+    "cacheNote": "De las peticiones que pasaron por la caché de página",
+    "errors": "Errores del servidor",
+    "errorsNote": "Respuestas 5xx; {n} no encontradas o rechazadas (4xx)",
+    "dayTitle": "{date}: {views} páginas vistas, {visitors} visitantes",
+    "hourTitle": "{time}: {views} páginas vistas",
+    "chartAria": "Últimos {days} días: {views} páginas vistas, {visitors} visitantes",
+    "last48": "Páginas vistas, últimas 48 horas",
+    "emptyRange": "No se registró nada en este periodo.",
+    "notYet": "Todavía no hay estadísticas. El registro de acceso se lee cada cinco minutos.",
+    "privacy": "Sin cookies, sin scripts en tus páginas, sin terceros. Las direcciones de los visitantes nunca se guardan.",
+    "collectedAt": "Última lectura {at}.",
+    "topPages": "Páginas más vistas",
+    "notFound": "No encontradas",
+    "notFoundHint": "Direcciones que respondieron 404: enlaces rotos, o escáneres que buscan archivos.",
+    "path": "Ruta",
+    "hits": "Peticiones",
+    "none": "Todavía nada."
   }
 }
