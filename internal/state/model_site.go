@@ -18,7 +18,14 @@ const (
 	SitePHP         SiteType = "php"
 	SiteLaravel     SiteType = "laravel"
 	SiteProxy       SiteType = "proxy"
+	// SiteNode and SitePython run the operator's app as a unit of their
+	// own behind nginx (#28, internal/runtimes SPEC).
+	SiteNode   SiteType = "node"
+	SitePython SiteType = "python"
 )
+
+// IsApp reports whether t runs a managed app (#28).
+func (t SiteType) IsApp() bool { return t == SiteNode || t == SitePython }
 
 // Profile is a Velocity Engine policy: how a site is cached and tuned.
 type Profile string
@@ -114,6 +121,10 @@ type SiteConfig struct {
 	// Cloudflare is the site behind Cloudflare's proxy (#22, internal/api
 	// SPEC §3.20): visitor addresses and the CDN purge.
 	Cloudflare SiteCloudflare `json:"cloudflare,omitzero"`
+	// App is a managed app's settings (#28, internal/runtimes SPEC §2).
+	App SiteApp `json:"app,omitzero"`
+	// Functions are the site's functions (#143, internal/functions SPEC §1).
+	Functions []SiteFunction `json:"functions,omitempty"`
 	// WPCleanup is a WordPress site's scheduled database cleanup (#78,
 	// internal/api SPEC §3.17).
 	WPCleanup WPCleanup `json:"wp_cleanup,omitzero"`
@@ -440,4 +451,30 @@ func (s Site) Public() Site {
 type SiteCloudflare struct {
 	RealIP bool   `json:"real_ip,omitempty"`
 	ZoneID string `json:"zone_id,omitempty"`
+}
+
+// SiteApp is a node or python site's app (#28, internal/runtimes SPEC §2).
+// The secret variables' values are sealed secrets (SiteAppEnvSecret); only
+// their names are here.
+type SiteApp struct {
+	Version    string            `json:"version,omitempty"`
+	Start      string            `json:"start,omitempty"`
+	Env        map[string]string `json:"env,omitempty"`
+	Secrets    []string          `json:"secrets,omitempty"`
+	Port       int               `json:"port,omitempty"`
+	HealthPath string            `json:"health_path,omitempty"`
+}
+
+// SiteFunction is one of a site's functions (#143, internal/functions SPEC
+// §1); its code lives in the site's tree, its secrets' values are sealed.
+type SiteFunction struct {
+	Name       string            `json:"name"`
+	Runtime    string            `json:"runtime"`
+	Version    string            `json:"version"`
+	MemoryMB   int               `json:"memory_mb"`
+	TimeoutSec int               `json:"timeout_sec"`
+	Schedule   string            `json:"schedule,omitempty"`
+	Env        map[string]string `json:"env,omitempty"`
+	Secrets    []string          `json:"secrets,omitempty"`
+	Release    string            `json:"release,omitempty"`
 }

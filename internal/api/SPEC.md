@@ -992,7 +992,7 @@ Checks, in this order; the first that fails answers:
 
 1. The body decodes (unknown fields refused) → else 400 `malformed request: <decoder error>`.
 2. `domain`, lowercased and trimmed, is a plain host name → 400 `invalid domain "<d>"`; at most 50 `aliases` → 400 `at most 50 aliases` (as a patch's, §3.4); each alias, lowercased and trimmed, the same.
-3. `type` is one of `wordpress`, `woocommerce`, `static`, `php`, `laravel`, `proxy` → 400 `invalid site type`.
+3. `type` is one of `wordpress`, `woocommerce`, `static`, `php`, `laravel`, `proxy`, `node`, `python` → 400 `invalid site type`. `node` and `python` (§3.21): `runtime_version` well formed (internal/runtimes SPEC §1; empty: Node `22`, Python `Runtimes.DefaultPython()` from the capabilities: the newest installed, else the distro's newest, else `3.12`) and `start_command`, when given, passes `runtimes.CheckApp` → 400 with its message; a database is asked for as on a static or plain PHP site (`create_database: true`), and they start without the page cache.
 4. `profile` (after its default) is `balanced`, `commerce` or `maximum` → 400 `invalid profile`.
 5. WordPress and WooCommerce: `admin_email` parses as an address → 400 `valid admin email required for WordPress`; `admin_user` non-empty and `admin_password` at least 12 bytes → 400 `admin user and a 12+ character password required`.
 6. The database (Fase 9b, `site_create_db.go`). WordPress, WooCommerce and Laravel always get one (`create_database: false` → 400); a static or plain PHP site gets one with `create_database: true`; a proxy never (`create_database: true` → 400). A site that gets none may not name `database_name`, `database_user` or `database_password` → 400. A chosen `database_name` or `database_user` (trimmed) passes `internal/site.ClaimableBy` as §6.5's names do, and is never of the panel's `site_<n>` shape (the site has no number yet) → 400; a chosen `database_password` follows the one rule of §6.5's passwords (`dbPasswordProblem`) → 400. Each refusal of this step names its field in `fields` (§3.8).
@@ -1024,7 +1024,7 @@ answers 503 and the record goes with its secrets: nothing was provisioned
 
 The job, on the record as it reads it at its start:
 
-1. `CreateSite` with the record, the database password, the connector token and, for WordPress, the admin account and title.
+1. `CreateSite` with the record, the database password, the connector token and, for WordPress, the admin account and title. A managed app (§3.21) first gets its runtime: when the agent's `Runtimes` lacks the version, `RuntimeInstall` (a progress line; a failure fails the job like `CreateSite`'s).
 2. `MarkApplied` at the record's generation; every file the agent reports is recorded as managed.
 3. With an ACME e-mail set, `IssueCert`; a failure is a progress line (DNS may not point here yet), never the job's failure; the certificate's files are recorded.
 4. The status becomes `active`. WordPress and WooCommerce get their crontab (a failure is a progress warning).
@@ -1507,6 +1507,98 @@ every secret, separate from the DNS token `cloudflare_api_token`: the
 settings page asks for a token with only the zone permission Cache Purge,
 so a leaked one can empty caches and nothing else. It is only ever sent to
 `api.cloudflare.com`.
+### 3.21 Node.js and Python sites (#28, `site_app.go`, `runtimes.go`)
+
+A site of type `node` or `python` runs the operator's application as a systemd unit in the site's
+slice and run sandbox, as the site user; nginx proxies every request to it over a unix socket (or
+a loopback port). The unit, the environment file, the dependency step and the runtimes are
+internal/runtimes SPEC and ops/runtimes SPEC; the agent's side is ops/sites SPEC §11.
+
+**Settings** (`config.app`, internal/runtimes SPEC §2): `version`, `start`, `env`, `secrets` (the
+names), `port`, `health_path`. A new site gets the default start command of its type, no variables,
+the socket.
+
+- `GET /api/sites/{id}/app` (any caller who can see the site): `{version, start, env, secrets,
+  port, health_path, socket}`; `secrets` are the names only, `socket` the path nginx proxies to (or
+  `127.0.0.1:<port>`). Another type → 400 `not a Node.js or Python site`.
+- `PUT /api/sites/{id}/app` (manage, at most 512 KiB): `{version?, start?, env?, secrets?, port?,
+  health_path?}`; a field left out keeps its value; `env` replaces the plain variables;
+  `secrets` maps a name to its value, `""` removes it, `••••••••` keeps it (a name not given keeps
+  it too). `runtimes.CheckApp` on the result → 400 with its message; a version the agent does not
+  have → 412 `install <runtime> <version> on the server first (Server → Runtimes)`. Then, under the
+  site's lock: the secrets are written (sealed, `site.<id>.app_env.<NAME>`), `SetAppEnv` gives the
+  agent the whole environment (plain and secret values), `ApplySiteConfig` renders and restarts
+  the app, and the settings are stored (`MutateSiteApplied`, files recorded). An agent refusal
+  stores nothing; secrets written before it are put back. Audit `site.app`, detail the fields
+  changed and the variable names (never a value).
+- `POST /api/sites/{id}/app/restart` (manage): `AppControl {restart}` → 200 the status. Audit
+  `site.app.restart`.
+- `GET /api/sites/{id}/app/status` (readers): the agent's `AppStatus`: `{active, state, since,
+  restarts, last_exit, health {status, ms, error}}` (ops/sites SPEC §11.3).
+
+The environment reaches the app only through the root-only environment file: the secret values
+are in the store (sealed) and on the server in that file, never in the unit, in `GET` answers, in
+the audit or in a log.
+
+**Deploys, rollbacks, git deploy** are a PHP site's (§4, §15): a release is built from the upload
+or the repository's export, then the agent installs its dependencies inside it (ops/release SPEC
+§3 step 8); a failure there fails the deploy with the step's output, and `current` does not move.
+A promote or a rollback restarts the app on the new `current`.
+
+**What a managed app does not have** (yet): staging copies and safe push (`POST /staging` → 400
+`staging is not available for Node.js and Python sites`), the page cache (a proxied app sets its
+own caching headers), the PHP settings. Backups cover the whole
+tree, the releases' `node_modules` and `.venv` with it, and a restore restarts the app.
+
+**Runtimes on the server** (admin, as the PHP extensions):
+
+- `GET /api/runtimes`: the agent's `Runtimes` and the versions that can be installed (`node`:
+  `20`, `22`, `24`; `python`: `PythonDistro`, the distro's, installed or not).
+- `POST /api/runtimes/install {runtime, version}` → 202 `{task}`: job `runtime.install` (§9 of the
+  jobs SPEC), audit `runtime.install`.
+
+### 3.22 Functions (#143, `functions.go`)
+
+A site's functions (internal/functions SPEC): small Node.js or Python handlers that answer at
+`https://<domain>/.functions/<name>` and can run on a schedule, each invocation a process of its
+own with the function's memory and timeout, nothing running between invocations. The agent's side
+is ops/functions SPEC; the routes in nginx internal/engine SPEC §4.13. Every site type has them; a
+staging copy does not get its production's.
+
+`config.functions` holds each function's settings (the package SPEC §1); the code lives in the
+site's tree, in releases, and is read from the agent.
+
+- `GET /api/sites/{id}/functions` (any caller who can see the site): `[{name, runtime, version,
+  memory_mb, timeout_sec, schedule, env, secrets, release, url}]`, `url` the endpoint.
+- `POST /api/sites/{id}/functions` (manage, at most 512 KiB) `{name, runtime, version?, memory_mb?,
+  timeout_sec?, schedule?, code?, env?, secrets?}`: the defaults of the package SPEC §1 and, without
+  code, a starter handler that echoes the request. → **201** the function. `functions.Check` →
+  400 with its message; a name the site already has → 409; a 21st → 400; a runtime version the
+  server lacks → 412 `install <runtime> <version> on the server first (Services → Runtimes)`.
+- `GET /api/sites/{id}/functions/{name}`: the function, its `code`, the live `release` and the
+  `releases` (newest first).
+- `PUT /api/sites/{id}/functions/{name}` (manage, at most 512 KiB): any of `code` (a new release),
+  `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets` (as a managed app's: `""`
+  removes, `••••••••` keeps). → 200 the function.
+- `DELETE /api/sites/{id}/functions/{name}` (manage) → 204.
+- `POST /api/sites/{id}/functions/{name}/rollback` (manage) `{release?}` → 200 the function.
+- `POST /api/sites/{id}/functions/{name}/invoke` (manage) `{body?}`: a test run (`InvokeFunction`,
+  source `test`) → 200 `{status, ms, body, error}`.
+- `GET /api/sites/{id}/functions/{name}/logs`: the agent's `FunctionLogs`: the invocations (time,
+  method, status, ms, source) and the output.
+
+A change goes, under the site's lock: secrets written (sealed `site.<id>.fn.<name>.<NAME>`),
+`SetFunction` (code, environment, units), `ApplySiteConfig` (the vhost's routes), then the settings
+stored with the live release (`MutateSiteApplied`, files recorded); an agent refusal stores nothing
+and puts the secrets back. A deletion: `DeleteFunction`, then the settings without it, rendered.
+Audit `site.function.create|update|delete|rollback|invoke`, subject the domain, detail the name
+(and the fields changed; never a value).
+
+**Schedules.** `functions.sweep` (jobs SPEC §9: every minute) invokes, for every active site, each
+function whose schedule is due in the current minute (`functions.Due`, the panel's time zone),
+once per minute (a key per function and minute, in memory), each in the background (source
+`schedule`); a failure is logged. A scheduled run's result is in the function's invocations like
+any other.
 
 ### 3.11 Tests
 

@@ -1,0 +1,18 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "env": {
+        "key": "Env"
+      }
+    },
+    "zero": {
+      "site": "@state.Site",
+      "env": null
+    }
+  },
+  "result": {
+    "full": {},
+    "zero": {}
+  }
+}

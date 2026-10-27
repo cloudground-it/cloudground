@@ -251,6 +251,8 @@ Locks as in §3. "Resumable" = has `Run`; "rerun" = `Rerun`.
 | `site.update` | site | `site` | rerun | | `PATCH /api/sites/{id}` (internal/api/SPEC.md §3.5): payload carries the request's fields, their previous values and the generations around the change; renders the site, and switches the object cache when that changed (alone, it is not rendered); a failure or a cancel before it starts puts the fields back where no later change replaced them, and a cancel that leaves the site as it was rendered marks it applied |
 | `site.apply-config`, `site.php`, `wp.object_cache` | site | `site` | rerun | | as `site.update`; queued only by the routes removed in R-8.2 (`PUT /config`, `PUT /php`, `POST /wp/object-cache`), still registered so a job queued before an upgrade runs; `wp.object_cache` only switches the object cache |
 | `certificate.issue` | site | `site` | no | | |
+| `functions.sweep` | — | — | rerun | quiet | invokes the functions whose schedule is due this minute (internal/api/SPEC.md §3.22) |
+| `runtime.install` | — | `apt` | no | | payload `{runtime, version}`; `RuntimeInstall` (internal/api/SPEC.md §3.21) |
 | `staging.create` | production | `site` ×2 (production, new staging) | no | | canceled before it ran: the staging record goes; interrupted: the staging copy, if still `provisioning`, goes to `error` |
 | `staging.recreate` | production | `site` ×2 (production, old staging) | no | | stops between removing the old copy and cloning again; interrupted: a new copy left `provisioning` goes to `error` |
 | `staging.database-push` | production | `site` ×2, `repo` | no | | a cancel stops it before the tables are promoted |
@@ -318,6 +320,7 @@ Recurring work is a schedule that enqueues a job:
 | `retention.sweep` | 5 min | memory (each site's `backup.retention.site.<id>`: daily) | yes |
 | `security.sweep` | 5 min | memory (each site's `vulncheck:site:<id>`: daily; `malwarescan:site:<id>`: weekly, at the site's own hour) | yes |
 | `devmode.sweep` | 1 min | memory | yes |
+| `functions.sweep` | 1 min | memory (each function's minute) | no |
 | `wpcleanup.sweep` | 5 min | memory (each site's `wpcleanup:site:<id>`: weekly, at the site's own slot) | yes |
 | `wp.update.sweep` | 5 min | memory (each site's `wp.update.site.<id>`: daily or weekly, at the site's hour) | yes |
 | `traffic.collect` | 5 min | memory | yes |

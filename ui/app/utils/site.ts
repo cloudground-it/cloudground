@@ -10,8 +10,13 @@ export const siteTypeIcon: Record<SiteType, string> = {
   static: 'i-cg-file-code',
   php: 'i-brand-php',
   laravel: 'i-brand-laravel',
-  proxy: 'i-cg-network'
+  proxy: 'i-cg-network',
+  node: 'i-brand-node',
+  python: 'i-brand-python'
 }
+
+/** A Node.js or Python site: its app runs as a unit of its own (#28). */
+export const isAppSite = (s: Pick<Site, 'type'>) => s.type === 'node' || s.type === 'python'
 
 export const isWordPress = (s: Pick<Site, 'type'>) => s.type === 'wordpress' || s.type === 'woocommerce'
 

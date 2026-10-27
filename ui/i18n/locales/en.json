@@ -223,7 +223,9 @@
       "static": "Static",
       "php": "PHP",
       "laravel": "Laravel",
-      "proxy": "Reverse proxy"
+      "proxy": "Reverse proxy",
+      "node": "Node.js",
+      "python": "Python"
     }
   },
   "osupdates": {
@@ -316,7 +318,9 @@
     "resources": "Resources",
     "security": "Security",
     "redirects": "Redirects",
-    "traffic": "Traffic"
+    "traffic": "Traffic",
+    "app": "App",
+    "functions": "Functions"
   },
   "overview": {
     "certificate": "Certificate",
@@ -1040,7 +1044,8 @@
     "compressed": "rotated, compressed",
     "download": "Download",
     "reload": "Reload",
-    "currentNote": "The current log is sent as it is at that moment, so its size here is only a hint. Rotated logs do not change."
+    "currentNote": "The current log is sent as it is at that moment, so its size here is only a hint. Rotated logs do not change.",
+    "app": "App"
   },
   "services": {
     "manual": "manual start",
@@ -1596,7 +1601,9 @@
       "static": "HTML, builds",
       "php": "plain PHP",
       "laravel": "framework",
-      "proxy": "Node, Go…"
+      "proxy": "your own server",
+      "node": "your own app",
+      "python": "WSGI, ASGI"
     },
     "upstreamHelp": "nginx proxies it with HTTP/3 and a certificate; the cache stays off until you turn it on.",
     "wpPart": "WordPress administrator",
@@ -2115,5 +2122,95 @@
     "path": "Path",
     "hits": "Requests",
     "none": "Nothing yet."
+  },
+  "app": {
+    "willInstall": "installed when the site is created",
+    "runtime": "Runtime",
+    "runtimeHelp": "The version the app runs on. One the server lacks is installed with the site.",
+    "start": "Start command",
+    "startHelp": "Run in the live release by the shell. The app must listen on $PORT: a unix socket path unless you set a port.",
+    "startRule": "The start command is one line of at most 1024 characters.",
+    "statusTitle": "App",
+    "statusHint": "The {runtime} app runs as a service of its own, as the site user, and starts again if it stops.",
+    "down": "Stopped",
+    "healthy": "Healthy",
+    "unhealthy": "Not answering",
+    "unitState": "Service",
+    "since": "Running since",
+    "restarts": "Restarts",
+    "lastExit": "last exit code {code}",
+    "health": "Health check",
+    "restart": "Restart",
+    "logs": "App log",
+    "settingsTitle": "Settings",
+    "settingsHint": "Saving restarts the app. Deploys and rollbacks restart it too, with the new release.",
+    "versionHelp": "Install other versions under Services → Runtimes.",
+    "port": "Port",
+    "portHelp": "0 (recommended): a unix socket only nginx can reach. A port is on 127.0.0.1, where any process on the server can reach it.",
+    "healthPath": "Health check path",
+    "healthPathHelp": "What the panel asks for to check the app answers.",
+    "socket": "nginx reaches the app at {socket}.",
+    "envTitle": "Environment",
+    "envHint": "Variables the app sees in its environment. Saving restarts it.",
+    "variables": "Variables",
+    "name": "NAME",
+    "value": "Value",
+    "addVariable": "Add a variable",
+    "secrets": "Secrets",
+    "secretsHint": "Stored encrypted and never shown again; the app gets them like any variable.",
+    "addSecret": "Add a secret",
+    "nameRule": "{name} is not a variable name: capital letters, digits and _, not starting with a digit.",
+    "saveRestart": "Save and restart",
+    "saved": "App saved and restarted",
+    "restarted": "App restarted"
+  },
+  "runtimes": {
+    "title": "Runtimes",
+    "hint": "Node.js and Python for the Node.js and Python sites. Node.js comes from nodejs.org, checked against its published checksums; Python is the system's own.",
+    "installed": "Installed",
+    "install": "Install",
+    "queued": "Installation started"
+  },
+  "fn": {
+    "title": "Functions",
+    "hint": "Small handlers at /.functions/… on this site. Nothing runs between requests.",
+    "none": "No functions yet.",
+    "new": "New function",
+    "create": "Create",
+    "namePlaceholder": "name, e.g. contact-form",
+    "nameRule": "A name is lower-case letters, digits and -, starting with a letter.",
+    "created": "Function created",
+    "saved": "Function deployed",
+    "rolledBack": "Previous code is live again",
+    "deleted": "Function deleted",
+    "deleteConfirm": "Delete the function {name}? Its address stops answering.",
+    "scheduled": "Runs on a schedule",
+    "endpoint": "Each request runs the handler in a process of its own, with the memory and time below.",
+    "code": "Code",
+    "codeHelpNode": "index.js: export handler(event), plain or async. Only Node.js's standard library is available.",
+    "codeHelpPython": "main.py: def handler(event), plain or async. Only Python's standard library is available.",
+    "memory": "Memory",
+    "timeout": "Timeout",
+    "seconds": "seconds",
+    "schedule": "Schedule",
+    "scheduleHelp": "Five cron fields, in the panel's time zone. Empty: never.",
+    "deploy": "Deploy",
+    "test": "Test",
+    "rollback": "Roll back",
+    "invocations": "Invocations",
+    "invocationsHint": "The latest requests, from the site's access log. A 502 is a crash, a timeout or the memory limit.",
+    "testResult": "HTTP {status} in {ms} ms",
+    "testFailed": "No answer",
+    "when": "When",
+    "source": "Source",
+    "status": "Status",
+    "duration": "Duration",
+    "noInvocations": "No invocations yet.",
+    "output": "Output (console and errors)",
+    "src": {
+      "http": "Request",
+      "schedule": "Schedule",
+      "test": "Test"
+    }
   }
 }

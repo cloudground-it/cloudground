@@ -1,0 +1,36 @@
+{
+  "params": {
+    "full": {
+      "runtime": "Runtime",
+      "version": "Version"
+    },
+    "zero": {
+      "runtime": "",
+      "version": ""
+    }
+  },
+  "result": {
+    "full": {
+      "node": [
+        {
+          "version": "Version",
+          "full": "Full"
+        }
+      ],
+      "python": [
+        {
+          "version": "Version",
+          "full": "Full"
+        }
+      ],
+      "python_distro": [
+        "PythonDistro"
+      ]
+    },
+    "zero": {
+      "node": null,
+      "python": null,
+      "python_distro": null
+    }
+  }
+}

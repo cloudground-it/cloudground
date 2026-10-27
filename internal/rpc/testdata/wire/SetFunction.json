@@ -1,0 +1,49 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "function": {
+        "name": "Name",
+        "runtime": "Runtime",
+        "version": "Version",
+        "memory_mb": 7,
+        "timeout_sec": 7,
+        "schedule": "Schedule",
+        "env": {
+          "key": "Env"
+        },
+        "secrets": [
+          "Secrets"
+        ],
+        "release": "Release"
+      },
+      "code": "Code",
+      "env": {
+        "key": "Env"
+      }
+    },
+    "zero": {
+      "site": "@state.Site",
+      "function": {
+        "name": "",
+        "runtime": "",
+        "version": "",
+        "memory_mb": 0,
+        "timeout_sec": 0
+      },
+      "env": null
+    }
+  },
+  "result": {
+    "full": {
+      "release": "Release",
+      "releases": [
+        "Releases"
+      ]
+    },
+    "zero": {
+      "release": "",
+      "releases": null
+    }
+  }
+}

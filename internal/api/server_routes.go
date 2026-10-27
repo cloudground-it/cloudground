@@ -119,7 +119,7 @@ func (s *Server) handleReadLog(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSiteLog(w http.ResponseWriter, r *http.Request, c *call) {
 	kind := r.URL.Query().Get("source")
 	switch kind {
-	case "access", "error", "php", "cleanup":
+	case "access", "error", "php", "cleanup", "app":
 	default:
 		respondErr(w, http.StatusBadRequest, "source must be access, error, php or cleanup")
 		return

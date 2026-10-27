@@ -31,10 +31,12 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/ops/db"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/dbstudio"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/files"
+	"github.com/cloudground-it/cloudground/internal/agent/ops/functions"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/gitdeploy"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/malware"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/panel"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/release"
+	"github.com/cloudground-it/cloudground/internal/agent/ops/runtimes"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/sftp"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/sites"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/staging"
@@ -84,6 +86,8 @@ type Paths struct {
 	Signatures    string // the malware scan's signature set, readable in a site's sandbox
 	AuthLogSocket string // where WordPress vhosts log failed sign-ins for the block list; "" logs none
 	TrafficDir    string // each site's traffic statistics (#33), aggregates only
+	RuntimesDir   string // installed Node.js majors (#28); "" is runtimes.Dir
+	FunctionsDir  string // the functions' environment files and shims (#143); "" is functions.Dir
 }
 
 // DefaultPaths is the installer's layout.
@@ -123,6 +127,8 @@ func DefaultPaths() Paths {
 		Signatures:    "/var/lib/cloudground-signatures",
 		AuthLogSocket: blocklist.DefaultSocket,
 		TrafficDir:    traffic.DefaultDir,
+		RuntimesDir:   "/var/lib/cloudground-runtimes",
+		FunctionsDir:  "/etc/cloudground-fn",
 	}
 }
 
@@ -166,10 +172,11 @@ type Agent struct {
 
 	// Each domain's handlers, built once (they keep locks and caches) by
 	// the <domain>Handlers methods of the ops_*.go files.
-	sitesOnce, certsOnce, panelOnce, systemOnce, filesOnce, sftpOnce sync.Once
-	wpOnce, cronOnce, dbOnce, releaseOnce, backupOnce, stagingOnce   sync.Once
-	gitDeployOnce                                                    sync.Once
-	dbStudioOnce, malwareOnce, blocklistOnce, trafficOnce            sync.Once
+	sitesOnce, certsOnce, panelOnce, systemOnce, filesOnce, sftpOnce    sync.Once
+	wpOnce, cronOnce, dbOnce, releaseOnce, backupOnce, stagingOnce      sync.Once
+	gitDeployOnce                                                       sync.Once
+	dbStudioOnce, malwareOnce, blocklistOnce, trafficOnce, runtimesOnce sync.Once
+	functionsOnce                                                       sync.Once
 
 	// index is the record of the sites this agent provisioned.
 	index     siteIndex
@@ -192,6 +199,8 @@ type Agent struct {
 	malwareOps   *malware.Ops
 	blocklist    *blocklist.Ops
 	trafficOps   *traffic.Ops
+	runtimes     *runtimes.Ops
+	functions    *functions.Ops
 }
 
 // New is the agent of a real machine.
@@ -241,7 +250,7 @@ func (a *Agent) NewServer(cfg agentrpc.Config) *agentrpc.Server {
 		a.systemHandlers(), a.sitesHandlers(), a.certHandlers(), a.dbHandlers(),
 		a.releaseHandlers(), a.gitDeployHandlers(), a.stagingHandlers(), a.backupHandlers(), a.cronHandlers(),
 		a.filesHandlers(), a.sftpHandlers(), a.wpHandlers(), a.panelHandlers(), a.migrationHandlers(),
-		a.dbStudioHandlers(), a.malwareHandlers(), a.blocklistHandlers(), a.trafficHandlers(),
+		a.dbStudioHandlers(), a.malwareHandlers(), a.blocklistHandlers(), a.trafficHandlers(), a.runtimesHandlers(), a.functionsHandlers(),
 	} {
 		d.Register(s)
 	}

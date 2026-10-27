@@ -54,6 +54,7 @@ const phase = ref<'form' | 'summary'>('form')
 
 const isWP = computed(() => isWPType(state.type))
 const hasPHP = computed(() => hasPHPType(state.type))
+const isApp = computed(() => isAppType(state.type))
 const dbIsOptional = computed(() => dbOptional(state.type))
 const wantsDatabase = computed(() => wantsDB(state))
 const typeName = computed(() => t(`site.type.${state.type}`))
@@ -67,7 +68,7 @@ watch(() => [state.domain, state.aliases, state.type, state.with_db, state.db_na
 
 // ---- the choices ----
 // The artboard's order: the PHP applications, then the rest.
-const typeOrder: SiteType[] = ['wordpress', 'woocommerce', 'php', 'laravel', 'static', 'proxy']
+const typeOrder: SiteType[] = ['wordpress', 'woocommerce', 'php', 'laravel', 'node', 'python', 'static', 'proxy']
 const typeDefs = computed(() => typeOrder.map(v => ({ value: v, label: t(`site.type.${v}`), desc: t(`newSite.typeHint.${v}`), icon: siteTypeIcon[v] })))
 const profileDefs = computed(() => [
   { value: 'auto', label: t('site.profileRecommended', { p: t(`site.profile.${autoProfile(state.type)}`) }), desc: t('newSite.wizard.profileAutoHint', { type: typeName.value }) },
@@ -78,6 +79,18 @@ const phpItems = computed(() => [
   { label: caps.value?.default_php ? `${t('site.phpDefault')} · PHP ${caps.value.default_php}` : t('site.phpDefault'), value: 'auto' },
   ...(caps.value?.php_versions ?? []).map(v => ({ label: `PHP ${v}`, value: v }))
 ])
+// A Node.js or Python site's runtime: the versions offered, installed or not
+// (provisioning installs a missing one), the installed ones marked.
+const runtimeItems = computed(() => {
+  const node = state.type === 'node'
+  const have = (node ? caps.value?.runtimes?.node : caps.value?.runtimes?.python) ?? []
+  const distro = caps.value?.runtimes?.python_distro ?? []
+  const offered = node ? ['24', '22', '20'] : [...new Set([...have.map(v => v.version), ...(distro.length ? distro : ['3.12'])])]
+  const def = node ? '22' : (have[0]?.version ?? distro[0] ?? '3.12')
+  const label = (v: string) => `${node ? 'Node.js' : 'Python'} ${v}${have.some(h => h.version === v) ? '' : ` · ${t('app.willInstall')}`}`
+  return [{ label: `${t('site.phpDefault')} · ${label(def)}`, value: 'auto' }, ...offered.map(v => ({ label: label(v), value: v }))]
+})
+const startPlaceholder = computed(() => state.type === 'node' ? 'node server.js' : 'python -m gunicorn --bind unix:$PORT --workers 2 app:app')
 const profileName = computed(() => t(`site.profile.${state.profile === 'auto' ? autoProfile(state.type) : state.profile}`))
 
 // ---- checks (the server's rules; it checks again) ----
@@ -258,6 +271,10 @@ const review = computed<{ step: WizardStep, rows: ReviewRow[] }[]>(() => {
       { label: t('site.adminPassword'), value: pw(state.admin_password) })
   }
   if (state.type === 'proxy') setup.push({ label: t('site.upstream'), value: state.proxy_upstream.trim(), mono: true })
+  if (isApp.value) {
+    setup.push({ label: t('app.runtime'), value: runtimeItems.value.find(i => i.value === state.runtime_version)?.label ?? state.runtime_version })
+    setup.push({ label: t('app.start'), value: state.start_command.trim() || startPlaceholder.value, mono: true })
+  }
   const db: ReviewRow[] = wantsDatabase.value
     ? [{ label: t('newSite.dbName'), value: state.db_name, mono: true }, { label: t('newSite.dbUser'), value: state.db_user, mono: true }, { label: t('newSite.dbPassword'), value: pw(state.db_password) }]
     : [{ label: t('newSite.dbPart'), value: t('newSite.wizard.none') }]
@@ -519,6 +536,15 @@ onBeforeRouteLeave(async () => {
                 <UFormField v-if="state.type === 'proxy'" :label="t('site.upstream')" required :error="shownError('proxy_upstream')" :help="t('newSite.upstreamHelp')">
                   <UInput v-model="state.proxy_upstream" placeholder="http://127.0.0.1:3000" class="w-full" :ui="{ base: 'font-mono' }" autocomplete="off" spellcheck="false" />
                 </UFormField>
+
+                <template v-if="isApp">
+                  <UFormField :label="t('app.runtime')" :help="t('app.runtimeHelp')" class="max-w-[24rem]">
+                    <USelect v-model="state.runtime_version" :items="runtimeItems" class="w-full" />
+                  </UFormField>
+                  <UFormField :label="t('app.start')" :error="shownError('start_command')" :help="t('app.startHelp')">
+                    <UInput v-model="state.start_command" :placeholder="startPlaceholder" class="w-full" :ui="{ base: 'font-mono' }" autocomplete="off" spellcheck="false" maxlength="1024" />
+                  </UFormField>
+                </template>
 
                 <UFormField v-if="hasPHP" label="PHP" :help="t('newSite.wizard.phpHint')" class="max-w-[24rem]">
                   <USelect v-model="state.php_version" :items="phpItems" class="w-full" />

@@ -34,6 +34,7 @@ func (a *Agent) capabilities(ctx context.Context, _ agentrpc.None) (rpc.Capabili
 		ProtectedTables: staging.ProtectedRules(),
 		Paths:           rpc.HostPaths{SitesRoot: a.Paths.SitesRoot, LogRoot: a.Paths.LogRoot, MySQLSocket: a.Paths.MySQLSocket},
 		Features:        rpc.Features{HTTP3: s.HTTP3(ctx)},
+		Runtimes:        a.runtimesHandlers().List(),
 	}
 	if v, err := a.ResticVersion(ctx); err == nil {
 		caps.ResticVersion, caps.ResticSupported = v.Line, v.TypedExitCodes()

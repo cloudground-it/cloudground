@@ -60,6 +60,8 @@ const links = computed(() => {
     { label: t('tabs.overview'), icon: 'i-cg-dashboard', to: base.value, exact: true },
     { label: t('tabs.cache'), icon: 'i-cg-cache', to: `${base.value}/cache` }
   ]
+  // A Node.js or Python site's app: its health, settings and environment (#28).
+  if (isAppSite(s)) items.splice(1, 1, { label: t('tabs.app'), icon: s.type === 'node' ? 'i-brand-node' : 'i-brand-python', to: `${base.value}/app` })
   if (isWordPress(s)) items.push({ label: 'WordPress', icon: 'i-cg-plug', to: `${base.value}/wordpress` })
   // The malware scan covers every site with files; the vulnerability check WordPress.
   if (s.type !== 'proxy') items.push({ label: t('tabs.security'), icon: 'i-cg-shield-check', to: `${base.value}/security` })
@@ -73,6 +75,8 @@ const links = computed(() => {
     { label: t('tabs.files'), icon: 'i-cg-folder', to: `${base.value}/files` }
   )
   const more: Tab[] = [{ label: 'Cron', icon: 'i-cg-cron', to: `${base.value}/cron` }]
+  // Functions at /.functions/<name> (issue 143); a staging copy has none of its own.
+  if (!s.staging_of) more.push({ label: t('tabs.functions'), icon: 'i-cg-webhook', to: `${base.value}/functions` })
   if (s.php_version) more.push({ label: 'PHP', icon: 'i-cg-code', to: `${base.value}/php` })
   // mail() of a PHP site goes through the panel's relay (#77).
   if (s.php_version) more.push({ label: t('tabs.mail'), icon: 'i-cg-bell', to: `${base.value}/mail` })

@@ -36,6 +36,9 @@ func (st stagingService) Create(ctx context.Context, actor string, prod state.Si
 	if prod.StagingOf != 0 {
 		return state.Site{}, jobs.Task{}, refuse(probInvalid, "cannot stage a staging site")
 	}
+	if prod.Type.IsApp() {
+		return state.Site{}, jobs.Task{}, refuse(probInvalid, "staging is not available for Node.js and Python sites")
+	}
 	if prod.Status == state.SiteDeleting {
 		return state.Site{}, jobs.Task{}, refuse(probConflict, "this site is being deleted")
 	}
@@ -77,6 +80,8 @@ func (st stagingService) record(prod state.Site, root string) (state.Site, siteS
 	rec.Status = state.SiteProvisioning
 	rec.StagingOf = prod.ID
 	rec.Config.HSTS = false
+	// Functions stay with production (§3.22).
+	rec.Config.Functions = nil
 	// The staging name may be a domain or an alias of another site: 409.
 	created, err := st.srv.siteSvc().insertNamed(rec)
 	if err != nil {

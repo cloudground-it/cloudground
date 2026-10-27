@@ -174,11 +174,24 @@ var (
 	FirewallStatus      = define[None, rpc.FirewallStatusResult](Spec{Name: "FirewallStatus", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the firewall status"})
 	PHPExtensions       = define[rpc.PHPExtensionsParams, rpc.PHPExtensionsResult](Spec{Name: "PHPExtensions", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not list the PHP extensions"})
 	PHPExtInstall       = define[rpc.PHPExtensionInstallParams, rpc.PHPExtensionsResult](Spec{Name: "PHPExtensionInstall", Timeout: 15 * mins, Fail: "Could not install the PHP extension"})
-	FirewallRule        = define[rpc.FirewallRuleParams, map[string]string](Spec{Name: "FirewallRule", Timeout: 2 * mins, Fail: "Could not change the firewall"})
-	FirewallEnable      = define[rpc.FirewallEnableParams, rpc.FirewallStatusResult](Spec{Name: "FirewallEnable", Timeout: 2 * mins, Fail: "Could not turn the firewall on"})
-	ArchiveSnapshot     = define[rpc.ArchiveParams, rpc.ArchiveResult](Spec{Name: "ArchiveSnapshot", Timeout: 7 * hrs, Sites: true, Fail: "Could not prepare the backup for download"})
-	ReadArchiveChunk    = define[rpc.ArchiveChunkParams, rpc.ArchiveChunkResult](Spec{Name: "ReadArchiveChunk", Timeout: 2 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the backup archive"})
-	DeleteArchive       = define[rpc.ArchiveChunkParams, map[string]any](Spec{Name: "DeleteArchive", Timeout: 1 * mins, Sites: true, Fail: "Could not delete the backup archive"})
+	// Managed Node.js and Python sites (#28, ops/runtimes and ops/sites SPEC §11).
+	Runtimes       = define[None, rpc.RuntimesResult](Spec{Name: "Runtimes", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not list the runtimes"})
+	RuntimeInstall = define[rpc.RuntimeInstallParams, rpc.RuntimesResult](Spec{Name: "RuntimeInstall", Timeout: 20 * mins, Fail: "Could not install the runtime"})
+	SetAppEnv      = define[rpc.AppEnvParams, None](Spec{Name: "SetAppEnv", Timeout: 2 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not set the app's environment"})
+	AppStatus      = define[rpc.SiteRef, rpc.AppStatusResult](Spec{Name: "AppStatus", Timeout: 30 * sec, Sites: true, ReadOnly: true, Fail: "Could not read the app's status"})
+	AppControl     = define[rpc.AppControlParams, rpc.AppStatusResult](Spec{Name: "AppControl", Timeout: 2 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not control the app"})
+	// A site's functions (#143, ops/functions SPEC).
+	SetFunction      = define[rpc.SetFunctionParams, rpc.FunctionResult](Spec{Name: "SetFunction", Timeout: 2 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not set the function up"})
+	DeleteFunction   = define[rpc.FunctionRef, None](Spec{Name: "DeleteFunction", Timeout: 2 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not delete the function"})
+	FunctionCode     = define[rpc.FunctionRef, rpc.FunctionCodeResult](Spec{Name: "FunctionCode", Timeout: 30 * sec, Sites: true, ReadOnly: true, Fail: "Could not read the function's code"})
+	FunctionRollback = define[rpc.FunctionRollbackParams, rpc.FunctionResult](Spec{Name: "FunctionRollback", Timeout: 1 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not roll the function back"})
+	InvokeFunction   = define[rpc.InvokeFunctionParams, rpc.InvokeResult](Spec{Name: "InvokeFunction", Timeout: 6 * mins, Sites: true, ReadOnly: true, Fail: "Could not invoke the function"})
+	FunctionLogs     = define[rpc.FunctionRef, rpc.FunctionLogsResult](Spec{Name: "FunctionLogs", Timeout: 30 * sec, Sites: true, ReadOnly: true, Fail: "Could not read the function's logs"})
+	FirewallRule     = define[rpc.FirewallRuleParams, map[string]string](Spec{Name: "FirewallRule", Timeout: 2 * mins, Fail: "Could not change the firewall"})
+	FirewallEnable   = define[rpc.FirewallEnableParams, rpc.FirewallStatusResult](Spec{Name: "FirewallEnable", Timeout: 2 * mins, Fail: "Could not turn the firewall on"})
+	ArchiveSnapshot  = define[rpc.ArchiveParams, rpc.ArchiveResult](Spec{Name: "ArchiveSnapshot", Timeout: 7 * hrs, Sites: true, Fail: "Could not prepare the backup for download"})
+	ReadArchiveChunk = define[rpc.ArchiveChunkParams, rpc.ArchiveChunkResult](Spec{Name: "ReadArchiveChunk", Timeout: 2 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the backup archive"})
+	DeleteArchive    = define[rpc.ArchiveChunkParams, map[string]any](Spec{Name: "DeleteArchive", Timeout: 1 * mins, Sites: true, Fail: "Could not delete the backup archive"})
 	// The block list (internal/agent/ops/blocklist SPEC). Reading the
 	// failures takes them away, so it is not read-only: a reply lost to a
 	// cancelled caller would lose them.

@@ -386,6 +386,34 @@ func matrixCases() []matrixCase {
 		in.Blocking = &engine.Blocking{Addresses: []netip.Prefix{netip.MustParsePrefix("203.0.113.0/24")}}
 		add(fmt.Sprintf("%s-opt-cloudflare", b.name), b, in)
 	}
+	// Managed apps (#28, SPEC §4.12), last for the same reason: a Node.js
+	// app on its socket, a Python app on a loopback port.
+	for _, b := range matrixBuilds {
+		for _, typ := range []state.SiteType{state.SiteNode, state.SitePython} {
+			id++
+			in := matrixInput(id, typ, state.ProfileBalanced, false)
+			in.Site.PHPVersion, in.PHPSocket = "", ""
+			in.Site.Config.App = state.SiteApp{Version: "22", Start: "node server.js"}
+			in.AppUpstream = "unix:/run/cloudground/app/" + in.Site.SystemUser + "/app.sock"
+			if typ == state.SitePython {
+				in.Site.Config.App = state.SiteApp{Version: "3.12", Start: "python -m gunicorn --bind 127.0.0.1:8001 app:app", Port: 8001}
+				in.AppUpstream = "127.0.0.1:8001"
+			}
+			in.Policy = velocity.PolicyFor(in.Site)
+			add(fmt.Sprintf("%s-opt-%s", b.name, typ), b, in)
+		}
+	}
+	// Functions (#143, SPEC §4.13), last for the same reason: a WordPress
+	// site with two of them.
+	for _, b := range matrixBuilds {
+		id++
+		in := matrixInput(id, state.SiteWordPress, state.ProfileBalanced, true)
+		for i, name := range []string{"hello", "webhook-2"} {
+			in.Functions = append(in.Functions, engine.FunctionRoute{Name: name, Socket: fmt.Sprintf("/run/cloudground/fn/cg-site-%d/%s.sock", id, name), TimeoutSec: 10 * (i + 1)})
+			in.FunctionsInvokeSocket = "/var/lib/cloudground-agent/nginx-functions.sock"
+		}
+		add(fmt.Sprintf("%s-opt-functions", b.name), b, in)
+	}
 	return cases
 }
 

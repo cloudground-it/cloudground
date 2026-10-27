@@ -30,6 +30,7 @@ const (
 	smallBody      = 8 << 10   // credentials and profile fields
 	blockingBody   = 64 << 10  // a site's blocking rules: 500 networks, 50 user agents
 	redirectBody   = 512 << 10 // a site's redirect rules: 200 of up to 1.5 KB
+	appBody        = 512 << 10 // a managed app: 100 variables of up to 4 KiB
 	certBody       = 256 << 10 // a PEM chain and key
 	dbEditBody     = 16 << 20  // a batch of row changes
 	fileUploadBody = maxPanelTransfer
@@ -215,6 +216,30 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "remove it and go back to Let's Encrypt: the certificate for the site's current names is requested (`{status, task}`; `{status, warning}` without an ACME e-mail)"},
 		{Method: get, Path: "/api/sites/{id}/traffic", Policy: policySignedIn, Load: loadSite, Handle: s.handleTraffic,
 			Section: secSites, Doc: "visitor statistics from the site's access log, built on the server (no cookie, no third party): `?days=7|30|90` (7 by default) answers `days`, `hours` (the last 48), `totals`, `top_pages`, `top_not_found` and `collected_at`; each day `requests`, `pageviews`, `visitors` (per day), `bots`, `bytes`, `status_2xx`…`status_5xx`, `cache_hit`, `cache_miss`, `cache_bypass`"},
+		{Method: get, Path: "/api/sites/{id}/app", Policy: policySignedIn, Load: loadSite, Handle: s.handleGetApp,
+			Section: secSites, Doc: "a Node.js or Python site's app: `version`, `start`, `env` (plain variables), `secrets` (names only), `port` (0: the unix socket), `health_path` and the `socket` nginx proxies to"},
+		{Method: put, Path: "/api/sites/{id}/app", Policy: policyManage, MaxBody: appBody, Load: loadSite, Handle: s.handleSetApp,
+			Section: secSites, Doc: "change the app (a field left out keeps its value; `secrets` maps a name to its value, `\"\"` removes it, `••••••••` keeps it): the environment is written, the app restarted; 412 for a runtime version the server lacks"},
+		{Method: get, Path: "/api/sites/{id}/app/status", Policy: policySignedIn, Load: loadSite, Handle: s.handleAppStatus,
+			Section: secSites, Doc: "the app's unit (`active`, `state`, `since`, `restarts`, `last_exit`) and its health probe (`health {status, ms, error}`)"},
+		{Method: post, Path: "/api/sites/{id}/app/restart", Policy: policyManage, Load: loadSite, Handle: s.handleAppRestart,
+			Section: secSites, Doc: "restart the app; answers its status"},
+		{Method: get, Path: "/api/sites/{id}/functions", Policy: policySignedIn, Load: loadSite, Handle: s.handleListFunctions,
+			Section: secSites, Doc: "the site's functions (Lambda-style handlers at `https://<domain>/.functions/<name>`): `name`, `runtime`, `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets` (names), `release`, `url`"},
+		{Method: post, Path: "/api/sites/{id}/functions", Policy: policyManage, MaxBody: appBody, Load: loadSite, Handle: s.handleCreateFunction,
+			Section: secSites, Doc: "create a function (`{\"name\": \"hello\", \"runtime\": \"node\", \"version\": \"22\", \"memory_mb\": 128, \"timeout_sec\": 10, \"schedule\": \"*/5 * * * *\", \"code\": \"…\", \"env\": {}, \"secrets\": {}}`; without code, a starter that echoes the request); 201"},
+		{Method: get, Path: "/api/sites/{id}/functions/{name}", Policy: policySignedIn, Load: loadSite, Handle: s.handleGetFunction,
+			Section: secSites, Doc: "a function with its live `code`, `release` and `releases`"},
+		{Method: put, Path: "/api/sites/{id}/functions/{name}", Policy: policyManage, MaxBody: appBody, Load: loadSite, Handle: s.handleUpdateFunction,
+			Section: secSites, Doc: "change a function (any of `code`, a new release; `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets`)"},
+		{Method: del, Path: "/api/sites/{id}/functions/{name}", Policy: policyManage, Load: loadSite, Handle: s.handleDeleteFunction,
+			Section: secSites, Doc: "delete a function: its route, units, code and secrets"},
+		{Method: post, Path: "/api/sites/{id}/functions/{name}/rollback", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleRollbackFunction,
+			Section: secSites, Doc: "put the previous release of the code back live (`{\"release\": …}` for a given one)"},
+		{Method: post, Path: "/api/sites/{id}/functions/{name}/invoke", Policy: policyManage, MaxBody: 128 << 10, Load: loadSite, Handle: s.handleInvokeFunction,
+			Section: secSites, Doc: "run the function once through nginx (`{\"body\": \"…\"}`): `{status, ms, body, error}`"},
+		{Method: get, Path: "/api/sites/{id}/functions/{name}/logs", Policy: policySignedIn, Load: loadSite, Handle: s.handleFunctionLogs,
+			Section: secSites, Doc: "the function's recent `invocations` (time, method, status, ms, source) and its `output`"},
 		{Method: post, Path: "/api/sites/{id}/purge", Policy: policyManage, Load: loadSite, Handle: s.handlePurge,
 			Section: secSites, Doc: "empty the site's page cache (`{\"urls\": […]}` for some pages only); for a site with a Cloudflare zone, Cloudflare's too (`cdn`: `purged` or `failed`, with `cdn_error`)"},
 		{Method: post, Path: "/api/sites/{id}/warm", Policy: policyManage, Load: loadSite, Handle: s.handleWarmCache,
@@ -495,6 +520,10 @@ func (s *Server) routeTable() []route {
 			Section: secServer, Doc: "`{\"action\":\"restore\"}` puts the file back, `{\"action\":\"accept\"}` keeps it (accept: a signed-in session only, an API token gets 403)"},
 		{Method: post, Path: "/api/system/maintenance", Policy: policyAdmin, Handle: s.handleRunMaintenance,
 			Section: secServer, Doc: "run one maintenance tick now and wait for it"},
+		{Method: get, Path: "/api/runtimes", Policy: policyAdmin, Handle: plain(s.handleGetRuntimes),
+			Section: secServer, Doc: "the Node.js and Python versions installed (`installed`) and those that can be (`available`), for Node.js and Python sites"},
+		{Method: post, Path: "/api/runtimes/install", Policy: policyAdmin, MaxBody: smallBody, Handle: s.handleInstallRuntime,
+			Section: secServer, Doc: "install a runtime version (`{\"runtime\": \"node\", \"version\": \"22\"}`, Node.js from nodejs.org checked against its SHA-256 sums, Python from the distro); answers the task"},
 		{Method: get, Path: "/api/php/{version}/extensions", Policy: policySignedIn, Handle: s.handlePHPExtensions,
 			Section: secServer, Doc: "what a PHP version loads: every module, and the common extensions with `installed`"},
 		{Method: post, Path: "/api/php/{version}/extensions", Policy: policyAdmin, Handle: s.handleInstallPHPExtension,

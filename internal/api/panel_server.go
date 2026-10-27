@@ -146,6 +146,9 @@ type Server struct {
 	cfRanges         *cfRangesInUse
 	cloudflareAPI    string
 	cloudflareClient *http.Client
+	// fnRuns is the functions sweep's memory of what ran in which minute
+	// (functions.go).
+	fnRuns fnRuns
 
 	// dnsChecks limits the DNS readiness check; dnsLookup resolves its
 	// names (nil: the system resolver; tests replace it) (dns_check.go).

@@ -7,6 +7,25 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.8.0
+
+Beyond WordPress. What changes for a person running the panel:
+
+- **Node.js and Python sites**: two new site types run your app as a service of the site's own
+  user, inside its sandbox and resource limits, behind nginx on a private socket. Node.js 20, 22
+  or 24 is downloaded from nodejs.org and checked against its published checksums; Python is the
+  server's, with a virtual environment per site. Each release installs its own dependencies
+  (`npm ci`, or pip in the venv), so a rollback brings back exactly what that release ran; a
+  failed install leaves the live release live. Variables and encrypted secrets, the app's log,
+  automatic restarts and its health on the new App tab; deploy from Git works the same way;
+- **functions**: small Node.js or Python handlers at `https://<domain>/.functions/<name>`, or on
+  a schedule. Nothing runs between requests: each call starts its own process with its memory
+  and time limits, and a flood is held back (per client and per site) instead of piling up
+  processes. Invocations, status, duration and output in the panel; code changes are releases
+  you can roll back;
+- fixed: a managed app restarted several times in a row (a deploy, a rollback, saving its
+  variables) could be left stopped by systemd's start limit.
+
 ## v0.7.0
 
 Traffic and visibility. What changes for a person running the panel:

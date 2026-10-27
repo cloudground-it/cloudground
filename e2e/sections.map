@@ -25,6 +25,8 @@
 @serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup, git deploy webhook
 @serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup, cloudflare
 @serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup, traffic statistics
+@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup, git deploy webhook, managed apps
+@serving = site types, woocommerce, wordpress cache, wordpress staging, wordpress certificates, wordpress logs, wordpress slow request, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, SR tenant data, protected paths, blocklist, site blocking, wordpress two-factor, wordpress hardening, dev mode, maintenance page, wordpress cleanup, git deploy webhook, managed apps, functions
 # Every section with a PHP site (its own FPM master, pool and slice).
 @php = site types, woocommerce, wordpress cache, wordpress staging, wordpress status and drift, wordpress sftp, wordpress logs, wordpress slow request, wordpress cron, wordpress safe push, wordpress releases, wordpress backups, wordpress teardown, migration import, security, woocommerce security, R-0.7 reconcile, R-5.2 reload drain, R-3.7 site lifecycle, R-5.4 routing, protected paths, wordpress two-factor, wordpress hardening, dev mode, mail relay
 # Every section with a WordPress site (database, wp-cli, the connector).
@@ -92,6 +94,14 @@ internal/api/site_maintenance.go       maintenance page
 internal/api/traffic.go                traffic statistics
 internal/traffic/**                    traffic statistics
 internal/agent/ops/traffic/**          traffic statistics
+internal/api/site_app.go               managed apps
+internal/api/runtimes.go               managed apps
+internal/runtimes/**                   managed apps
+internal/agent/ops/runtimes/**         managed apps
+internal/agent/ops/sites/app.go        managed apps
+internal/api/functions.go              functions
+internal/functions/**                  functions
+internal/agent/ops/functions/**        functions
 internal/engine/nginx/maintenance.go   maintenance page
 internal/site/maintenance.go           maintenance page
 internal/api/site_redirects.go         site redirects

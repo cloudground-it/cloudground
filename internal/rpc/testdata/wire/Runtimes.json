@@ -1,0 +1,30 @@
+{
+  "params": {
+    "full": {},
+    "zero": {}
+  },
+  "result": {
+    "full": {
+      "node": [
+        {
+          "version": "Version",
+          "full": "Full"
+        }
+      ],
+      "python": [
+        {
+          "version": "Version",
+          "full": "Full"
+        }
+      ],
+      "python_distro": [
+        "PythonDistro"
+      ]
+    },
+    "zero": {
+      "node": null,
+      "python": null,
+      "python_distro": null
+    }
+  }
+}

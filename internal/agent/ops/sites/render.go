@@ -25,8 +25,10 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/ops/wp"
 	"github.com/cloudground-it/cloudground/internal/blocklist"
 	"github.com/cloudground-it/cloudground/internal/engine"
+	"github.com/cloudground-it/cloudground/internal/functions"
 	"github.com/cloudground-it/cloudground/internal/phpfpm"
 	"github.com/cloudground-it/cloudground/internal/rpc"
+	"github.com/cloudground-it/cloudground/internal/runtimes"
 	"github.com/cloudground-it/cloudground/internal/site"
 	"github.com/cloudground-it/cloudground/internal/state"
 	"github.com/cloudground-it/cloudground/internal/sysprobe"
@@ -126,6 +128,13 @@ func (o *Ops) input(ctx context.Context, s state.Site) engine.Input {
 	}
 	if s.Config.Cloudflare.RealIP {
 		in.CloudflareInclude, _ = o.cloudflareFiles()
+	}
+	if isApp(s) {
+		in.AppUpstream = runtimes.Upstream(s)
+	}
+	for _, f := range s.Config.Functions {
+		in.Functions = append(in.Functions, engine.FunctionRoute{Name: f.Name, Socket: functions.SocketPath(s.SystemUser, f.Name), TimeoutSec: f.TimeoutSec})
+		in.FunctionsInvokeSocket = functions.InvokeSocket
 	}
 	o.probeBuild(ctx)
 	in.HTTP3, in.HTTP2Directive = o.http3, o.http2On
@@ -313,6 +322,11 @@ func (o *Ops) render(ctx context.Context, s state.Site, onlyIfChanged bool) ([]r
 	}
 	if isPHP(s) {
 		if err := o.renderPHP(ctx, s, phpTx, onlyIfChanged); err != nil {
+			return fail(err)
+		}
+	}
+	if isApp(s) {
+		if err := o.renderApp(ctx, s, phpTx, onlyIfChanged); err != nil {
 			return fail(err)
 		}
 	}
@@ -577,6 +591,9 @@ func sliceDropin(s state.Site) string {
 // rollbackPHP restores the PHP master's files a failed render wrote and
 // reloads what read them (SPEC §4.6); nginx's are restored by renderNginx.
 func (o *Ops) rollbackPHP(ctx context.Context, s state.Site, tx *configTx) error {
+	if isApp(s) {
+		return o.rollbackApp(ctx, s, tx)
+	}
 	errs := []error{tx.restore()}
 	if !tx.existed(o.dropinPath(s)) {
 		_ = os.Remove(o.dropinDir(s)) // only if empty: it was made for the drop-in
@@ -715,6 +732,10 @@ func (o *Ops) startPHP(ctx context.Context, s state.Site, restart bool) error {
 // ReloadPHP makes the site's master pick up new code. A site without PHP,
 // or whose master is not there yet, has nothing to reload.
 func (o *Ops) ReloadPHP(ctx context.Context, s state.Site) error {
+	if isApp(s) {
+		// An app reads its code when it starts (SPEC §11.1).
+		return o.restartApp(ctx, s)
+	}
 	if s.PHPVersion == "" || !site.ValidSystemUser(s.SystemUser) {
 		return nil
 	}
@@ -727,6 +748,9 @@ func (o *Ops) ReloadPHP(ctx context.Context, s state.Site) error {
 // RestartPHP replaces the site's master: a fresh mount of its root, empty
 // OPcache and APCu.
 func (o *Ops) RestartPHP(ctx context.Context, s state.Site) error {
+	if isApp(s) {
+		return o.restartApp(ctx, s)
+	}
 	if s.PHPVersion == "" || !site.ValidSystemUser(s.SystemUser) {
 		return nil
 	}

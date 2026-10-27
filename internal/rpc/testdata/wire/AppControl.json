@@ -1,0 +1,36 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "action": "Action"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "action": ""
+    }
+  },
+  "result": {
+    "full": {
+      "active": true,
+      "state": "State",
+      "since": "2026-01-02T03:04:05Z",
+      "restarts": 7,
+      "last_exit": 7,
+      "health": {
+        "status": 7,
+        "ms": 7,
+        "error": "Error"
+      }
+    },
+    "zero": {
+      "active": false,
+      "state": "",
+      "restarts": 0,
+      "last_exit": 0,
+      "health": {
+        "status": 0,
+        "ms": 0
+      }
+    }
+  }
+}

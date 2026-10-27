@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/engine"
+	"github.com/cloudground-it/cloudground/internal/runtimes"
 	"github.com/cloudground-it/cloudground/internal/site"
 	"github.com/cloudground-it/cloudground/internal/state"
 )
@@ -109,9 +110,17 @@ func prepare(in engine.Input) (*vhost, error) {
 	if err := site.CheckRedirects(s.Config.Redirects, append([]string{s.Domain}, s.Aliases...)); err != nil {
 		return nil, err
 	}
+	for _, f := range in.Functions {
+		if !functionNameRe.MatchString(f.Name) || f.Socket != fmt.Sprintf("/run/cloudground/fn/cg-site-%d/%s.sock", s.ID, f.Name) || f.TimeoutSec < 1 || f.TimeoutSec > 300 {
+			return nil, fmt.Errorf("invalid function %q", f.Name)
+		}
+	}
+	if s.Type.IsApp() != (in.AppUpstream != "") || (in.AppUpstream != "" && !appUpstreamRe.MatchString(in.AppUpstream)) {
+		return nil, fmt.Errorf("invalid app upstream %q", in.AppUpstream)
+	}
 	v := &vhost{
 		in:       in,
-		php:      in.PHPSocket != "" && s.Type != state.SiteProxy && s.Type != state.SiteStatic,
+		php:      in.PHPSocket != "" && !proxied(s) && s.Type != state.SiteStatic,
 		skipVar:  "$cg_skip_" + strconv.FormatInt(s.ID, 10),
 		zoneName: "cg_" + strconv.FormatInt(s.ID, 10),
 	}
@@ -166,8 +175,11 @@ func RoutingContextOf(in engine.Input) RoutingContext {
 		SiteRoot: in.Site.RootPath, Domains: append([]string{in.Site.Domain}, in.Site.Aliases...),
 		SystemPorts: in.SystemPorts, LocalAddrs: in.LocalAddrs, Resolve: in.Resolve,
 	}
-	if in.Site.Type != state.SiteProxy {
+	if !proxied(in.Site) {
 		rc.DocRoot = in.DocRoot
+	}
+	if in.Site.Type.IsApp() {
+		rc.AppUpstream = runtimes.UpstreamName(in.Site.ID)
 	}
 	return rc
 }
@@ -254,6 +266,25 @@ func (v *vhost) render() (before, block, after string) {
 	v.protectedMaps(&c)
 	v.xmlrpcMaps(&c)
 	v.maintenanceMaps(&c)
+	if len(in.Functions) > 0 {
+		// Only the agent's own invocation, on the root-only unix socket,
+		// names its source (SPEC §4.13).
+		c.put(0, "")
+		c.putf(0, "map $remote_addr $cg_fn_source_%d {", s.ID)
+		c.put(1, `default  "";`, "unix:  $http_x_cloudground_source;")
+		c.put(0, "}")
+		// One process per connection: a flood is bounded here, per client
+		// and for the whole site, before it reaches the sockets (SPEC §4.13).
+		c.putf(0, "limit_req_zone $binary_remote_addr zone=cg_fn_req_%d:1m rate=%dr/s;", s.ID, FunctionRatePerSecond)
+		c.putf(0, "limit_conn_zone $binary_remote_addr zone=cg_fn_conn_%d:1m;", s.ID)
+		c.putf(0, "limit_conn_zone $server_port zone=cg_fn_all_%d:1m;", s.ID)
+	}
+	if in.AppUpstream != "" {
+		c.put(0, "", "# The site's own app (SPEC §4.12).")
+		c.putf(0, "upstream %s {", runtimes.UpstreamName(s.ID))
+		c.put(1, "server "+in.AppUpstream+";")
+		c.put(0, "}")
+	}
 	if in.BasicAuthFile != "" {
 		c.put(0, "")
 		c.putf(0, "map $http_x_cloudground_internal $cg_staging_realm_%d {", s.ID)
@@ -288,6 +319,12 @@ func (v *vhost) render() (before, block, after string) {
 			`# "reuseport" is allowed once per address and this file is one site`,
 			"# among many, so the default server set up at install time holds it.",
 			"listen 443 quic;", "listen [::]:443 quic;")
+	}
+	if len(in.Functions) > 0 && in.FunctionsInvokeSocket != "" {
+		c.put(1,
+			"# The agent's own invocations of the functions (SPEC §4.13), plain HTTP",
+			"# on a unix socket in a directory only root can enter.",
+			"listen unix:"+in.FunctionsInvokeSocket+";")
 	}
 	c.put(1, "server_name "+names+";", "server_tokens off;")
 	if in.CloudflareInclude != "" {
@@ -374,7 +411,8 @@ func (v *vhost) render() (before, block, after string) {
 
 	v.redirectServer(&c)
 
-	if s.Type != state.SiteProxy {
+	v.functions(&c)
+	if !proxied(s) {
 		c.put(1, "",
 			"root "+in.DocRoot+";",
 			"index index.php index.html index.htm;",
@@ -609,4 +647,54 @@ func symlinkFrom(in engine.Input) string {
 		return in.SymlinkFrom
 	}
 	return "$document_root"
+}
+
+// appUpstreamRe is the only form a managed app's upstream takes.
+var appUpstreamRe = regexp.MustCompile(`^(unix:/run/cloudground/app/cg-site-[1-9][0-9]{0,18}/app\.sock|127\.0\.0\.1:[1-9][0-9]{3,4})$`)
+
+// proxied reports whether a site proxies every request: a proxy site, or a
+// managed app (SPEC §4.12).
+func proxied(s state.Site) bool { return s.Type == state.SiteProxy || s.Type.IsApp() }
+
+// A site's functions' bounds in nginx (SPEC §4.13): each client at most
+// FunctionRatePerSecond requests a second (FunctionBurst at once) and
+// FunctionConnsPerClient at a time, the whole site FunctionConnsPerSite at
+// a time — the socket's MaxConnections, so a socket never refuses.
+const (
+	FunctionRatePerSecond  = 10
+	FunctionBurst          = 20
+	FunctionConnsPerClient = 8
+	FunctionConnsPerSite   = 32
+)
+
+// functionNameRe is a function's name (internal/functions SPEC §1).
+var functionNameRe = regexp.MustCompile(`^[a-z][a-z0-9-]{0,30}$`)
+
+// functions writes each function's two locations (SPEC §4.13): an exact
+// and a prefix one, which win over every regex location.
+func (v *vhost) functions(c *conf) {
+	if len(v.in.Functions) == 0 {
+		return
+	}
+	c.put(1, "", "# The site's functions (SPEC §4.13): one process per request, over a socket.")
+	for _, f := range v.in.Functions {
+		for _, loc := range []string{"= /.functions/" + f.Name, "^~ /.functions/" + f.Name + "/"} {
+			c.put(1, "location "+loc+" {")
+			c.put(2, "proxy_pass http://unix:"+f.Socket+":;",
+				"proxy_set_header Host $host;",
+				"proxy_set_header X-Real-IP $remote_addr;",
+				"proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;",
+				"proxy_set_header X-Forwarded-Proto $scheme;",
+				fmt.Sprintf("proxy_set_header X-CloudGround-Source $cg_fn_source_%d;", v.in.Site.ID),
+				fmt.Sprintf("proxy_read_timeout %ds;", f.TimeoutSec+5),
+				"client_max_body_size 6m;",
+				fmt.Sprintf("limit_req zone=cg_fn_req_%d burst=%d nodelay;", v.in.Site.ID, FunctionBurst),
+				fmt.Sprintf("limit_conn cg_fn_conn_%d %d;", v.in.Site.ID, FunctionConnsPerClient),
+				fmt.Sprintf("limit_conn cg_fn_all_%d %d;", v.in.Site.ID, FunctionConnsPerSite),
+				"limit_req_status 429;",
+				"limit_conn_status 503;")
+			c.put(2, v.sec...)
+			c.put(1, "}")
+		}
+	}
 }

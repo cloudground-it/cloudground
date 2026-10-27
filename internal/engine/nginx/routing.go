@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cloudground-it/cloudground/internal/runtimes"
 	"github.com/cloudground-it/cloudground/internal/state"
 )
 
@@ -35,24 +36,31 @@ func NormalizeRouting(text string) string {
 // socket, which has none. The proxy upstream must already be normalised.
 func DefaultRouting(s state.Site, hasPHP bool) string {
 	switch {
+	case s.Type.IsApp():
+		return proxyRouting("http://" + runtimes.UpstreamName(s.ID))
 	case s.Type == state.SiteProxy:
-		return "location / {\n" +
-			"    proxy_pass " + s.Config.ProxyUpstream + ";\n" +
-			"    proxy_http_version 1.1;\n" +
-			"    proxy_set_header Host $host;\n" +
-			"    proxy_set_header X-Real-IP $remote_addr;\n" +
-			"    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n" +
-			"    proxy_set_header X-Forwarded-Proto $scheme;\n" +
-			"    proxy_set_header Upgrade $http_upgrade;\n" +
-			"    proxy_set_header Connection \"upgrade\";\n" +
-			"    proxy_read_timeout 60s;\n" +
-			"}\n"
+		return proxyRouting(s.Config.ProxyUpstream)
 	case s.Type == state.SiteStatic:
 		return "location / {\n    try_files $uri $uri/ /index.html =404;\n}\n"
 	case hasPHP:
 		return "location / {\n    try_files $uri $uri/ /index.php?$args;\n}\n"
 	}
 	return ""
+}
+
+// proxyRouting is the default block of a site that proxies everything.
+func proxyRouting(target string) string {
+	return "location / {\n" +
+		"    proxy_pass " + target + ";\n" +
+		"    proxy_http_version 1.1;\n" +
+		"    proxy_set_header Host $host;\n" +
+		"    proxy_set_header X-Real-IP $remote_addr;\n" +
+		"    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n" +
+		"    proxy_set_header X-Forwarded-Proto $scheme;\n" +
+		"    proxy_set_header Upgrade $http_upgrade;\n" +
+		"    proxy_set_header Connection \"upgrade\";\n" +
+		"    proxy_read_timeout 60s;\n" +
+		"}\n"
 }
 
 // RebaseRouting is a routing block moved with its site from one tree to

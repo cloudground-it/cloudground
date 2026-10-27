@@ -650,7 +650,8 @@ In order:
    `cloudground-api`, `cloudground-agent` (failures are warnings: a unit already gone).
 2. **`keep.state`** (fatal; when `/var/lib/cloudground/state.db` or `secret.key` exists): §9.3.
 3. **The sites' wiring**: `stop cg-site.slice` (every site's PHP master, cron runs, wp-cli and shell
-   sessions); `disable --now` each `cloudground-php-*.service`, then their unit files and `.d`
+   sessions, and managed apps); `disable --now` each `cloudground-php-*.service` and
+   `cloudground-app-*.service` (#28), then their unit files and `.d`
    drop-in directories; each site's slice unit `cg-site-<id>.slice` (its limits, #19); the vhosts in `sites-enabled` that are the panel's (`cloudground-*`) or
    start with `Managed by CloudGround` (an operator's own vhost is left), every
    `conf.d/cloudground-*.conf`, `/etc/nginx/cloudground-auth`; `/etc/cron.d/cloudground-*` and the
@@ -680,7 +681,10 @@ In order:
    `cg-site-cron` link, their `.bak` and `.cg-update` files).
 7. **The state**: `/etc/cloudground`, `/etc/cloudground-php`, `/var/lib/cloudground`,
    `/var/lib/cloudground-agent` (update snapshots and the malware quarantine included), the malware
-   scan's signature set `/var/lib/cloudground-signatures` and its freshclam configuration
+   scan's signature set `/var/lib/cloudground-signatures`, the runtimes
+   `/var/lib/cloudground-runtimes`, the apps' environment files `/etc/cloudground-app` (#28) and the
+   functions' `/etc/cloudground-fn` (#143),
+   and its freshclam configuration
    `/etc/clamav/cloudground-freshclam.conf` (ClamAV itself, a distribution package, stays),
    `/var/cache/cloudground`,
    `/var/log/cloudground`, `/run/cloudground`, `/var/www/cloudground-acme`, the install logs; the

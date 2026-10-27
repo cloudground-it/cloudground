@@ -71,6 +71,16 @@ type Input struct {
 	// CloudflareInclude is the file of Cloudflare's ranges when the
 	// visitor's address comes from Cloudflare (#22, SPEC §4.11); "" is not.
 	CloudflareInclude string
+	// Functions are the site's functions (#143, SPEC §4.13).
+	Functions []FunctionRoute
+	// FunctionsInvokeSocket is the unix socket the 443 server also listens
+	// on, in plain HTTP, when the site has functions: the agent's own
+	// invocations come in there (SPEC §4.13).
+	FunctionsInvokeSocket string
+
+	// AppUpstream is a managed app's address (#28, SPEC §4.12):
+	// unix:<socket> or 127.0.0.1:<port>; "" for every other site.
+	AppUpstream string
 
 	// What a custom routing block must not reach (SPEC §7.3): the ports
 	// system services listen on here, this machine's own addresses, and a
@@ -125,4 +135,11 @@ type Renderer interface {
 	// Routing is the site's routing block and the vhost around it.
 	Routing(in Input) (RoutingView, error)
 	Name() state.Engine
+}
+
+// FunctionRoute is one function nginx routes to (SPEC §4.13).
+type FunctionRoute struct {
+	Name       string
+	Socket     string
+	TimeoutSec int
 }

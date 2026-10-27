@@ -251,7 +251,7 @@ func (f *FakeSystemd) loadUnitDir() error {
 	seen := map[string]bool{}
 	for _, e := range ents {
 		name := e.Name()
-		if !e.Type().IsRegular() || !strings.HasSuffix(name, ".service") {
+		if !e.Type().IsRegular() || !(strings.HasSuffix(name, ".service") || strings.HasSuffix(name, ".socket")) {
 			continue
 		}
 		seen[name] = true

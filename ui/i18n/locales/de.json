@@ -223,7 +223,9 @@
       "static": "Statisch",
       "php": "PHP",
       "laravel": "Laravel",
-      "proxy": "Reverse Proxy"
+      "proxy": "Reverse Proxy",
+      "node": "Node.js",
+      "python": "Python"
     }
   },
   "osupdates": {
@@ -316,7 +318,9 @@
     "resources": "Ressourcen",
     "security": "Sicherheit",
     "redirects": "Weiterleitungen",
-    "traffic": "Zugriffe"
+    "traffic": "Zugriffe",
+    "app": "App",
+    "functions": "Funktionen"
   },
   "overview": {
     "certificate": "Zertifikat",
@@ -1040,7 +1044,8 @@
     "compressed": "rotiert, komprimiert",
     "download": "Herunterladen",
     "reload": "Neu laden",
-    "currentNote": "Das aktuelle Log wird so gesendet, wie es in diesem Moment ist, die angezeigte Größe ist also nur ein Anhaltspunkt. Rotierte Logs ändern sich nicht."
+    "currentNote": "Das aktuelle Log wird so gesendet, wie es in diesem Moment ist, die angezeigte Größe ist also nur ein Anhaltspunkt. Rotierte Logs ändern sich nicht.",
+    "app": "App"
   },
   "services": {
     "manual": "manueller Start",
@@ -1596,7 +1601,9 @@
       "static": "HTML, Builds",
       "php": "reines PHP",
       "laravel": "Framework",
-      "proxy": "Node, Go…"
+      "proxy": "eigener Server",
+      "node": "deine eigene App",
+      "python": "WSGI, ASGI"
     },
     "upstreamHelp": "nginx leitet mit HTTP/3 und Zertifikat weiter; der Cache bleibt aus, bis du ihn einschaltest.",
     "wpPart": "WordPress-Administrator",
@@ -2115,5 +2122,95 @@
     "path": "Pfad",
     "hits": "Anfragen",
     "none": "Noch nichts."
+  },
+  "app": {
+    "willInstall": "wird mit der Site installiert",
+    "runtime": "Laufzeitumgebung",
+    "runtimeHelp": "Die Version, auf der die App läuft. Fehlt sie dem Server, wird sie mit der Site installiert.",
+    "start": "Startbefehl",
+    "startHelp": "Von der Shell im aktiven Release ausgeführt. Die App muss auf $PORT lauschen: dem Pfad eines Unix-Sockets, außer du gibst einen Port an.",
+    "startRule": "Der Startbefehl ist eine Zeile mit höchstens 1024 Zeichen.",
+    "statusTitle": "App",
+    "statusHint": "Die {runtime}-App läuft als eigener Dienst unter dem Site-Benutzer und startet neu, wenn sie stoppt.",
+    "down": "Gestoppt",
+    "healthy": "Läuft",
+    "unhealthy": "Antwortet nicht",
+    "unitState": "Dienst",
+    "since": "Läuft seit",
+    "restarts": "Neustarts",
+    "lastExit": "letzter Exit-Code {code}",
+    "health": "Prüfung",
+    "restart": "Neu starten",
+    "logs": "App-Log",
+    "settingsTitle": "Einstellungen",
+    "settingsHint": "Speichern startet die App neu. Deploys und Rollbacks starten sie ebenfalls neu, mit dem neuen Release.",
+    "versionHelp": "Weitere Versionen installierst du unter Dienste → Laufzeitumgebungen.",
+    "port": "Port",
+    "portHelp": "0 (empfohlen): ein Unix-Socket, den nur nginx erreicht. Ein Port liegt auf 127.0.0.1, wo ihn jeder Prozess des Servers erreicht.",
+    "healthPath": "Prüfpfad",
+    "healthPathHelp": "Was das Panel abfragt, um zu prüfen, ob die App antwortet.",
+    "socket": "nginx erreicht die App unter {socket}.",
+    "envTitle": "Umgebung",
+    "envHint": "Variablen, die die App in ihrer Umgebung findet. Speichern startet sie neu.",
+    "variables": "Variablen",
+    "name": "NAME",
+    "value": "Wert",
+    "addVariable": "Variable hinzufügen",
+    "secrets": "Geheimnisse",
+    "secretsHint": "Verschlüsselt gespeichert und nie wieder angezeigt; die App erhält sie wie jede Variable.",
+    "addSecret": "Geheimnis hinzufügen",
+    "nameRule": "{name} ist kein Variablenname: Großbuchstaben, Ziffern und _, nicht mit einer Ziffer beginnend.",
+    "saveRestart": "Speichern und neu starten",
+    "saved": "App gespeichert und neu gestartet",
+    "restarted": "App neu gestartet"
+  },
+  "runtimes": {
+    "title": "Laufzeitumgebungen",
+    "hint": "Node.js und Python für die Node.js- und Python-Sites. Node.js kommt von nodejs.org, geprüft mit den veröffentlichten Prüfsummen; Python ist das des Systems.",
+    "installed": "Installiert",
+    "install": "Installieren",
+    "queued": "Installation gestartet"
+  },
+  "fn": {
+    "title": "Funktionen",
+    "hint": "Kleine Handler unter /.functions/… dieser Site. Zwischen zwei Anfragen läuft nichts.",
+    "none": "Noch keine Funktionen.",
+    "new": "Neue Funktion",
+    "create": "Erstellen",
+    "namePlaceholder": "Name, z. B. kontakt-formular",
+    "nameRule": "Ein Name besteht aus Kleinbuchstaben, Ziffern und - und beginnt mit einem Buchstaben.",
+    "created": "Funktion erstellt",
+    "saved": "Funktion bereitgestellt",
+    "rolledBack": "Der vorherige Code ist wieder live",
+    "deleted": "Funktion gelöscht",
+    "deleteConfirm": "Die Funktion {name} löschen? Ihre Adresse antwortet dann nicht mehr.",
+    "scheduled": "Läuft nach Zeitplan",
+    "endpoint": "Jede Anfrage führt den Handler in einem eigenen Prozess aus, mit dem Speicher und der Zeit unten.",
+    "code": "Code",
+    "codeHelpNode": "index.js: exportiere handler(event), normal oder async. Nur die Standardbibliothek von Node.js ist verfügbar.",
+    "codeHelpPython": "main.py: def handler(event), normal oder async. Nur die Standardbibliothek von Python ist verfügbar.",
+    "memory": "Speicher",
+    "timeout": "Zeitlimit",
+    "seconds": "Sekunden",
+    "schedule": "Zeitplan",
+    "scheduleHelp": "Fünf Cron-Felder, in der Zeitzone des Panels. Leer: nie.",
+    "deploy": "Bereitstellen",
+    "test": "Testen",
+    "rollback": "Zurückrollen",
+    "invocations": "Aufrufe",
+    "invocationsHint": "Die letzten Anfragen, aus dem Zugriffslog der Site. Ein 502 ist ein Absturz, das Zeitlimit oder das Speicherlimit.",
+    "testResult": "HTTP {status} in {ms} ms",
+    "testFailed": "Keine Antwort",
+    "when": "Wann",
+    "source": "Quelle",
+    "status": "Status",
+    "duration": "Dauer",
+    "noInvocations": "Noch keine Aufrufe.",
+    "output": "Ausgabe (Konsole und Fehler)",
+    "src": {
+      "http": "Anfrage",
+      "schedule": "Zeitplan",
+      "test": "Test"
+    }
   }
 }
