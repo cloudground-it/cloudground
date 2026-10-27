@@ -61,11 +61,23 @@ type Server struct {
 	accounts *accounts.Service
 	// connectorFailLimiter counts wrong connector tokens by address.
 	connectorFailLimiter *throttle.Window
+	// The git webhook's limits by address: every delivery, and the ones
+	// that failed authentication (git_hook.go); gitq is the deploy waiting
+	// for each site (git_deploy.go).
+	gitHookLimiter     *throttle.Window
+	gitHookFailLimiter *throttle.Window
+	gitq               gitQueue
 	// studio holds Quarry's own sessions and the handoffs into it,
 	// studioGate the limits of its sign-in (studio_session.go,
 	// studio_auth.go).
 	studio     studioSessions
 	studioGate *studioGate
+	// mcp is the remote MCP server's memory: authorisation requests, codes
+	// and its limits (mcp_oauth.go); mcpHandler the route table its tools
+	// call (mcp_server.go).
+	mcp        *mcpState
+	mcpMuxOnce sync.Once
+	mcpHandler http.Handler
 
 	// siteLocks: one *sync.Mutex per site id (lockSite).
 	siteLocks sync.Map
@@ -180,7 +192,10 @@ func (s *Server) Init() {
 	s.accounts = accounts.New(s.Store, s.audit)
 	s.accounts.Failed = s.signInFailed
 	s.connectorFailLimiter = throttle.New(connectorFailures, time.Minute)
+	s.gitHookLimiter = throttle.New(gitHookDeliveries, time.Minute)
+	s.gitHookFailLimiter = throttle.New(gitHookFailures, time.Minute)
 	s.studioGate = newStudioGate()
+	s.mcp = newMCPState()
 	if s.Store != nil {
 		s.startJobQueue()
 	}

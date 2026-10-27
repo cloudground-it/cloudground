@@ -401,6 +401,29 @@ func TestCleanupCommands(t *testing.T) {
 			t.Errorf("%v: %+v %v", c.args, inv.req, err)
 		}
 	}
+	for _, c := range []struct {
+		args               []string
+		method, path, body string
+	}{
+		{[]string{"git-deploy", "7"}, "GET", "/api/sites/7/git-deploy", "<nil>"},
+		{[]string{"git-deploy", "7", "on", "https://example.com/a/b.git"}, "PUT", "/api/sites/7/git-deploy", "map[enabled:true repo:https://example.com/a/b.git]"},
+		{[]string{"git-deploy", "7", "on", "git@example.com:a/b.git", "release", "npm ci && npm run build"}, "PUT", "/api/sites/7/git-deploy",
+			"map[branch:release build_command:npm ci && npm run build enabled:true repo:git@example.com:a/b.git]"},
+		{[]string{"git-deploy", "7", "off"}, "PUT", "/api/sites/7/git-deploy", "map[enabled:false]"},
+		{[]string{"git-deploy", "7", "run"}, "POST", "/api/sites/7/git-deploy/run", "map[]"},
+		{[]string{"git-deploy", "7", "secret"}, "POST", "/api/sites/7/git-deploy/secret", "map[]"},
+		{[]string{"git-deploy", "7", "key"}, "POST", "/api/sites/7/git-deploy/key", "map[]"},
+	} {
+		inv, err := parseArgs(c.args)
+		if err != nil || inv.req.method != c.method || inv.req.path != c.path || fmt.Sprint(inv.req.body) != c.body {
+			t.Errorf("%v: %+v %v", c.args, inv.req, err)
+		}
+	}
+	for _, bad := range [][]string{{"git-deploy", "x"}, {"git-deploy", "7", "maybe"}, {"git-deploy", "7", "on"}, {"git-deploy", "7", "run", "now"}, {"git-deploy", "7", "off", "x"}} {
+		if _, err := parseArgs(bad); err == nil {
+			t.Errorf("%v was accepted", bad)
+		}
+	}
 	for _, bad := range [][]string{{"cleanup", "7", "maybe"}, {"cleanup", "7", "on", "0"}, {"cleanup", "7", "on", "101"}, {"cleanup", "7", "on", "x"}, {"cleanup", "7", "run", "now"}, {"cleanup", "x", "run"}} {
 		if _, err := parseArgs(bad); err == nil {
 			t.Errorf("%v was accepted", bad)

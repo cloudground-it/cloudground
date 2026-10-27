@@ -120,12 +120,24 @@ func (s *Store) UserTOTP(userID int64) (secret string, enabled bool, err error) 
 }
 
 // DisableUserTOTP turns 2FA off and deletes both secrets, and the account's
-// API tokens: what was issued under the second factor goes with it. It
+// API tokens: what was issued under the second factor goes with it; its
+// recovery codes too when it has no passkey. It
 // needs no key, so host recovery can run it.
 func (s *Store) DisableUserTOTP(userID int64) error {
 	err := s.inTx(func(tx *sql.Tx) error {
 		if _, err := tx.Exec(`UPDATE users SET totp_enabled = 0 WHERE id = ?`, userID); err != nil {
 			return err
+		}
+		// Recovery codes stand in for a factor: with no passkey left there
+		// is none for them to stand in for.
+		var passkeys int
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM user_passkeys WHERE user_id = ?`, userID).Scan(&passkeys); err != nil {
+			return err
+		}
+		if passkeys == 0 {
+			if err := dropRecoveryCodes(tx, userID); err != nil {
+				return err
+			}
 		}
 		return errors.Join(dropTOTP(tx, userID), revokeAPITokens(tx, userID))
 	})

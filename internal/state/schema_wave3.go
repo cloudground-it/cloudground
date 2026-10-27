@@ -164,7 +164,7 @@ var stepWhatsNew = schemaStep{version: 28, stmts: []string{
 // stepDBServers registers external MariaDB and MySQL servers (#30, api SPEC
 // §6.5.1) and says which one each database and account is on (0: the box's
 // own, as every row from before). A server's password is a sealed secret.
-var stepDBServers = schemaStep{version: 30, stmts: []string{
+var stepDBServers = schemaStep{version: 33, stmts: []string{
 	`CREATE TABLE db_servers (
 		id         INTEGER PRIMARY KEY AUTOINCREMENT,
 		name       TEXT NOT NULL UNIQUE,
@@ -183,7 +183,7 @@ var stepDBServers = schemaStep{version: 30, stmts: []string{
 // stepPostgres lets an external server be PostgreSQL (#81, api SPEC §6.5.2):
 // whether a site's backup dumps its databases or the provider backs the
 // server up (every server before is MariaDB and dumped).
-var stepPostgres = schemaStep{version: 31, stmts: []string{
+var stepPostgres = schemaStep{version: 34, stmts: []string{
 	`ALTER TABLE db_servers ADD COLUMN backup TEXT NOT NULL DEFAULT 'dump' CHECK (backup IN ('dump', 'provider'))`,
 }}
 
@@ -191,6 +191,35 @@ var stepPostgres = schemaStep{version: 31, stmts: []string{
 // (#77, api SPEC §14) as one JSON value; the relay's password is a secret.
 var stepMail = schemaStep{version: 29, stmts: []string{
 	`ALTER TABLE panel_settings ADD COLUMN mail TEXT NOT NULL DEFAULT '{}'`,
+}}
+
+// stepGitDeploy keeps a site's git deploy settings and the webhook
+// deliveries it received (#24, api SPEC §15). The webhook secret and the
+// deploy key are sealed secrets, not columns.
+var stepGitDeploy = schemaStep{version: 31, stmts: []string{
+	`CREATE TABLE site_git_deploys (
+		site_id       INTEGER PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
+		enabled       INTEGER NOT NULL DEFAULT 0,
+		repo          TEXT NOT NULL DEFAULT '',
+		branch        TEXT NOT NULL DEFAULT 'main',
+		build_command TEXT NOT NULL DEFAULT '',
+		public_key    TEXT NOT NULL DEFAULT '',
+		hook_id       TEXT NOT NULL UNIQUE
+	)`,
+	`CREATE TABLE site_git_deliveries (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		site_id       INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+		at            TEXT NOT NULL,
+		forge         TEXT NOT NULL,
+		event         TEXT NOT NULL DEFAULT '',
+		ref           TEXT NOT NULL DEFAULT '',
+		commit_sha    TEXT NOT NULL DEFAULT '',
+		outcome       TEXT NOT NULL,
+		detail        TEXT NOT NULL DEFAULT '',
+		deployment_id INTEGER REFERENCES deployments(id) ON DELETE SET NULL,
+		task_id       INTEGER NOT NULL DEFAULT 0
+	)`,
+	`CREATE INDEX site_git_deliveries_site ON site_git_deliveries (site_id, id)`,
 }}
 
 // stepBlocklist keeps the server's block list (#21, blocklist.go): the
@@ -213,4 +242,81 @@ var stepBlocklist = schemaStep{version: 27, stmts: []string{
 		id       INTEGER PRIMARY KEY CHECK (id = 1),
 		settings TEXT NOT NULL
 	)`,
+}}
+
+// stepPasskeys adds panel passkeys and recovery codes (#156, api SPEC
+// §2.10–2.11): whether an account's password signs in, its WebAuthn user
+// handle, its passkeys and recovery codes, and the "every account" half of
+// the two-factor requirement.
+var stepPasskeys = schemaStep{version: 30, stmts: []string{
+	`ALTER TABLE users ADD COLUMN password_signin INTEGER NOT NULL DEFAULT 1`,
+	`ALTER TABLE users ADD COLUMN webauthn_id BLOB`,
+	`CREATE UNIQUE INDEX idx_users_webauthn_id ON users (webauthn_id) WHERE webauthn_id IS NOT NULL`,
+	`CREATE TABLE user_passkeys (
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		credential_id   BLOB NOT NULL UNIQUE,
+		public_key      BLOB NOT NULL,
+		sign_count      INTEGER NOT NULL DEFAULT 0,
+		aaguid          BLOB,
+		transports      TEXT NOT NULL DEFAULT '',
+		backup_eligible INTEGER NOT NULL DEFAULT 0,
+		backup_state    INTEGER NOT NULL DEFAULT 0,
+		rp_id           TEXT NOT NULL,
+		name            TEXT NOT NULL,
+		created_at      TEXT NOT NULL,
+		last_used_at    TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX idx_user_passkeys_user ON user_passkeys (user_id)`,
+	`CREATE TABLE user_recovery_codes (
+		id        INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		code_hash TEXT NOT NULL,
+		used_at   TEXT
+	)`,
+	`CREATE INDEX idx_user_recovery_codes_user ON user_recovery_codes (user_id, code_hash)`,
+	`ALTER TABLE panel_settings ADD COLUMN require_2fa_all INTEGER NOT NULL DEFAULT 0`,
+}}
+
+// stepMCP adds the remote MCP server (#70, api SPEC §16): its switch, the
+// OAuth clients that registered, the grants a person consented to (their
+// tokens as hashes) and the destructive actions waiting for a person.
+var stepMCP = schemaStep{version: 32, stmts: []string{
+	`ALTER TABLE panel_settings ADD COLUMN mcp_enabled INTEGER NOT NULL DEFAULT 0`,
+	`CREATE TABLE mcp_clients (
+		id            TEXT PRIMARY KEY,
+		name          TEXT NOT NULL,
+		redirect_uris TEXT NOT NULL,
+		created_at    TEXT NOT NULL,
+		last_used_at  TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE TABLE mcp_grants (
+		id                INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		client_id         TEXT NOT NULL REFERENCES mcp_clients(id) ON DELETE CASCADE,
+		scopes            TEXT NOT NULL,
+		access_hash       TEXT NOT NULL UNIQUE,
+		access_expires    TEXT NOT NULL,
+		refresh_hash      TEXT NOT NULL UNIQUE,
+		refresh_expires   TEXT NOT NULL,
+		prev_refresh_hash TEXT NOT NULL DEFAULT '',
+		created_at        TEXT NOT NULL,
+		last_used_at      TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX idx_mcp_grants_user ON mcp_grants (user_id)`,
+	`CREATE INDEX idx_mcp_grants_prev ON mcp_grants (prev_refresh_hash)`,
+	`CREATE TABLE mcp_actions (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		grant_id   INTEGER NOT NULL REFERENCES mcp_grants(id) ON DELETE CASCADE,
+		user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		tool       TEXT NOT NULL,
+		args       TEXT NOT NULL,
+		summary    TEXT NOT NULL,
+		status     TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'done', 'failed', 'rejected', 'expired')),
+		result     TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL,
+		expires_at TEXT NOT NULL,
+		decided_at TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX idx_mcp_actions_user ON mcp_actions (user_id)`,
 }}

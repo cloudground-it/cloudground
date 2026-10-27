@@ -1,0 +1,1 @@
+import{Q as e}from"./ePb2g_3_.js";function t(){let t=e()?.vnode?.scopeId;return t?{[t]:``}:{}}export{t};

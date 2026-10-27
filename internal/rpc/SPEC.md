@@ -67,6 +67,7 @@ handler.
 | `SiteDatabaseParams`, `DBUserParams` | `ServerID`, when not 0, is positive | `invalid database server` |
 | `DBServerParams` (`TestDBServer`) | `Kind` empty, `mariadb` or `postgres` (PostgreSQL needs `TLS`); `Host` a host name or an address (at most 253 characters, none of space, `/`, `@`), `Port` 1–65535, `AdminUser` one line of at most 80 characters, `AdminPassword` not empty and without a line break, `CACert` empty or PEM certificates, at most 64 KiB | the rule's sentence |
 | `SetDBServersParams` | every server as `DBServerParams`, with a positive `ID`, at most 50 | the rule's sentence |
+| `GitSyncParams` | `ReleaseID` a release ID, never `initial`; `Repo`, `Branch` and `BuildCommand` the rules of `site.CheckGitRepo` (the site's root the only place a `file://` repository may be), `CheckGitBranch`, `CheckGitBuildCommand` (internal/api SPEC §15.1); `DeployKey`, when set, exactly one OpenSSH private key block of at most 4 096 bytes | `invalid release id "<id>"`, the check's own sentence, `the deploy key is not one OpenSSH private key` |
 | `DeployParams` | `ReleaseID` is a release ID (`site.ValidReleaseID`: a canonical upper-case ULID, or one of the two older forms) | `invalid release id "<id>"` |
 | `ReleaseParams` | `ReleaseID` is empty (rollback to the previous), `initial` or a release ID | `invalid release id "<id>"` |
 | `MigrationParams` | `ReleaseID` is a release ID | `invalid migration release id` |

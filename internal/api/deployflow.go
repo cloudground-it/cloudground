@@ -38,6 +38,8 @@ type deployPayload struct {
 	Only      []string `json:"only,omitempty"`
 	Paths     []string `json:"paths,omitempty"`
 	Force     bool     `json:"force,omitempty"`
+	// Branch is the branch a deploy.git builds (§15.4).
+	Branch string `json:"branch,omitempty"`
 }
 
 // rollbackPayload is a deploy.rollback: the site and the release it goes
@@ -84,6 +86,11 @@ func (s *Server) registerDeployKinds(q *jobs.Queue) {
 	q.Register(jobs.Kind{Name: "deploy.safe-push", Run: s.runSafePush, Rerun: true,
 		Canceled: s.settleDeployment, Interrupted: s.settleDeployment})
 	q.Register(jobs.Kind{Name: "deploy.reconcile", Run: s.runDeployReconcile, Rerun: true})
+	// A push from a git forge (§15.4): fetched and built as the site user,
+	// built into a release and promoted. Not rerun: a fetch a restart cut
+	// short is the next push's.
+	q.Register(jobs.Kind{Name: "deploy.git", Run: s.runDeployGit,
+		Canceled: s.settleGitDeploy, Interrupted: s.settleGitDeploy})
 }
 
 // unverifiedReport is the Guard result of a release whose verification a
@@ -262,20 +269,34 @@ func (s *Server) runDeployPromote(ctx context.Context, r *jobs.Run) error {
 	default:
 		return fmt.Errorf("release %s is now %s (it was %s when the promote was asked for)", d.ReleaseID, d.Status, p.From)
 	}
+	return s.finishPromote(ctx, r, site, &d, p.From)
+}
+
+// finishPromote is the rest of a promote, from the deployment's status
+// `promoting` (SPEC.md §4.3): the release live now recorded as where a
+// rollback goes, the agent's promotion, `promoted`, the cache purged and
+// warmed. A refused promote goes back to `from`. deploy.promote and
+// deploy.git (§15.4) both end here.
+func (s *Server) finishPromote(ctx context.Context, r *jobs.Run, site state.Site, dep *state.Deployment, from state.DeploymentStatus) error {
+	d := *dep
 	ctx = context.WithoutCancel(ctx)
 	if _, err := s.rememberRollbackTo(ctx, site, d); err != nil {
-		s.logIfErr(s.move(&d, p.From, state.DeploymentUpdate{}), "MoveDeployment")
+		s.logIfErr(s.move(&d, from, state.DeploymentUpdate{}), "MoveDeployment")
+		*dep = d
 		return fmt.Errorf("could not read the live release, so %s was not promoted: %w", d.ReleaseID, err)
 	}
 	r.Progress(40, "Promoting "+d.ReleaseID)
 	if err := agentrpc.Into(ctx, s.Agent, agentrpc.PromoteRelease, rpc.ReleaseParams{Site: site, ReleaseID: d.ReleaseID}, nil); err != nil {
-		s.logIfErr(s.move(&d, p.From, state.DeploymentUpdate{}), "MoveDeployment")
+		s.logIfErr(s.move(&d, from, state.DeploymentUpdate{}), "MoveDeployment")
+		*dep = d
 		s.reconcileLive(ctx, site)
 		return err
 	}
 	if err := s.move(&d, state.DeployPromoted, state.DeploymentUpdate{}); err != nil {
+		*dep = d
 		return err
 	}
+	*dep = d
 	r.Progress(80, "Purging page cache")
 	s.purgeQuietly(ctx, site)
 	r.Progress(90, "Warming cache so the first visitor is not cold")

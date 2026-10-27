@@ -23,7 +23,18 @@ type User struct {
 	SiteIDs     []int64   `json:"site_ids,omitempty"`
 	TOTPEnabled bool      `json:"totp_enabled"`
 	CreatedAt   time.Time `json:"created_at"`
+	// PasswordSignIn: the account's password signs in (api SPEC §2.10);
+	// off only for an account with a passkey that turned it off.
+	PasswordSignIn bool `json:"password_signin"`
+	// Passkeys is how many passkeys the account has.
+	Passkeys int `json:"passkeys"`
+	// RecoveryCodesLeft is how many of its recovery codes are unused.
+	RecoveryCodesLeft int `json:"recovery_codes_left"`
 }
+
+// HasSecondFactor reports whether the account has two-factor: TOTP on or a
+// passkey (api SPEC §2.1). Recovery codes are not a factor of their own.
+func (u User) HasSecondFactor() bool { return u.TOTPEnabled || u.Passkeys > 0 }
 
 // Session is a signed-in browser session.
 type Session struct {

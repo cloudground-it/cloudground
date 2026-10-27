@@ -49,8 +49,11 @@ var schemaSteps = []schemaStep{
 	stepBlocklist,         // 27
 	stepWhatsNew,          // 28
 	stepMail,              // 29
-	stepDBServers,         // 30
-	stepPostgres,          // 31
+	stepPasskeys,          // 30
+	stepGitDeploy,         // 31
+	stepMCP,               // 32
+	stepDBServers,         // 33
+	stepPostgres,          // 34
 }
 
 // latestSchema is the version Open brings every database to.
