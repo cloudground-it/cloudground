@@ -74,18 +74,6 @@ test('the demo shows what v0.5.0 to v0.8.0 added', () => {
   // The panel is not asked for an app of a PHP site.
   assert.equal(get(`/api/sites/${sites.find(s => s.type === 'wordpress').id}/app`).status, 404)
 
-  // Functions: two on the Node.js site, each with its code and invocations.
-  const fns = ok(`/api/sites/${node.id}/functions`)
-  assert.equal(fns.length, 2)
-  assert.deepEqual(fns.map(f => f.runtime).sort(), ['node', 'python'])
-  for (const f of fns) {
-    assert.match(ok(`/api/sites/${node.id}/functions/${f.name}`).code, /handler/)
-    const logs = ok(`/api/sites/${node.id}/functions/${f.name}/logs`)
-    assert.ok(logs.invocations.length >= 5 && logs.output.length > 0)
-  }
-  assert.ok(fns.some(f => f.schedule))
-  assert.deepEqual(ok(`/api/sites/${python.id}/functions`), [])
-
   // Traffic: the days asked for, ending today, with a quiet weekend and totals that add up.
   for (const days of [7, 30, 90]) {
     const t = ok(`/api/sites/1/traffic?days=${days}`)
@@ -120,10 +108,46 @@ test('the demo shows what v0.5.0 to v0.8.0 added', () => {
   assert.deepEqual(ok('/api/sites/1/backups')[0].databases, ['site_1'])
 
   // None of it can be changed.
-  for (const [method, path] of [['PUT', `/api/sites/${node.id}/app`], ['POST', `/api/sites/${node.id}/app/restart`], ['POST', `/api/sites/${node.id}/functions`],
+  for (const [method, path] of [['PUT', `/api/sites/${node.id}/app`], ['POST', `/api/sites/${node.id}/app/restart`],
     ['PUT', '/api/sites/1/redirects'], ['PUT', '/api/sites/4/git-deploy'], ['POST', '/api/db-servers'], ['DELETE', '/api/mcp/grants/1'], ['POST', '/api/backups/100/archive'], ['POST', '/api/backups/100/restore']]) {
     assert.equal(demo.handle(req(method, path, { body: {} })).status, 403, `${method} ${path}`)
   }
+})
+
+test('the demo shows v0.9.0\'s standalone functions', () => {
+  const demo = createDemo({ now: Date.parse('2026-10-27T10:00:00Z') })
+  const get = path => demo.handle(req('GET', path))
+  const ok = (path) => { const r = get(path); assert.equal(r.status, 200, path); return r.body }
+
+  const list = ok('/api/functions')
+  assert.equal(list.domain, 'fn.example.com')
+  assert.deepEqual(list.functions.map(f => f.name), ['contact-form', 'nightly-report', 'stripe-webhook'])
+  assert.deepEqual(list.functions.map(f => f.runtime), ['node', 'python', 'node'])
+  for (const f of list.functions) {
+    assert.ok(f.urls[0] === `https://fn.example.com/${f.name}` && f.last && f.last.status && typeof f.has_token === 'boolean')
+    const one = ok(`/api/functions/${f.name}`)
+    assert.ok(one.files[one.entry], `${f.name} has its entry file`)
+    assert.equal(one.release, one.releases[0])
+    // Release IDs are ULIDs whose first ten characters are a time in the past.
+    for (const id of one.releases) assert.match(id, /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/)
+    const logs = ok(`/api/functions/${f.name}/logs`)
+    assert.ok(logs.invocations.length >= 5 && logs.output.length > 0 && logs.invocations.every(i => i.path && i.source))
+    assert.ok(Array.isArray(ok(`/api/functions/${f.name}/domains/status`).domains))
+  }
+  const contact = ok('/api/functions/contact-form')
+  assert.ok(contact.files['package.json'] && contact.domains.includes('forms.example.com') && contact.auth === 'public')
+  assert.equal(contact.urls.length, 2)
+  assert.ok(contact.releases.length >= 3)
+  const report = list.functions.find(f => f.name === 'nightly-report')
+  assert.ok(report.schedule && report.auth === 'token' && report.has_token && !('token' in report))
+  assert.equal(ok('/api/functions/contact-form/domains/status').domains[0].dns.status, 'here')
+  const domain = ok('/api/functions/domain/status')
+  assert.ok(domain.dns.status === 'here' && domain.certificate.exists && domain.acme_email)
+  assert.equal(get('/api/functions/nope').status, 404)
+  const rt = ok('/api/runtimes')
+  assert.ok(rt.installed.node.length && rt.available.python.length)
+  // Functions are no site's any more.
+  assert.equal(get('/api/sites/6/functions').status, 404)
 })
 
 test('every change but this browser\'s own is refused, in the language asked', () => {
@@ -132,7 +156,8 @@ test('every change but this browser\'s own is refused, in the language asked', (
     ['POST', '/api/sites'], ['PATCH', '/api/sites/1'], ['DELETE', '/api/sites/1'], ['POST', '/api/sites/1/purge'], ['PUT', '/api/sites/1/maintenance'],
     ['POST', '/api/sites/1/backups'], ['PUT', '/api/settings'], ['POST', '/api/users'], ['DELETE', '/api/users/2'], ['POST', '/api/tokens'],
     ['POST', '/api/sites/1/files/upload'], ['PUT', '/api/sites/1/files'], ['POST', '/api/sites/1/database/query'], ['POST', '/api/system/update'],
-    ['POST', '/api/firewall/rules'], ['POST', '/api/anything/at/all']
+    ['POST', '/api/firewall/rules'], ['POST', '/api/functions'], ['PUT', '/api/functions/contact-form'], ['POST', '/api/functions/contact-form/invoke'],
+    ['PUT', '/api/functions/domain'], ['DELETE', '/api/functions/stripe-webhook'], ['POST', '/api/anything/at/all']
   ]
   for (const [method, path] of writes) {
     for (const lang of ['en', 'it', 'fr']) {

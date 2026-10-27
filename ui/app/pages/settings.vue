@@ -45,6 +45,9 @@ const BACKUP_KEYS = ['backup_repository', 'backup_password', 'backup_s3_access_k
 
 // Destinations typed by hand (issue 23): B2's native API takes its own
 // credentials; SFTP signs in with the panel's key, made here.
+// Declared before the computeds that read it: the watch on isSFTP evaluates
+// them during setup.
+const dest = ref(blankDestination())
 const advancedRepo = computed(() => dest.value.kind === 'advanced' ? (form.value.backup_repository ?? '').trim() : '')
 const isSFTP = computed(() => advancedRepo.value.startsWith('sftp:'))
 const isB2 = computed(() => advancedRepo.value.startsWith('b2:'))
@@ -65,7 +68,6 @@ async function makeSSHKey() {
     sshKey.value = (await api.post<{ public_key: string }>('/api/settings/backup-ssh-key', {})).public_key
   }, t('ux.backup.sshMade'))
 }
-const dest = ref(blankDestination())
 function readDestination() {
   dest.value = destinationOf(saved.value.backup_repository ?? '', saved.value.backup_s3_region ?? '')
   // Nothing configured yet: the field starts empty, not on a provider.
@@ -160,6 +162,7 @@ async function testMail() {
 const toc = computed(() => [
   { id: 'backups', label: t('settings.backups') },
   { id: 'panel-domain', label: t('settings.panelDomain') },
+  { id: 'functions', label: t('fn.title') },
   { id: 'certificates', label: t('settings.certificates') },
   { id: 'dbservers', label: t('dbservers.title') },
   { id: 'mail', label: t('mail.title') },
@@ -317,6 +320,8 @@ async function selfUpdate() {
                 </UButton>
               </template>
             </PanelSection>
+
+            <FunctionsDomainSettings />
 
             <PanelSection id="certificates" :title="t('settings.certificates')" icon="i-cg-certificate">
               <div class="grid gap-4 sm:grid-cols-2">

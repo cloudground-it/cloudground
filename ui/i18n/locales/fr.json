@@ -40,7 +40,8 @@
     "services": "Services",
     "settings": "Paramètres",
     "sites": "Sites",
-    "users": "Utilisateurs"
+    "users": "Utilisateurs",
+    "functions": "Fonctions"
   },
   "whatsnew": {
     "title": "Nouveautés",
@@ -319,8 +320,7 @@
     "security": "Sécurité",
     "redirects": "Redirections",
     "traffic": "Trafic",
-    "app": "Application",
-    "functions": "Fonctions"
+    "app": "Application"
   },
   "overview": {
     "certificate": "Certificat",
@@ -2171,44 +2171,187 @@
   },
   "fn": {
     "title": "Fonctions",
-    "hint": "De petits gestionnaires sur /.functions/… de ce site. Rien ne tourne entre deux requêtes.",
-    "none": "Pas encore de fonction.",
+    "intro": "Du code Node.js et Python qui s’exécute quand on l’appelle ou selon une planification. Rien ne tourne entre-temps.",
     "new": "Nouvelle fonction",
-    "create": "Créer",
-    "namePlaceholder": "nom, par ex. formulaire-contact",
-    "nameRule": "Un nom est fait de minuscules, de chiffres et de -, et commence par une lettre.",
-    "created": "Fonction créée",
-    "saved": "Fonction déployée",
-    "rolledBack": "Le code précédent est de nouveau en ligne",
-    "deleted": "Fonction supprimée",
-    "deleteConfirm": "Supprimer la fonction {name} ? Son adresse ne répondra plus.",
-    "scheduled": "Tourne selon une planification",
-    "endpoint": "Chaque requête exécute le gestionnaire dans un processus à part, avec la mémoire et le temps ci-dessous.",
-    "code": "Code",
-    "codeHelpNode": "index.js : exportez handler(event), simple ou async. Seule la bibliothèque standard de Node.js est disponible.",
-    "codeHelpPython": "main.py : def handler(event), simple ou async. Seule la bibliothèque standard de Python est disponible.",
-    "memory": "Mémoire",
-    "timeout": "Délai maximal",
-    "seconds": "secondes",
-    "schedule": "Planification",
-    "scheduleHelp": "Cinq champs cron, dans le fuseau horaire du panneau. Vide : jamais.",
-    "deploy": "Déployer",
-    "test": "Tester",
-    "rollback": "Revenir en arrière",
-    "invocations": "Exécutions",
-    "invocationsHint": "Les dernières requêtes, d’après le journal d’accès du site. Un 502 est un plantage, le délai ou la limite de mémoire.",
-    "testResult": "HTTP {status} en {ms} ms",
-    "testFailed": "Pas de réponse",
-    "when": "Quand",
-    "source": "Origine",
-    "status": "Statut",
-    "duration": "Durée",
-    "noInvocations": "Pas encore d’exécution.",
-    "output": "Sortie (console et erreurs)",
-    "src": {
-      "http": "Requête",
+    "open": "Ouvrir",
+    "never": "Jamais exécutée",
+    "notPublished": "Non publiée",
+    "moreUrls": "+{n} autres",
+    "empty": {
+      "title": "Pas encore de fonction",
+      "hint": "Une fonction est un petit programme Node.js ou Python avec sa propre adresse web. Elle s’exécute quand on l’appelle ou selon une planification, et ne consomme rien au repos."
+    },
+    "noDomain": {
+      "title": "Définissez un domaine pour publier vos fonctions",
+      "hint": "D’ici là, une fonction ne s’exécute que lors d’un test, selon sa planification ou sur un domaine à elle.",
+      "action": "Définir le domaine"
+    },
+    "col": {
+      "name": "Nom",
+      "runtime": "Environnement",
+      "addresses": "Adresse",
+      "auth": "Accès",
       "schedule": "Planification",
-      "test": "Test"
+      "last": "Dernière exécution"
+    },
+    "auth": {
+      "public": "Publique",
+      "token": "Jeton",
+      "publicHint": "Toute personne qui a l’adresse peut l’appeler.",
+      "tokenHint": "L’appelant envoie Authorization: Bearer et le jeton. Sinon, réponse 401."
+    },
+    "create": {
+      "title": "Fonction",
+      "intro": "Nommez-la et choisissez l’environnement d’exécution. Code, mémoire, planification et adresses se modifient ensuite.",
+      "name": "Nom",
+      "nameHelp": "Minuscules, chiffres et tirets, en commençant par une lettre. Le nom fait partie de l’adresse.",
+      "nameRule": "Utilisez des minuscules, des chiffres et des tirets, en commençant par une lettre (31 au plus).",
+      "runtime": "Environnement d’exécution",
+      "entry": "Fichier d’entrée {file}",
+      "version": "Version",
+      "notInstalled": "non installée",
+      "installFirst": "{runtime} {version} n’est pas installé sur ce serveur. Installez-le d’abord dans Services → Environnements d’exécution.",
+      "openRuntimes": "Ouvrir les environnements",
+      "starter": "Code de départ",
+      "template": {
+        "http": "Gestionnaire HTTP",
+        "httpHint": "Répond à chaque requête avec ce qu’elle a reçu.",
+        "scheduled": "Tâche planifiée",
+        "scheduledHint": "S’exécute selon une planification, toutes les heures pour commencer."
+      },
+      "access": "Qui peut l’appeler",
+      "submit": "Créer la fonction",
+      "done": "Fonction créée",
+      "open": "Aller à la fonction"
+    },
+    "token": {
+      "title": "Copiez le jeton maintenant",
+      "hint": "Il ne sera plus affiché. L’appelant l’envoie dans l’en-tête Authorization ; en cas de perte, générez-en un nouveau.",
+      "done": "Je l’ai copié"
+    },
+    "tabs": {
+      "label": "Sections de la fonction",
+      "code": "Code",
+      "addresses": "Adresses",
+      "settings": "Réglages",
+      "runs": "Exécutions",
+      "releases": "Releases"
+    },
+    "code": {
+      "title": "Code",
+      "hint": {
+        "node": "index.js exporte handler(event), simple ou async. Sa valeur de retour devient la réponse.",
+        "python": "main.py définit handler(event), simple ou async. Sa valeur de retour devient la réponse."
+      },
+      "files": "Fichiers",
+      "entry": "entrée",
+      "addFile": "Ajouter un fichier",
+      "remove": "Retirer {path}",
+      "pathRule": "Lettres, chiffres, points, tirets et tirets bas, avec / entre les dossiers.",
+      "pathExists": "{path} existe déjà.",
+      "deps": {
+        "node": "Avec un package.json, les dépendances sont installées au déploiement.",
+        "python": "Avec un requirements.txt, les dépendances sont installées au déploiement."
+      },
+      "unsaved": "Non déployé",
+      "deploy": "Déployer",
+      "discard": "Annuler les modifications",
+      "deployHint": "Chaque déploiement crée une nouvelle release. Si une dépendance ne s’installe pas, la release actuelle reste en ligne.",
+      "deployed": "Fonction déployée",
+      "deployFailed": "Échec du déploiement. La release actuelle reste en ligne."
+    },
+    "test": {
+      "title": "Test",
+      "hint": "Exécute le code déployé sur le serveur avec la requête ci-dessous. Le jeton n’est pas nécessaire.",
+      "method": "Méthode",
+      "path": "Chemin",
+      "body": "Corps",
+      "run": "Tester",
+      "noAnswer": "Pas de réponse",
+      "empty": "(corps vide)",
+      "notDeployed": "Vos modifications ne sont pas déployées : le test utilise la release en ligne."
+    },
+    "addr": {
+      "urlsTitle": "Adresses publiques",
+      "urlsHint": "Là où la fonction répond. Tout chemin sous une adresse y mène aussi.",
+      "noUrls": "Pas encore d’adresse publique. La fonction s’exécute quand même lors d’un test ou selon sa planification.",
+      "domainsTitle": "Domaines propres",
+      "domainsHint": "Chacun ne répond que pour cette fonction, à partir de /. Pointez son DNS vers ce serveur ; le certificat suit.",
+      "domains": "Domaines",
+      "noDomains": "Aucun domaine propre.",
+      "addDomain": "Ajouter un domaine",
+      "domainsSaved": "Domaines enregistrés",
+      "domainsSaveHint": "10 au plus. Un certificat est demandé pour les nouveaux noms dès leur enregistrement.",
+      "accessTitle": "Accès",
+      "accessHint": "Qui peut appeler la fonction, et quels sites peuvent l’appeler depuis un navigateur.",
+      "hasToken": "Un jeton est défini. Il n’a été affiché qu’une fois, à sa création.",
+      "noToken": "Pas encore de jeton : il est créé à l’enregistrement.",
+      "newToken": "Générer un nouveau jeton",
+      "newTokenTitle": "Générer un nouveau jeton ?",
+      "newTokenHint": "Le jeton actuel cesse de fonctionner dès la prochaine requête. Si l’accès était public, il passe au jeton.",
+      "cors": "Origines CORS",
+      "corsHelp": "Une par ligne : * pour tout site, ou une origine comme https://www.example.com. Vide : pas d’en-têtes CORS.",
+      "accessSaved": "Accès enregistré"
+    },
+    "dns": {
+      "title": "DNS et certificat",
+      "certificate": "Certificat de {issuer}, valable jusqu’au {date}.",
+      "noCertificate": "Pas encore de certificat. Il est émis quand le DNS pointe ici et qu’un e-mail ACME est défini."
+    },
+    "settings": {
+      "title": "Exécution",
+      "runHint": "Appliqués dès la prochaine exécution. Rien à redémarrer : chaque exécution repart de zéro.",
+      "versionHelp": "Autres versions dans Services → Environnements d’exécution.",
+      "memory": "Mémoire",
+      "timeout": "Délai maximal",
+      "schedule": "Planification",
+      "scheduleHelp": "Cinq champs cron, dans le fuseau horaire du panneau. Vide : jamais.",
+      "envHint": "Les variables que la fonction trouve dans son environnement. Les secrets sont stockés chiffrés.",
+      "secretsHint": "Stockés chiffrés et jamais réaffichés ; la fonction les reçoit comme toute variable.",
+      "saveHint": "Enregistrer ne crée pas de nouvelle release.",
+      "saved": "Réglages enregistrés",
+      "dangerTitle": "Suppression",
+      "delete": "Supprimer la fonction",
+      "deleteTitle": "Supprimer {name} ?",
+      "deleteHint": "Son code, ses releases, ses secrets et ses adresses sont supprimés, et ses adresses ne répondent plus.",
+      "deleted": "Fonction supprimée"
+    },
+    "runs": {
+      "title": "Exécutions",
+      "hint": "Les derniers appels, du plus récent au plus ancien. Un 502 est un plantage, le délai ou la limite de mémoire.",
+      "when": "Quand",
+      "request": "Requête",
+      "status": "Statut",
+      "duration": "Durée",
+      "source": "Origine",
+      "src": {
+        "http": "Requête",
+        "schedule": "Planification",
+        "test": "Test"
+      },
+      "none": "Pas encore d’exécution.",
+      "output": "Sortie",
+      "outputHint": "Ce que la fonction a affiché, et ses erreurs.",
+      "noOutput": "Pas encore de sortie."
+    },
+    "releases": {
+      "title": "Releases",
+      "hint": "Chaque déploiement est une release, avec ses propres dépendances. Les 10 dernières sont gardées ; un rollback en remet une telle qu’elle était.",
+      "live": "En ligne",
+      "rollback": "Rollback",
+      "rollbackTitle": "Revenir à la release du {when} ?",
+      "rollbackHint": "Le prochain appel exécute ce code, avec les dépendances de son déploiement.",
+      "rolledBack": "Cette release est de nouveau en ligne",
+      "none": "Pas encore de release"
+    },
+    "server": {
+      "hint": "Chaque fonction répond sur ce domaine sous son nom, par exemple https://fn.example.com/contact-form.",
+      "domain": "Domaine des fonctions",
+      "domainHelp": "Un nom réservé aux fonctions, comme fn.example.com, qui pointe vers ce serveur. Vide : les fonctions n’ont pas d’adresse commune.",
+      "domainSaved": "Domaine des fonctions enregistré",
+      "domainCleared": "Domaine des fonctions retiré",
+      "noAcme": "Aucun e-mail ACME n’est défini : aucun certificat ne peut être émis. Ajoutez-en un dans Certificats, plus bas.",
+      "open": "Aller aux fonctions"
     }
   }
 }

@@ -40,7 +40,8 @@
     "services": "Services",
     "settings": "Settings",
     "sites": "Sites",
-    "users": "Users"
+    "users": "Users",
+    "functions": "Functions"
   },
   "whatsnew": {
     "title": "What's new",
@@ -319,8 +320,7 @@
     "security": "Security",
     "redirects": "Redirects",
     "traffic": "Traffic",
-    "app": "App",
-    "functions": "Functions"
+    "app": "App"
   },
   "overview": {
     "certificate": "Certificate",
@@ -2171,44 +2171,187 @@
   },
   "fn": {
     "title": "Functions",
-    "hint": "Small handlers at /.functions/… on this site. Nothing runs between requests.",
-    "none": "No functions yet.",
+    "intro": "Node.js and Python code that runs when it is called or on a schedule. Nothing runs in between.",
     "new": "New function",
-    "create": "Create",
-    "namePlaceholder": "name, e.g. contact-form",
-    "nameRule": "A name is lower-case letters, digits and -, starting with a letter.",
-    "created": "Function created",
-    "saved": "Function deployed",
-    "rolledBack": "Previous code is live again",
-    "deleted": "Function deleted",
-    "deleteConfirm": "Delete the function {name}? Its address stops answering.",
-    "scheduled": "Runs on a schedule",
-    "endpoint": "Each request runs the handler in a process of its own, with the memory and time below.",
-    "code": "Code",
-    "codeHelpNode": "index.js: export handler(event), plain or async. Only Node.js's standard library is available.",
-    "codeHelpPython": "main.py: def handler(event), plain or async. Only Python's standard library is available.",
-    "memory": "Memory",
-    "timeout": "Timeout",
-    "seconds": "seconds",
-    "schedule": "Schedule",
-    "scheduleHelp": "Five cron fields, in the panel's time zone. Empty: never.",
-    "deploy": "Deploy",
-    "test": "Test",
-    "rollback": "Roll back",
-    "invocations": "Invocations",
-    "invocationsHint": "The latest requests, from the site's access log. A 502 is a crash, a timeout or the memory limit.",
-    "testResult": "HTTP {status} in {ms} ms",
-    "testFailed": "No answer",
-    "when": "When",
-    "source": "Source",
-    "status": "Status",
-    "duration": "Duration",
-    "noInvocations": "No invocations yet.",
-    "output": "Output (console and errors)",
-    "src": {
-      "http": "Request",
+    "open": "Open",
+    "never": "Never run",
+    "notPublished": "Not published",
+    "moreUrls": "+{n} more",
+    "empty": {
+      "title": "No functions yet",
+      "hint": "A function is a small piece of Node.js or Python code with its own web address. It runs when something calls it or on a schedule, and uses nothing while idle."
+    },
+    "noDomain": {
+      "title": "Set a domain to publish your functions",
+      "hint": "Until then, a function runs only from a test, on its schedule or at a domain of its own.",
+      "action": "Set the domain"
+    },
+    "col": {
+      "name": "Name",
+      "runtime": "Runtime",
+      "addresses": "Address",
+      "auth": "Access",
       "schedule": "Schedule",
-      "test": "Test"
+      "last": "Last run"
+    },
+    "auth": {
+      "public": "Public",
+      "token": "Token",
+      "publicHint": "Anyone with the address can call it.",
+      "tokenHint": "Callers send Authorization: Bearer and the token. Anything else gets a 401."
+    },
+    "create": {
+      "title": "Function",
+      "intro": "Name it and pick a runtime. Code, memory, schedule and addresses can all change later.",
+      "name": "Name",
+      "nameHelp": "Lower-case letters, digits and hyphens, starting with a letter. It becomes part of the address.",
+      "nameRule": "Use lower-case letters, digits and hyphens, starting with a letter (at most 31).",
+      "runtime": "Runtime",
+      "entry": "Entry file {file}",
+      "version": "Version",
+      "notInstalled": "not installed",
+      "installFirst": "{runtime} {version} is not installed on this server. Install it under Services → Runtimes first.",
+      "openRuntimes": "Open Runtimes",
+      "starter": "Starter code",
+      "template": {
+        "http": "HTTP handler",
+        "httpHint": "Answers each request with what it received.",
+        "scheduled": "Scheduled job",
+        "scheduledHint": "Runs on a schedule, every hour to start with."
+      },
+      "access": "Who can call it",
+      "submit": "Create function",
+      "done": "Function created",
+      "open": "Go to the function"
+    },
+    "token": {
+      "title": "Copy the token now",
+      "hint": "You will not see it again. Callers send it in the Authorization header; if it is lost, generate a new one.",
+      "done": "I have copied it"
+    },
+    "tabs": {
+      "label": "Function sections",
+      "code": "Code",
+      "addresses": "Addresses",
+      "settings": "Settings",
+      "runs": "Runs",
+      "releases": "Releases"
+    },
+    "code": {
+      "title": "Code",
+      "hint": {
+        "node": "index.js exports handler(event), plain or async. What it returns becomes the response.",
+        "python": "main.py defines handler(event), plain or async. What it returns becomes the response."
+      },
+      "files": "Files",
+      "entry": "entry",
+      "addFile": "Add file",
+      "remove": "Remove {path}",
+      "pathRule": "Letters, digits, dots, hyphens and underscores, with / between folders.",
+      "pathExists": "{path} is already there.",
+      "deps": {
+        "node": "A package.json gets its dependencies installed on deploy.",
+        "python": "A requirements.txt gets its dependencies installed on deploy."
+      },
+      "unsaved": "Not deployed",
+      "deploy": "Deploy",
+      "discard": "Discard changes",
+      "deployHint": "Each deploy is a new release. If a dependency fails to install, the current one keeps serving.",
+      "deployed": "Function deployed",
+      "deployFailed": "Deploy failed. The current release is still live."
+    },
+    "test": {
+      "title": "Test",
+      "hint": "Runs the deployed code on the server with the request below. No token needed.",
+      "method": "Method",
+      "path": "Path",
+      "body": "Body",
+      "run": "Test",
+      "noAnswer": "No answer",
+      "empty": "(empty body)",
+      "notDeployed": "Your changes are not deployed: the test runs the live release."
+    },
+    "addr": {
+      "urlsTitle": "Public addresses",
+      "urlsHint": "Where the function answers. Every path below an address reaches it too.",
+      "noUrls": "No public address yet. The function still runs from a test or on its schedule.",
+      "domainsTitle": "Own domains",
+      "domainsHint": "Each one answers only for this function, from / down. Point its DNS at this server and the certificate follows.",
+      "domains": "Domains",
+      "noDomains": "No domains of its own.",
+      "addDomain": "Add domain",
+      "domainsSaved": "Domains saved",
+      "domainsSaveHint": "At most 10. New names get a certificate requested once saved.",
+      "accessTitle": "Access",
+      "accessHint": "Who may call the function, and which websites may call it from a browser.",
+      "hasToken": "A token is set. It was shown once, when it was made.",
+      "noToken": "No token yet: one is made when you save.",
+      "newToken": "Generate new token",
+      "newTokenTitle": "Generate a new token?",
+      "newTokenHint": "The current token stops working from the next request. If access was public, it switches to token.",
+      "cors": "CORS origins",
+      "corsHelp": "One per line: * for any site, or an origin such as https://www.example.com. Empty: no CORS headers.",
+      "accessSaved": "Access saved"
+    },
+    "dns": {
+      "title": "DNS and certificate",
+      "certificate": "Certificate from {issuer}, valid until {date}.",
+      "noCertificate": "No certificate yet. It is issued once the DNS points here and an ACME e-mail is set."
+    },
+    "settings": {
+      "title": "Run settings",
+      "runHint": "Used from the next run. Nothing needs restarting: every run starts fresh.",
+      "versionHelp": "More versions under Services → Runtimes.",
+      "memory": "Memory",
+      "timeout": "Timeout",
+      "schedule": "Schedule",
+      "scheduleHelp": "Five cron fields, in the panel's time zone. Empty: never.",
+      "envHint": "Variables the function finds in its environment. Secrets are stored encrypted.",
+      "secretsHint": "Stored encrypted and never shown again; the function gets them like any variable.",
+      "saveHint": "Saving does not make a new release.",
+      "saved": "Settings saved",
+      "dangerTitle": "Delete",
+      "delete": "Delete function",
+      "deleteTitle": "Delete {name}?",
+      "deleteHint": "Its code, releases, secrets and addresses are removed, and its addresses stop answering.",
+      "deleted": "Function deleted"
+    },
+    "runs": {
+      "title": "Runs",
+      "hint": "The latest calls, newest first. A 502 means a crash, the timeout or the memory limit.",
+      "when": "When",
+      "request": "Request",
+      "status": "Status",
+      "duration": "Duration",
+      "source": "Source",
+      "src": {
+        "http": "Request",
+        "schedule": "Schedule",
+        "test": "Test"
+      },
+      "none": "No runs yet.",
+      "output": "Output",
+      "outputHint": "What the function printed, and its errors.",
+      "noOutput": "No output yet."
+    },
+    "releases": {
+      "title": "Releases",
+      "hint": "Each deploy is a release, with its own dependencies. The latest 10 are kept; rolling back brings one back exactly as it was.",
+      "live": "Live",
+      "rollback": "Roll back",
+      "rollbackTitle": "Roll back to the release of {when}?",
+      "rollbackHint": "The next call runs that code, with the dependencies it was deployed with.",
+      "rolledBack": "That release is live again",
+      "none": "No releases yet"
+    },
+    "server": {
+      "hint": "Every function answers on this domain under its own name, such as https://fn.example.com/contact-form.",
+      "domain": "Functions domain",
+      "domainHelp": "A name used only for functions, such as fn.example.com, pointing at this server. Empty: functions get no shared address.",
+      "domainSaved": "Functions domain saved",
+      "domainCleared": "Functions domain removed",
+      "noAcme": "No ACME e-mail is set, so no certificate can be issued. Add one under Certificates below.",
+      "open": "Go to functions"
     }
   }
 }

@@ -32,6 +32,8 @@ const props = defineProps<{
   encoding?: string
   /** Saves the content; resolves true when it was written. */
   save: (content: string) => Promise<boolean>
+  /** Shown but not editable (a read-only account). */
+  readonly?: boolean
 }>()
 const dirty = defineModel<boolean>('dirty', { default: false })
 
@@ -202,6 +204,7 @@ onMounted(async () => {
     wrapConf.of([]),
     darkConf.of(EditorView.darkTheme.of(colorMode.value === 'dark')),
     EditorView.contentAttributes.of({ 'aria-label': props.filename }),
+    ...(props.readonly ? [EditorState.readOnly.of(true)] : []),
     EditorView.updateListener.of((u) => {
       if (u.selectionSet || u.docChanged) measure()
       if (u.docChanged) {
@@ -218,7 +221,7 @@ onMounted(async () => {
   dirty.value = false
   measure()
   bytes.value = new TextEncoder().encode(props.content).length + (props.encoding === 'utf-8-bom' ? 3 : 0)
-  view.focus()
+  if (!props.readonly) view.focus()
   try {
     const support = await loadLanguage(lang)
     view?.dispatch({ effects: languageConf.reconfigure(support) })
@@ -241,7 +244,7 @@ onBeforeUnmount(() => {
   view = null
 })
 
-defineExpose({ save: doSave, saving })
+defineExpose({ save: doSave, saving, text: () => view?.state.doc.toString() ?? props.content })
 </script>
 
 <template>

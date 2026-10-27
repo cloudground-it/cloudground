@@ -40,7 +40,8 @@
     "services": "Servicios",
     "settings": "Ajustes",
     "sites": "Sitios",
-    "users": "Usuarios"
+    "users": "Usuarios",
+    "functions": "Funciones"
   },
   "whatsnew": {
     "title": "Novedades",
@@ -319,8 +320,7 @@
     "security": "Seguridad",
     "redirects": "Redirecciones",
     "traffic": "Tráfico",
-    "app": "App",
-    "functions": "Funciones"
+    "app": "App"
   },
   "overview": {
     "certificate": "Certificado",
@@ -2171,44 +2171,187 @@
   },
   "fn": {
     "title": "Funciones",
-    "hint": "Pequeños manejadores en /.functions/… de este sitio. Entre una petición y otra no se ejecuta nada.",
-    "none": "Todavía no hay funciones.",
+    "intro": "Código Node.js y Python que se ejecuta cuando lo llaman o según una programación. Entre medias no se ejecuta nada.",
     "new": "Nueva función",
-    "create": "Crear",
-    "namePlaceholder": "nombre, p. ej. formulario-contacto",
-    "nameRule": "Un nombre lleva minúsculas, cifras y -, y empieza por una letra.",
-    "created": "Función creada",
-    "saved": "Función desplegada",
-    "rolledBack": "El código anterior vuelve a estar publicado",
-    "deleted": "Función eliminada",
-    "deleteConfirm": "¿Eliminar la función {name}? Su dirección dejará de responder.",
-    "scheduled": "Se ejecuta según una programación",
-    "endpoint": "Cada petición ejecuta el manejador en un proceso propio, con la memoria y el tiempo de abajo.",
-    "code": "Código",
-    "codeHelpNode": "index.js: exporta handler(event), normal o async. Solo está disponible la biblioteca estándar de Node.js.",
-    "codeHelpPython": "main.py: def handler(event), normal o async. Solo está disponible la biblioteca estándar de Python.",
-    "memory": "Memoria",
-    "timeout": "Tiempo máximo",
-    "seconds": "segundos",
-    "schedule": "Programación",
-    "scheduleHelp": "Cinco campos cron, en la zona horaria del panel. Vacío: nunca.",
-    "deploy": "Desplegar",
-    "test": "Probar",
-    "rollback": "Volver atrás",
-    "invocations": "Ejecuciones",
-    "invocationsHint": "Las últimas peticiones, del registro de acceso del sitio. Un 502 es un fallo, el tiempo máximo o el límite de memoria.",
-    "testResult": "HTTP {status} en {ms} ms",
-    "testFailed": "Sin respuesta",
-    "when": "Cuándo",
-    "source": "Origen",
-    "status": "Estado",
-    "duration": "Duración",
-    "noInvocations": "Todavía no hay ejecuciones.",
-    "output": "Salida (consola y errores)",
-    "src": {
-      "http": "Petición",
+    "open": "Abrir",
+    "never": "Nunca ejecutada",
+    "notPublished": "Sin publicar",
+    "moreUrls": "+{n} más",
+    "empty": {
+      "title": "Todavía no hay funciones",
+      "hint": "Una función es un pequeño programa Node.js o Python con su propia dirección web. Se ejecuta cuando alguien la llama o según una programación, y en reposo no consume nada."
+    },
+    "noDomain": {
+      "title": "Configura un dominio para publicar tus funciones",
+      "hint": "Mientras tanto, una función solo se ejecuta en una prueba, según su programación o en un dominio propio.",
+      "action": "Configurar el dominio"
+    },
+    "col": {
+      "name": "Nombre",
+      "runtime": "Entorno",
+      "addresses": "Dirección",
+      "auth": "Acceso",
       "schedule": "Programación",
-      "test": "Prueba"
+      "last": "Última ejecución"
+    },
+    "auth": {
+      "public": "Pública",
+      "token": "Token",
+      "publicHint": "Cualquiera con la dirección puede llamarla.",
+      "tokenHint": "Quien la llama envía Authorization: Bearer y el token. Lo demás recibe un 401."
+    },
+    "create": {
+      "title": "Función",
+      "intro": "Ponle un nombre y elige el entorno de ejecución. El código, la memoria, la programación y las direcciones se pueden cambiar después.",
+      "name": "Nombre",
+      "nameHelp": "Minúsculas, cifras y guiones, empezando por una letra. Forma parte de la dirección.",
+      "nameRule": "Usa minúsculas, cifras y guiones, empezando por una letra (31 como máximo).",
+      "runtime": "Entorno de ejecución",
+      "entry": "Archivo de entrada {file}",
+      "version": "Versión",
+      "notInstalled": "sin instalar",
+      "installFirst": "{runtime} {version} no está instalado en este servidor. Instálalo antes en Servicios → Entornos de ejecución.",
+      "openRuntimes": "Abrir entornos",
+      "starter": "Código inicial",
+      "template": {
+        "http": "Manejador HTTP",
+        "httpHint": "Responde a cada petición con lo que ha recibido.",
+        "scheduled": "Tarea programada",
+        "scheduledHint": "Se ejecuta según una programación, cada hora para empezar."
+      },
+      "access": "Quién puede llamarla",
+      "submit": "Crear función",
+      "done": "Función creada",
+      "open": "Ir a la función"
+    },
+    "token": {
+      "title": "Copia el token ahora",
+      "hint": "No lo volverás a ver. Quien llama a la función lo envía en la cabecera Authorization; si lo pierdes, genera uno nuevo.",
+      "done": "Ya lo he copiado"
+    },
+    "tabs": {
+      "label": "Secciones de la función",
+      "code": "Código",
+      "addresses": "Direcciones",
+      "settings": "Ajustes",
+      "runs": "Ejecuciones",
+      "releases": "Releases"
+    },
+    "code": {
+      "title": "Código",
+      "hint": {
+        "node": "index.js exporta handler(event), normal o async. Lo que devuelve se convierte en la respuesta.",
+        "python": "main.py define handler(event), normal o async. Lo que devuelve se convierte en la respuesta."
+      },
+      "files": "Archivos",
+      "entry": "entrada",
+      "addFile": "Añadir archivo",
+      "remove": "Quitar {path}",
+      "pathRule": "Letras, cifras, puntos, guiones y guiones bajos, con / entre carpetas.",
+      "pathExists": "{path} ya existe.",
+      "deps": {
+        "node": "Con un package.json, las dependencias se instalan al desplegar.",
+        "python": "Con un requirements.txt, las dependencias se instalan al desplegar."
+      },
+      "unsaved": "Sin desplegar",
+      "deploy": "Desplegar",
+      "discard": "Descartar cambios",
+      "deployHint": "Cada despliegue crea una nueva release. Si una dependencia no se instala, la actual sigue publicada.",
+      "deployed": "Función desplegada",
+      "deployFailed": "El despliegue ha fallado. La release actual sigue publicada."
+    },
+    "test": {
+      "title": "Prueba",
+      "hint": "Ejecuta en el servidor el código desplegado con la petición de abajo. No hace falta el token.",
+      "method": "Método",
+      "path": "Ruta",
+      "body": "Cuerpo",
+      "run": "Probar",
+      "noAnswer": "Sin respuesta",
+      "empty": "(cuerpo vacío)",
+      "notDeployed": "Tus cambios no están desplegados: la prueba usa la release publicada."
+    },
+    "addr": {
+      "urlsTitle": "Direcciones públicas",
+      "urlsHint": "Dónde responde la función. Cualquier ruta bajo una dirección también llega a ella.",
+      "noUrls": "Todavía no tiene dirección pública. La función se ejecuta igualmente en una prueba o según su programación.",
+      "domainsTitle": "Dominios propios",
+      "domainsHint": "Cada uno responde solo para esta función, desde / hacia abajo. Apunta su DNS a este servidor y el certificado llega solo.",
+      "domains": "Dominios",
+      "noDomains": "Sin dominios propios.",
+      "addDomain": "Añadir dominio",
+      "domainsSaved": "Dominios guardados",
+      "domainsSaveHint": "10 como máximo. Para los nombres nuevos se pide un certificado al guardarlos.",
+      "accessTitle": "Acceso",
+      "accessHint": "Quién puede llamar a la función y qué sitios pueden llamarla desde un navegador.",
+      "hasToken": "Hay un token configurado. Se mostró una sola vez, al crearlo.",
+      "noToken": "Todavía no hay token: se crea al guardar.",
+      "newToken": "Generar nuevo token",
+      "newTokenTitle": "¿Generar un nuevo token?",
+      "newTokenHint": "El token actual deja de funcionar desde la próxima petición. Si el acceso era público, pasa a token.",
+      "cors": "Orígenes CORS",
+      "corsHelp": "Uno por línea: * para cualquier sitio, o un origen como https://www.example.com. Vacío: sin cabeceras CORS.",
+      "accessSaved": "Acceso guardado"
+    },
+    "dns": {
+      "title": "DNS y certificado",
+      "certificate": "Certificado de {issuer}, válido hasta el {date}.",
+      "noCertificate": "Todavía no hay certificado. Se emite cuando el DNS apunta aquí y hay un correo ACME configurado."
+    },
+    "settings": {
+      "title": "Ejecución",
+      "runHint": "Se aplican desde la próxima ejecución. No hay nada que reiniciar: cada ejecución empieza de cero.",
+      "versionHelp": "Más versiones en Servicios → Entornos de ejecución.",
+      "memory": "Memoria",
+      "timeout": "Tiempo máximo",
+      "schedule": "Programación",
+      "scheduleHelp": "Cinco campos cron, en la zona horaria del panel. Vacío: nunca.",
+      "envHint": "Variables que la función encuentra en su entorno. Los secretos se guardan cifrados.",
+      "secretsHint": "Se guardan cifrados y no se vuelven a mostrar; la función los recibe como cualquier variable.",
+      "saveHint": "Guardar no crea una nueva release.",
+      "saved": "Ajustes guardados",
+      "dangerTitle": "Eliminación",
+      "delete": "Eliminar función",
+      "deleteTitle": "¿Eliminar {name}?",
+      "deleteHint": "Se eliminan su código, sus releases, sus secretos y sus direcciones, que dejan de responder.",
+      "deleted": "Función eliminada"
+    },
+    "runs": {
+      "title": "Ejecuciones",
+      "hint": "Las últimas llamadas, de la más reciente a la más antigua. Un 502 es un fallo, el tiempo máximo o el límite de memoria.",
+      "when": "Cuándo",
+      "request": "Petición",
+      "status": "Estado",
+      "duration": "Duración",
+      "source": "Origen",
+      "src": {
+        "http": "Petición",
+        "schedule": "Programación",
+        "test": "Prueba"
+      },
+      "none": "Todavía no hay ejecuciones.",
+      "output": "Salida",
+      "outputHint": "Lo que la función ha impreso, y sus errores.",
+      "noOutput": "Todavía no hay salida."
+    },
+    "releases": {
+      "title": "Releases",
+      "hint": "Cada despliegue es una release, con sus propias dependencias. Se guardan las 10 últimas; un rollback recupera una tal como era.",
+      "live": "Publicada",
+      "rollback": "Rollback",
+      "rollbackTitle": "¿Volver a la release del {when}?",
+      "rollbackHint": "La próxima llamada ejecuta ese código, con las dependencias con que se desplegó.",
+      "rolledBack": "Esa release vuelve a estar publicada",
+      "none": "Todavía no hay releases"
+    },
+    "server": {
+      "hint": "Cada función responde en este dominio con su nombre, por ejemplo https://fn.example.com/contact-form.",
+      "domain": "Dominio de las funciones",
+      "domainHelp": "Un nombre solo para funciones, como fn.example.com, que apunte a este servidor. Vacío: las funciones no tienen una dirección común.",
+      "domainSaved": "Dominio de las funciones guardado",
+      "domainCleared": "Dominio de las funciones quitado",
+      "noAcme": "No hay un correo ACME configurado, así que no se puede emitir ningún certificado. Añádelo en Certificados, más abajo.",
+      "open": "Ir a las funciones"
     }
   }
 }

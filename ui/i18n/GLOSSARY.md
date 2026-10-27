@@ -78,6 +78,12 @@ PEM, wp-admin, cron** (the syntax), file names and paths.
 | certificate | certificato | certificat | certificado | Zertifikat |
 | wildcard | wildcard | wildcard | wildcard | Wildcard |
 | webhook | webhook | webhook | webhook | Webhook |
+| function (Node.js/Python code with an address) | funzione | fonction | función | Funktion (f.) |
+| functions domain | dominio delle funzioni | domaine des fonctions | dominio de las funciones | Funktions-Domain |
+| run / invocation (of a function) | esecuzione | exécution | ejecución | Ausführung |
+| deploy (a function's code) | rilasciare | déployer | desplegar | bereitstellen |
+| token (a function's access token) | token | jeton | token | Token (m.) |
+| runtime (Node.js, Python) | runtime | environnement d'exécution | entorno de ejecución | Laufzeitumgebung |
 | repository | repository | dépôt | repositorio | Repository |
 | upload / download | caricare / scaricare | téléverser (envoyer) / télécharger | subir / descargar | hochladen / herunterladen |
 | folder | cartella | dossier | carpeta | Ordner |
