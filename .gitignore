@@ -1,6 +1,8 @@
 # Build output. ui/dist is not here: it is committed for go:embed.
 /bin/
 /dist/
+# The panel's demo build (docs/demo.md); ui/dist, the real bundle, is committed.
+/ui/dist-demo/
 ui/node_modules/
 ui/.nuxt/
 ui/.output/

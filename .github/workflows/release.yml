@@ -10,7 +10,8 @@
 #            among its assets), marked latest only when it is the newest
 #            stable release
 #   pages    for that newest stable release only: publishes its install.sh
-#            on GitHub Pages, served as https://get.cloudground.it/
+#            on GitHub Pages, served as https://get.cloudground.it/, and the
+#            panel's demo (ui/demo, docs/demo.md) under /demo/
 #
 # vX.Y.Z is a stable release; vX.Y.Z-beta.N a pre-release, which only servers
 # on the beta channel are offered. Any other v* tag fails the build job.
@@ -237,6 +238,22 @@ jobs:
           # it deploys from Actions; the file records it beside the site.
           echo get.cloudground.it > site/CNAME
           (cd site && sha256sum install.sh)
+
+      # The interface of this release against sample data that runs in the
+      # browser (docs/demo.md): a static build of its own, served at
+      # https://get.cloudground.it/demo/. It sends nothing anywhere.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.23.3'
+      - name: The demo
+        run: |
+          (cd ui && npm ci --no-audit --no-fund && npm test && npm run build:demo)
+          test -f ui/dist-demo/index.html
+          mkdir -p site/demo
+          cp -R ui/dist-demo/. site/demo/
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
