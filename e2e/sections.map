@@ -111,7 +111,8 @@ internal/api/deployflow.go             wordpress safe push, wordpress releases, 
 internal/api/site_filemanager.go       security, wordpress staging
 internal/api/sitessh.go                wordpress sftp, R-4.5 site shell, R-4.6 cgctl tokens
 internal/api/routing.go                R-5.4 routing
-internal/api/migration_import.go       migration import, migration safety snapshot
+internal/api/migration_pull.go         migration pull
+internal/api/migration_import.go       migration import, migration safety snapshot, migration pull
 internal/api/server_routes.go          R-2.4 services, firewall, wordpress logs, security, R-4.7 capabilities, wordpress status and drift, R-0.7 reconcile
 internal/api/system_updates.go         ubuntu updates
 internal/api/drift_service.go          wordpress status and drift, security, R-0.7 reconcile
@@ -179,8 +180,9 @@ internal/agent/ops/sftp/**             wordpress sftp, R-4.5 site shell, R-10.5 
 internal/siteshell/**                  R-4.5 site shell, R-10.5 root boundary
 internal/agent/host/accounts_force.go  R-4.5 site shell
 internal/agent/ops_files_sftp.go       wordpress sftp, security, wordpress staging, R-4.5 site shell
-internal/agent/ops/migration/**        migration import
-internal/agent/ops_migration.go        migration import
+internal/agent/ops/migration/pull.go   migration pull
+internal/agent/ops/migration/**        migration import, migration pull
+internal/agent/ops_migration.go        migration import, migration pull
 internal/agent/ops/staging/**          wordpress staging, wordpress safe push, wordpress backups, wordpress teardown, R-10.5 root boundary
 internal/agent/ops_staging.go          wordpress staging, wordpress safe push, wordpress backups, wordpress teardown
 internal/agent/ops/system/drift.go     wordpress status and drift, site resources

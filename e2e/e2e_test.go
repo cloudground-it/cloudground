@@ -83,6 +83,7 @@ var sections = []section{
 	{name: "F9b Quarry service", run: (*harness).dbStudioService, fixtures: []string{fxWooSite, fxFeatureSite}},
 	{name: "wordpress teardown", run: (*harness).wordpressTeardown, fixtures: []string{fxFeatureSite, fxFeatureStaging}},
 	{name: "migration import", run: (*harness).migration, lane: "migration"},
+	{name: "migration pull", run: (*harness).migrationPull, lane: "migration"},
 	{name: "security", run: (*harness).security, lane: "security"},
 	{name: "woocommerce security", run: (*harness).wooSecurity, fixtures: []string{fxWooSite}, lane: "woocommerce"},
 	{name: "wordpress two-factor", run: (*harness).wpTwoFactor, fixtures: []string{fxWooSite}, lane: "woocommerce"},
