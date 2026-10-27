@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -97,6 +98,42 @@ func (h *harness) functionsSection(t *testing.T) {
 	st, _, _ = call("/.functions/hog")
 	h.assert(t, "#143: an invocation past its memory is killed", st >= 500, "%d", st)
 	h.check(t, "#143: nothing is left running after the limits", running("spin")+running("hog"), "")
+
+	// A burst over the limits gets 429 or 503, never a pile of processes
+	// (internal/functions SPEC §3, internal/engine SPEC §4.12).
+	c, _ = h.api.post(base, map[string]any{"name": "slow", "runtime": "node", "code": "exports.handler = () => new Promise(r => setTimeout(() => r('slow done'), 3000));\n"})
+	h.check(t, "#143: a slow function is created", fmt.Sprint(c), "201")
+	var peak int
+	var mu sync.Mutex
+	stop := make(chan struct{})
+	sampled := make(chan struct{})
+	go func() {
+		defer close(sampled)
+		for {
+			select {
+			case <-stop:
+				return
+			case <-time.After(200 * time.Millisecond):
+			}
+			n := 0
+			if out := running("slow"); out != "" {
+				n = len(strings.Split(out, "\n"))
+			}
+			mu.Lock()
+			peak = max(peak, n)
+			mu.Unlock()
+		}
+	}()
+	burst := h.run("sh", "-c", fmt.Sprintf(`seq 80 | xargs -P 80 -I{} curl -sk -m 30 -o /dev/null -w '%%{http_code}\n' --resolve %s:443:127.0.0.1 https://%s/.functions/slow`, dom, dom)).Out
+	close(stop)
+	<-sampled
+	codes := map[string]int{}
+	for _, l := range strings.Fields(burst) {
+		codes[l]++
+	}
+	h.assert(t, "#143: a burst of 80 is turned away with 429 or 503", codes["429"]+codes["503"] > 0 && codes["429"]+codes["503"]+codes["200"] == 80, "codes %v", codes)
+	h.assert(t, "#143: the burst never gets 502 (no pile of processes refused by the socket)", codes["502"] == 0, "codes %v", codes)
+	h.assert(t, "#143: at most 8 processes at once for one client", peak <= 8, "peak %d processes", peak)
 
 	// A Python function, when the server has a Python with venv (the managed apps section installs it).
 	c, _ = h.api.post(base, map[string]any{"name": "py", "runtime": "python", "version": "3.12",

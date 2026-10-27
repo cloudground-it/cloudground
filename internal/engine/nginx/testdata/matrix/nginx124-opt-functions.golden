@@ -11,6 +11,9 @@ map $remote_addr $cg_fn_source_220 {
     127.0.0.1  $http_x_cloudground_source;
     ::1  $http_x_cloudground_source;
 }
+limit_req_zone $binary_remote_addr zone=cg_fn_req_220:1m rate=10r/s;
+limit_conn_zone $binary_remote_addr zone=cg_fn_conn_220:1m;
+limit_conn_zone $server_port zone=cg_fn_all_220:1m;
 
 server {
     listen 80;
@@ -67,6 +70,11 @@ server {
         proxy_set_header X-CloudGround-Source $cg_fn_source_220;
         proxy_read_timeout 15s;
         client_max_body_size 6m;
+        limit_req zone=cg_fn_req_220 burst=20 nodelay;
+        limit_conn cg_fn_conn_220 8;
+        limit_conn cg_fn_all_220 32;
+        limit_req_status 429;
+        limit_conn_status 503;
         add_header X-Content-Type-Options nosniff always;
         add_header X-Frame-Options SAMEORIGIN always;
         add_header Referrer-Policy strict-origin-when-cross-origin always;
@@ -80,6 +88,11 @@ server {
         proxy_set_header X-CloudGround-Source $cg_fn_source_220;
         proxy_read_timeout 15s;
         client_max_body_size 6m;
+        limit_req zone=cg_fn_req_220 burst=20 nodelay;
+        limit_conn cg_fn_conn_220 8;
+        limit_conn cg_fn_all_220 32;
+        limit_req_status 429;
+        limit_conn_status 503;
         add_header X-Content-Type-Options nosniff always;
         add_header X-Frame-Options SAMEORIGIN always;
         add_header Referrer-Policy strict-origin-when-cross-origin always;
@@ -93,6 +106,11 @@ server {
         proxy_set_header X-CloudGround-Source $cg_fn_source_220;
         proxy_read_timeout 25s;
         client_max_body_size 6m;
+        limit_req zone=cg_fn_req_220 burst=20 nodelay;
+        limit_conn cg_fn_conn_220 8;
+        limit_conn cg_fn_all_220 32;
+        limit_req_status 429;
+        limit_conn_status 503;
         add_header X-Content-Type-Options nosniff always;
         add_header X-Frame-Options SAMEORIGIN always;
         add_header Referrer-Policy strict-origin-when-cross-origin always;
@@ -106,6 +124,11 @@ server {
         proxy_set_header X-CloudGround-Source $cg_fn_source_220;
         proxy_read_timeout 25s;
         client_max_body_size 6m;
+        limit_req zone=cg_fn_req_220 burst=20 nodelay;
+        limit_conn cg_fn_conn_220 8;
+        limit_conn cg_fn_all_220 32;
+        limit_req_status 429;
+        limit_conn_status 503;
         add_header X-Content-Type-Options nosniff always;
         add_header X-Frame-Options SAMEORIGIN always;
         add_header Referrer-Policy strict-origin-when-cross-origin always;

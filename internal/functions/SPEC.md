@@ -54,6 +54,7 @@ SocketMode=0660
 DirectoryMode=0755
 Accept=yes
 MaxConnections=32
+MaxConnectionsPerSource=32
 [Install]
 WantedBy=sockets.target
 ```
@@ -85,8 +86,14 @@ TasksMax=64
 
 - **Scale to zero.** Nothing of a function runs between invocations: systemd holds the socket,
   and each connection starts one instance (`Accept=yes`) that serves its request and exits — an
-  idle timeout of zero. nginx speaks HTTP/1.0 to it, one request per connection. A burst beyond 32
-  connections at once is refused by the socket (nginx answers 502).
+  idle timeout of zero. nginx speaks HTTP/1.0 to it, one request per connection.
+- **A flood is bounded before it spawns anything.** With one process per connection, the number of
+  connections is the number of processes. The socket takes at most 32 at a time
+  (`MaxConnections`; `MaxConnectionsPerSource` is the same 32, since the only source is nginx's
+  workers). The per-visitor limits are nginx's (internal/engine SPEC §4.12): each client address at
+  most 10 requests a second with a burst of 20 (beyond: **429**) and 8 at a time, and the whole
+  site's functions at most 32 at a time — the socket's own bound, so the socket never has to refuse
+  (beyond either: **503**). So a burst costs at most 32 processes per site, whatever comes in.
 - **Limits are systemd's**, per invocation: `RuntimeMaxSec` kills an invocation past its timeout
   (whatever the handler does: a busy loop too), `MemoryMax` with no swap kills one past its memory,
   `TasksMax` caps its threads. The shim answers `504` itself 250 ms before the timeout when the

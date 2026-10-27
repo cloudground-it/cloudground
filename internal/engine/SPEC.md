@@ -437,8 +437,20 @@ proxy_set_header X-Forwarded-Proto $scheme;
 proxy_set_header X-CloudGround-Source "";
 proxy_read_timeout <TimeoutSec + 5>s;
 client_max_body_size 6m;
+limit_req zone=cg_fn_req_<id> burst=20 nodelay;
+limit_conn cg_fn_conn_<id> 8;
+limit_conn cg_fn_all_<id> 32;
+limit_req_status 429;
+limit_conn_status 503;
 <the security headers>
 ```
+
+with, before the server blocks, `limit_req_zone $binary_remote_addr zone=cg_fn_req_<id>:1m
+rate=10r/s;`, `limit_conn_zone $binary_remote_addr zone=cg_fn_conn_<id>:1m;` and
+`limit_conn_zone $server_port zone=cg_fn_all_<id>:1m;` (the same key for every request of the
+site's 443 server: its total). Every invocation is a process (internal/functions SPEC §3), so these
+bound what a flood can start: per client 10 requests a second, a burst of 20 (beyond: 429) and 8 at
+a time; per site 32 at a time, the socket's `MaxConnections` (beyond: 503).
 
 HTTP/1.0 to the socket (nginx's default for a proxy): one request per connection, so one process
 per invocation (internal/functions SPEC §3). A visitor's `X-CloudGround-Source` is emptied: only the

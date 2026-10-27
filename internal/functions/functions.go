@@ -197,6 +197,8 @@ func RenderSocket(s state.Site, f state.SiteFunction) string {
 		"# One instance per connection: nothing runs between invocations.",
 		"Accept=yes",
 		"MaxConnections=" + strconv.Itoa(maxConnections),
+		"# The only source is nginx, which bounds each client (internal/engine SPEC §4.12).",
+		"MaxConnectionsPerSource=" + strconv.Itoa(maxConnections),
 		"",
 		"[Install]",
 		"WantedBy=sockets.target",

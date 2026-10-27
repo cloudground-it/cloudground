@@ -267,6 +267,11 @@ func (v *vhost) render() (before, block, after string) {
 		c.putf(0, "map $remote_addr $cg_fn_source_%d {", s.ID)
 		c.put(1, `default  "";`, "127.0.0.1  $http_x_cloudground_source;", "::1  $http_x_cloudground_source;")
 		c.put(0, "}")
+		// One process per connection: a flood is bounded here, per client
+		// and for the whole site, before it reaches the sockets (SPEC §4.12).
+		c.putf(0, "limit_req_zone $binary_remote_addr zone=cg_fn_req_%d:1m rate=%dr/s;", s.ID, FunctionRatePerSecond)
+		c.putf(0, "limit_conn_zone $binary_remote_addr zone=cg_fn_conn_%d:1m;", s.ID)
+		c.putf(0, "limit_conn_zone $server_port zone=cg_fn_all_%d:1m;", s.ID)
 	}
 	if in.AppUpstream != "" {
 		c.put(0, "", "# The site's own app (SPEC §4.11).")
@@ -619,6 +624,17 @@ var appUpstreamRe = regexp.MustCompile(`^(unix:/run/cloudground/app/cg-site-[1-9
 // managed app (SPEC §4.11).
 func proxied(s state.Site) bool { return s.Type == state.SiteProxy || s.Type.IsApp() }
 
+// A site's functions' bounds in nginx (SPEC §4.12): each client at most
+// FunctionRatePerSecond requests a second (FunctionBurst at once) and
+// FunctionConnsPerClient at a time, the whole site FunctionConnsPerSite at
+// a time — the socket's MaxConnections, so a socket never refuses.
+const (
+	FunctionRatePerSecond  = 10
+	FunctionBurst          = 20
+	FunctionConnsPerClient = 8
+	FunctionConnsPerSite   = 32
+)
+
 // functionNameRe is a function's name (internal/functions SPEC §1).
 var functionNameRe = regexp.MustCompile(`^[a-z][a-z0-9-]{0,30}$`)
 
@@ -639,7 +655,12 @@ func (v *vhost) functions(c *conf) {
 				"proxy_set_header X-Forwarded-Proto $scheme;",
 				fmt.Sprintf("proxy_set_header X-CloudGround-Source $cg_fn_source_%d;", v.in.Site.ID),
 				fmt.Sprintf("proxy_read_timeout %ds;", f.TimeoutSec+5),
-				"client_max_body_size 6m;")
+				"client_max_body_size 6m;",
+				fmt.Sprintf("limit_req zone=cg_fn_req_%d burst=%d nodelay;", v.in.Site.ID, FunctionBurst),
+				fmt.Sprintf("limit_conn cg_fn_conn_%d %d;", v.in.Site.ID, FunctionConnsPerClient),
+				fmt.Sprintf("limit_conn cg_fn_all_%d %d;", v.in.Site.ID, FunctionConnsPerSite),
+				"limit_req_status 429;",
+				"limit_conn_status 503;")
 			c.put(2, v.sec...)
 			c.put(1, "}")
 		}

@@ -56,7 +56,7 @@ func TestUnits(t *testing.T) {
 	f := fnc()
 	f.MemoryMB, f.TimeoutSec = 256, 30
 	sock := RenderSocket(s, f)
-	for _, want := range []string{"ListenStream=/run/cloudground/fn/cg-site-5/hello.sock\n", "Accept=yes\n", "SocketMode=0660\n", "SocketGroup=cg-site-5\n", "WantedBy=sockets.target"} {
+	for _, want := range []string{"ListenStream=/run/cloudground/fn/cg-site-5/hello.sock\n", "Accept=yes\n", "MaxConnections=32\n", "MaxConnectionsPerSource=32\n", "SocketMode=0660\n", "SocketGroup=cg-site-5\n", "WantedBy=sockets.target"} {
 		if !strings.Contains(sock, want) {
 			t.Errorf("socket lacks %q:\n%s", want, sock)
 		}
