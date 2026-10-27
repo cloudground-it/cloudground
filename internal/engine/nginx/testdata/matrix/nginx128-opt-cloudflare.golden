@@ -1,28 +1,28 @@
-## /etc/nginx/conf.d/cloudground-block-216.conf
-# Written by CloudGround: the visitors c216.example.test (site 216) refuses (#25).
-geo $cg_block_ip_216 {
+## /etc/nginx/conf.d/cloudground-block-222.conf
+# Written by CloudGround: the visitors c222.example.test (site 222) refuses (#25).
+geo $cg_block_ip_222 {
     default  0;
     127.0.0.0/8  x;
     ::1/128  x;
     203.0.113.0/24  1;
 }
-map "$cg_block_ip_216" $cg_block_216 {
+map "$cg_block_ip_222" $cg_block_222 {
     default  1;
     "0"  0;
     "x"  0;
 }
-## /etc/nginx/conf.d/cloudground-cache-216.conf
-# Written by CloudGround: page-cache zone of c216.example.test (site 216).
-fastcgi_cache_path /srv/cgt/cache/c216.example.test levels=1:2 keys_zone=cg_216:32m
+## /etc/nginx/conf.d/cloudground-cache-222.conf
+# Written by CloudGround: page-cache zone of c222.example.test (site 222).
+fastcgi_cache_path /srv/cgt/cache/c222.example.test levels=1:2 keys_zone=cg_222:32m
                    max_size=1024m inactive=604800s use_temp_path=off;
-## /etc/nginx/sites-enabled/c216.example.test.conf
+## /etc/nginx/sites-enabled/c222.example.test.conf
 # Managed by CloudGround — do not edit. Changes are detected as drift.
-# Site: c216.example.test (id 216, type wordpress, profile balanced)
+# Site: c222.example.test (id 222, type wordpress, profile balanced)
 
 server {
     listen 80;
     listen [::]:80;
-    server_name c216.example.test;
+    server_name c222.example.test;
 
     location /.well-known/acme-challenge/ {
         root /srv/cgt/acme;
@@ -41,10 +41,10 @@ server {
     # among many, so the default server set up at install time holds it.
     listen 443 quic;
     listen [::]:443 quic;
-    server_name c216.example.test;
+    server_name c222.example.test;
     server_tokens off;
 
-    # Behind Cloudflare (SPEC §4.10): the visitor's address is CF-Connecting-IP,
+    # Behind Cloudflare (SPEC §4.11): the visitor's address is CF-Connecting-IP,
     # taken only from Cloudflare's ranges. Netfilter sees Cloudflare's address,
     # so the server's block list ($cg_banned) is enforced here too.
     include /etc/nginx/conf.d/cloudground-cloudflare.inc;
@@ -54,9 +54,9 @@ server {
     }
 
     # Visitors this site refuses: addresses, countries, user agents (SPEC
-    # §4.7, cloudground-block-216.conf). The server rewrite phase runs
+    # §4.7, cloudground-block-222.conf). The server rewrite phase runs
     # before the page cache is read, so a refused visitor gets no cached page.
-    if ($cg_block_216) {
+    if ($cg_block_222) {
         return 403;
     }
 
@@ -74,8 +74,8 @@ server {
     ssl_session_cache shared:cg_ssl:10m;
 
     # Log lines go out in 64 KiB batches, at least once a second.
-    access_log /srv/cgt/log/c216.example.test/access.log cloudground buffer=64k flush=1s;
-    error_log /srv/cgt/log/c216.example.test/error.log warn;
+    access_log /srv/cgt/log/c222.example.test/access.log cloudground buffer=64k flush=1s;
+    error_log /srv/cgt/log/c222.example.test/error.log warn;
     # A failed WordPress sign-in also goes to the agent, which counts it
     # towards blocking the address (SPEC §4.6). Unbuffered, and only the
     # requests the connector marked: every other request logs nothing here.
@@ -88,7 +88,7 @@ server {
     add_header Referrer-Policy strict-origin-when-cross-origin always;
     add_header Alt-Svc 'h3=":443"; ma=86400' always;
 
-    root /srv/cgt/sites/c216.example.test/current;
+    root /srv/cgt/sites/c222.example.test/current;
     index index.php index.html index.htm;
     disable_symlinks if_not_owner from=$document_root;
 
@@ -126,18 +126,18 @@ server {
 
     # Who skips the page cache: POSTs, query strings, the session cookies
     # and the paths below (logins, carts, the admin) are always rendered.
-    set $cg_skip_216 0;
+    set $cg_skip_222 0;
     if ($request_method = POST) {
-        set $cg_skip_216 1;
+        set $cg_skip_222 1;
     }
     if ($cg_args_bypass) {
-        set $cg_skip_216 1;
+        set $cg_skip_222 1;
     }
     if ($http_cookie ~* "wordpress_logged_in_|wp-postpass_|comment_author_|woocommerce_cart_hash|woocommerce_items_in_cart|wp_woocommerce_session_") {
-        set $cg_skip_216 1;
+        set $cg_skip_222 1;
     }
     if ($request_uri ~* "^/wp-admin([/?]|$)|^/wp-login\.php([/?]|$)|^/wp-cron\.php([/?]|$)|^/xmlrpc\.php([/?]|$)|^/wp-json/|^/feed([/?]|$)") {
-        set $cg_skip_216 1;
+        set $cg_skip_222 1;
     }
 
     location ~ \.php$ {
@@ -145,7 +145,7 @@ server {
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         fastcgi_param HTTPS on;
-        fastcgi_pass unix:/srv/cgt/php/cg-site-216/php.sock;
+        fastcgi_pass unix:/srv/cgt/php/cg-site-222/php.sock;
         fastcgi_read_timeout 120s;
         fastcgi_buffers 16 32k;
         fastcgi_buffer_size 64k;
@@ -158,13 +158,13 @@ server {
         gunzip on;
         # After a purge an open descriptor may serve the old file for 1s at most.
         open_file_cache_valid 1s;
-        fastcgi_cache cg_216;
+        fastcgi_cache cg_222;
         fastcgi_cache_key "$scheme$request_method$host$cg_key";
         fastcgi_cache_valid 200 301 600s;
         fastcgi_cache_valid 404 60s;
         fastcgi_cache_methods GET HEAD;
-        fastcgi_cache_bypass $cg_skip_216 $cg_private_req;
-        fastcgi_no_cache $cg_skip_216 $cg_no_store $cg_private_req;
+        fastcgi_cache_bypass $cg_skip_222 $cg_private_req;
+        fastcgi_no_cache $cg_skip_222 $cg_no_store $cg_private_req;
         # One request renders a missing page; the others wait for it.
         fastcgi_cache_lock on;
         fastcgi_cache_lock_timeout 5s;

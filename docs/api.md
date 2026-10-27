@@ -251,9 +251,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `POST` | `/api/sites/{id}/certificate` | manage | request a Let's Encrypt certificate now |
 | `PUT` | `/api/sites/{id}/certificate/custom` | manage | install your own certificate: `{fullchain, key}` in PEM |
 | `DELETE` | `/api/sites/{id}/certificate/custom` | manage | remove it and go back to Let's Encrypt: the certificate for the site's current names is requested (`{status, task}`; `{status, warning}` without an ACME e-mail) |
-| `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache (`{"urls": […]}` for some pages only); for a site with a Cloudflare zone, Cloudflare's too (`cdn`: `purged` or `failed`, with `cdn_error`) |
 | `GET` | `/api/sites/{id}/traffic` | auth | visitor statistics from the site's access log, built on the server (no cookie, no third party): `?days=7|30|90` (7 by default) answers `days`, `hours` (the last 48), `totals`, `top_pages`, `top_not_found` and `collected_at`; each day `requests`, `pageviews`, `visitors` (per day), `bots`, `bytes`, `status_2xx`…`status_5xx`, `cache_hit`, `cache_miss`, `cache_bypass` |
-| `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache |
+| `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache (`{"urls": […]}` for some pages only); for a site with a Cloudflare zone, Cloudflare's too (`cdn`: `purged` or `failed`, with `cdn_error`) |
 | `POST` | `/api/sites/{id}/warm` | manage | fill the page cache from the sitemap |
 | `GET` | `/api/sites/{id}/wp/cleanup` | auth | the scheduled database cleanup of a WordPress site: `enabled`, `keep_revisions`, `last_run`, `next_run` and whether `backups_ready` |
 | `PUT` | `/api/sites/{id}/wp/cleanup` | manage | turn the weekly cleanup (expired transients deleted, revisions trimmed to `keep_revisions` per post, 1–100) on or off (`{"enabled": true, "keep_revisions": 5}`); 412 turning it on without backups configured |
