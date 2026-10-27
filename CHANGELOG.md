@@ -7,6 +7,31 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.9.0
+
+Functions on their own. What changes for a person running the panel:
+
+- **functions are no longer part of a site**: they have their own entry in the sidebar, after
+  Sites, and their own page with Code, Addresses, Settings, Runs and Releases. Each one runs as a
+  system user of its own, isolated from every site and from the other functions;
+- **addresses**: set a functions domain in Settings → Functions (say `fn.example.com`) and every
+  function answers at `https://fn.example.com/<name>`, with one Let's Encrypt certificate. A
+  function can also have domains of its own (say `api.example.com`) that answer it at `/`, with
+  their own certificate. A function with no domain cannot be reached from the Internet, but still
+  runs from Test and on its schedule;
+- **code in several files, with dependencies**: a `package.json` or a `requirements.txt` is
+  installed for each release, so a rollback brings back the same dependencies, and a failed
+  install leaves the live release as it was;
+- **a bearer token**, checked by nginx before the function starts (401 without it), shown once
+  and renewable; and allowed CORS origins per function.
+
+**Upgrading from v0.8.x: the functions' URLs change.** At its first start the panel moves every
+function out of its site, with its code, releases, variables and secrets. The old address
+`https://<site>/.functions/<name>` stops answering: set a functions domain (or a domain of the
+function's own) and point whatever calls the function at the new URL. A function whose name is
+already taken by another site's becomes `<name>-<site id>`. If one cannot be moved, it stays in its
+site, an alert says why, and the panel tries again at its next start.
+
 ## v0.8.2
 
 What changes for a person running the panel:
