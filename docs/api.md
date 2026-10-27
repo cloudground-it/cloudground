@@ -256,6 +256,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `POST` | `/api/sites/{id}/wp/cleanup/run` | manage | clean the database now (a dry run is logged first, a tested snapshot is taken before a site's first cleanup) — returns `202` and a task; 412 without backups configured |
 | `GET` | `/api/sites/{id}/cache-stats` | auth | APCu hits, misses and memory in use |
 | `GET` | `/api/sites/{id}/logs?source=` | auth | tail one of the site's own logs: `access`, `error`, `php` or `cleanup` |
+| `GET` | `/api/sites/{id}/logs/files` | manage | the site's access and error logs that can be downloaded, current and rotated (`files`: `name`, `size`, `modified`) |
+| `GET` | `/api/sites/{id}/logs/download?file=` | manage | download one log in full, streamed (`file` is `access.log`, `access.log.1`, `access.log.2.gz`, `error.log`, …; a rotated one has its length, the current one is sent as it is); audited |
 | `POST` | `/api/sites/{id}/migration` | manage | bring in a site from a files archive and a SQL dump |
 | `POST` | `/api/sites/{id}/migration/pull/estimate` | admin | dry run of a pull from another host over SSH/SFTP: files, bytes, WordPress or not, the host's key, whether it fits |
 | `POST` | `/api/sites/{id}/migration/pull` | admin | pull a site from another host over SSH/SFTP (a password or key, single-use) and import it behind a safety snapshot |

@@ -1027,7 +1027,19 @@
     "empty": "(leer)",
     "error": "Fehler",
     "hint": "System- und Dienst-Logs. Die Logs jeder Website findest du in ihrem Tab „Logs“.",
-    "php": "PHP-Fehler"
+    "php": "PHP-Fehler",
+    "downloadTitle": "Logs herunterladen",
+    "downloadHint": "Die vollständigen Zugriffs- und Fehlerlogs, das aktuelle und die rotierten, nicht nur die letzten Zeilen. Rotierte Dateien, die älter als ein Tag sind, sind komprimiert.",
+    "noFiles": "Noch keine Logs: Die Website wurde noch nicht besucht.",
+    "file": "Datei",
+    "size": "Größe",
+    "modified": "Zuletzt geschrieben",
+    "current": "aktuell",
+    "rotated": "rotiert",
+    "compressed": "rotiert, komprimiert",
+    "download": "Herunterladen",
+    "reload": "Neu laden",
+    "currentNote": "Das aktuelle Log wird so gesendet, wie es in diesem Moment ist, die angezeigte Größe ist also nur ein Anhaltspunkt. Rotierte Logs ändern sich nicht."
   },
   "services": {
     "manual": "manueller Start",

@@ -168,6 +168,20 @@ canonical host and rules; `canonical` sets the canonical host to one of the site
 none); `rules` replaces the list with the JSON array given, which must parse (else a usage error,
 exit 2): `[{"match": "exact", "from": "/old", "to": "/new", "status": 301}]`. Anything else is a
 usage error. The answer is the site's settings, printed as §3.
+## 6.6c logs (#84)
+
+    cgctl logs <site-id>
+    cgctl logs <site-id> <file> [<output>|-]
+
+The first is `GET /api/sites/{id}/logs/files` (internal/api SPEC §3.19), the site's downloadable
+logs, printed as §3. The second downloads one: `<file>` is `access.log`, `access.log.1`,
+`access.log.2.gz`, `error.log`, … (anything else is a usage error, exit 2, so a name is never a
+path), streamed from `GET /api/sites/{id}/logs/download?file=` to `<output>`, which is the file's
+own name in the current directory unless given, or to the standard output for `-`. Unlike every other
+command the answer is not JSON and is not held in memory, so a log of any size is written as it
+arrives (`--timeout`, an hour unless given, bounds it, not the client's minute). `<output>` is created
+and never overwritten (an existing file is an error, exit 1); a download that fails or stops short is
+removed. The panel refuses it unless the account manages the site.
 
 ## 6.7 cleanup (#78)
 

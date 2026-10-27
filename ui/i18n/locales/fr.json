@@ -1027,7 +1027,19 @@
     "empty": "(vide)",
     "error": "Erreurs",
     "hint": "Journaux du système et des services. Les journaux de chaque site sont dans son onglet Journaux.",
-    "php": "Erreurs PHP"
+    "php": "Erreurs PHP",
+    "downloadTitle": "Télécharger les journaux",
+    "downloadHint": "Les journaux d'accès et d'erreurs entiers, le courant et ceux qui ont tourné, pas seulement les dernières lignes. Les fichiers plus anciens d'un jour sont compressés.",
+    "noFiles": "Pas encore de journaux : le site n'a pas été visité.",
+    "file": "Fichier",
+    "size": "Taille",
+    "modified": "Dernière écriture",
+    "current": "courant",
+    "rotated": "archivé",
+    "compressed": "archivé, compressé",
+    "download": "Télécharger",
+    "reload": "Actualiser",
+    "currentNote": "Le journal courant est envoyé tel qu'il est à ce moment, sa taille indiquée n'est donc qu'une indication. Les journaux archivés ne changent pas."
   },
   "services": {
     "manual": "démarrage manuel",

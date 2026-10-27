@@ -1027,7 +1027,19 @@
     "empty": "(empty)",
     "error": "Errors",
     "hint": "System and service logs. Each site's own logs are on its Logs tab.",
-    "php": "PHP errors"
+    "php": "PHP errors",
+    "downloadTitle": "Download the logs",
+    "downloadHint": "The whole access and error logs, current and rotated, not only the last lines. Rotated files older than a day are compressed.",
+    "noFiles": "No logs yet: the site has not been visited.",
+    "file": "File",
+    "size": "Size",
+    "modified": "Last written",
+    "current": "current",
+    "rotated": "rotated",
+    "compressed": "rotated, compressed",
+    "download": "Download",
+    "reload": "Reload",
+    "currentNote": "The current log is sent as it is at that moment, so its size here is only a hint. Rotated logs do not change."
   },
   "services": {
     "manual": "manual start",

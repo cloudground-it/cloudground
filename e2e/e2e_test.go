@@ -114,6 +114,7 @@ var sections = []section{
 	{name: "dev mode", run: (*harness).devMode, lane: "dev mode"},
 	{name: "maintenance page", run: (*harness).maintenancePage, lane: "maintenance page"},
 	{name: "git deploy webhook", run: (*harness).gitDeployWebhook},
+	{name: "site log download", run: (*harness).siteLogDownload},
 	{name: "whats new", run: (*harness).whatsNew, lane: "whats new"},
 	{name: "protected paths", run: (*harness).protectedPaths, lane: "protected paths"},
 	{name: "uptime", run: (*harness).uptime, lane: "uptime"},

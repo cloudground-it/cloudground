@@ -68,6 +68,15 @@ func (f *fakePanel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `{"error":"task not found"}`)
 	case r.URL.Path == "/api/sites":
 		fmt.Fprint(w, `[]`)
+	case r.URL.Path == "/api/sites/7/logs/download":
+		f.lastPath += "?" + r.URL.RawQuery
+		if r.URL.Query().Get("file") == "access.log.9" {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"error":"no such log"}`)
+			return
+		}
+		w.Header().Set("Content-Length", "15")
+		fmt.Fprint(w, "line1\nline2\n!!\n")
 	default:
 		fmt.Fprint(w, `{"ok":true}`)
 	}
@@ -403,6 +412,47 @@ func TestRedirectsCommand(t *testing.T) {
 		if _, err := parseArgs(bad); err == nil {
 			t.Errorf("%v accepted", bad)
 		}
+	}
+}
+
+// #84: a site's logs are listed, or one is streamed to a file (never over
+// one that exists) or to the standard output.
+func TestLogsCommand(t *testing.T) {
+	inv, err := parseArgs([]string{"logs", "7"})
+	if err != nil || inv.req.method != "GET" || inv.req.path != "/api/sites/7/logs/files" || inv.req.download != "" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if inv, err = parseArgs([]string{"logs", "7", "access.log.2.gz"}); err != nil || inv.req.download != "access.log.2.gz" || inv.req.path != "/api/sites/7/logs/download?file=access.log.2.gz" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	for _, bad := range [][]string{{"logs", "x"}, {"logs", "7", "../access.log"}, {"logs", "7", "access.log/x"}, {"logs", "7", "php-error.log"}, {"logs", "7", "/etc/passwd"}, {"logs", "7", "access.log", "a", "b"}} {
+		if _, err := parseArgs(bad); err == nil {
+			t.Errorf("%v accepted", bad)
+		}
+	}
+
+	f := &fakePanel{}
+	cfg := config.Config{Token: testToken}
+	code, out, errs := runCLI(t, f, cfg, "logs", "7", "access.log", "-")
+	if code != exitOK || out != "line1\nline2\n!!\n" || f.lastPath != "GET /api/sites/7/logs/download?file=access.log" {
+		t.Fatalf("stdout: code %d out %q err %q path %q", code, out, errs, f.lastPath)
+	}
+	dest := filepath.Join(t.TempDir(), "access.log")
+	if code, out, errs = runCLI(t, f, cfg, "logs", "7", "access.log", dest); code != exitOK || out != "" || !strings.Contains(errs, "15 bytes") {
+		t.Fatalf("file: code %d out %q err %q", code, out, errs)
+	}
+	if got, err := os.ReadFile(dest); err != nil || string(got) != "line1\nline2\n!!\n" {
+		t.Fatalf("file holds %q, %v", got, err)
+	}
+	if code, _, errs = runCLI(t, f, cfg, "logs", "7", "access.log", dest); code != exitFailed || !strings.Contains(errs, "exists") {
+		t.Fatalf("overwrite: code %d err %q", code, errs)
+	}
+	missing := filepath.Join(t.TempDir(), "access.log.9")
+	if code, _, errs = runCLI(t, f, cfg, "logs", "7", "access.log.9", missing); code != exitFailed || !strings.Contains(errs, "no such log") {
+		t.Fatalf("missing: code %d err %q", code, errs)
+	}
+	if _, err := os.Stat(missing); err == nil {
+		t.Fatal("a failed download left a file")
 	}
 }
 

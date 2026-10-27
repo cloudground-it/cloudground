@@ -159,6 +159,8 @@ var (
 	RestartService   = define[rpc.ServiceParams, map[string]string](Spec{Name: "RestartService", Timeout: 5 * mins, Fail: "Could not restart the service"})
 	ServiceStatus    = define[None, rpc.ServiceStatusResult](Spec{Name: "ServiceStatus", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the services' status"})
 	TailLog          = define[rpc.TailLogParams, rpc.TailLogResult](Spec{Name: "TailLog", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the log"})
+	ListSiteLogs     = define[rpc.SiteLogsParams, rpc.SiteLogsResult](Spec{Name: "ListSiteLogs", Timeout: 1 * mins, Sites: true, ReadOnly: true, Fail: "Could not list the site's logs"})
+	ReadSiteLogChunk = define[rpc.SiteLogChunkParams, rpc.SiteLogChunkResult](Spec{Name: "ReadSiteLogChunk", Timeout: 2 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the site's log"})
 	ApplyCron        = define[rpc.CronParams, rpc.CronResult](Spec{Name: "ApplyCron", Timeout: 2 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not install the site's cron jobs"})
 	RunCron          = define[rpc.RunCronParams, rpc.RunCronResult](Spec{Name: "RunCron", Timeout: 7 * mins, Sites: true, Fail: "Could not run the cron job"})
 	CronRuns         = define[rpc.CronRunsParams, rpc.CronRunsResult](Spec{Name: "CronRuns", Timeout: 1 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the cron jobs' last runs"})

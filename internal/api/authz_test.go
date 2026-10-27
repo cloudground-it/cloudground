@@ -218,6 +218,8 @@ var routePolicy = map[string]string{
 	"PUT /api/sites/{id}/maintenance":                            "manage",
 	"GET /api/sites/{id}/redirects":                              "manage",
 	"PUT /api/sites/{id}/redirects":                              "manage",
+	"GET /api/sites/{id}/logs/files":                             "manage",
+	"GET /api/sites/{id}/logs/download":                          "manage",
 	"GET /api/changelog":                                         "auth",
 	"POST /api/account/whats-new":                                "auth",
 	"GET /api/sites/{id}/wp/cleanup":                             "auth",

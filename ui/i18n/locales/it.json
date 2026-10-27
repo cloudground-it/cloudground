@@ -1027,7 +1027,19 @@
     "empty": "(vuoto)",
     "error": "Errori",
     "hint": "Log di sistema e dei servizi. I log di ogni sito sono nella sua scheda Log.",
-    "php": "Errori PHP"
+    "php": "Errori PHP",
+    "downloadTitle": "Scarica i log",
+    "downloadHint": "I log di accesso e di errore interi, quello attuale e quelli ruotati, non solo le ultime righe. I file ruotati più vecchi di un giorno sono compressi.",
+    "noFiles": "Ancora nessun log: il sito non è stato visitato.",
+    "file": "File",
+    "size": "Dimensione",
+    "modified": "Ultima scrittura",
+    "current": "attuale",
+    "rotated": "ruotato",
+    "compressed": "ruotato, compresso",
+    "download": "Scarica",
+    "reload": "Ricarica",
+    "currentNote": "Il log attuale viene inviato com'è in quel momento, quindi la dimensione indicata è solo orientativa. I log ruotati non cambiano."
   },
   "services": {
     "manual": "avvio manuale",
