@@ -1,1 +1,0 @@
-import{Bn as e,j as t}from"./ePb2g_3_.js";import{n}from"./DAqW_Gq-.js";function r(r){let i=n({dir:e(`ltr`)});return t(()=>r?.value||i.dir?.value||`ltr`)}export{r as t};
