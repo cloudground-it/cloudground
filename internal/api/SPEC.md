@@ -2249,6 +2249,56 @@ and activated (<n> files)[; <k> unsafe or special entries skipped][; safety
 snapshot <id> retained]`. Answer
 202 `{task, release_id}`.
 
+### 10.1 Pulling from another host (#82, `migration_pull.go`)
+
+Instead of uploading an archive and a dump, the panel fetches them from the
+old host over SSH/SFTP and runs the import above with its safety snapshot.
+Both routes are `admin` (the agent, as root, opens a connection to a host
+the request names: an operator must not be able to point it anywhere) and
+take, as JSON:
+
+- `host` (a host name or an address, not starting with `-`), `port` (1–65535,
+  default 22), `user`;
+- `password` or `private_key` (OpenSSH or PEM, unencrypted): exactly one →
+  else 400 `give a password or a private key`;
+- `host_key` (optional): the old host's key fingerprint, `SHA256:…`; when
+  given the connection is refused unless the host shows that key;
+- `path`: the old site's folder on that host (absolute, or relative to the
+  account's home); a link there is followed once, to the folder it names;
+- `db`: `""` (no database), `dump` (the old site's `wp-config.php` is read
+  over SFTP for its database's name, user, password and host, and
+  `mysqldump` runs on the old host over SSH, its password on its standard
+  input; this needs a shell there) or `file` with `sql_path` (a `.sql` on
+  the old host, fetched over SFTP; works with an SFTP-only account) → else
+  400 `db must be empty, dump or file`; `file` without `sql_path` → 400;
+- `old_domain`, `confirm` and `max_ratio` as §10.
+
+`POST /api/sites/{id}/migration/pull/estimate` (the dry run) connects, walks
+the folder and answers 200 `{files, bytes, wordpress, shell, host_key,
+free_bytes, fits}`: what would be copied, whether a `wp-config.php` is
+there, whether the account has a shell (asked only for `db: dump`), the
+host's key fingerprint (to pin in the pull), the space free where the
+copy is written and whether it fits (with the import's reserve). Nothing is
+written. An agent refusal (the host unreachable, the login refused, the key
+not the one pinned, the folder missing) → 400 with its message.
+
+`POST /api/sites/{id}/migration/pull` (confirm the domain as §10) queues
+`migration.pull` under the site's lock (and the repository's when backups
+are configured): 5 `Connecting to <user>@<host>`, the agent's
+`PullMigration`, which writes the archive (and the dump) into the site's
+`tmp/` (left out of backups, ops/backup SPEC §4) under the site user, then
+the import of §10 with them: the **restore-tested safety snapshot first**,
+the release recorded and promoted. Whatever happens, the pulled files are
+deleted at the end (`PullCleanup`), and the job's log names the host key it
+connected to. 202 `{task, release_id}`.
+
+**The credentials are single-use.** The password or key lives only in the
+running job's memory and in the one RPC to the agent: it is never written to
+the database (the job's record holds only host, port, user and path), the
+audit log or the task's log, and the agent keeps it in memory only (no key
+file). Nothing is kept once the job ends; a pull run again asks for them
+again. Audited `migration.pull` (subject the domain, detail `user@host:path`).
+
 ## 11. Alerts (R-4.3)
 
 Alerts are rows of the `alerts` table (internal/state/SPEC.md, Alerts), one
