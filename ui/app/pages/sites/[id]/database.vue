@@ -34,7 +34,9 @@ const users = computed(() => data.value?.users ?? [])
 // External servers (#30): picked when a database or a user is made, shown
 // beside what is on one, with where an application connects.
 const available = computed(() => data.value?.available_servers ?? [])
-const serverItems = computed(() => [{ value: 0, label: t('dbs.thisServer') }, ...available.value.map(s => ({ value: s.id, label: s.name }))])
+const serverItems = computed(() => [{ value: 0, label: t('dbs.thisServer') }, ...available.value.map(s => ({ value: s.id, label: s.kind === 'postgres' ? `${s.name} (PostgreSQL)` : s.name }))])
+// Quarry, the SQL console and the table list are MariaDB's for now.
+const isPostgres = (server: number) => (data.value?.servers ?? []).some(s => s.id === server && s.kind === 'postgres')
 const serverName = (id: number) => id === 0 ? t('dbs.thisServer') : (data.value?.servers ?? []).find(s => s.id === id)?.name ?? `#${id}`
 const external = computed(() => (data.value?.servers ?? []).filter(s => s.id !== 0))
 
@@ -259,7 +261,7 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
         </template>
         <template #actions-cell="{ row: { original: d } }">
           <span class="flex items-center justify-end gap-1">
-            <UButton size="sm" color="neutral" variant="outline" icon="i-cg-external-link" :label="t('dbs.openStudio')" :aria-label="t('dbs.openStudio')" :ui="{ label: 'hidden sm:inline' }" @click="openStudio(d.name)" />
+            <UButton v-if="!isPostgres(d.server_id)" size="sm" color="neutral" variant="outline" icon="i-cg-external-link" :label="t('dbs.openStudio')" :aria-label="t('dbs.openStudio')" :ui="{ label: 'hidden sm:inline' }" @click="openStudio(d.name)" />
             <UDropdownMenu v-if="canManage" :items="dbMenu(d.name, d.primary)" :content="{ align: 'end' }">
               <UButton size="sm" color="neutral" variant="ghost" square icon="i-cg-more-horizontal" :aria-label="t('ux.common.moreFor', { name: d.name })" />
             </UDropdownMenu>
@@ -273,6 +275,9 @@ const wpPrimary = (u: SiteDBUser) => u.primary && isWordPress(site.value)
           </p>
           <p v-for="s in external" :key="s.id" class="m-0 text-[13px] text-muted">
             {{ t('dbs.connectAt', { server: s.name, host: `${s.host}:${s.port}`, tls: s.tls === 'required' ? t('dbs.connectTls') : t('dbs.connectNoTls') }) }}
+          </p>
+          <p v-if="external.some(s => s.kind === 'postgres')" class="m-0 text-[13px] text-muted">
+            {{ t('dbs.pgNotYet') }}
           </p>
         </div>
       </template>

@@ -711,7 +711,8 @@
     "userServerHelp": "Un usuario está en un solo servidor y solo llega a las bases que hay en él.",
     "connectAt": "Las aplicaciones se conectan a {server} en {host}, {tls}.",
     "connectTls": "con TLS obligatorio",
-    "connectNoTls": "sin TLS"
+    "connectNoTls": "sin TLS",
+    "pgNotYet": "Quarry y la consola SQL todavía no están disponibles para las bases PostgreSQL."
   },
   "dbservers": {
     "title": "Servidores de base de datos",
@@ -740,7 +741,17 @@
     "removeHint": "El servidor y su contraseña guardada se olvidan aquí. El servidor en sí no se toca.",
     "databases": "Ninguna base | Una base | {n} bases",
     "inUse": "Elimina antes sus bases de datos",
-    "edit": "Editar"
+    "edit": "Editar",
+    "kind": "Tipo",
+    "kindMariadb": "MariaDB o MySQL",
+    "kindPostgres": "PostgreSQL",
+    "pgTls": "PostgreSQL siempre necesita TLS: la conexión va cifrada y se comprueba el certificado del servidor.",
+    "backup": "Copias de seguridad",
+    "backupProvider": "El proveedor hace su copia",
+    "backupDump": "CloudGround hace su volcado",
+    "backupProviderHelp": "La copia de un sitio deja fuera las bases de este servidor: las copias del proveedor son suyas.",
+    "backupDumpHelp": "La copia de un sitio vuelca cada base con pg_dump por TLS, y la prueba de restauración restaura el volcado en una base temporal del mismo servidor. Hace falta postgresql-client en esta máquina.",
+    "pgAdminHelp": "Un rol con CREATEROLE y CREATEDB (o un superusuario): CloudGround crea bases de datos y roles con él."
   },
   "files": {
     "deleted": "Eliminado",

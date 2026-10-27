@@ -78,6 +78,7 @@ type dbServerChoice struct {
 // dbServerRef is where a server is, for an application's configuration.
 type dbServerRef struct {
 	ID   int64  `json:"id"`
+	Kind string `json:"kind"`
 	Name string `json:"name"`
 	Host string `json:"host"`
 	Port int    `json:"port"`
@@ -147,10 +148,10 @@ func (d siteDatabases) list(ctx context.Context, site state.Site) (dbListView, e
 			continue
 		}
 		seen[id] = true
-		ref := dbServerRef{ID: id, Host: "localhost", TLS: state.DBServerTLSOff}
+		ref := dbServerRef{ID: id, Kind: "mariadb", Host: "localhost", TLS: state.DBServerTLSOff}
 		if id != 0 {
 			if sv, err := st.GetDBServer(id); err == nil {
-				ref = dbServerRef{ID: id, Name: sv.Name, Host: sv.Host, Port: sv.Port, TLS: sv.TLS}
+				ref = dbServerRef{ID: id, Kind: sv.Kind, Name: sv.Name, Host: sv.Host, Port: sv.Port, TLS: sv.TLS}
 			}
 		}
 		out.Servers = append(out.Servers, ref)

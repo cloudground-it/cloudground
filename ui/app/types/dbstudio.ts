@@ -210,12 +210,12 @@ export interface SiteDBUser {
 }
 
 /** Where an application connects (id 0: this server). */
-export interface SiteDBServerRef { id: number, name: string, host: string, port: number, tls: 'required' | 'off' }
+export interface SiteDBServerRef { id: number, kind: 'mariadb' | 'postgres', name: string, host: string, port: number, tls: 'required' | 'off' }
 
 export interface SiteDatabases {
   databases: SiteDatabase[] | null
   users: SiteDBUser[] | null
   servers?: SiteDBServerRef[]
-  available_servers?: { id: number, name: string }[]
+  available_servers?: { id: number, name: string, kind: 'mariadb' | 'postgres' }[]
   stats_error?: string
 }
