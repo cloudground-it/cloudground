@@ -36,6 +36,9 @@ const (
 	SiteSecretStagingPassword = "staging_password"
 	// SiteSecretMailPassword is the site's own mail relay's (#77).
 	SiteSecretMailPassword = "mail_password"
+	// SiteSecretAppEnvPrefix starts a managed app's secret variable's kind:
+	// app_env.<NAME> (#28).
+	SiteSecretAppEnvPrefix = "app_env."
 	// The site's git deploy (#24): the webhook's secret, and the deploy
 	// key's private half.
 	SiteSecretGitWebhook = "git_webhook_secret"

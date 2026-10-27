@@ -28,6 +28,7 @@ const (
 const (
 	smallBody      = 8 << 10   // credentials and profile fields
 	blockingBody   = 64 << 10  // a site's blocking rules: 500 networks, 50 user agents
+	appBody        = 512 << 10 // a managed app: 100 variables of up to 4 KiB
 	certBody       = 256 << 10 // a PEM chain and key
 	dbEditBody     = 16 << 20  // a batch of row changes
 	fileUploadBody = maxPanelTransfer
@@ -162,6 +163,14 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "install your own certificate: `{fullchain, key}` in PEM"},
 		{Method: del, Path: "/api/sites/{id}/certificate/custom", Policy: policyManage, Load: loadSite, Handle: s.handleCustomCertificate,
 			Section: secSites, Doc: "remove it and go back to Let's Encrypt: the certificate for the site's current names is requested (`{status, task}`; `{status, warning}` without an ACME e-mail)"},
+		{Method: get, Path: "/api/sites/{id}/app", Policy: policySignedIn, Load: loadSite, Handle: s.handleGetApp,
+			Section: secSites, Doc: "a Node.js or Python site's app: `version`, `start`, `env` (plain variables), `secrets` (names only), `port` (0: the unix socket), `health_path` and the `socket` nginx proxies to"},
+		{Method: put, Path: "/api/sites/{id}/app", Policy: policyManage, MaxBody: appBody, Load: loadSite, Handle: s.handleSetApp,
+			Section: secSites, Doc: "change the app (a field left out keeps its value; `secrets` maps a name to its value, `\"\"` removes it, `••••••••` keeps it): the environment is written, the app restarted; 412 for a runtime version the server lacks"},
+		{Method: get, Path: "/api/sites/{id}/app/status", Policy: policySignedIn, Load: loadSite, Handle: s.handleAppStatus,
+			Section: secSites, Doc: "the app's unit (`active`, `state`, `since`, `restarts`, `last_exit`) and its health probe (`health {status, ms, error}`)"},
+		{Method: post, Path: "/api/sites/{id}/app/restart", Policy: policyManage, Load: loadSite, Handle: s.handleAppRestart,
+			Section: secSites, Doc: "restart the app; answers its status"},
 		{Method: post, Path: "/api/sites/{id}/purge", Policy: policyManage, Load: loadSite, Handle: s.handlePurge,
 			Section: secSites, Doc: "empty the site's page cache"},
 		{Method: post, Path: "/api/sites/{id}/warm", Policy: policyManage, Load: loadSite, Handle: s.handleWarmCache,
@@ -416,6 +425,10 @@ func (s *Server) routeTable() []route {
 			Section: secServer, Doc: "`{\"action\":\"restore\"}` puts the file back, `{\"action\":\"accept\"}` keeps it (accept: a signed-in session only, an API token gets 403)"},
 		{Method: post, Path: "/api/system/maintenance", Policy: policyAdmin, Handle: s.handleRunMaintenance,
 			Section: secServer, Doc: "run one maintenance tick now and wait for it"},
+		{Method: get, Path: "/api/runtimes", Policy: policyAdmin, Handle: plain(s.handleGetRuntimes),
+			Section: secServer, Doc: "the Node.js and Python versions installed (`installed`) and those that can be (`available`), for Node.js and Python sites"},
+		{Method: post, Path: "/api/runtimes/install", Policy: policyAdmin, MaxBody: smallBody, Handle: s.handleInstallRuntime,
+			Section: secServer, Doc: "install a runtime version (`{\"runtime\": \"node\", \"version\": \"22\"}`, Node.js from nodejs.org checked against its SHA-256 sums, Python from the distro); answers the task"},
 		{Method: get, Path: "/api/php/{version}/extensions", Policy: policySignedIn, Handle: s.handlePHPExtensions,
 			Section: secServer, Doc: "what a PHP version loads: every module, and the common extensions with `installed`"},
 		{Method: post, Path: "/api/php/{version}/extensions", Policy: policyAdmin, Handle: s.handleInstallPHPExtension,

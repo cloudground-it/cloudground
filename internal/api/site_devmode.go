@@ -82,7 +82,7 @@ func (s *Server) handleSetDevMode(w http.ResponseWriter, r *http.Request, c *cal
 // cacheable reports whether the site has a page cache for the mode to
 // bypass.
 func cacheable(st state.Site) bool {
-	return st.Config.CacheEnabled && st.Type != state.SiteStatic && st.Type != state.SiteProxy
+	return st.Config.CacheEnabled && st.Type != state.SiteStatic && st.Type != state.SiteProxy && !st.Type.IsApp()
 }
 
 // setDevMode renders the site with the mode set to until (zero ends it) and

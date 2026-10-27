@@ -43,6 +43,9 @@ type Paths struct {
 	// AuthLogSocket is where WordPress vhosts log failed sign-ins for the
 	// block list (ops/blocklist SPEC §1.2); "" logs none.
 	AuthLogSocket string
+	// AppEnvDir holds the managed apps' environment files (SPEC §11.2);
+	// "" is runtimes.EnvDir.
+	AppEnvDir string
 }
 
 // Databases is the part of ops/db a site's lifecycle uses: the primary
@@ -117,6 +120,11 @@ type Ops struct {
 	// CountryPrefixes resolves country codes to their addresses for a
 	// site's blocking rules (ops/blocklist SPEC §5); nil refuses them.
 	CountryPrefixes func(ctx context.Context, codes []string) ([]netip.Prefix, error)
+	// PrepareApp installs a managed app's dependencies in a release
+	// (ops/runtimes SPEC §3); nil installs none.
+	PrepareApp func(ctx context.Context, s state.Site, dir string) (string, error)
+	// AppSocket is where the health probe dials an app; nil is its socket.
+	AppSocket func(s state.Site) string
 
 	buildOnce      sync.Once
 	http3, http2On bool
@@ -132,6 +140,9 @@ func (o *Ops) Register(s *agentrpc.Server) {
 	agentrpc.Handle(s, agentrpc.CheckDocRoot, o.CheckDocRoot)
 	agentrpc.Handle(s, agentrpc.PHPExtensions, o.PHPExtensions)
 	agentrpc.Handle(s, agentrpc.PHPExtInstall, o.InstallPHPExtension)
+	agentrpc.Handle(s, agentrpc.SetAppEnv, o.SetAppEnv)
+	agentrpc.Handle(s, agentrpc.AppStatus, o.AppStatus)
+	agentrpc.Handle(s, agentrpc.AppControl, o.AppControl)
 	agentrpc.Handle(s, agentrpc.ReloadWebServer, func(ctx context.Context, _ agentrpc.None) (agentrpc.None, error) {
 		return agentrpc.None{}, o.ReloadNginx(ctx)
 	})
@@ -174,7 +185,9 @@ func (o *Ops) dropinPath(s state.Site) string {
 	return filepath.Join(o.dropinDir(s), "cloudground-slice.conf")
 }
 
-func isPHP(s state.Site) bool { return s.Type != state.SiteStatic && s.Type != state.SiteProxy }
+func isPHP(s state.Site) bool {
+	return s.Type != state.SiteStatic && s.Type != state.SiteProxy && !s.Type.IsApp()
+}
 
 func isWordPress(s state.Site) bool {
 	return s.Type == state.SiteWordPress || s.Type == state.SiteWooCommerce

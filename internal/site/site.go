@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cloudground-it/cloudground/internal/runtimes"
 	"github.com/cloudground-it/cloudground/internal/state"
 	"github.com/cloudground-it/cloudground/internal/velocity"
 )
@@ -189,7 +190,7 @@ func Validate(sitesRoot string, s state.Site) (Valid, error) {
 		return Valid{}, err
 	}
 	switch s.Type {
-	case state.SiteWordPress, state.SiteWooCommerce, state.SiteStatic, state.SitePHP, state.SiteLaravel, state.SiteProxy:
+	case state.SiteWordPress, state.SiteWooCommerce, state.SiteStatic, state.SitePHP, state.SiteLaravel, state.SiteProxy, state.SiteNode, state.SitePython:
 	default:
 		return Valid{}, invalid("invalid site type %q", s.Type)
 	}
@@ -226,6 +227,14 @@ func Validate(sitesRoot string, s state.Site) (Valid, error) {
 	if s.Type == state.SiteProxy {
 		if _, err := NormalizeProxyUpstream(s.Config.ProxyUpstream); err != nil {
 			return Valid{}, err
+		}
+	}
+	if s.Type.IsApp() {
+		if err := runtimes.CheckApp(s.Type, s.Config.App); err != nil {
+			return Valid{}, invalid("%s", err.Error())
+		}
+		if s.PHPVersion != "" {
+			return Valid{}, invalid("a Node.js or Python site runs no PHP")
 		}
 	}
 	if err := checkDatabase(s); err != nil {

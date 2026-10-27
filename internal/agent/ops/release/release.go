@@ -47,6 +47,9 @@ type Ops struct {
 	// a reload a static file is served from the old release that long.
 	// Nil reloads nothing.
 	ReloadNginx func(context.Context) error
+	// PrepareApp installs a managed app's dependencies in a published
+	// release (SPEC §3 step 8, ops/runtimes SPEC §3); nil installs none.
+	PrepareApp func(ctx context.Context, s state.Site, dir string) (string, error)
 	// Keep is how many releases older than the live one survive a promote
 	// (0 means DefaultKeep).
 	Keep int
@@ -368,7 +371,8 @@ func (o *Ops) activate(ctx context.Context, r *sitefs.Root, s state.Site, id str
 	if err := rootOwned(r).Symlink(rel, CurrentLink); err != nil {
 		return nil, err
 	}
-	if s.PHPVersion != "" && o.ReloadPHP != nil {
+	// A managed app is restarted on the new current (its ReloadPHP).
+	if (s.PHPVersion != "" || s.Type.IsApp()) && o.ReloadPHP != nil {
 		if err := o.ReloadPHP(ctx, s); err != nil {
 			return nil, err
 		}

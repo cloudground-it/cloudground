@@ -61,7 +61,8 @@ Environment=CG_SOCKET=<socket>             (unix socket only)
 Environment=NODE_ENV=production            (Node)
 Environment=VIRTUAL_ENV=<root>/current/.venv  PYTHONUNBUFFERED=1   (Python)
 EnvironmentFile=-/etc/cloudground-app/<user>.env
-ExecStart=/bin/sh -c 'exec <start>'
+Environment="CG_START=<start>"
+ExecStart=/bin/sh -c 'eval "exec $$CG_START"'
 RuntimeDirectory=cloudground/app/<user>
 RuntimeDirectoryMode=0750
 UMask=0007
@@ -87,8 +88,9 @@ WantedBy=multi-user.target
 - `EnvironmentFile` is read by systemd, as root, before the user is changed: the file is root's,
   0600, and the app sees its values in its environment and nowhere else. `-`: a missing file is no
   error.
-- `ExecStart` is the start command as one argument of `sh -c`, quoted for systemd (§5); `exec` so
-  the app is the main process and gets the stop signal.
+- The start command reaches the shell through `CG_START` (quoted for systemd, §5) and `eval`, so
+  it is parsed exactly as typed at a prompt; `exec` makes the app the main process, which gets the
+  stop signal.
 - `Restart=always` with no start limit: an app that exits, or crashes, is started again two
   seconds later, for ever; how often is `NRestarts` (health, ops/sites SPEC §11.3).
 - `phpfpm.RunSandbox`: the confinement every run of the site has (its own tree and logs only,
@@ -111,12 +113,11 @@ dependencies the release was built with, and pruning a release takes its depende
 
 ## 5. The environment file (`RenderEnv`) and quoting
 
-`KEY="value"` per line, sorted, after a header comment, with `\` and `"` escaped by a backslash
-(systemd's rules for a double-quoted value; `$` is not expanded in an environment file). The values
-were checked (§2), so no line break reaches the file. `ExecStart` quotes the start command for
-systemd: single-quoted for the shell after `\` and `'` are escaped, with `%` doubled (systemd's
-specifiers) and `$` doubled (systemd's own variable expansion), so the shell gets the text the
-operator typed.
+`KEY="value"` per line, sorted, after a header comment, with `\`, `"`, `$` and the backquote escaped by a backslash
+(the characters systemd's parser takes literally after a backslash in double quotes, so a newer systemd that expands `$` there leaves the value as typed). The values
+were checked (§2), so no line break reaches the file. The start command is the unit's
+`Environment="CG_START=…"` with backslash and `"` escaped and `%` doubled (systemd's specifiers;
+`Environment=` expands no `$`), so the shell's `eval` gets the text the operator typed.
 
 ## 6. Node releases (`PickNode`, `ParseShasums`)
 

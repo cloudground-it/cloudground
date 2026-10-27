@@ -1,0 +1,32 @@
+{
+  "params": {
+    "full": {
+      "runtime": "Runtime",
+      "version": "Version"
+    },
+    "zero": {
+      "runtime": "",
+      "version": ""
+    }
+  },
+  "result": {
+    "full": {
+      "node": [
+        {
+          "version": "Version",
+          "full": "Full"
+        }
+      ],
+      "python": [
+        {
+          "version": "Version",
+          "full": "Full"
+        }
+      ]
+    },
+    "zero": {
+      "node": null,
+      "python": null
+    }
+  }
+}

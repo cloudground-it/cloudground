@@ -122,8 +122,7 @@ func needsPHP(pc *patchCheck) string {
 // checkBypassCookies refuses names that are not cookie names the page cache
 // can match (velocity.ValidBypassCookie), drops duplicates and sorts them.
 func checkBypassCookies(pc *patchCheck, p *sitePatch) (string, error) {
-	switch pc.site.Type {
-	case state.SiteStatic, state.SiteProxy:
+	if pc.site.Type == state.SiteStatic || pc.site.Type == state.SiteProxy || pc.site.Type.IsApp() {
 		return "this site has no page cache", nil
 	}
 	if len(*p.BypassCookies) > velocity.MaxBypassCookies {
@@ -271,7 +270,7 @@ var patchFields = []patchField{
 	{name: "public_root",
 		named: func(p *sitePatch) bool { return p.PublicRoot != nil },
 		check: func(pc *patchCheck, p *sitePatch) (string, error) {
-			if pc.site.Type == state.SiteProxy {
+			if pc.site.Type == state.SiteProxy || pc.site.Type.IsApp() {
 				return "a proxy site serves no files of its own", nil
 			}
 			root := strings.Trim(strings.TrimSpace(*p.PublicRoot), "/")

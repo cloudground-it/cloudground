@@ -412,7 +412,6 @@ its own app. Before the `server` blocks:
 ```
 upstream cg_app_<id> {
     server <AppUpstream>;
-    keepalive 16;
 }
 ```
 

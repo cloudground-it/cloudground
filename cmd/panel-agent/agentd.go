@@ -19,6 +19,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/ops/cron"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/malware"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/panel"
+	"github.com/cloudground-it/cloudground/internal/agent/ops/runtimes"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/config"
 	"github.com/cloudground-it/cloudground/internal/mailgate"
@@ -124,6 +125,11 @@ func run(args []string) int {
 		// The malware scan's signature update, in the transient unit the
 		// agent starts for it (ops/malware SPEC §2).
 		return malware.RefreshMain(args[1:], os.Stdout, os.Stderr)
+	}
+	if len(args) > 0 && args[0] == runtimes.InstallName {
+		// A Node.js install, in the transient unit the agent starts for it
+		// (ops/runtimes SPEC §2).
+		return runtimes.InstallMain(args[1:], os.Stdout, os.Stderr)
 	}
 	if len(args) > 0 && args[0] == adoptName {
 		return adoptMain(args[1:], os.Stdout)

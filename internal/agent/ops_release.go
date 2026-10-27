@@ -19,6 +19,9 @@ func (a *Agent) releaseHandlers() *release.Ops {
 			ReloadNginx: func(ctx context.Context) error {
 				return a.sitesHandlers().ReloadNginx(ctx)
 			},
+			PrepareApp: func(ctx context.Context, s state.Site, dir string) (string, error) {
+				return a.runtimesHandlers().Prepare(ctx, s, dir)
+			},
 			Log: a.log(),
 		}
 	})

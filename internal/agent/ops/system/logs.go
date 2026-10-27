@@ -32,7 +32,7 @@ var journalSources = map[string]struct{ unit, path string }{
 }
 
 // siteLogFiles maps a site log kind to its file in <LogRoot>/<domain>/.
-var siteLogFiles = map[string]string{"access": "access.log", "error": "error.log", "php": "php-error.log", "cleanup": "cleanup.log"}
+var siteLogFiles = map[string]string{"access": "access.log", "error": "error.log", "php": "php-error.log", "cleanup": "cleanup.log", "app": "app.log"}
 
 // TailLog returns the last lines of one known log (SPEC.md §3).
 func (o *Ops) TailLog(ctx context.Context, p rpc.TailLogParams) (rpc.TailLogResult, error) {

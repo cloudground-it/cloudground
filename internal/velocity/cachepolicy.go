@@ -108,7 +108,7 @@ func PolicyFor(site state.Site) CachePolicy {
 	// time itself is not read here, so a render does not depend on the clock.
 	// A maintenance page (#79) bypasses it too: whoever is let through is
 	// working on the site.
-	if !site.Config.CacheEnabled || !site.Config.DevModeUntil.IsZero() || site.Config.Maintenance.Enabled || site.Type == state.SiteStatic || site.Type == state.SiteProxy {
+	if !site.Config.CacheEnabled || !site.Config.DevModeUntil.IsZero() || site.Config.Maintenance.Enabled || site.Type == state.SiteStatic || site.Type == state.SiteProxy || site.Type.IsApp() {
 		return CachePolicy{}
 	}
 	times, ok := byProfile[site.Profile]

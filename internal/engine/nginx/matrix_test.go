@@ -343,6 +343,23 @@ func matrixCases() []matrixCase {
 			add(fmt.Sprintf("%s-opt-%s", b.name, o.name), b, in)
 		}
 	}
+	// Managed apps (#28, SPEC §4.11), last for the same reason: a Node.js
+	// app on its socket, a Python app on a loopback port.
+	for _, b := range matrixBuilds {
+		for _, typ := range []state.SiteType{state.SiteNode, state.SitePython} {
+			id++
+			in := matrixInput(id, typ, state.ProfileBalanced, false)
+			in.Site.PHPVersion, in.PHPSocket = "", ""
+			in.Site.Config.App = state.SiteApp{Version: "22", Start: "node server.js"}
+			in.AppUpstream = "unix:/run/cloudground/app/" + in.Site.SystemUser + "/app.sock"
+			if typ == state.SitePython {
+				in.Site.Config.App = state.SiteApp{Version: "3.12", Start: "python -m gunicorn --bind 127.0.0.1:8001 app:app", Port: 8001}
+				in.AppUpstream = "127.0.0.1:8001"
+			}
+			in.Policy = velocity.PolicyFor(in.Site)
+			add(fmt.Sprintf("%s-opt-%s", b.name, typ), b, in)
+		}
+	}
 	return cases
 }
 

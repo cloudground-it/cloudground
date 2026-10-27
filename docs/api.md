@@ -115,6 +115,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/sites/{id}/maintenance`: 8 KiB
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
+  - `PUT /api/sites/{id}/app`: 512 KiB
   - `PUT /api/sites/{id}/wp/cleanup`: 8 KiB
   - `PUT /api/sites/{id}/git-deploy`: 8 KiB
   - `POST /hooks/git/{hook}`: 1 MiB
@@ -131,6 +132,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/sites/{id}/wp/updates`: 8 KiB
   - `PUT /api/sites/{id}/wp/hardening`: 8 KiB
   - `PUT /api/sites/{id}/wp/two-factor`: 8 KiB
+  - `POST /api/runtimes/install`: 8 KiB
   - `POST /api/system/updates/apply`: 8 KiB
   - `POST /api/blocklist/blocks`: 8 KiB
   - `DELETE /api/blocklist/blocks`: 8 KiB
@@ -231,6 +233,10 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `POST` | `/api/sites/{id}/certificate` | manage | request a Let's Encrypt certificate now |
 | `PUT` | `/api/sites/{id}/certificate/custom` | manage | install your own certificate: `{fullchain, key}` in PEM |
 | `DELETE` | `/api/sites/{id}/certificate/custom` | manage | remove it and go back to Let's Encrypt: the certificate for the site's current names is requested (`{status, task}`; `{status, warning}` without an ACME e-mail) |
+| `GET` | `/api/sites/{id}/app` | auth | a Node.js or Python site's app: `version`, `start`, `env` (plain variables), `secrets` (names only), `port` (0: the unix socket), `health_path` and the `socket` nginx proxies to |
+| `PUT` | `/api/sites/{id}/app` | manage | change the app (a field left out keeps its value; `secrets` maps a name to its value, `""` removes it, `••••••••` keeps it): the environment is written, the app restarted; 412 for a runtime version the server lacks |
+| `GET` | `/api/sites/{id}/app/status` | auth | the app's unit (`active`, `state`, `since`, `restarts`, `last_exit`) and its health probe (`health {status, ms, error}`) |
+| `POST` | `/api/sites/{id}/app/restart` | manage | restart the app; answers its status |
 | `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache |
 | `POST` | `/api/sites/{id}/warm` | manage | fill the page cache from the sitemap |
 | `GET` | `/api/sites/{id}/wp/cleanup` | auth | the scheduled database cleanup of a WordPress site: `enabled`, `keep_revisions`, `last_run`, `next_run` and whether `backups_ready` |
@@ -522,6 +528,8 @@ session (an API token gets 403); an operator adds `"sftp"` keys to its sites.
 | `GET` | `/api/system/drift` | global | managed files changed outside the panel |
 | `POST` | `/api/system/drift/{id}/resolve` | admin | `{"action":"restore"}` puts the file back, `{"action":"accept"}` keeps it (accept: a signed-in session only, an API token gets 403) |
 | `POST` | `/api/system/maintenance` | admin | run one maintenance tick now and wait for it |
+| `GET` | `/api/runtimes` | admin | the Node.js and Python versions installed (`installed`) and those that can be (`available`), for Node.js and Python sites |
+| `POST` | `/api/runtimes/install` | admin | install a runtime version (`{"runtime": "node", "version": "22"}`, Node.js from nodejs.org checked against its SHA-256 sums, Python from the distro); answers the task |
 | `GET` | `/api/php/{version}/extensions` | auth | what a PHP version loads: every module, and the common extensions with `installed` |
 | `POST` | `/api/php/{version}/extensions` | admin | install one of the common extensions (`{"extension": "redis"}`) and restart the PHP of the sites on that version; answers the task |
 | `GET` | `/api/services` | global | whether nginx, PHP-FPM, MariaDB and Redis run |

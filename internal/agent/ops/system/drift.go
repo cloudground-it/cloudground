@@ -62,7 +62,7 @@ func (o *Ops) managed(path string) bool {
 	}
 	name := filepath.Base(path)
 	if o.Paths.SystemdDir != "" && filepath.Dir(path) == filepath.Clean(o.Paths.SystemdDir) &&
-		strings.HasPrefix(name, "cloudground-php-") && strings.HasSuffix(name, ".service") {
+		(strings.HasPrefix(name, "cloudground-php-") || strings.HasPrefix(name, "cloudground-app-")) && strings.HasSuffix(name, ".service") {
 		return true
 	}
 	// A site's slice unit, with its limits.

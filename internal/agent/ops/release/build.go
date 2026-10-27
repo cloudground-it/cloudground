@@ -154,6 +154,16 @@ func (o *Ops) Build(ctx context.Context, p rpc.DeployParams, roots []string) (rp
 	if err := r.Rename(tree, final, sitefs.NoReplace); err != nil {
 		return rpc.DeployResult{}, fmt.Errorf("publish release: %w", err)
 	}
+	if s.Type.IsApp() && o.PrepareApp != nil {
+		// As the site user, who cannot reach the build directory (SPEC §3
+		// step 8); a failure leaves no release.
+		if _, err := o.PrepareApp(ctx, s, filepath.Join(s.RootPath, final)); err != nil {
+			if rerr := asRoot(r).RemoveAll(final); rerr != nil {
+				o.log().Warn("could not remove a release whose dependencies failed", "release", p.ReleaseID, "err", rerr)
+			}
+			return rpc.DeployResult{}, err
+		}
+	}
 	return rpc.DeployResult{ReleaseID: p.ReleaseID, Path: filepath.Join(s.RootPath, final), Checksum: sum.checksum, Managed: managed}, nil
 }
 
