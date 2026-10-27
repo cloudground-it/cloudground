@@ -74,7 +74,17 @@
       "result": "Repository",
       "resultHelp": "What is saved, as restic reads it.",
       "saveFirst": "Save first: the test reads the saved settings.",
-      "testHelp": "Connects with the saved settings and counts the snapshots."
+      "testHelp": "Connects with the saved settings and counts the snapshots.",
+      "b2Id": "B2 key ID",
+      "b2Key": "B2 application key",
+      "b2Help": "An application key of Backblaze B2 limited to this bucket. Both are stored encrypted.",
+      "sshTitle": "The panel’s SSH key",
+      "sshHint": "Add this public key to the authorized_keys of the account on the SFTP server. The private key never leaves the panel.",
+      "sshMake": "Make a key",
+      "sshNew": "Make a new key",
+      "sshNewTitle": "Replace the panel’s SSH key?",
+      "sshNewHint": "Backups stop reaching the SFTP server until you add the new public key there.",
+      "sshMade": "SSH key made"
     },
     "settings": {
       "secureShort": "Secure the panel",

@@ -662,7 +662,21 @@
     "hourHelp": "Heure du serveur ({zone}). N’importe quelle heure : un jour ou une semaine après la sauvegarde précédente.",
     "databases": "Bases de données à restaurer",
     "databasesHint": "Seules les bases de données cochées sont remplacées ; les autres gardent leur contenu actuel.",
-    "databasesNone": "Choisissez au moins une base de données, ou restaurez seulement les fichiers."
+    "databasesNone": "Choisissez au moins une base de données, ou restaurez seulement les fichiers.",
+    "download": "Télécharger",
+    "downloadTitle": "Télécharger cette sauvegarde",
+    "downloadHint": "Le serveur prépare un .tar.gz avec les fichiers et un dump de chaque base de données, puis votre navigateur le télécharge. Les gros sites prennent du temps.",
+    "preparing": "Préparation…",
+    "onlyPaths": "Seulement certains fichiers ou dossiers",
+    "onlyPathsHint": "Tout le reste du site reste tel quel.",
+    "paths": "Chemins",
+    "pathsHelp": "Un par ligne, depuis le dossier du site : shared/wp-config.php, shared/wp-content/uploads/2026",
+    "pathsBad": "Indiquez de 1 à 20 chemins.",
+    "part": {
+      "full": "Tout (fichiers et bases de données)",
+      "files": "Fichiers seulement",
+      "database": "Bases de données seulement"
+    }
   },
   "ssl": {
     "current": "Certificat actuel",

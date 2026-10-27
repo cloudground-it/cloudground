@@ -27,6 +27,11 @@ const (
 	SecretNotifyWebhook = "notify_webhook"
 	// SecretMailPassword is the server-wide mail relay's (#77).
 	SecretMailPassword = "mail_password"
+	// Backblaze B2's credentials and the panel's key for an SFTP backup
+	// destination (#23, api SPEC §5.8).
+	SecretBackupB2AccountID  = "backup_b2_account_id"
+	SecretBackupB2AccountKey = "backup_b2_account_key"
+	SecretBackupSFTPKey      = "backup_sftp_key"
 )
 
 // Kinds of per-site secret.

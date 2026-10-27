@@ -74,7 +74,17 @@
       "result": "Repository",
       "resultHelp": "Quello che viene salvato, come lo legge restic.",
       "saveFirst": "Salva prima: il test legge le impostazioni salvate.",
-      "testHelp": "Si collega con le impostazioni salvate e conta gli snapshot."
+      "testHelp": "Si collega con le impostazioni salvate e conta gli snapshot.",
+      "b2Id": "ID della chiave B2",
+      "b2Key": "Chiave applicativa B2",
+      "b2Help": "Una chiave applicativa di Backblaze B2 limitata a questo bucket. Entrambe sono salvate cifrate.",
+      "sshTitle": "La chiave SSH del pannello",
+      "sshHint": "Aggiungi questa chiave pubblica all’authorized_keys dell’account sul server SFTP. La chiave privata non lascia mai il pannello.",
+      "sshMake": "Crea una chiave",
+      "sshNew": "Crea una nuova chiave",
+      "sshNewTitle": "Sostituire la chiave SSH del pannello?",
+      "sshNewHint": "I backup non raggiungono più il server SFTP finché non aggiungi lì la nuova chiave pubblica.",
+      "sshMade": "Chiave SSH creata"
     },
     "settings": {
       "secureShort": "Proteggi il pannello",

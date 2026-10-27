@@ -74,7 +74,17 @@
       "result": "Dépôt",
       "resultHelp": "Ce qui est enregistré, tel que restic le lit.",
       "saveFirst": "Enregistrez d’abord : le test lit les paramètres enregistrés.",
-      "testHelp": "Se connecte avec les paramètres enregistrés et compte les snapshots."
+      "testHelp": "Se connecte avec les paramètres enregistrés et compte les snapshots.",
+      "b2Id": "ID de la clé B2",
+      "b2Key": "Clé d’application B2",
+      "b2Help": "Une clé d’application Backblaze B2 limitée à ce bucket. Les deux sont stockées chiffrées.",
+      "sshTitle": "La clé SSH du panneau",
+      "sshHint": "Ajoutez cette clé publique au fichier authorized_keys du compte sur le serveur SFTP. La clé privée ne quitte jamais le panneau.",
+      "sshMake": "Créer une clé",
+      "sshNew": "Créer une nouvelle clé",
+      "sshNewTitle": "Remplacer la clé SSH du panneau ?",
+      "sshNewHint": "Les sauvegardes n’atteignent plus le serveur SFTP tant que la nouvelle clé publique n’y est pas ajoutée.",
+      "sshMade": "Clé SSH créée"
     },
     "settings": {
       "secureShort": "Sécuriser le panneau",

@@ -662,7 +662,21 @@
     "hourHelp": "Hora del servidor ({zone}). Cualquier hora: un día o una semana después de la copia anterior.",
     "databases": "Bases de datos que restaurar",
     "databasesHint": "Solo se reemplazan las bases de datos marcadas; las demás conservan lo que tienen ahora.",
-    "databasesNone": "Elige al menos una base de datos, o restaura solo los archivos."
+    "databasesNone": "Elige al menos una base de datos, o restaura solo los archivos.",
+    "download": "Descargar",
+    "downloadTitle": "Descargar esta copia de seguridad",
+    "downloadHint": "El servidor prepara un .tar.gz con los archivos y un volcado de cada base de datos, y después tu navegador lo descarga. Los sitios grandes tardan un poco.",
+    "preparing": "Preparando…",
+    "onlyPaths": "Solo algunos archivos o carpetas",
+    "onlyPathsHint": "Todo lo demás del sitio queda como está ahora.",
+    "paths": "Rutas",
+    "pathsHelp": "Una por línea, desde la carpeta del sitio: shared/wp-config.php, shared/wp-content/uploads/2026",
+    "pathsBad": "Indica de 1 a 20 rutas.",
+    "part": {
+      "full": "Todo (archivos y bases de datos)",
+      "files": "Solo archivos",
+      "database": "Solo bases de datos"
+    }
   },
   "ssl": {
     "current": "Certificado actual",

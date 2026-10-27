@@ -662,7 +662,21 @@
     "hourHelp": "Serverzeit ({zone}). Beliebige Uhrzeit: einen Tag oder eine Woche nach dem vorigen Backup.",
     "databases": "Wiederherzustellende Datenbanken",
     "databasesHint": "Nur die ausgewählten Datenbanken werden ersetzt; die anderen behalten ihren jetzigen Inhalt.",
-    "databasesNone": "Wähle mindestens eine Datenbank, oder stelle nur die Dateien wieder her."
+    "databasesNone": "Wähle mindestens eine Datenbank, oder stelle nur die Dateien wieder her.",
+    "download": "Herunterladen",
+    "downloadTitle": "Dieses Backup herunterladen",
+    "downloadHint": "Der Server erstellt ein .tar.gz mit den Dateien und einem Dump jeder Datenbank, dann lädt dein Browser es herunter. Große Websites brauchen etwas Zeit.",
+    "preparing": "Wird vorbereitet…",
+    "onlyPaths": "Nur einzelne Dateien oder Ordner",
+    "onlyPathsHint": "Alles andere auf der Website bleibt, wie es ist.",
+    "paths": "Pfade",
+    "pathsHelp": "Einer pro Zeile, ab dem Ordner der Website: shared/wp-config.php, shared/wp-content/uploads/2026",
+    "pathsBad": "Gib 1 bis 20 Pfade an.",
+    "part": {
+      "full": "Alles (Dateien und Datenbanken)",
+      "files": "Nur Dateien",
+      "database": "Nur Datenbanken"
+    }
   },
   "ssl": {
     "current": "Aktuelles Zertifikat",

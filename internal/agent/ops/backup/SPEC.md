@@ -23,6 +23,9 @@ other tool itself.
 | `BackupRetention` | `RetentionParams{Site, Repository, Password, KeepWithinDays, Protect, Env}` → `RetentionResult{Forgotten, Kept}` | Sites, 4 h |
 | `ForgetSnapshot` | `ForgetSnapshotParams{Site, Repository, Password, SnapshotID, Env}` → `ForgetSnapshotResult{Forgotten, Missing}` | Sites, 4 h |
 | `PruneRepository` | `TestBackupParams{Repository, Password, Env}` → `{"pruned": true}` | 4 h |
+| `ArchiveSnapshot` | `ArchiveParams{Site, Repository, Password, SnapshotID, Part, Env}` → `ArchiveResult{Name, Size}` | Sites, 7 h |
+| `ReadArchiveChunk` | `ArchiveChunkParams{Site, Name, Offset, Length}` → `ArchiveChunkResult{Data, Size}` | Sites, read-only, 2 min |
+| `DeleteArchive` | `ArchiveChunkParams{Site, Name}` → `{"deleted": true}` | Sites, 1 min |
 
 Names and parameters are the API's; they do not change here.
 
@@ -40,6 +43,9 @@ dumped, restored or tested; an external database is not one of them.
   `sftp:` with no user or host starting with `-`, `rclone:` only with
   rclone installed. A refusal is `invalid` with the rule's message, before
   restic runs.
+- **SFTP** (#23): `Env["CG_SFTP_KEY"]`, when the panel sends it, is taken
+  out of the environment and becomes the repository's SSH key (host SPEC:
+  restic, SFTP key); it is never handed to restic as a variable.
 - Every call has its own bound, inside the request's deadline: metadata
   (`cat config`, `init`, `snapshots`) 2 min; data (`backup`, `restore`,
   `dump`, `check`) 6 h; the retention plan 10 min, its prune 3 h; the
@@ -235,6 +241,20 @@ options it had cached before the restore.
    cache directory (N-3; it used to be removed, and the site stopped
    caching). The staging directory, holding the old tree, is removed.
 
+**Paths** (#23): a `files` restore may name `Paths` (1 to 20, each
+relative to the site's root; the API's rules, internal/api SPEC §5.6, are
+checked again here → `invalid`). Only they are restored: `restic restore
+<id> --target <work>/files --include <root>/<path>…`; each must be in the
+restored tree, a regular file or a folder (never a link) → else `invalid`
+(`snapshot <id> has no <path>`), all checked before the live site is
+touched. Each is copied with `sitefs.CopyTree` (nothing followed, the
+site user's) to a dot-named temporary beside its place in the live root,
+its parent folders made when missing, then renamed into place: a file
+replaces the live one in one rename; a folder's live copy is renamed aside
+first and removed after. The rest of the site is untouched. Then the site's
+PHP is refreshed (`RefreshPHP`: OPcache) and the page cache emptied. The
+API took and restore-tested the safety snapshot before the call.
+
 ## 6. VerifyBackup — the restore test
 
 It does everything a restore does short of touching the site, and it is
@@ -324,6 +344,38 @@ snapshot's ID (full or short). Exclusive lock throughout (a prune).
 `restic prune` under the exclusive lock, on the prune's bound (§2): the
 data of snapshots forgotten without a prune (deletions). The panel runs it
 from a daily job, only when a deletion left something to prune.
+
+## 12. ArchiveSnapshot, ReadArchiveChunk, DeleteArchive (#23)
+
+A download of a backup (internal/api SPEC §5.7). `Part` is `full`
+(default), `files` or `database`.
+
+1. The snapshot must be the site's (§5, SR-T6), under the shared lock.
+2. The archive is written to `<ArchiveDir>/<site id>/` (root's, 0700;
+   `/var/lib/cloudground-agent/archives` by default), never into the
+   site's tree, under a temporary name renamed when complete:
+   `backup-<snapshot>-<part>.tar.gz`. A gzip'd tar of `files/` (the site's
+   root from `restic dump --archive tar <id> <root>`, its entries read and
+   written again under `files/`, so nothing is unpacked on disk) and
+   `databases/<name>.sql` (each database part, §5, through `restic dump`
+   into a root-only work file, then appended). `database` with a snapshot
+   that has no database part is `invalid`.
+3. Every archive in `ArchiveDir` older than a day is removed first.
+   **Room**: before any dump is fetched, the selection is measured with
+   `restic stats --mode restore-size --json` (the files snapshot unless
+   `database`, the database parts unless `files`), and the archive needs
+   the files' size, each dump twice (its work copy, then the archive) and
+   a margin of a tenth (at least 512 MiB). More than `statfs` says is free
+   for root on `ArchiveDir`'s filesystem → `conflict` ("not enough free
+   space on the server to prepare this download: it needs about … and … is
+   free"), nothing written.
+4. Result: the name and the size.
+
+`ReadArchiveChunk` reads `Length` bytes (at most 16 MiB) at `Offset` of
+`<ArchiveDir>/<site id>/<Name>`, `Name` matching
+`backup-<hex>-(full|files|database).tar.gz` (else `invalid`; a missing
+one `not_found`), and returns them with the file's size. `DeleteArchive`
+removes it (a missing one is no error).
 
 ## 11. Tests
 

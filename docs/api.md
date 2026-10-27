@@ -129,6 +129,7 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/db-servers/{id}`: 256 KiB
   - `PUT /api/sites/{id}/git-deploy`: 8 KiB
   - `POST /hooks/git/{hook}`: 1 MiB
+  - `POST /api/backups/{id}/archive`: 8 KiB
   - `PUT /api/sites/{id}/uptime`: 8 KiB
   - `PUT /api/sites/{id}/mail`: 8 KiB
   - `POST /api/sites/{id}/mail/test`: 8 KiB
@@ -351,7 +352,11 @@ curl -sk --cookie cookies https://panel.example.com/api/sites \
 | `GET` | `/api/sites/{id}/backups` | auth | the site's backups, each with the `databases` its snapshot holds (`null` for one from before they were recorded) |
 | `POST` | `/api/sites/{id}/backups` | manage | take one, then restore-test it |
 | `POST` | `/api/backups/{id}/verify` | manage | test-restore the backup to a scratch place |
-| `POST` | `/api/backups/{id}/restore` | manage | restore in place — `mode` is `full`, `files` or `database`; `confirm` is the domain; `databases`, optional, restores only these of the snapshot's (a backup lists them in `databases`) |
+| `POST` | `/api/backups/{id}/restore` | manage | restore in place — `mode` is `full`, `files` or `database`; `confirm` is the domain; `databases`, optional, restores only these of the snapshot's (a backup lists them in `databases`); `paths`, optional with `files`, only these files or folders |
+| `POST` | `/api/backups/{id}/archive` | manage | prepare a download of the backup — `part` is `full`, `files` or `database`; returns `202` with the task |
+| `GET` | `/api/backups/{id}/archive?part=` | manage | download the prepared archive (`.tar.gz`: `files/`, `databases/<name>.sql`), streamed; deleted once sent |
+| `GET` | `/api/settings/backup-ssh-key` | admin | the public key the panel signs in to an SFTP backup destination with (`""` before one is made) |
+| `POST` | `/api/settings/backup-ssh-key` | admin, session only | make a new key pair for SFTP destinations, replacing the old one; returns the public key |
 | `DELETE` | `/api/backups/{id}` | admin | delete the snapshot from the repository (queued under its lock); refused for one whose restore test has not run and for the site's newest verified one |
 | `POST` | `/api/backups/test` | admin | try the backup repository's credentials |
 | `PUT` | `/api/sites/{id}/backups/policy` | manage | the site's backup policy: any of `enabled`, `schedule` (`hourly`, `daily`, `weekly`), `hour` (0–23, the panel's time zone, for daily and weekly; -1 for none), `retention_days` (0 keeps every snapshot, at most 3650; changing it is an admin's); answers the policy |
