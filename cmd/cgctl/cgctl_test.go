@@ -384,6 +384,28 @@ func TestMaintenance(t *testing.T) {
 	}
 }
 
+// #83: the site's redirects, its canonical host and the list of rules.
+func TestRedirectsCommand(t *testing.T) {
+	inv, err := parseArgs([]string{"redirects", "7"})
+	if err != nil || inv.req.method != "GET" || inv.req.path != "/api/sites/7/redirects" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if inv, err = parseArgs([]string{"redirects", "7", "canonical", "www.example.com"}); err != nil || inv.req.method != "PUT" || fmt.Sprint(inv.req.body) != "map[canonical:www.example.com]" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if inv, err = parseArgs([]string{"redirects", "7", "canonical", "off"}); err != nil || fmt.Sprint(inv.req.body) != "map[canonical:]" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	if inv, err = parseArgs([]string{"redirects", "7", "rules", `[{"match":"exact","from":"/a","to":"/b","status":301}]`}); err != nil || inv.req.method != "PUT" {
+		t.Fatalf("%+v %v", inv.req, err)
+	}
+	for _, bad := range [][]string{{"redirects", "x"}, {"redirects", "7", "rules", "{"}, {"redirects", "7", "rules", `{"a":1}`}, {"redirects", "7", "canonical"}, {"redirects", "7", "other", "x"}} {
+		if _, err := parseArgs(bad); err == nil {
+			t.Errorf("%v accepted", bad)
+		}
+	}
+}
+
 // #78: the database cleanup's schedule, dry run and run.
 func TestCleanupCommands(t *testing.T) {
 	for _, c := range []struct {

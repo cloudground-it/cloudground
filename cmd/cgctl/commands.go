@@ -113,6 +113,33 @@ func buildCleanup(a []string) (request, error) {
 	return request{}, fmt.Errorf("%q is not on, off, preview or run", a[1])
 }
 
+// buildRedirects is `redirects <site-id> [canonical <name|off> | rules <json>]`
+// (#83): the site's settings, its canonical host, or the whole list of rules.
+func buildRedirects(a []string) (request, error) {
+	n, err := id(a[0])
+	if err != nil {
+		return request{}, err
+	}
+	path := fmt.Sprintf("/api/sites/%s/redirects", n)
+	switch {
+	case len(a) == 1:
+		return request{method: "GET", path: path}, nil
+	case len(a) == 3 && a[1] == "canonical":
+		name := a[2]
+		if name == "off" {
+			name = ""
+		}
+		return request{method: "PUT", path: path, body: map[string]any{"canonical": name}}, nil
+	case len(a) == 3 && a[1] == "rules":
+		var rules []any
+		if err := json.Unmarshal([]byte(a[2]), &rules); err != nil {
+			return request{}, fmt.Errorf("the rules are a JSON array ([{\"match\": \"exact\", \"from\": \"/old\", \"to\": \"/new\", \"status\": 301}]): %w", err)
+		}
+		return request{method: "PUT", path: path, body: map[string]any{"rules": rules}}, nil
+	}
+	return request{}, fmt.Errorf("usage: redirects <site-id> [canonical <name|off> | rules <json>]")
+}
+
 var commands = []command{
 	{words: []string{"sites", "list"}, build: get("/api/sites")},
 	{words: []string{"sites", "create"}, args: siteCreateArgs, min: 2, max: -1, build: buildSiteCreate},
@@ -238,6 +265,8 @@ var commands = []command{
 		}
 		return body, nil
 	})},
+	// A site's canonical host and redirect rules (#83).
+	{words: []string{"redirects"}, args: "<site-id> [canonical <name|off> | rules <json>]", min: 1, max: 3, build: buildRedirects},
 	// A WordPress site's scheduled database cleanup (#78).
 	{words: []string{"cleanup"}, args: "<site-id> <on [keep-revisions]|off|preview|run>", min: 2, max: 3, build: buildCleanup},
 	{words: []string{"blocklist", "block"}, args: "<address-or-cidr> [minutes]", min: 1, max: 2, password: true, build: blockRequest("POST", "/api/blocklist/blocks")},

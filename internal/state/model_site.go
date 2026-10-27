@@ -108,6 +108,9 @@ type SiteConfig struct {
 	// Maintenance is the site's maintenance page (#79, internal/engine SPEC
 	// §4.9): its text is kept while the mode is off.
 	Maintenance SiteMaintenance `json:"maintenance,omitzero"`
+	// Redirects is the site's canonical host and redirect rules (#83,
+	// internal/engine SPEC §4.10).
+	Redirects SiteRedirects `json:"redirects,omitzero"`
 	// WPCleanup is a WordPress site's scheduled database cleanup (#78,
 	// internal/api SPEC §3.17).
 	WPCleanup WPCleanup `json:"wp_cleanup,omitzero"`
@@ -161,6 +164,31 @@ type WPUpdatePolicy struct {
 	Hour *int `json:"hour,omitempty"`
 	// What is core, plugins, themes or all; empty reads as all.
 	What string `json:"what,omitempty"`
+}
+
+// Redirect rule kinds and statuses (#83).
+const (
+	RedirectExact  = "exact"
+	RedirectPrefix = "prefix"
+)
+
+// RedirectRule sends a visitor from a path of the site to another place.
+// Exact matches the path only; prefix matches the path and everything under
+// it, and the rest is carried over (/blog/a to /news/a). The query string is
+// kept unless To has one of its own (an exact rule). Status is 301 or 302.
+type RedirectRule struct {
+	Match  string `json:"match"`
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Status int    `json:"status"`
+}
+
+// SiteRedirects is the site's canonical host and redirect rules. Canonical
+// is the site's domain or one of its aliases that every other name sends
+// visitors to ("" keeps each name as it is).
+type SiteRedirects struct {
+	Canonical string         `json:"canonical,omitempty"`
+	Rules     []RedirectRule `json:"rules,omitempty"`
 }
 
 // SiteMaintenance is a site's maintenance mode: while Enabled, visitors get

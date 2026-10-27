@@ -343,6 +343,37 @@ func matrixCases() []matrixCase {
 			add(fmt.Sprintf("%s-opt-%s", b.name, o.name), b, in)
 		}
 	}
+	// Redirects and a canonical host (#83, SPEC §4.10), last again: a
+	// WordPress site with the www name canonical and every kind of rule, and
+	// a static site with one rule and no canonical host.
+	redirects := []option{
+		{"redirects", state.SiteWordPress, func(in *engine.Input) {
+			in.Site.Aliases = []string{"www." + in.Site.Domain}
+			in.Site.Config.Redirects = state.SiteRedirects{
+				Canonical: "www." + in.Site.Domain,
+				Rules: []state.RedirectRule{
+					{Match: state.RedirectExact, From: "/old-page", To: "/new-page", Status: 301},
+					{Match: state.RedirectExact, From: "/shop/", To: "/store/?src=old", Status: 302},
+					{Match: state.RedirectPrefix, From: "/blog", To: "/news", Status: 301},
+					{Match: state.RedirectPrefix, From: "/docs/v1", To: "https://docs.example.org/v1", Status: 302},
+					{Match: state.RedirectPrefix, From: "/a.b+c(d)", To: "/", Status: 301},
+				},
+			}
+		}},
+		{"redirects-static", state.SiteStatic, func(in *engine.Input) {
+			in.Site.Config.Redirects = state.SiteRedirects{
+				Rules: []state.RedirectRule{{Match: state.RedirectExact, From: "/", To: "/home.html", Status: 302}},
+			}
+		}},
+	}
+	for _, b := range matrixBuilds {
+		for _, o := range redirects {
+			id++
+			in := matrixInput(id, o.typ, state.ProfileBalanced, o.typ != state.SiteStatic)
+			o.set(&in)
+			add(fmt.Sprintf("%s-opt-%s", b.name, o.name), b, in)
+		}
+	}
 	return cases
 }
 
