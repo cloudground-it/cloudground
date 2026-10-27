@@ -3,6 +3,14 @@ import { fileURLToPath } from 'node:url'
 
 const apiOrigin = process.env.CLOUDGROUND_API_ORIGIN || 'http://127.0.0.1:5252'
 
+// The demo build (#39, `npm run build:demo`): the same interface against a
+// sample-data API that runs in the browser (demo/), for a static host. It is
+// a build of its own: with CG_DEMO unset nothing below applies and the
+// panel's bundle, ui/dist, is byte for byte what it was.
+const demo = process.env.CG_DEMO === '1'
+// What a demo page may load and where it may talk: itself. No form posts.
+const demoPolicy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; form-action 'none'; base-uri 'self'; object-src 'none'"
+
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@vueuse/nuxt', '@nuxtjs/i18n'],
 
@@ -13,9 +21,10 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
 
   app: {
+    ...(demo ? { baseURL: '/demo/' } : {}),
     head: {
-      title: 'CloudGround',
-      meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+      title: demo ? 'CloudGround demo' : 'CloudGround',
+      meta: [{ name: 'robots', content: 'noindex, nofollow' }, ...(demo ? [{ 'http-equiv': 'Content-Security-Policy', 'content': demoPolicy }] : [])],
       // The mark (scripts/brand-assets.py): filled for the tab, the app tile
       // for a home screen.
       link: [
@@ -27,6 +36,15 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
+
+  // The demo's API and its strip (demo/plugin.client.ts), and addresses a
+  // static host serves without rewrites: /demo/#/sites/1.
+  ...(demo
+    ? {
+        plugins: [fileURLToPath(new URL('./demo/plugin.client.ts', import.meta.url))],
+        router: { options: { hashMode: true } }
+      }
+    : {}),
 
   compatibilityDate: '2026-06-30',
 
@@ -45,7 +63,7 @@ export default defineNuxtConfig({
     preset: 'static',
     // go:embed reads ui/dist; it cannot follow the symlink nuxt generate
     // would otherwise leave there.
-    output: { publicDir: fileURLToPath(new URL('./dist', import.meta.url)) },
+    output: { publicDir: fileURLToPath(new URL(demo ? './dist-demo' : './dist', import.meta.url)) },
     // One app shell is enough: the panel serves it for every route.
     prerender: { crawlLinks: false, routes: ['/'] },
     // The shells' payload carries the time they were rendered

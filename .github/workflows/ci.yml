@@ -49,6 +49,10 @@ jobs:
       # Every locale has en.json's keys and placeholders, and compiles.
       - name: Locales
         run: cd ui && npm ci --no-audit --no-fund && npm test
+      # The demo (docs/demo.md) is a build of its own: it must build, and
+      # building it must leave the panel's bundle as it was (checked below).
+      - name: The demo builds
+        run: cd ui && npm run build:demo && test -f dist-demo/index.html
       # ui/dist is committed for go:embed; the build is reproducible, so the
       # committed copy must be exactly what this commit builds.
       - name: The committed ui/dist is current

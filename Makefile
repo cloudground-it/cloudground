@@ -29,7 +29,7 @@ UI_BUILD_DIR = /tmp/cloudground-ui
 DOCKER_NODE = docker run --rm -v "$(CURDIR)/ui":$(UI_BUILD_DIR) -v cloudground-ui-modules:$(UI_BUILD_DIR)/node_modules -w $(UI_BUILD_DIR) $(NODE_IMAGE)
 
 .PHONY: build ui test vet dist clean e2e-bin e2e-index api-doc \
-	docker-test docker-dist docker-e2e-bin docker-e2e-index docker-api-doc docker-nginx-test docker-install-test docker-php-test docker-upgrade-bundle \
+	docker-test docker-dist docker-demo docker-e2e-bin docker-e2e-index docker-api-doc docker-nginx-test docker-install-test docker-php-test docker-upgrade-bundle \
 	release release-build release-sign release-verify release-require-key \
 	docker-release docker-release-build docker-release-repro
 
@@ -85,6 +85,11 @@ docker-dist:
 	$(DOCKER_NODE) sh -c 'npm ci --silent --no-audit --no-fund && npm run build --silent'
 	$(DOCKER_GO) sh -c 'mkdir -p dist && for b in $(BINARIES); do GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o dist/$$b ./cmd/$$b || exit 1; done'
 	$(DOCKER_GO) env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/cgbench ./cmd/cgbench
+
+# The panel's demo (docs/demo.md): the interface against sample data that runs
+# in the browser, into ui/dist-demo (not committed). ui/dist is not touched.
+docker-demo:
+	$(DOCKER_NODE) sh -c 'npm ci --silent --no-audit --no-fund && npm test --silent && npm run build:demo --silent'
 
 docker-e2e-bin:
 	$(DOCKER_GO) sh -c 'mkdir -p dist && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -c -tags e2e -o dist/cg-e2e ./e2e'

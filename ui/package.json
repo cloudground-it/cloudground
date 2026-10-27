@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt generate",
+    "build:demo": "CG_DEMO=1 nuxt generate",
     "typecheck": "nuxt typecheck",
     "postinstall": "nuxt prepare",
-    "test": "node --test tests/locales.test.mjs tests/background.test.mjs tests/facts.test.mjs tests/backupdest.test.mjs tests/theme.test.mjs tests/sitewizard.test.mjs tests/markdown.test.mjs"
+    "test": "node --test tests/locales.test.mjs tests/background.test.mjs tests/facts.test.mjs tests/backupdest.test.mjs tests/theme.test.mjs tests/sitewizard.test.mjs tests/markdown.test.mjs tests/demo.test.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",

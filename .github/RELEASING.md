@@ -89,6 +89,10 @@ hops to `releases/latest/download/install.sh` (internal/install/SPEC.md §6).
 | `https://github.com/cloudground-it/cloudground/releases/download/vX.Y.Z/install.sh` | that release's copy: the pinned install |
 | `https://get.cloudground.it/` and `/install.sh` | GitHub Pages of this repository, deployed by the release workflow's `pages` job for the newest stable release only, from the same build artifact: `index.html` and `install.sh` are both the stamped script (Pages serves `/` as `index.html`, as `text/html`, which `curl -fsSL … \| bash` does not look at), and `CNAME` holds `get.cloudground.it` |
 
+The same deployment carries the panel's demo under `https://get.cloudground.it/demo/` (`docs/demo.md`): the
+`pages` job builds it from the tag (`npm run build:demo`), so the demo is the newest stable release's interface
+and needs no setting or secret of its own.
+
 The bootstrap itself downloads the binaries from the GitHub release, never from Pages. What the
 script host is trusted with, and how an operator avoids trusting it, is internal/install/SPEC.md
 §6.1.
