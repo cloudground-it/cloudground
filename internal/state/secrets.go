@@ -177,9 +177,16 @@ func (s *Store) aead() (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
+// maxSecretLen bounds a sealed value: the largest secret kept (a deploy
+// key's private half) is a few hundred bytes.
+const maxSecretLen = 64 << 10
+
 // seal encrypts value for name; the name is authenticated with it, so a
 // sealed value moved to another name does not open.
 func (s *Store) seal(name, value string) ([]byte, error) {
+	if len(value) > maxSecretLen {
+		return nil, fmt.Errorf("secret %s: over %d bytes", name, maxSecretLen)
+	}
 	a, err := s.aead()
 	if err != nil {
 		return nil, err
