@@ -35,8 +35,12 @@ would hand an attacker 2^64 fresh ones (internal/api SPEC §2.7 counts the
 panel's sign-in limits the same way).
 
 **Never blocked** (`Exempt`): loopback (`127.0.0.0/8`, `::1`), the server's
-own addresses, and every allowlist entry. A failure from one of them is not
-counted; a ban is never made for one.
+own addresses, every allowlist entry, and Cloudflare's proxy ranges
+(`Proxies`, the panel's current list: internal/cfips). A failure from one of
+them is not counted; a ban is never made for one. A failure from
+Cloudflare's address comes from a site that does not take the visitor's
+address from Cloudflare (internal/api SPEC §3.18), and blocking that address
+would cut off every visitor Cloudflare sends through it, to every site.
 
 ## 2. Settings
 

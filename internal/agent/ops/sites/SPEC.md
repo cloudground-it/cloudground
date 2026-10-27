@@ -24,6 +24,7 @@ rewrite).
 | `ReloadWebServer` | none → none | 2 min |
 | `PHPExtensions` | `PHPExtensionsParams{Version}` → `PHPExtensionsResult{Version, Modules, Extensions}` | read-only, 1 min (§9) |
 | `PHPExtensionInstall` | `PHPExtensionInstallParams{Version, Extension}` → `PHPExtensionsResult` | 15 min (§9) |
+| `SetCloudflareRanges` | `CloudflareRangesParams{V4, V6}` → `CloudflareRangesResult{Changed}` | 2 min (§10) |
 
 `CheckDocRoot` (R-4.3) answers `invalid` when a component of the site's
 public root beneath the live release (`current`) is a symbolic link or not a
@@ -148,7 +149,9 @@ the PHP masters' directory, set to 0755 on every PHP render (step 4).
    every site the socket WordPress vhosts log failed sign-ins to
    (`Paths.AuthLogSocket`, ops/blocklist SPEC §1.2; internal/engine SPEC §4.6);
    each protected path (`Config.ProtectedPaths`) its own password file, one
-   line `<username>:<bcrypt hash>`.
+   line `<username>:<bcrypt hash>`; a site with `Config.Cloudflare.RealIP`
+   gets `CloudflareRealIP`, and Cloudflare's two shared files are written
+   in the same nginx change when they are missing (§10).
    `HTTP3` and `HTTP2Directive` (nginx ≥ 1.25.1) come from `nginx -V`, read
    once per process (`host.Nginx.BuildInfo`, which reads stderr).
 2. The renderer's site files and global files. The page-cache directory is
@@ -351,3 +354,38 @@ outside `rpc.PHPExtensions`.
   install that worked with a restart that failed is an error naming the
   units. The answer is the version's
   extensions afterwards.
+
+## 10. Cloudflare's files (#22)
+
+Two files every site behind Cloudflare shares (internal/engine SPEC
+§4.10), both 0644, written atomically under the nginx lock:
+
+- `<NginxConfDir>/cloudground-cloudflare.inc`: a comment, then one
+  `set_real_ip_from <prefix>;` per range, sorted, IPv4 first. Not `.conf`,
+  so nginx's `conf.d/*.conf` does not load it at http level; only the
+  vhosts that include it trust the ranges.
+- `<NginxConfDir>/cloudground-banned.conf`: `geo $cg_banned { default 0; …
+  }` with each allowed prefix `0` and each blocked one `1`; a block inside an
+  allowed prefix is left out (in a `geo` the longest prefix wins, and in
+  netfilter the allowlist wins over every block).
+
+**`SetCloudflareRanges {V4, V6}`** (the panel's refresh job and the turning
+on of `real_ip`, internal/api SPEC §3.18): the lists are checked again
+(`cfips.Parse`, refused as `invalid` with its message); the include is
+rendered, and when it differs from the file on disk (or there is none) it
+is written, nginx tested and reloaded; a failure puts the old file back and
+reloads. Answer `{changed}`.
+
+**Render.** A site with `real_ip` on writes, in its own nginx change, the
+include from the shipped list (`cfips.Shipped`) when there is none, and the
+`geo` with nothing blocked when there is none (the block list fills it at
+its next apply, within ten minutes). Neither is removed with the last such
+site: they are shared, an unused `geo` costs nothing, and the next site
+turned on would need them again.
+
+**`SetBanned(block, allow)`**, called by ops/blocklist after netfilter took
+the list (ops/blocklist SPEC §3): only when `cloudground-banned.conf`
+exists (a site behind Cloudflare was rendered here), the `geo` is rendered
+and, when it differs, written, nginx tested and reloaded, the old file put
+back on a failure. Without the file nothing is written: a server with no
+site behind Cloudflare never reloads nginx for a ban.
