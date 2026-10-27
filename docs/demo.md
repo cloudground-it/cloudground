@@ -20,7 +20,7 @@ still what the commit builds). The demo goes to `ui/dist-demo`, which is not com
 
 | What the demo build adds | Why |
 | --- | --- |
-| the plugin `ui/demo/plugin.client.ts`, first of all | installs the demo's API before the panel's first request, and shows the strip with the demo's words |
+| the plugin `ui/demo/plugin.client.ts`, first of all | installs the demo's API before the panel's first request, and shows the strip with the demo's words, and keeps the layout above it (its height is `--cg-demo-bar`, so nothing sits under it, wrapped or not) |
 | `app.baseURL: /demo/` and a hash-mode router | the pages work from `/demo/#/sites/1` on a static host that rewrites nothing |
 | a `Content-Security-Policy` meta tag | the page may load and talk to its own origin only, and post no form |
 
@@ -37,8 +37,9 @@ languages, and not in `ui/i18n/locales`, so the real bundle does not carry them.
 - `XMLHttpRequest` (the uploads' way): answered with the same refusal, never opened.
 - `EventSource`: only `/api/events` opens, and it stays quiet. `WebSocket` throws; `sendBeacon` returns `false`.
 
-`api.ts` answers a GET from sample data (five sites, a staging copy, backups, usage, logs, services,
-users, the blocklist, …) and refuses every other method with **403** and the demo's words, except what
+`api.ts` answers a GET from sample data (seven sites: WooCommerce, WordPress, static, Laravel, a staging copy, a Node.js and a Python one;
+backups, usage, traffic, redirects, functions, git deploy, external database servers, an AI assistant,
+logs, services, users, the blocklist, …) and refuses every other method with **403** and the demo's words, except what
 concerns this browser only: signing in and out and the language (`PUT /api/account/profile`), which
 change nothing that survives a reload. A page with no sample data gets a 404 that says so.
 

@@ -6,6 +6,26 @@
 import { installDemo } from './install.ts'
 import { messagesFor } from './messages.ts'
 
+// Room for the strip: the panel is a fixed layout that scrolls inside itself, so
+// padding on the body would not help. The strip's height goes into
+// --cg-demo-bar (it grows when the text wraps on a phone) and the layout stops
+// above it: nothing of the page ever sits under the strip.
+const RESERVE_CSS = 'html{--cg-demo-bar:0px}'
+  + '#__nuxt>.fixed.inset-0{bottom:var(--cg-demo-bar)}'
+  // The panels are min-h-svh: without this they would stay a screen tall and be clipped.
+  + '#__nuxt>.fixed.inset-0>*{min-height:0}'
+  + '#__nuxt ol.fixed[class*="z-[100]"]{margin-bottom:var(--cg-demo-bar)}'
+
+function reserve(bar: HTMLElement) {
+  const style = document.createElement('style')
+  style.textContent = RESERVE_CSS
+  document.head.append(style)
+  const set = () => document.documentElement.style.setProperty('--cg-demo-bar', `${bar.getBoundingClientRect().height}px`)
+  set()
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(set).observe(bar)
+  window.addEventListener('resize', set)
+}
+
 export default defineNuxtPlugin({
   name: 'cloudground-demo',
   // Before every other plugin and the router's first navigation: the first
@@ -35,8 +55,7 @@ export default defineNuxtPlugin({
       paint()
       watch(() => i18n.locale.value, paint)
       document.body.append(bar)
-      // Room for the strip: the page's own footer is not hidden behind it.
-      document.body.style.paddingBottom = '3.5rem'
+      reserve(bar)
     })
   }
 })
