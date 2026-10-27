@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { Backup } from '~/types'
+import type { Backup, Task } from '~/types'
 
 const { t, locale } = useI18n()
 const api = useApi()
@@ -95,13 +95,50 @@ const snapColumns = computed(() => [
   { id: 'actions', header: () => h('span', { class: 'sr-only' }, t('cg.col.actions')), meta: { class: { td: 'text-end' } } }
 ])
 const snapMenu = (b: Backup): DropdownMenuItem[][] => {
-  const out: DropdownMenuItem[][] = [[{ label: t('backup.testRestore'), icon: 'i-cg-verified', disabled: !canManage.value, onSelect: () => void verify(b) }]]
+  const out: DropdownMenuItem[][] = [[
+    { label: t('backup.testRestore'), icon: 'i-cg-verified', disabled: !canManage.value, onSelect: () => void verify(b) },
+    { label: t('backup.download'), icon: 'i-cg-download', disabled: !canManage.value, onSelect: () => { downloadTarget.value = b; downloadPart.value = 'full' } }
+  ]]
   if (isAdmin.value) out.push([{ label: deletable(b) ? t('common.delete') : t('backup.deleteKept'), icon: 'i-cg-trash', color: 'error', disabled: !deletable(b), onSelect: () => void remove(b) }])
   return out
 }
 
 const restoreTarget = ref<Backup | null>(null)
 const restoreMode = ref<'full' | 'files' | 'database'>('full')
+// A files restore may put back only some files or folders (issue 23), one
+// per line, relative to the site's root.
+const onlyPaths = ref(false)
+const pathsText = ref('')
+const paths = computed(() => pathsText.value.split('\n').map(p => p.trim()).filter(Boolean))
+const pathsBad = computed(() => onlyPaths.value && restoreMode.value === 'files' && (paths.value.length === 0 || paths.value.length > 20))
+
+// A download: the agent prepares the archive (a task), then the browser
+// fetches it, streamed.
+const downloadTarget = ref<Backup | null>(null)
+const downloadPart = ref<'full' | 'files' | 'database'>('full')
+const downloading = ref(false)
+const partItems = computed(() => (['full', 'files', 'database'] as const).map(v => ({ label: t(`backup.part.${v}`), value: v })))
+const toast = useToast()
+async function download() {
+  const b = downloadTarget.value
+  if (!b) return
+  downloading.value = true
+  try {
+    const { task } = await api.post<{ task: Task }>(`/api/backups/${b.id}/archive`, { part: downloadPart.value })
+    let state: Task = task
+    for (let i = 0; i < 1800 && (state.status === 'pending' || state.status === 'running'); i++) {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      state = await api.get<Task>(`/api/tasks/${task.id}`, { background: true })
+    }
+    if (state.status !== 'succeeded') throw new Error(state.error || state.message)
+    downloadTarget.value = null
+    window.location.href = `/api/backups/${b.id}/archive?part=${downloadPart.value}`
+  } catch (e) {
+    toast.add({ title: t('common.failed'), description: errorMessage(e), color: 'error', icon: 'i-cg-alert-circle' })
+  } finally {
+    downloading.value = false
+  }
+}
 const modeItems = computed(() => (['full', 'files', 'database'] as const).map(v => ({ label: t(`backup.mode.${v}`), value: v })))
 
 // The databases a restore may put back: the snapshot's, or, for a backup
@@ -112,6 +149,8 @@ const restoreDbs = ref<string[]>([])
 const restoresDbs = computed(() => restoreMode.value !== 'files' && restoreDbOptions.value.length > 0)
 async function openRestore(b: Backup) {
   restoreMode.value = 'full'
+  onlyPaths.value = false
+  pathsText.value = ''
   let names = b.databases ?? null
   if (names === null) {
     try {
@@ -151,6 +190,7 @@ async function restore() {
   const ok = await confirm({ title: t('backup.restoreTitle', { snapshot: b.snapshot_id.slice(0, 12) }), description: t('backup.restoreHint'), danger: true, typed: site.value.domain, confirmLabel: t('backup.restore') })
   const body: Record<string, unknown> = { confirm: site.value.domain, mode: restoreMode.value }
   if (restoresDbs.value && restoreDbs.value.length < restoreDbOptions.value.length) body.databases = [...restoreDbs.value]
+  if (restoreMode.value === 'files' && onlyPaths.value) body.paths = paths.value
   if (ok) await run(() => api.post(`/api/backups/${b.id}/restore`, body), t('backup.restoreStarted'))
 }
 </script>
@@ -241,13 +281,31 @@ async function restore() {
             {{ t('backup.databasesNone') }}
           </p>
         </div>
+        <template v-if="restoreMode === 'files'">
+          <USwitch v-model="onlyPaths" :label="t('backup.onlyPaths')" :description="t('backup.onlyPathsHint')" />
+          <UFormField v-if="onlyPaths" :label="t('backup.paths')" :help="t('backup.pathsHelp')" :error="pathsBad ? t('backup.pathsBad') : undefined">
+            <UTextarea v-model="pathsText" :rows="4" autoresize class="w-full font-mono" placeholder="shared/wp-config.php" />
+          </UFormField>
+        </template>
         <UAlert color="neutral" variant="subtle" icon="i-cg-info" :description="t('backup.safety')" />
       </div>
     </template>
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="restoreTarget = null" />
-        <UButton color="error" :label="t('common.continue')" :disabled="restoresDbs && !restoreDbs.length" @click="restore" />
+        <UButton color="error" :label="t('common.continue')" :disabled="(restoresDbs && !restoreDbs.length) || pathsBad" @click="restore" />
+      </div>
+    </template>
+  </UModal>
+
+  <UModal :open="!!downloadTarget" :title="t('backup.downloadTitle')" :description="t('backup.downloadHint')" @update:open="v => { if (!v && !downloading) downloadTarget = null }">
+    <template #body>
+      <URadioGroup v-model="downloadPart" :items="partItems" />
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton color="neutral" variant="ghost" :label="t('common.cancel')" :disabled="downloading" @click="downloadTarget = null" />
+        <UButton icon="i-cg-download" :label="downloading ? t('backup.preparing') : t('backup.download')" :loading="downloading" @click="download" />
       </div>
     </template>
   </UModal>

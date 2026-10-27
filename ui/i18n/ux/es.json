@@ -74,7 +74,17 @@
       "result": "Repositorio",
       "resultHelp": "Lo que se guarda, tal como lo lee restic.",
       "saveFirst": "Guarda primero: la prueba lee los ajustes guardados.",
-      "testHelp": "Se conecta con los ajustes guardados y cuenta los snapshots."
+      "testHelp": "Se conecta con los ajustes guardados y cuenta los snapshots.",
+      "b2Id": "ID de la clave de B2",
+      "b2Key": "Clave de aplicación de B2",
+      "b2Help": "Una clave de aplicación de Backblaze B2 limitada a este bucket. Ambas se guardan cifradas.",
+      "sshTitle": "La clave SSH del panel",
+      "sshHint": "Añade esta clave pública al authorized_keys de la cuenta en el servidor SFTP. La clave privada nunca sale del panel.",
+      "sshMake": "Crear una clave",
+      "sshNew": "Crear una clave nueva",
+      "sshNewTitle": "¿Sustituir la clave SSH del panel?",
+      "sshNewHint": "Las copias de seguridad dejan de llegar al servidor SFTP hasta que añadas allí la nueva clave pública.",
+      "sshMade": "Clave SSH creada"
     },
     "settings": {
       "secureShort": "Proteger el panel",

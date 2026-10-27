@@ -602,7 +602,21 @@
     "hourHelp": "Ora del server ({zone}). Qualsiasi ora: un giorno o una settimana dopo il backup precedente.",
     "databases": "Database da ripristinare",
     "databasesHint": "Vengono sostituiti solo i database selezionati; gli altri restano come sono ora.",
-    "databasesNone": "Scegli almeno un database, oppure ripristina solo i file."
+    "databasesNone": "Scegli almeno un database, oppure ripristina solo i file.",
+    "download": "Scarica",
+    "downloadTitle": "Scarica questo backup",
+    "downloadHint": "Il server prepara un .tar.gz con i file e un dump di ogni database, poi il browser lo scarica. Per i siti grandi serve un po’ di tempo.",
+    "preparing": "Preparazione…",
+    "onlyPaths": "Solo alcuni file o cartelle",
+    "onlyPathsHint": "Tutto il resto del sito resta com’è ora.",
+    "paths": "Percorsi",
+    "pathsHelp": "Uno per riga, dalla cartella del sito: shared/wp-config.php, shared/wp-content/uploads/2026",
+    "pathsBad": "Indica da 1 a 20 percorsi.",
+    "part": {
+      "full": "Tutto (file e database)",
+      "files": "Solo i file",
+      "database": "Solo i database"
+    }
   },
   "ssl": {
     "current": "Certificato attuale",

@@ -602,7 +602,21 @@
     "hourHelp": "Server time ({zone}). Any time: a day or a week after the previous backup.",
     "databases": "Databases to restore",
     "databasesHint": "Only the checked databases are replaced; the others keep what they hold now.",
-    "databasesNone": "Choose at least one database, or restore only the files."
+    "databasesNone": "Choose at least one database, or restore only the files.",
+    "download": "Download",
+    "downloadTitle": "Download this backup",
+    "downloadHint": "The server prepares a .tar.gz with the files and a dump of each database, then your browser downloads it. Large sites take a while.",
+    "preparing": "Preparing…",
+    "onlyPaths": "Only some files or folders",
+    "onlyPathsHint": "Everything else in the site stays as it is now.",
+    "paths": "Paths",
+    "pathsHelp": "One per line, from the site’s folder: shared/wp-config.php, shared/wp-content/uploads/2026",
+    "pathsBad": "Give 1 to 20 paths.",
+    "part": {
+      "full": "Everything (files and databases)",
+      "files": "Files only",
+      "database": "Databases only"
+    }
   },
   "ssl": {
     "current": "Current certificate",
