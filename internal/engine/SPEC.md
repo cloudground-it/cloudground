@@ -32,6 +32,7 @@ in the rendered comments (they are part of the output and stay with it) and
 | `ProtectedPaths` | the site's protected paths (#26), each `{Path, File}`: the path and its password file (§4.5) |
 | `AuthLogSocket` | the agent's datagram socket for failed sign-ins (#21, §4.6); empty logs none |
 | `Blocking` | the visitors the site refuses (#25, §4.7): addresses, user agents, countries already resolved to their prefixes, and this machine's addresses (never refused); nil refuses nobody |
+| `Functions` | the site's functions (#143, §4.12): each `{Name, Socket, TimeoutSec}` |
 | `AppUpstream` | a managed app's address (#28, §4.11): `unix:/run/cloudground/app/<user>/app.sock` or `127.0.0.1:<port>`; empty for every other site |
 
 `Renderer` has `SiteFiles(Input) (path → content)`, `GlobalFiles()` and
@@ -420,6 +421,31 @@ cache is never on for it (`velocity.PolicyFor`), and like a proxy site it has no
 A custom routing block may `proxy_pass http://cg_app_<id>` for **its own** id (§7.3: the one host
 name allowed, and counted as this machine's, so the Host rule holds); any other `cg_app_` name is a
 host name and refused.
+
+### 4.12 Functions (#143)
+
+Each function of `Functions` (internal/api SPEC §3.20) gets, in the 443 server before the routing
+block, `location = /.functions/<name>` and `location ^~ /.functions/<name>/` (an exact and a
+prefix location: both win over every regex location, the hidden-files one included), with:
+
+```
+proxy_pass http://unix:<Socket>:;
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-CloudGround-Source "";
+proxy_read_timeout <TimeoutSec + 5>s;
+client_max_body_size 6m;
+<the security headers>
+```
+
+HTTP/1.0 to the socket (nginx's default for a proxy): one request per connection, so one process
+per invocation (internal/functions SPEC §3). A visitor's `X-CloudGround-Source` is emptied: only the
+agent's own invocation, which comes from this machine, says `schedule` or `test` — nginx sets it
+again from the request only when the client is loopback (`$cg_fn_source_<id>`, a map of
+`$remote_addr` before the server blocks). A name is `^[a-z][a-z0-9-]{0,30}$` and a socket
+`/run/cloudground/fn/cg-site-<id>/<name>.sock`, else nothing is rendered.
 
 ## 5. Page-cache policy (`velocity.PolicyFor`)
 

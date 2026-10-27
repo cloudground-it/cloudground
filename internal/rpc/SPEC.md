@@ -59,6 +59,8 @@ handler.
 | `RuntimeInstallParams` | `Runtime` is `node` or `python`, `Version` of its form (internal/runtimes SPEC §1) | `unknown runtime "<r>"`, `invalid <runtime> version "<v>"` |
 | `AppEnvParams` | the site is `node` or `python`; `runtimes.CheckEnv` takes `Env` | `not a Node.js or Python site`, its message |
 | `AppControlParams` | `Action` is `start`, `stop` or `restart` | `unknown action "<a>"` |
+| `SetFunctionParams` | `functions.Check` takes the function; the code at most 256 KiB of UTF-8; `runtimes.CheckEnv` takes `Env` | its message |
+| `FunctionRef`, `FunctionRollbackParams`, `InvokeFunctionParams` | a function name; a release ID when one is named; `Source` `schedule` or `test`; a body at most 64 KiB | its message |
 | `ManageFileParams` | `Operation` is `mkdir`, `rename` or `delete` | `unsupported file operation "<o>"` |
 | | `rename` has a non-blank `DestPath` | `destination path required` |
 | `SSHKeyParams` | `Action` is `list`, `add` or `delete` | `unsupported SSH key action "<a>"` |

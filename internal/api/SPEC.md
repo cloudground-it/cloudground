@@ -1445,6 +1445,49 @@ tree, the releases' `node_modules` and `.venv` with it, and a restore restarts t
 - `POST /api/runtimes/install {runtime, version}` → 202 `{task}`: job `runtime.install` (§9 of the
   jobs SPEC), audit `runtime.install`.
 
+### 3.20 Functions (#143, `functions.go`)
+
+A site's functions (internal/functions SPEC): small Node.js or Python handlers that answer at
+`https://<domain>/.functions/<name>` and can run on a schedule, each invocation a process of its
+own with the function's memory and timeout, nothing running between invocations. The agent's side
+is ops/functions SPEC; the routes in nginx internal/engine SPEC §4.12. Every site type has them; a
+staging copy does not get its production's.
+
+`config.functions` holds each function's settings (the package SPEC §1); the code lives in the
+site's tree, in releases, and is read from the agent.
+
+- `GET /api/sites/{id}/functions` (any caller who can see the site): `[{name, runtime, version,
+  memory_mb, timeout_sec, schedule, env, secrets, release, url}]`, `url` the endpoint.
+- `POST /api/sites/{id}/functions` (manage, at most 512 KiB) `{name, runtime, version?, memory_mb?,
+  timeout_sec?, schedule?, code?, env?, secrets?}`: the defaults of the package SPEC §1 and, without
+  code, a starter handler that echoes the request. → **201** the function. `functions.Check` →
+  400 with its message; a name the site already has → 409; a 21st → 400; a runtime version the
+  server lacks → 412 `install <runtime> <version> on the server first (Services → Runtimes)`.
+- `GET /api/sites/{id}/functions/{name}`: the function, its `code`, the live `release` and the
+  `releases` (newest first).
+- `PUT /api/sites/{id}/functions/{name}` (manage, at most 512 KiB): any of `code` (a new release),
+  `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets` (as a managed app's: `""`
+  removes, `••••••••` keeps). → 200 the function.
+- `DELETE /api/sites/{id}/functions/{name}` (manage) → 204.
+- `POST /api/sites/{id}/functions/{name}/rollback` (manage) `{release?}` → 200 the function.
+- `POST /api/sites/{id}/functions/{name}/invoke` (manage) `{body?}`: a test run (`InvokeFunction`,
+  source `test`) → 200 `{status, ms, body, error}`.
+- `GET /api/sites/{id}/functions/{name}/logs`: the agent's `FunctionLogs`: the invocations (time,
+  method, status, ms, source) and the output.
+
+A change goes, under the site's lock: secrets written (sealed `site.<id>.fn.<name>.<NAME>`),
+`SetFunction` (code, environment, units), `ApplySiteConfig` (the vhost's routes), then the settings
+stored with the live release (`MutateSiteApplied`, files recorded); an agent refusal stores nothing
+and puts the secrets back. A deletion: `DeleteFunction`, then the settings without it, rendered.
+Audit `site.function.create|update|delete|rollback|invoke`, subject the domain, detail the name
+(and the fields changed; never a value).
+
+**Schedules.** `functions.sweep` (jobs SPEC §9: every minute) invokes, for every active site, each
+function whose schedule is due in the current minute (`functions.Due`, the panel's time zone),
+once per minute (a key per function and minute, in memory), each in the background (source
+`schedule`); a failure is logged. A scheduled run's result is in the function's invocations like
+any other.
+
 ### 3.11 Tests
 
 `site_service_test.go` (the services without HTTP: create's defaults and

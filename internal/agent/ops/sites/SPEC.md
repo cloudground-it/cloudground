@@ -372,6 +372,8 @@ internal/runtimes SPEC §3.
   no-op on a running app). The vhost's input has `AppUpstream` (internal/engine SPEC §4.11). A
   failure restores the unit and the previous app state like the PHP master's (§4 step 6).
 - **Delete** (§6): the unit is stopped, disabled and removed, and so is the environment file.
+  A site's functions (ops/functions SPEC §3) go too, whatever its type: every
+  `cloudground-fn-<user>-*` socket and service, their environment files.
 - `ReloadPHP` and `RestartPHP`, which releases, restores and staging call, restart a managed app's
   unit (it has no reload: an app reads its code when it starts).
 - The log viewer's source `app` is `<LogRoot>/<domain>/app.log` (the unit's output).

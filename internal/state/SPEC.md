@@ -48,6 +48,7 @@ it is derived from the system except the observations named below
    | `site.<id>.db_user.<name>` | the password of another of the site's database users (migration 22) |
    | `site.<id>.connector_token` | the site's connector token |
    | `site.<id>.app_env.<NAME>` | a managed app's secret environment variable (#28) |
+   | `site.<id>.fn.<name>.<NAME>` | a function's secret environment variable (#143) |
    | `site.<id>.staging_password` | a staging site's HTTP password |
    | `user.<id>.totp` | the account's active TOTP secret (migration 16) |
    | `user.<id>.totp_pending` | a TOTP secret being enrolled, not yet confirmed |
