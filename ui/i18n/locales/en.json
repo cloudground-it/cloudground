@@ -93,7 +93,19 @@
     "twoFactorHint": "Enter the code from your authenticator app.",
     "verify": "Verify",
     "firstName": "First name",
-    "lastName": "Last name"
+    "lastName": "Last name",
+    "recoveryCode": "Recovery code",
+    "recoveryHint": "Enter one of the recovery codes you saved when you turned on two-step verification. Each one works once.",
+    "passkeyHint": "Confirm with your passkey to finish signing in.",
+    "usePasskey": "Use a passkey",
+    "useCode": "Use the authenticator app",
+    "useRecoveryCode": "Use a recovery code",
+    "signInPasskey": "Sign in with a passkey",
+    "or": "or",
+    "passkeyCancelled": "The passkey prompt was closed before it finished.",
+    "passkeyFailed": "That passkey could not be verified for this panel.",
+    "passwordOff": "Password sign-in is turned off for this account: sign in with a passkey.",
+    "passkeyElsewhere": "This account’s second factor is a passkey, which works only when you open the panel at its domain name over HTTPS."
   },
   "alerts": {
     "description": "What needs attention, refreshed every minute.",
@@ -1052,7 +1064,11 @@
     "created": "Created",
     "actions": "Actions",
     "delete": "Delete",
-    "noName": "No name"
+    "noName": "No name",
+    "reset2fa": "Reset two-step verification",
+    "reset2faTitle": "Reset two-step verification for {email}?",
+    "reset2faHint": "Their authenticator app, passkeys and recovery codes are removed and they are signed out everywhere. They sign in with their password and set it up again.",
+    "reset2faDone": "Two-step verification reset"
   },
   "audit": {
     "action": "Action",
@@ -1114,7 +1130,38 @@
     "tokenRevoked": "Token revoked",
     "tokenMade": "created {when}",
     "enrolRequired": "Set up two-factor authentication to continue",
-    "enrolRequiredHint": "This panel requires 2FA for administrators. Until you enrol, only this page is available; your profile, password and API tokens come back once 2FA is on."
+    "enrolRequiredHint": "This panel requires two-step verification for your account. Until you set it up, with an authenticator app or a passkey, only this page is available.",
+    "passkeys": "Passkeys",
+    "passkeysHint": "Sign in with your fingerprint, face or device PIN. A passkey works only on this panel’s domain, so it cannot be phished. Use it after your password, or on its own.",
+    "passkeysElsewhere": "Passkeys work when you open the panel at its domain name over HTTPS, not at its IP address.",
+    "passkeyName": "Name",
+    "passkeyAdd": "Add a passkey",
+    "passkeyAdded": "Passkey added",
+    "passkeySynced": "synced",
+    "passkeyRemoveTitle": "Remove the passkey {name}?",
+    "passkeyRemoveHint": "It will no longer sign in to this panel. Your other sessions are signed out.",
+    "passkeyRemoved": "Passkey removed",
+    "remove": "Remove",
+    "passwordSignIn": "Sign in with your password",
+    "passwordSignInOnHint": "On: your password signs in, followed by a second factor.",
+    "passwordSignInOffNow": "Off: only your passkeys sign in to this account.",
+    "passwordSignInTurnOff": "Turn off",
+    "passwordSignInTurnOn": "Turn on",
+    "passwordSignInOffTitle": "Sign in with passkeys only?",
+    "passwordSignInOffHint": "Your password will no longer sign in. Keep more than one passkey: if you lose them all, an administrator or the server’s owner has to reset your account.",
+    "passwordSignInOnTitle": "Turn password sign-in back on?",
+    "passwordSignInOn": "Password sign-in turned on",
+    "passwordSignInOff": "Password sign-in turned off",
+    "codes": "Recovery codes",
+    "codesHint": "Single-use codes for when your phone or passkeys are not at hand. Keep them somewhere safe, away from this device.",
+    "codesLeft": "{n} left",
+    "codesNew": "Make new codes",
+    "codesMade": "New recovery codes made",
+    "codesOnce": "Save your recovery codes now: they are not shown again.",
+    "codesOnceHint": "Each code signs in once in place of your second factor. Making new ones cancels these.",
+    "codesDownload": "Download",
+    "codesStored": "I saved them",
+    "codesFile": "Recovery codes: each one works once."
   },
   "settings": {
     "access": "Access",
@@ -1142,8 +1189,8 @@
     "repoPasswordHint": "Losing this password means losing the backups.",
     "repository": "Repository",
     "repositoryHint": "S3, Cloudflare R2, Backblaze B2, SFTP or a local folder.",
-    "require2fa": "Require 2FA for administrators",
-    "require2faHint": "An administrator without 2FA sees only their own Security page until they enrol, so nobody is locked out.",
+    "require2fa": "Require two-step verification",
+    "require2faHint": "An account that must have it and does not sees only its Security page until it sets it up, so nobody is locked out.",
     "securePanel": "Secure the panel with Let's Encrypt",
     "testRepo": "Test connection",
     "updateChannel": "Update channel",
@@ -1160,7 +1207,10 @@
     "vulnCheck": "Check WordPress sites for known vulnerabilities",
     "vulnCheckHint": "Once a day, the versions of each WordPress site’s core, plugins and themes are looked up in the public WPVulnerability database. Only names and versions are sent, never the site.",
     "malwareScan": "Scan the sites’ files for malware every week",
-    "malwareScanHint": "Each site at an hour of its own, with ClamAV started only for the scan, in the site’s sandbox. The first scan installs ClamAV and its signatures (about 300 MB of disk)."
+    "malwareScanHint": "Each site at an hour of its own, with ClamAV started only for the scan, in the site’s sandbox. The first scan installs ClamAV and its signatures (about 300 MB of disk).",
+    "require2faOff": "Not required",
+    "require2faAdmins": "For administrators",
+    "require2faAll": "For every account"
   },
   "editor": {
     "close": "Close",
@@ -1772,5 +1822,9 @@
     "quarantineTitle": "Move {path} to quarantine?",
     "quarantineHint": "The file is removed from the site and kept on the server, readable only by root. If the site needs it, it will stop working where it uses it.",
     "quarantined": "{path} moved to quarantine"
+  },
+  "proof": {
+    "factorHint": "Then confirm with a second factor.",
+    "passkeyOnly": "Confirm with a passkey that checks it is you: your fingerprint, face or device PIN."
   }
 }
