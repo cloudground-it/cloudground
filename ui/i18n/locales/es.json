@@ -2108,8 +2108,6 @@
     "cacheNote": "De las peticiones que pasaron por la caché de página",
     "errors": "Errores del servidor",
     "errorsNote": "Respuestas 5xx; {n} no encontradas o rechazadas (4xx)",
-    "dayTitle": "{date}: {views} páginas vistas, {visitors} visitantes",
-    "hourTitle": "{time}: {views} páginas vistas",
     "chartAria": "Últimos {days} días: {views} páginas vistas, {visitors} visitantes",
     "last48": "Páginas vistas, últimas 48 horas",
     "emptyRange": "No se registró nada en este periodo.",

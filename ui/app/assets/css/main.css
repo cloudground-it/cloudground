@@ -132,6 +132,9 @@
   --cg-blue: #2549E0;
   --cg-blue-tint: #EBF0FF;
   --cg-blue-line: #C9D5FF;
+  /* Chart series, in this order (checked with the dataviz validator, light). */
+  --cg-series-1: #2549E0;
+  --cg-series-2: #C2610C;
   --cg-ok: #18794E;
   --cg-ok-tint: #E3F4EA;
   --cg-warn: #8A5A00;
@@ -193,6 +196,9 @@
   --cg-blue: #8AA2FF;
   --cg-blue-tint: #1A2246;
   --cg-blue-line: #2E3D7A;
+  /* Chart series, stepped for the dark surface (validated against #0E1117). */
+  --cg-series-1: #5B7BFF;
+  --cg-series-2: #D9762A;
   --cg-ok: #5FD39A;
   --cg-ok-tint: #12291E;
   --cg-warn: #F2C063;
