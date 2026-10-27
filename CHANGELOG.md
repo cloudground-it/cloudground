@@ -7,6 +7,16 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v0.8.1
+
+What changes for a person running the panel:
+
+- on Node.js, Python, PHP, Laravel, static and proxy sites the Functions tab is in the row of tabs,
+  right after Releases, instead of under "More"; on Node.js and Python sites App comes second;
+- the demo shows the v0.5.0–v0.8.0 features with sample data (a Node.js and a Python site,
+  functions, traffic, redirects, deploy from Git, external database servers, an AI assistant),
+  and its bottom bar no longer covers the end of the page.
+
 ## v0.8.0
 
 Beyond WordPress. What changes for a person running the panel:
