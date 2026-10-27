@@ -56,6 +56,9 @@ handler.
 | `BlocklistApplyParams` | at most 100,000 entries in each list | `at most 100000 entries in each list` |
 | | every entry an address or a CIDR (internal/blocklist SPEC §1) | `"<s>" is not an IP address or a network in CIDR form` |
 | | no block wider than /8 (IPv4) or /16 (IPv6) | `<p> is wider than /8 (IPv4) or /16 (IPv6): too broad to block` |
+| `RuntimeInstallParams` | `Runtime` is `node` or `python`, `Version` of its form (internal/runtimes SPEC §1) | `unknown runtime "<r>"`, `invalid <runtime> version "<v>"` |
+| `AppEnvParams` | the site is `node` or `python`; `runtimes.CheckEnv` takes `Env` | `not a Node.js or Python site`, its message |
+| `AppControlParams` | `Action` is `start`, `stop` or `restart` | `unknown action "<a>"` |
 | `ManageFileParams` | `Operation` is `mkdir`, `rename` or `delete` | `unsupported file operation "<o>"` |
 | | `rename` has a non-blank `DestPath` | `destination path required` |
 | `SSHKeyParams` | `Action` is `list`, `add` or `delete` | `unsupported SSH key action "<a>"` |
