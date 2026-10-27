@@ -1451,7 +1451,7 @@ backup. `part` is `full` (the default: both), `files` or `database`.
   folder (ops/backup SPEC §12), never into the site's tree, after checking
   the snapshot is the site's (SR-T6). The job's result names the size.
 - `GET /api/backups/{id}/archive?part=` streams it, in chunks read from
-  the agent (16 MiB each, as Quarry's exports, §6.4), with
+  the agent (4 MiB each, as Quarry's exports, §6.4), with
   `Content-Type: application/gzip`, `Content-Disposition: attachment;
   filename="<domain>-<snapshot>-<part>.tar.gz"`, its `Content-Length` and
   `Cache-Control: no-store`; the API never holds it whole. Audited
@@ -1555,8 +1555,8 @@ job; the store's `site.changed` event tells the pages. Audited
   checkpoint ("Stopped before the restore …"), the agent's
   `RestoreSnapshot` in the mode asked for (with its `paths`, §5.6), a
   purge. The staging database push takes the same safety snapshot.
-- **backup.archive** (rerun; under the repository's lock; deduplicated per
-  record and part): the agent's `ArchiveSnapshot` (§5.7); a record gone
+- **backup.archive** (not resumable: ask again; under the repository's
+  lock; deduplicated per record and part): the agent's `ArchiveSnapshot` (§5.7); a record gone
   meanwhile: skipped.
 - **backup.retention** (rerun): the site's window (`retention_days`); the
   newest `passed` record and **every `pending` one** are protected (sent as

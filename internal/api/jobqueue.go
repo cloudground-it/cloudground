@@ -230,7 +230,7 @@ func (s *Server) registerJobKinds() {
 		"wp.update", "cache.warm", "wp.cleanup",
 		"database.export", "database.import", "dbstudio.export", "dbstudio.import",
 		"database.create", "database.drop",
-		"migration.import", "panel.certificate", "backup.restore", "php.extension",
+		"migration.import", "panel.certificate", "backup.restore", "backup.archive", "php.extension",
 		"apt.update", "apt.upgrade",
 	} {
 		q.Register(jobs.Kind{Name: name})

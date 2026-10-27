@@ -2,6 +2,9 @@ package rpc
 
 import (
 	"errors"
+	"path"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/state"
@@ -55,19 +58,71 @@ type RestoreParams struct {
 	// Databases limits a database or full restore to these of the
 	// snapshot's databases; empty restores every one the site still has.
 	Databases []string `json:"databases,omitempty"`
+	// Paths limits a files restore to these files or folders, relative to
+	// the site's root (#23, ops/backup SPEC §5); empty restores the tree.
+	Paths []string `json:"paths,omitempty"`
 }
 
 // Sites lists the site restored.
 func (p *RestoreParams) Sites() []*state.Site { return []*state.Site{&p.Site} }
 
-// Validate requires a known mode, in any case and spacing.
+// Validate requires a known mode, in any case and spacing, and paths only
+// on a files restore, each one a site may restore.
 func (p *RestoreParams) Validate() error {
-	switch strings.ToLower(strings.TrimSpace(p.Mode)) {
+	mode := strings.ToLower(strings.TrimSpace(p.Mode))
+	switch mode {
 	case "", "full", "files", "database":
+	default:
+		return errors.New("restore mode must be full, files, or database")
+	}
+	if len(p.Paths) == 0 {
 		return nil
 	}
-	return errors.New("restore mode must be full, files, or database")
+	if mode != "files" {
+		return errors.New("only a files restore takes paths")
+	}
+	if len(p.Paths) > MaxRestorePaths {
+		return errors.New("at most 20 paths")
+	}
+	for _, rel := range p.Paths {
+		if _, err := RestorePath(rel); err != nil {
+			return err
+		}
+	}
+	return nil
 }
+
+// MaxRestorePaths is how many paths one restore may name.
+const MaxRestorePaths = 20
+
+// RestorePath cleans a path a files restore names (internal/api SPEC
+// §5.6): relative to the site's root, inside it, not the root itself, not
+// .ssh (the keys are the live site's), tmp, current, nor releases itself.
+func RestorePath(raw string) (string, error) {
+	bad := errors.New("invalid path " + strconvQuote(raw) + ": give a file or folder inside the site, such as shared/wp-config.php")
+	p := strings.TrimSpace(raw)
+	if p == "" || strings.HasPrefix(p, "/") || strings.ContainsAny(p, "\x00\n\r") {
+		return "", bad
+	}
+	for _, part := range strings.Split(p, "/") {
+		if part == ".." {
+			return "", bad
+		}
+	}
+	p = path.Clean(p)
+	top, _, _ := strings.Cut(p, "/")
+	switch {
+	case p == "." || p == "":
+		return "", bad
+	case top == ".ssh" || top == "tmp" || top == "current":
+		return "", bad
+	case p == "releases":
+		return "", bad
+	}
+	return p, nil
+}
+
+func strconvQuote(s string) string { return strconv.Quote(s) }
 
 // VerifyResult is a restore test's verdict and how long the restore took.
 type VerifyResult struct {
@@ -148,4 +203,87 @@ func snapshotID(id string) bool {
 type ForgetSnapshotResult struct {
 	Forgotten []string `json:"forgotten"`
 	Missing   bool     `json:"missing,omitempty"`
+}
+
+// ArchiveParams makes a downloadable archive of a backup (#23, ops/backup
+// SPEC §12): Part "full" (the default), "files" or "database".
+type ArchiveParams struct {
+	Site       state.Site        `json:"site"`
+	Repository string            `json:"repository"`
+	Password   string            `json:"password"`
+	SnapshotID string            `json:"snapshot_id"`
+	Part       string            `json:"part,omitempty"`
+	Env        map[string]string `json:"env,omitempty"`
+}
+
+// Sites lists the site whose backup is archived.
+func (p *ArchiveParams) Sites() []*state.Site { return []*state.Site{&p.Site} }
+
+// Validate requires a snapshot ID and a known part.
+func (p *ArchiveParams) Validate() error {
+	if !snapshotID(p.SnapshotID) {
+		return errors.New("invalid snapshot id")
+	}
+	if _, err := ArchivePart(p.Part); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ArchivePart is a part's normal name: "" reads as full.
+func ArchivePart(part string) (string, error) {
+	switch part {
+	case "", "full":
+		return "full", nil
+	case "files", "database":
+		return part, nil
+	}
+	return "", errors.New("part must be full, files or database")
+}
+
+// ArchiveName is the file name of a backup's archive.
+func ArchiveName(snapshot, part string) string {
+	return "backup-" + strings.ToLower(snapshot) + "-" + part + ".tar.gz"
+}
+
+var archiveNameRe = regexp.MustCompile(`^backup-[0-9a-f]{8,64}-(full|files|database)\.tar\.gz$`)
+
+// ValidArchiveName reports whether name is one ArchiveName makes.
+func ValidArchiveName(name string) bool { return archiveNameRe.MatchString(name) }
+
+// ArchiveResult is the archive made.
+type ArchiveResult struct {
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+}
+
+// ArchiveChunkParams reads (or deletes) a site's archive.
+type ArchiveChunkParams struct {
+	Site   state.Site `json:"site"`
+	Name   string     `json:"name"`
+	Offset int64      `json:"offset,omitempty"`
+	Length int        `json:"length,omitempty"`
+}
+
+// Sites lists the site whose archive is read.
+func (p *ArchiveChunkParams) Sites() []*state.Site { return []*state.Site{&p.Site} }
+
+// Validate requires an archive's name and a sane chunk.
+func (p *ArchiveChunkParams) Validate() error {
+	if !ValidArchiveName(p.Name) {
+		return errors.New("invalid archive name")
+	}
+	if p.Offset < 0 || p.Length < 0 || p.Length > MaxArchiveChunk {
+		return errors.New("invalid chunk")
+	}
+	return nil
+}
+
+// MaxArchiveChunk is the most one ReadArchiveChunk returns.
+const MaxArchiveChunk = 16 << 20
+
+// ArchiveChunkResult is the bytes read and the archive's size.
+type ArchiveChunkResult struct {
+	Data []byte `json:"data"`
+	Size int64  `json:"size"`
 }

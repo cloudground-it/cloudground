@@ -47,6 +47,12 @@ var routePolicy = map[string]string{
 	"PUT /api/users/{id}":           "admin",
 	"POST /api/users/{id}/password": "admin",
 
+	// Backups' downloads and the SFTP destination's key (SPEC.md §5.7, §5.8).
+	"POST /api/backups/{id}/archive":    "manage",
+	"GET /api/backups/{id}/archive":     "manage",
+	"GET /api/settings/backup-ssh-key":  "admin",
+	"POST /api/settings/backup-ssh-key": "admin",
+
 	"GET /api/tokens":         "admin",
 	"POST /api/tokens":        "admin",
 	"DELETE /api/tokens/{id}": "admin",

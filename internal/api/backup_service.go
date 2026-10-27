@@ -33,24 +33,12 @@ func (s *Server) backupRepository() (repo, password string, err error) {
 	return ps.BackupRepository, password, nil
 }
 
-// backupEnv is restic's object-storage credentials (S3, R2, B2) from the
-// settings; the ones not set are left out.
+// backupEnv is restic's credentials from the settings (S3, R2, B2, the
+// SFTP key: backupEnvFor); the ones not set are left out.
 func (s *Server) backupEnv() map[string]string {
 	ps, err := s.Store.PanelSettings()
 	s.logIfErr(err, "PanelSettings")
-	secret, err := s.Store.Secret(state.SecretBackupS3SecretKey)
-	s.logIfErr(err, "Secret")
-	env := map[string]string{}
-	for k, v := range map[string]string{
-		"AWS_ACCESS_KEY_ID":     ps.BackupS3AccessKey,
-		"AWS_SECRET_ACCESS_KEY": secret,
-		"AWS_DEFAULT_REGION":    ps.BackupS3Region,
-	} {
-		if v != "" {
-			env[k] = v
-		}
-	}
-	return env
+	return s.backupEnvFor(ps, nil)
 }
 
 // backupPayload names the record a verify or a deletion is about.
@@ -208,7 +196,7 @@ func (s *Server) safetySnapshot(ctx context.Context, site state.Site, repo, pass
 // restore of b in mode over the live site (of databases only, when any are
 // named; else every database the backup holds and the site still has),
 // then an empty page cache.
-func (s *Server) restoreWork(b state.Backup, mode, password string, databases []string) jobWork {
+func (s *Server) restoreWork(b state.Backup, mode, password string, databases, paths []string) jobWork {
 	return func(ctx context.Context, site state.Site, progress func(int, string)) error {
 		safety, err := s.safetySnapshot(ctx, site, b.Repository, password, "pre-restore", progress)
 		if err != nil {
@@ -220,7 +208,7 @@ func (s *Server) restoreWork(b state.Backup, mode, password string, databases []
 		progress(45, "Restoring and validating "+b.SnapshotID+" ("+mode+")")
 		if err := agentrpc.Into(ctx, s.Agent, agentrpc.RestoreSnapshot, rpc.RestoreParams{
 			Env: s.backupEnv(), Site: site, Repository: b.Repository, Password: password, SnapshotID: b.SnapshotID, Mode: mode,
-			Databases: databases,
+			Databases: databases, Paths: paths,
 		}, nil); err != nil {
 			return err
 		}

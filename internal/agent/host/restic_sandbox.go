@@ -25,6 +25,7 @@ import (
 type TreeSandbox struct {
 	Tree     string   // the site root, bound read-only at its own path
 	Writable []string // restic's cache, a local repository: bound read-write
+	ReadOnly []string // more read-only paths: an SFTP repository's key folder
 }
 
 // resticSandboxRO are the system paths bound read-only into a sandboxed
@@ -87,6 +88,12 @@ func (r *ResticCLI) sandboxArgs(sb TreeSandbox, unit string, args []string) ([]s
 		agent = "/usr/local/bin/panel-agent"
 	}
 	props = append(props, "BindReadOnlyPaths="+sb.Tree)
+	for _, p := range sb.ReadOnly {
+		if !filepath.IsAbs(p) || filepath.Clean(p) != p || p == "/" || strings.ContainsAny(p, " \t\n\"'\\") {
+			return nil, fmt.Errorf("restic sandbox: read-only path %q: %w", p, ErrInvalidArgument)
+		}
+		props = append(props, "BindReadOnlyPaths="+p)
+	}
 	for _, w := range sb.Writable {
 		if !filepath.IsAbs(w) || filepath.Clean(w) != w || w == "/" || strings.ContainsAny(w, " \t\n\"'\\") {
 			return nil, fmt.Errorf("restic sandbox: writable path %q: %w", w, ErrInvalidArgument)
@@ -117,7 +124,15 @@ func (r *ResticCLI) RunSandboxed(ctx context.Context, repo Repo, sb TreeSandbox,
 		return nil, errors.New("restic: repository and password are required")
 	}
 	unit := fmt.Sprintf("cg-restic-%d-%d.service", time.Now().UnixNano(), resticRuns.Add(1))
-	argv, err := r.sandboxArgs(sb, unit, args)
+	sftp, err := r.sftpArgs(repo)
+	if err != nil {
+		return nil, err
+	}
+	if len(sftp) > 0 {
+		// ssh reads the key and the known hosts inside the namespace.
+		sb.ReadOnly = append(sb.ReadOnly, r.sshDir())
+	}
+	argv, err := r.sandboxArgs(sb, unit, append(sftp, args...))
 	if err != nil {
 		return nil, err
 	}

@@ -164,7 +164,7 @@ var settingFields = map[string]setting{
 // it, see it in full.
 var secretKeys = []string{
 	state.SecretBackupPassword, state.SecretBackupS3SecretKey, state.SecretCloudflareToken, state.SecretNotifyWebhook,
-	state.SecretMailPassword,
+	state.SecretMailPassword, state.SecretBackupB2AccountID, state.SecretBackupB2AccountKey,
 }
 
 // repoPasswordRe finds the password of a URL's userinfo, as in
@@ -343,7 +343,7 @@ func (s *Server) checkBackupPairing(ctx context.Context, req map[string]string, 
 		return nil
 	}
 	err := agentrpc.Into(ctx, s.Agent, agentrpc.TestBackup, rpc.TestBackupParams{
-		Repository: next.BackupRepository, Password: password, Env: s.backupEnv(),
+		Repository: next.BackupRepository, Password: password, Env: s.backupEnvFor(next, req),
 	}, nil)
 	if err == nil {
 		return nil

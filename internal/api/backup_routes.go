@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/jobs"
@@ -101,6 +102,8 @@ func (s *Server) handleRestoreBackup(w http.ResponseWriter, r *http.Request, c *
 		Mode    string `json:"mode"`
 		// Databases restores only these of the backup's databases.
 		Databases []string `json:"databases"`
+		// Paths restores only these files or folders (§5.6).
+		Paths []string `json:"paths"`
 	}
 	if err := decode(r, &req); err != nil || req.Confirm != site.Domain {
 		respondErr(w, http.StatusBadRequest, "type the site domain to confirm restoration")
@@ -118,6 +121,22 @@ func (s *Server) handleRestoreBackup(w http.ResponseWriter, r *http.Request, c *
 		respondErr(w, http.StatusBadRequest, "a files restore puts back no database")
 		return
 	}
+	if len(req.Paths) > 0 && req.Mode != "files" {
+		respondErr(w, http.StatusBadRequest, "only a files restore takes paths")
+		return
+	}
+	if len(req.Paths) > rpc.MaxRestorePaths {
+		respondErr(w, http.StatusBadRequest, "at most 20 paths")
+		return
+	}
+	for i, raw := range req.Paths {
+		p, err := rpc.RestorePath(raw)
+		if err != nil {
+			respondErr(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		req.Paths[i] = p
+	}
 	for _, name := range req.Databases {
 		if _, err := s.resolveDB(site, name); err != nil || name == "" {
 			respondErr(w, http.StatusBadRequest, "this site has no database "+strconv.Quote(name))
@@ -134,11 +153,15 @@ func (s *Server) handleRestoreBackup(w http.ResponseWriter, r *http.Request, c *
 	if !ok {
 		return
 	}
-	s.audit(c.Actor(), "backup.restore", site.Domain, b.SnapshotID)
+	detail := b.SnapshotID
+	if len(req.Paths) > 0 {
+		detail += " paths " + strings.Join(req.Paths, ", ")
+	}
+	s.audit(c.Actor(), "backup.restore", site.Domain, detail)
 	task, err := s.startJob(jobReq{kind: "backup.restore", siteID: site.ID,
 		locks:   append(siteLocks(site.ID), jobs.RepoLock(b.Repository)),
-		payload: map[string]any{"backup_id": b.ID, "mode": req.Mode, "databases": req.Databases},
-	}, s.restoreWork(b, req.Mode, password, req.Databases))
+		payload: map[string]any{"backup_id": b.ID, "mode": req.Mode, "databases": req.Databases, "paths": req.Paths},
+	}, s.restoreWork(b, req.Mode, password, req.Databases, req.Paths))
 	if err != nil {
 		respondJobErr(w, err)
 		return
