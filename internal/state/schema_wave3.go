@@ -251,3 +251,46 @@ var stepPasskeys = schemaStep{version: 30, stmts: []string{
 	`CREATE INDEX idx_user_recovery_codes_user ON user_recovery_codes (user_id, code_hash)`,
 	`ALTER TABLE panel_settings ADD COLUMN require_2fa_all INTEGER NOT NULL DEFAULT 0`,
 }}
+
+// stepMCP adds the remote MCP server (#70, api SPEC §15): its switch, the
+// OAuth clients that registered, the grants a person consented to (their
+// tokens as hashes) and the destructive actions waiting for a person.
+var stepMCP = schemaStep{version: 32, stmts: []string{
+	`ALTER TABLE panel_settings ADD COLUMN mcp_enabled INTEGER NOT NULL DEFAULT 0`,
+	`CREATE TABLE mcp_clients (
+		id            TEXT PRIMARY KEY,
+		name          TEXT NOT NULL,
+		redirect_uris TEXT NOT NULL,
+		created_at    TEXT NOT NULL,
+		last_used_at  TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE TABLE mcp_grants (
+		id                INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		client_id         TEXT NOT NULL REFERENCES mcp_clients(id) ON DELETE CASCADE,
+		scopes            TEXT NOT NULL,
+		access_hash       TEXT NOT NULL UNIQUE,
+		access_expires    TEXT NOT NULL,
+		refresh_hash      TEXT NOT NULL UNIQUE,
+		refresh_expires   TEXT NOT NULL,
+		prev_refresh_hash TEXT NOT NULL DEFAULT '',
+		created_at        TEXT NOT NULL,
+		last_used_at      TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX idx_mcp_grants_user ON mcp_grants (user_id)`,
+	`CREATE INDEX idx_mcp_grants_prev ON mcp_grants (prev_refresh_hash)`,
+	`CREATE TABLE mcp_actions (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		grant_id   INTEGER NOT NULL REFERENCES mcp_grants(id) ON DELETE CASCADE,
+		user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		tool       TEXT NOT NULL,
+		args       TEXT NOT NULL,
+		summary    TEXT NOT NULL,
+		status     TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'done', 'failed', 'rejected', 'expired')),
+		result     TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL,
+		expires_at TEXT NOT NULL,
+		decided_at TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX idx_mcp_actions_user ON mcp_actions (user_id)`,
+}}

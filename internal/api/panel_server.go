@@ -72,6 +72,12 @@ type Server struct {
 	// studio_auth.go).
 	studio     studioSessions
 	studioGate *studioGate
+	// mcp is the remote MCP server's memory: authorisation requests, codes
+	// and its limits (mcp_oauth.go); mcpHandler the route table its tools
+	// call (mcp_server.go).
+	mcp        *mcpState
+	mcpMuxOnce sync.Once
+	mcpHandler http.Handler
 
 	// siteLocks: one *sync.Mutex per site id (lockSite).
 	siteLocks sync.Map
@@ -184,6 +190,7 @@ func (s *Server) Init() {
 	s.gitHookLimiter = throttle.New(gitHookDeliveries, time.Minute)
 	s.gitHookFailLimiter = throttle.New(gitHookFailures, time.Minute)
 	s.studioGate = newStudioGate()
+	s.mcp = newMCPState()
 	if s.Store != nil {
 		s.startJobQueue()
 	}

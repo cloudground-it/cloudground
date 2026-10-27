@@ -3223,7 +3223,7 @@ panel's own.
   token_endpoint_auth_methods_supported: ["none"], scopes_supported}`.
 
 `scopes_supported` is `read` and `write:<area>` for the areas `cache`,
-`backups`, `deploys` and `wp_updates`. OAuth refusals are `{"error":
+`backups`, `deploys`, `wp_updates` and `sites` (deleting a site). OAuth refusals are `{"error":
 <code>, "error_description": <text>}` with the RFC's codes.
 
 ### 16.3 Clients (dynamic registration, RFC 7591)
@@ -3269,7 +3269,7 @@ code_challenge, code_challenge_method, scope, state, resource`:
 The consent, session routes (sessions only; any role):
 
 - `GET /api/mcp/requests/{id}` → 200 `{client_name, redirect_host,
-  requested_scope, areas, sites}`: `sites` the ones the caller may change
+  requested_scope, areas, sites, two_factor}`: `sites` the ones the caller may change
   (an operator its own, an admin all, a read-only account none); an unknown
   or expired request → **404** `this connection request has expired: start
   again from the assistant`.
@@ -3277,7 +3277,7 @@ The consent, session routes (sessions only; any role):
   proof…}`: the account must have two-factor (§2.1) → **403** `turn on
   two-step verification before connecting an assistant`; then the proof of
   §2.4 (purpose `connect an assistant`) and its refusals; an unknown area →
-  400 `unknown area: use cache, backups, deploys or wp_updates`; a site the
+  400 `unknown area: use cache, backups, deploys, wp_updates or sites`; a site the
   caller may not change (any site for a read-only account) → 400 `invalid
   site`. Reading is always granted; writing only where `write` says. The
   request is spent and a code issued (32 random bytes, valid 2 minutes,
@@ -3373,7 +3373,8 @@ MCP "<client name>")`, and every `tools/call` is audited `mcp.call`
 | `update_wordpress` | `write:wp_updates` on the site | `POST /api/sites/{id}/wp/update` |
 | `rollback_release` | `write:deploys` on the site | `POST /api/sites/{id}/rollback` |
 | `restore_backup` | `write:backups` on the backup's site | destructive: `POST /api/backups/{id}/restore` |
-| `push_staging` | `write:deploys` on the staging copy's site | destructive: `POST /api/sites/{id}/safe-push` |
+| `push_staging` | `write:deploys` on the production site | destructive: `POST /api/sites/{id}/safe-push` |
+| `delete_site` | `write:sites` on the site | destructive: `DELETE /api/sites/{id}` (an admin's account only, as the route) |
 
 - A result is `{content: [{type: "text", text}]}` with the route's JSON
   answer as the text (cut at 64 KiB); `isError` when the route refused,
@@ -3422,6 +3423,8 @@ rotation and reuse, revocation, `/mcp` without and with a token, scopes on
 write tools, a destructive tool that does nothing until confirmed, and the
 grant revoked with the account's API tokens. e2e section `mcp server`:
 the whole flow at `https://<ip>.sslip.io:8443` through nginx with a
-software client: off → 404, on → register, authorise (the consent with
-TOTP), tokens, list sites, a refused write, a destructive tool pending
-until confirmed, revocation; off again → the old token refused.
+software client: off → 404, on → register, authorise (the consent with a
+recovery code), tokens, list sites, a refused write, `delete_site` on a
+site of its own pending (the site still there) until confirmed, then
+gone; a reused refresh token revoking the grant; a grant revoked from the
+panel; off again → 404, and on again → the old token refused.
