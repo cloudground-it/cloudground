@@ -1557,48 +1557,11 @@ tree, the releases' `node_modules` and `.venv` with it, and a restore restarts t
 - `POST /api/runtimes/install {runtime, version}` → 202 `{task}`: job `runtime.install` (§9 of the
   jobs SPEC), audit `runtime.install`.
 
-### 3.22 Functions (#143, `functions.go`)
+### 3.22 Functions (moved to §17 in v0.9.0)
 
-A site's functions (internal/functions SPEC): small Node.js or Python handlers that answer at
-`https://<domain>/.functions/<name>` and can run on a schedule, each invocation a process of its
-own with the function's memory and timeout, nothing running between invocations. The agent's side
-is ops/functions SPEC; the routes in nginx internal/engine SPEC §4.13. Every site type has them; a
-staging copy does not get its production's.
-
-`config.functions` holds each function's settings (the package SPEC §1); the code lives in the
-site's tree, in releases, and is read from the agent.
-
-- `GET /api/sites/{id}/functions` (any caller who can see the site): `[{name, runtime, version,
-  memory_mb, timeout_sec, schedule, env, secrets, release, url}]`, `url` the endpoint.
-- `POST /api/sites/{id}/functions` (manage, at most 512 KiB) `{name, runtime, version?, memory_mb?,
-  timeout_sec?, schedule?, code?, env?, secrets?}`: the defaults of the package SPEC §1 and, without
-  code, a starter handler that echoes the request. → **201** the function. `functions.Check` →
-  400 with its message; a name the site already has → 409; a 21st → 400; a runtime version the
-  server lacks → 412 `install <runtime> <version> on the server first (Services → Runtimes)`.
-- `GET /api/sites/{id}/functions/{name}`: the function, its `code`, the live `release` and the
-  `releases` (newest first).
-- `PUT /api/sites/{id}/functions/{name}` (manage, at most 512 KiB): any of `code` (a new release),
-  `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets` (as a managed app's: `""`
-  removes, `••••••••` keeps). → 200 the function.
-- `DELETE /api/sites/{id}/functions/{name}` (manage) → 204.
-- `POST /api/sites/{id}/functions/{name}/rollback` (manage) `{release?}` → 200 the function.
-- `POST /api/sites/{id}/functions/{name}/invoke` (manage) `{body?}`: a test run (`InvokeFunction`,
-  source `test`) → 200 `{status, ms, body, error}`.
-- `GET /api/sites/{id}/functions/{name}/logs`: the agent's `FunctionLogs`: the invocations (time,
-  method, status, ms, source) and the output.
-
-A change goes, under the site's lock: secrets written (sealed `site.<id>.fn.<name>.<NAME>`),
-`SetFunction` (code, environment, units), `ApplySiteConfig` (the vhost's routes), then the settings
-stored with the live release (`MutateSiteApplied`, files recorded); an agent refusal stores nothing
-and puts the secrets back. A deletion: `DeleteFunction`, then the settings without it, rendered.
-Audit `site.function.create|update|delete|rollback|invoke`, subject the domain, detail the name
-(and the fields changed; never a value).
-
-**Schedules.** `functions.sweep` (jobs SPEC §9: every minute) invokes, for every active site, each
-function whose schedule is due in the current minute (`functions.Due`, the panel's time zone),
-once per minute (a key per function and minute, in memory), each in the background (source
-`schedule`); a failure is logged. A scheduled run's result is in the function's invocations like
-any other.
+A site has no functions any more: they are a server-wide resource (§17), and the
+`/api/sites/{id}/functions*` routes are gone. `config.functions` is read only by the v0.8.x
+migration (§17.8); a staging copy still gets none of its production's.
 
 ### 3.11 Tests
 
@@ -2929,6 +2892,7 @@ lasts (across days, across a changing detail line), new when it changes.
 | `usage` | `usage.disk:site:<id>` | the threshold | warning | `the site uses <n> MB of disk, over its threshold of <t> MB` | the site's last measured disk use is at or over `disk_mb` |
 | `vulnerability` | `vulnerability:site:<id>` | a hash of the findings (component, slug, version, id) | error when one finding is `high` or `critical`, else warning | `<n> known vulnerabilities in WordPress, its plugins or themes: <up to three "slug version", then …>` | an active WordPress site whose last complete check (§11.6) found something; `at` is that check |
 | `malware` | `malware:site:<id>` | a hash of the open findings (path and signature) | error | `<n> files with known malware: <up to three paths, then …>` | an active site with open malware findings (§11.7); `at` is when they were last seen |
+| `functions` | `functions.migrate` | the stored error | error | `<error>` (`some v0.8.x functions could not be moved: …`) | `panel_settings.functions_migration` is `failed: …` (§17.8) |
 | `drift` | `drift` | the newest open event's id | warning | `<n> managed file(s) changed outside the panel` | open drift events |
 | `deploy` | `deploy:<deployment id>` | the deployment's note | warning | `deploy.drift: the site serves a release the panel had not recorded as live (release <r>, recorded <live or none>)`; `release <r> is live without its post-promotion verification (it was canceled)`; `release <r> regressed after its promotion and could not be rolled back automatically` | a deployment with a note (§4.5); the note's code picks the message |
 
@@ -3299,7 +3263,8 @@ use it). Each key is a field of `state.PanelSettings` or a secret.
   `alert_emails`, up to 10 addresses separated by commas or spaces; each
   else 400 `<key>: …`), `mcp` (the remote MCP server of §16: `"1"` on,
   `""` off, as `malware_scan`; turning it off revokes everything of §16),
-  and the read-only `panel_domain`.
+  and the read-only `panel_domain` and `functions_domain` (set with `PUT /api/functions/domain`,
+  §17.5).
 - A requirement that would hold the caller itself is accepted: the
   caller is then held like anyone else, on the Security page, until it sets
   up a factor.
@@ -3879,3 +3844,155 @@ recovery code), tokens, list sites, a refused write, `delete_site` on a
 site of its own pending (the site still there) until confirmed, then
 gone; a reused refresh token revoking the grant; a grant revoked from the
 panel; off again → 404, and on again → the old token refused.
+
+## 17. Functions (#143, v0.9.0, `functions.go`, `functions_domain.go`, `functions_migrate.go`)
+
+Functions are a server-wide resource: Node.js or Python code (internal/functions SPEC) that runs
+as a user of its own, one process per invocation, at the addresses of internal/functions SPEC
+§1.2, on its schedule, or from a test run. The agent's side is ops/functions SPEC; nginx is
+internal/engine SPEC §8; the records internal/state SPEC (Functions). Section `Functions` of
+docs/api.md.
+
+**Who.** Every read is `global` (`admin`, `readonly`); every write is `admin`. A function is no
+site's, so an operator sees none.
+
+### 17.1 The view
+
+```
+{id, name, runtime, version, memory_mb, timeout_sec, schedule, env, secrets, auth, cors_origins,
+ domains, release, created_at, updated_at, urls, has_token}
+```
+
+`env` an object (`{}` when empty), `secrets` the names only, `domains` the own host names (`[]`
+when none), `urls` internal/functions SPEC §1.2's (`[]` when the function cannot be reached from
+outside), `has_token` whether a token is set. The list adds `last` (`{time, method, path, status,
+ms, source}`, the newest invocation, from `FunctionsSummary`; absent when there is none or the
+agent did not answer). One function adds `entry` (`index.js` or `main.py`), `files` (path →
+content, the live release's code) and `releases` (newest first; each a release ID, whose time is in
+it). An answer that made a token adds it once, as `token`.
+
+### 17.2 Routes
+
+- `GET /api/functions` → 200 `{functions: [view…], domain}`, by name; `domain` the functions
+  domain (`""` when none).
+- `POST /api/functions` (at most 2 MiB) `{name, runtime, version?, memory_mb?, timeout_sec?,
+  schedule?, auth?, cors_origins?, env?, secrets?, files?, code?, template?}` → **201** the view
+  (with `token` when `auth` is `token`). Without code, the starter of `template` (`http` or
+  `scheduled`). `functions.Check` or `CheckFiles` → 400 with its message; a name in use → 409
+  `a function named <name> exists`; a 101st → 400; a runtime version the server lacks → 412
+  `install <runtime> <version> on the server first (Services → Runtimes)`; a dependency step that
+  failed → 400 with its output.
+- `GET /api/functions/{name}` → 200 the view with its code (404 `no such function`).
+- `PUT /api/functions/{name}` (at most 2 MiB): any of `files` (the whole set: a new release),
+  `code` (the entry file's new content, the other files kept from the live release: a new
+  release), `version`, `memory_mb`, `timeout_sec`, `schedule`, `auth`, `cors_origins`, `env`,
+  `secrets` (as a managed app's: `""` removes, `••••••••` keeps). → 200 the view (with `token`
+  when `auth` became `token` and there was none).
+- `DELETE /api/functions/{name}` → 204.
+- `POST /api/functions/{name}/rollback` `{release?}` → 200 the view.
+- `POST /api/functions/{name}/invoke` (at most 128 KiB) `{method?, path?, body?}`: a test run
+  (`InvokeFunction`, source `test`, default `POST` and `/`) → 200 `{status, ms, body, error}`.
+- `GET /api/functions/{name}/logs` → 200 `{invocations: [{time, method, path, status, ms,
+  source}], output: [line…]}`.
+- `POST /api/functions/{name}/token` → 200 `{token}`: a new token, the old one refused from the
+  next request; the function's auth becomes `token`.
+- `PUT /api/functions/{name}/domains` `{domains: [...]}` → 200 the view, and `task` (the
+  certificate's) when one was queued; §17.4.
+- `GET /api/functions/{name}/domains/status` → 200 `{domains: [{domain, dns}], certificate}`.
+- `GET /api/functions/domain/status` → 200 `{domain, dns, certificate, acme_email}`; §17.5.
+- `PUT /api/functions/domain` `{domain}` → 200 the same, and `task` when one was queued; §17.5.
+
+`dns` is the DNS readiness check of §3.14 (`checkDNS`: `{domain, status, addresses, server,
+cdn?}`, `status` one of `here`, `partial`, `elsewhere`, `proxied`, `unresolved`, `unknown`);
+`certificate` is `{exists, not_after, issuer}` from `CertStatus` for the lineage
+(`cloudground-functions` or `cloudground-fn-<id>`); `acme_email` whether one is set.
+
+### 17.3 A change
+
+Under the panel's functions lock, one change at a time (reads are not held):
+
+1. the request validated (`functions.Check`, `CheckFiles`, the CORS origins, a secret's value
+   `runtimes.CheckValue`);
+2. the runtime version must be installed (`Capabilities`), else 412 (on create and on a version
+   change);
+3. a create reserves its row first (`CreateFunction`: the id names the user and the units); any
+   later failure deletes the row and its secrets;
+4. the secrets sealed (`fn.<id>.<NAME>`), the token made and sealed when needed;
+5. `SetFunction` with the whole environment (variables and secrets' values) and the files when the
+   code changed;
+6. `RenderFunctions` with every function and the functions domain (each function's token read
+   from its secret); its files recorded for drift (`RecordManagedFile`; the records of function
+   files no longer written are removed);
+7. the record stored (`UpdateFunction`, with the live release).
+
+An agent refusal at 5 or 6 puts the secrets back as they were and stores nothing (a create: the row
+goes, with `DeleteFunction` for what the agent made). A deletion: `DeleteFunction`, then the row
+and its secrets, then `RenderFunctions` without it. A rollback: `RollbackFunction`, then the
+release stored. A new token: sealed, `RenderFunctions`, auth stored; a refusal puts the old token
+back. Audit `function.create|update|delete|rollback|invoke|token|domains`, subject the name, detail
+the fields changed (never a value).
+
+### 17.4 A function's own domains
+
+`PUT /api/functions/{name}/domains`: at most 10, each a plain host name (`site.ValidateDomain`, no
+address, lower-cased, no duplicates) → else 400. Under `aliasesMu` (§3.10), every name is checked
+against every host name of the panel: a site's domain or alias, another function's domain, the
+functions domain, the panel's domain (`nameOwners`) → **409** `<name> is already used by <owner>`.
+Then `RenderFunctions`, the domains stored, and, when names were added and an ACME e-mail is set,
+the job `functions.certificate` queued (background, `IssueFunctionsCertificate` for lineage
+`cloudground-fn-<id>` with every domain, then `RenderFunctions` so the files point at it); when
+the last domain goes, `DeleteFunctionsCertificate`. Without an ACME e-mail the domains serve the
+fallback certificate until one is set and the domains saved again.
+
+### 17.5 The functions domain
+
+`PUT /api/functions/domain` `{domain}` (`""` clears it): a plain host name, lower-cased, checked
+under `aliasesMu` like an own domain (409). Then `RenderFunctions` with it, `functions_domain`
+stored, and the job `functions.certificate` for lineage `cloudground-functions` queued when it is
+set and an ACME e-mail is set; cleared, the lineage is deleted. `GET
+/api/functions/domain/status` gives the domain, its DNS check (none without a domain), its
+certificate and whether an ACME e-mail is set. Audit `functions.domain`, the domain.
+
+### 17.6 Schedules
+
+`functions.sweep` (jobs SPEC §9: every minute) invokes each function whose schedule is due in the
+current minute (`functions.Due`, the panel's time zone), once per minute (a key per function and
+minute, in memory), each in the background (source `schedule`); a failure is logged. A scheduled
+run's result is in the function's invocations like any other.
+
+### 17.7 Certificates
+
+`functions.certificate` (background): `IssueFunctionsCertificate` then `RenderFunctions`.
+`certificate.sweep` also reads `cloudground-functions` (when a functions domain is set) and each
+`cloudground-fn-<id>` (a function with domains), and renews one inside the renewal window with
+`IssueFunctionsCertificate`; a failure is logged and audited `cert.renew_failed`.
+
+### 17.8 The migration from v0.8.x (`functions_migrate.go`)
+
+At the panel's start, in the background once the job queue runs, while `functions_migration` is
+not `done` and a site holds `config.functions`: for each such function, in site order,
+
+1. a standalone function of the same name (on a name in use, `<name>-<site id>`, cut to 31
+   characters), its settings copied, `auth` `public`;
+2. each secret's value read (`site.<id>.fn.<name>.<NAME>`) and sealed again as `fn.<new id>.<NAME>`
+   (a sealed value is bound to its name);
+3. `MigrateFunction` (ops/functions SPEC §9): the releases copied, the new units, the old units
+   and code gone;
+4. the function's record stored with its release; the site's `config.functions` without it
+   (`MutateSiteApplied`) and the site rendered again (`ApplySiteConfig`: no `/.functions/` any
+   more); the old secrets deleted;
+5. audit `function.migrate`, subject the new name, detail `<site domain>/<old name>`.
+
+A failure at 3 deletes what 1 and 2 made and leaves the old function in its site, and the run goes
+on with the next. Then `RenderFunctions` once, and `functions_migration` is `done`, or `failed:
+<first error>` (the alert of §11.1) to be tried again at the next start. The old addresses
+(`https://<site>/.functions/<name>`) stop answering: the changelog says so.
+
+### 17.9 Tests
+
+`functions_test.go`: create, change, code and files, secrets kept and removed, the token made once
+and rotated, delete, rollback, invoke, logs, the 412, the 409s (a function's name; a domain a site,
+another function, the functions domain or the panel holds), a refused agent leaving nothing
+stored, the routes' policies (an operator refused), the sweep, the migration (a site function
+moved, its secrets re-sealed, the site's config emptied, the marker; an agent refusal leaving the
+old function and the alert).

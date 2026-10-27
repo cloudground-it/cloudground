@@ -62,8 +62,13 @@ handler.
 | `RuntimeInstallParams` | `Runtime` is `node` or `python`, `Version` of its form (internal/runtimes SPEC §1) | `unknown runtime "<r>"`, `invalid <runtime> version "<v>"` |
 | `AppEnvParams` | the site is `node` or `python`; `runtimes.CheckEnv` takes `Env` | `not a Node.js or Python site`, its message |
 | `AppControlParams` | `Action` is `start`, `stop` or `restart` | `unknown action "<a>"` |
-| `SetFunctionParams` | `functions.Check` takes the function; the code at most 256 KiB of UTF-8; `runtimes.CheckEnv` takes `Env` | its message |
-| `FunctionRef`, `FunctionRollbackParams`, `InvokeFunctionParams` | a function name; a release ID when one is named; `Source` `schedule` or `test`; a body at most 64 KiB | its message |
+| `SetFunctionParams` | `functions.Check` takes the function, its id above 0; `functions.CheckFiles` takes `Files` when given; `runtimes.CheckEnv` takes `Env` | its message |
+| `FunctionRef`, `FunctionRollbackParams` | an id above 0, a function name; a release ID when one is named | its message |
+| `InvokeFunctionParams` | a function name; `Source` `schedule` or `test`; `Method` empty or `GET POST PUT PATCH DELETE`; `Path` empty or starting with `/`, at most 2 KiB, no space or control character; a body at most 64 KiB | its message |
+| `FunctionsSummaryParams` | at most 100 names, each a function name | its message |
+| `RenderFunctionsParams` | at most 100 functions, each with an id above 0, a function name, a timeout 1–300, a token empty or of its form, valid origins and domains; the domain empty or valid (internal/engine SPEC §8) | its message |
+| `FunctionsCertParams` | `Name` `cloudground-functions` or `cloudground-fn-<id>`; each domain valid; for an issue at least one | its message |
+| `MigrateFunctionParams` | `OldName` and the function as `SetFunctionParams` | its message |
 | `ManageFileParams` | `Operation` is `mkdir`, `rename` or `delete` | `unsupported file operation "<o>"` |
 | | `rename` has a non-blank `DestPath` | `destination path required` |
 | `SSHKeyParams` | `Action` is `list`, `add` or `delete` | `unsupported SSH key action "<a>"` |
