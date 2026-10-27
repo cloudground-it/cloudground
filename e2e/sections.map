@@ -125,6 +125,8 @@ internal/api/site_wptools.go            F4b Quarry, SR tenant data
 internal/api/statement_limit.go        SR tenant data, F4b Quarry, F9b Quarry service, woocommerce security
 internal/api/sites_rollback.go         R-3.13 interrupted create, R-3.7 site lifecycle
 internal/api/apitokens.go              R-4.6 cgctl tokens, security
+# The remote MCP server (#70): its OAuth, endpoint and tools.
+internal/api/mcp_*.go                  mcp server
 internal/api/events/**                 F8 events
 # auth, sites, tasks, the job queue, server, recover: every request and
 # every site.
@@ -246,6 +248,7 @@ internal/agent/**                      ALL
 internal/agentrpc/limit.go             R-10.5 agent limits
 internal/agentrpc/**                   ALL
 internal/rpc/**                        ALL
+internal/state/mcp.go                  mcp server
 internal/state/**                      ALL
 internal/site/**                       ALL
 internal/version/**                    ALL

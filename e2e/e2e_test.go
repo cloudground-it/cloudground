@@ -104,6 +104,7 @@ var sections = []section{
 	{name: "R-4.3 accounts", run: (*harness).accounts},
 	{name: "R-4.3 sign-in review", run: (*harness).signinReview},
 	{name: "panel passkeys", run: (*harness).panelPasskeys},
+	{name: "mcp server", run: (*harness).mcpServer, lane: "mcp"},
 	{name: "R-4.3 site settings", run: (*harness).siteSettings, lane: "settings"},
 	{name: "dev mode", run: (*harness).devMode, lane: "dev mode"},
 	{name: "maintenance page", run: (*harness).maintenancePage, lane: "maintenance page"},
