@@ -119,7 +119,7 @@ const mailSecurity = computed({
   get: () => form.value.mail_security || 'starttls',
   set: (v: string) => { form.value.mail_security = v }
 })
-const securityItems = computed(() => (['starttls', 'tls', 'none'] as const).map(v => ({ value: v, label: t(`mail.security.${v}`) })))
+const securityItems = computed(() => (['starttls', 'tls', 'none']).map(v => ({ value: v, label: t(`mail.security.${v}`) })))
 const testTo = ref('')
 async function testMail() {
   await run(() => api.post('/api/settings/mail/test', { to: testTo.value }), t('mail.testSent'))

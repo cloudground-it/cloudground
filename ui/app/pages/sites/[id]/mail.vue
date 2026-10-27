@@ -32,7 +32,7 @@ function load() {
   })
 }
 watch(mail, load, { immediate: true })
-const securityItems = computed(() => (['starttls', 'tls', 'none'] as const).map(v => ({ value: v, label: t(`mail.security.${v}`) })))
+const securityItems = computed(() => (['starttls', 'tls', 'none']).map(v => ({ value: v, label: t(`mail.security.${v}`) })))
 
 async function save() {
   const body: Record<string, unknown> = { off: !form.on, from: form.from, dkim_selector: form.selector }
