@@ -71,6 +71,9 @@ type Input struct {
 	// CloudflareInclude is the file of Cloudflare's ranges when the
 	// visitor's address comes from Cloudflare (#22, SPEC §4.11); "" is not.
 	CloudflareInclude string
+	// Functions are the site's functions (#143, SPEC §4.13).
+	Functions []FunctionRoute
+
 	// AppUpstream is a managed app's address (#28, SPEC §4.12):
 	// unix:<socket> or 127.0.0.1:<port>; "" for every other site.
 	AppUpstream string
@@ -128,4 +131,11 @@ type Renderer interface {
 	// Routing is the site's routing block and the vhost around it.
 	Routing(in Input) (RoutingView, error)
 	Name() state.Engine
+}
+
+// FunctionRoute is one function nginx routes to (SPEC §4.13).
+type FunctionRoute struct {
+	Name       string
+	Socket     string
+	TimeoutSec int
 }

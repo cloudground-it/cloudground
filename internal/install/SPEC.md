@@ -682,7 +682,8 @@ In order:
 7. **The state**: `/etc/cloudground`, `/etc/cloudground-php`, `/var/lib/cloudground`,
    `/var/lib/cloudground-agent` (update snapshots and the malware quarantine included), the malware
    scan's signature set `/var/lib/cloudground-signatures`, the runtimes
-   `/var/lib/cloudground-runtimes` and the apps' environment files `/etc/cloudground-app` (#28),
+   `/var/lib/cloudground-runtimes`, the apps' environment files `/etc/cloudground-app` (#28) and the
+   functions' `/etc/cloudground-fn` (#143),
    and its freshclam configuration
    `/etc/clamav/cloudground-freshclam.conf` (ClamAV itself, a distribution package, stays),
    `/var/cache/cloudground`,

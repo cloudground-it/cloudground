@@ -123,6 +123,8 @@ type SiteConfig struct {
 	Cloudflare SiteCloudflare `json:"cloudflare,omitzero"`
 	// App is a managed app's settings (#28, internal/runtimes SPEC §2).
 	App SiteApp `json:"app,omitzero"`
+	// Functions are the site's functions (#143, internal/functions SPEC §1).
+	Functions []SiteFunction `json:"functions,omitempty"`
 	// WPCleanup is a WordPress site's scheduled database cleanup (#78,
 	// internal/api SPEC §3.17).
 	WPCleanup WPCleanup `json:"wp_cleanup,omitzero"`
@@ -461,4 +463,18 @@ type SiteApp struct {
 	Secrets    []string          `json:"secrets,omitempty"`
 	Port       int               `json:"port,omitempty"`
 	HealthPath string            `json:"health_path,omitempty"`
+}
+
+// SiteFunction is one of a site's functions (#143, internal/functions SPEC
+// §1); its code lives in the site's tree, its secrets' values are sealed.
+type SiteFunction struct {
+	Name       string            `json:"name"`
+	Runtime    string            `json:"runtime"`
+	Version    string            `json:"version"`
+	MemoryMB   int               `json:"memory_mb"`
+	TimeoutSec int               `json:"timeout_sec"`
+	Schedule   string            `json:"schedule,omitempty"`
+	Env        map[string]string `json:"env,omitempty"`
+	Secrets    []string          `json:"secrets,omitempty"`
+	Release    string            `json:"release,omitempty"`
 }

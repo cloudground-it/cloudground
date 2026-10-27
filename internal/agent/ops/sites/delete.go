@@ -121,6 +121,11 @@ func (o *Ops) removeConfig(ctx context.Context, s state.Site) error {
 			errs = append(errs, err)
 		}
 	}
+	if o.RemoveFunctions != nil {
+		if err := o.RemoveFunctions(ctx, s.SystemUser); err != nil {
+			errs = append(errs, err)
+		}
+	}
 	// Everything the site runs is in its slice: one stop ends it all.
 	if err := o.Systemd.Stop(ctx, site.Slice(s.SystemUser)); err != nil && !errors.Is(err, host.ErrNoSuchUnit) {
 		errs = append(errs, err)

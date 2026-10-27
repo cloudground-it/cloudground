@@ -319,7 +319,8 @@
     "security": "Seguridad",
     "redirects": "Redirecciones",
     "traffic": "Tráfico",
-    "app": "App"
+    "app": "App",
+    "functions": "Funciones"
   },
   "overview": {
     "certificate": "Certificado",
@@ -2169,5 +2170,47 @@
     "installed": "Instalado",
     "install": "Instalar",
     "queued": "Instalación iniciada"
+  },
+  "fn": {
+    "title": "Funciones",
+    "hint": "Pequeños manejadores en /.functions/… de este sitio. Entre una petición y otra no se ejecuta nada.",
+    "none": "Todavía no hay funciones.",
+    "new": "Nueva función",
+    "create": "Crear",
+    "namePlaceholder": "nombre, p. ej. formulario-contacto",
+    "nameRule": "Un nombre lleva minúsculas, cifras y -, y empieza por una letra.",
+    "created": "Función creada",
+    "saved": "Función desplegada",
+    "rolledBack": "El código anterior vuelve a estar publicado",
+    "deleted": "Función eliminada",
+    "deleteConfirm": "¿Eliminar la función {name}? Su dirección dejará de responder.",
+    "scheduled": "Se ejecuta según una programación",
+    "endpoint": "Cada petición ejecuta el manejador en un proceso propio, con la memoria y el tiempo de abajo.",
+    "code": "Código",
+    "codeHelpNode": "index.js: exporta handler(event), normal o async. Solo está disponible la biblioteca estándar de Node.js.",
+    "codeHelpPython": "main.py: def handler(event), normal o async. Solo está disponible la biblioteca estándar de Python.",
+    "memory": "Memoria",
+    "timeout": "Tiempo máximo",
+    "seconds": "segundos",
+    "schedule": "Programación",
+    "scheduleHelp": "Cinco campos cron, en la zona horaria del panel. Vacío: nunca.",
+    "deploy": "Desplegar",
+    "test": "Probar",
+    "rollback": "Volver atrás",
+    "invocations": "Ejecuciones",
+    "invocationsHint": "Las últimas peticiones, del registro de acceso del sitio. Un 502 es un fallo, el tiempo máximo o el límite de memoria.",
+    "testResult": "HTTP {status} en {ms} ms",
+    "testFailed": "Sin respuesta",
+    "when": "Cuándo",
+    "source": "Origen",
+    "status": "Estado",
+    "duration": "Duración",
+    "noInvocations": "Todavía no hay ejecuciones.",
+    "output": "Salida (consola y errores)",
+    "src": {
+      "http": "Petición",
+      "schedule": "Programación",
+      "test": "Prueba"
+    }
   }
 }

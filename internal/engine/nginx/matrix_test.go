@@ -403,6 +403,16 @@ func matrixCases() []matrixCase {
 			add(fmt.Sprintf("%s-opt-%s", b.name, typ), b, in)
 		}
 	}
+	// Functions (#143, SPEC §4.13), last for the same reason: a WordPress
+	// site with two of them.
+	for _, b := range matrixBuilds {
+		id++
+		in := matrixInput(id, state.SiteWordPress, state.ProfileBalanced, true)
+		for i, name := range []string{"hello", "webhook-2"} {
+			in.Functions = append(in.Functions, engine.FunctionRoute{Name: name, Socket: fmt.Sprintf("/run/cloudground/fn/cg-site-%d/%s.sock", id, name), TimeoutSec: 10 * (i + 1)})
+		}
+		add(fmt.Sprintf("%s-opt-functions", b.name), b, in)
+	}
 	return cases
 }
 

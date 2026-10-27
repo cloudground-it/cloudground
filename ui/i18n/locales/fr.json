@@ -319,7 +319,8 @@
     "security": "Sécurité",
     "redirects": "Redirections",
     "traffic": "Trafic",
-    "app": "Application"
+    "app": "Application",
+    "functions": "Fonctions"
   },
   "overview": {
     "certificate": "Certificat",
@@ -2169,5 +2170,47 @@
     "installed": "Installé",
     "install": "Installer",
     "queued": "Installation lancée"
+  },
+  "fn": {
+    "title": "Fonctions",
+    "hint": "De petits gestionnaires sur /.functions/… de ce site. Rien ne tourne entre deux requêtes.",
+    "none": "Pas encore de fonction.",
+    "new": "Nouvelle fonction",
+    "create": "Créer",
+    "namePlaceholder": "nom, par ex. formulaire-contact",
+    "nameRule": "Un nom est fait de minuscules, de chiffres et de -, et commence par une lettre.",
+    "created": "Fonction créée",
+    "saved": "Fonction déployée",
+    "rolledBack": "Le code précédent est de nouveau en ligne",
+    "deleted": "Fonction supprimée",
+    "deleteConfirm": "Supprimer la fonction {name} ? Son adresse ne répondra plus.",
+    "scheduled": "Tourne selon une planification",
+    "endpoint": "Chaque requête exécute le gestionnaire dans un processus à part, avec la mémoire et le temps ci-dessous.",
+    "code": "Code",
+    "codeHelpNode": "index.js : exportez handler(event), simple ou async. Seule la bibliothèque standard de Node.js est disponible.",
+    "codeHelpPython": "main.py : def handler(event), simple ou async. Seule la bibliothèque standard de Python est disponible.",
+    "memory": "Mémoire",
+    "timeout": "Délai maximal",
+    "seconds": "secondes",
+    "schedule": "Planification",
+    "scheduleHelp": "Cinq champs cron, dans le fuseau horaire du panneau. Vide : jamais.",
+    "deploy": "Déployer",
+    "test": "Tester",
+    "rollback": "Revenir en arrière",
+    "invocations": "Exécutions",
+    "invocationsHint": "Les dernières requêtes, d’après le journal d’accès du site. Un 502 est un plantage, le délai ou la limite de mémoire.",
+    "testResult": "HTTP {status} en {ms} ms",
+    "testFailed": "Pas de réponse",
+    "when": "Quand",
+    "source": "Origine",
+    "status": "Statut",
+    "duration": "Durée",
+    "noInvocations": "Pas encore d’exécution.",
+    "output": "Sortie (console et erreurs)",
+    "src": {
+      "http": "Requête",
+      "schedule": "Planification",
+      "test": "Test"
+    }
   }
 }

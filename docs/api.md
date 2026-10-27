@@ -127,6 +127,10 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
   - `PUT /api/sites/{id}/app`: 512 KiB
+  - `POST /api/sites/{id}/functions`: 512 KiB
+  - `PUT /api/sites/{id}/functions/{name}`: 512 KiB
+  - `POST /api/sites/{id}/functions/{name}/rollback`: 8 KiB
+  - `POST /api/sites/{id}/functions/{name}/invoke`: 128 KiB
   - `PUT /api/sites/{id}/wp/cleanup`: 8 KiB
   - `POST /api/sites/{id}/migration/pull/estimate`: 64 KiB
   - `POST /api/sites/{id}/migration/pull`: 64 KiB
@@ -259,6 +263,14 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `PUT` | `/api/sites/{id}/app` | manage | change the app (a field left out keeps its value; `secrets` maps a name to its value, `""` removes it, `••••••••` keeps it): the environment is written, the app restarted; 412 for a runtime version the server lacks |
 | `GET` | `/api/sites/{id}/app/status` | auth | the app's unit (`active`, `state`, `since`, `restarts`, `last_exit`) and its health probe (`health {status, ms, error}`) |
 | `POST` | `/api/sites/{id}/app/restart` | manage | restart the app; answers its status |
+| `GET` | `/api/sites/{id}/functions` | auth | the site's functions (Lambda-style handlers at `https://<domain>/.functions/<name>`): `name`, `runtime`, `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets` (names), `release`, `url` |
+| `POST` | `/api/sites/{id}/functions` | manage | create a function (`{"name": "hello", "runtime": "node", "version": "22", "memory_mb": 128, "timeout_sec": 10, "schedule": "*/5 * * * *", "code": "…", "env": {}, "secrets": {}}`; without code, a starter that echoes the request); 201 |
+| `GET` | `/api/sites/{id}/functions/{name}` | auth | a function with its live `code`, `release` and `releases` |
+| `PUT` | `/api/sites/{id}/functions/{name}` | manage | change a function (any of `code`, a new release; `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets`) |
+| `DELETE` | `/api/sites/{id}/functions/{name}` | manage | delete a function: its route, units, code and secrets |
+| `POST` | `/api/sites/{id}/functions/{name}/rollback` | manage | put the previous release of the code back live (`{"release": …}` for a given one) |
+| `POST` | `/api/sites/{id}/functions/{name}/invoke` | manage | run the function once through nginx (`{"body": "…"}`): `{status, ms, body, error}` |
+| `GET` | `/api/sites/{id}/functions/{name}/logs` | auth | the function's recent `invocations` (time, method, status, ms, source) and its `output` |
 | `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache |
 | `POST` | `/api/sites/{id}/warm` | manage | fill the page cache from the sitemap |
 | `GET` | `/api/sites/{id}/wp/cleanup` | auth | the scheduled database cleanup of a WordPress site: `enabled`, `keep_revisions`, `last_run`, `next_run` and whether `backups_ready` |

@@ -125,6 +125,9 @@ type Ops struct {
 	PrepareApp func(ctx context.Context, s state.Site, dir string) (string, error)
 	// AppSocket is where the health probe dials an app; nil is its socket.
 	AppSocket func(s state.Site) string
+	// RemoveFunctions removes a site user's functions (ops/functions SPEC
+	// §3); nil removes none.
+	RemoveFunctions func(ctx context.Context, systemUser string) error
 
 	buildOnce      sync.Once
 	http3, http2On bool

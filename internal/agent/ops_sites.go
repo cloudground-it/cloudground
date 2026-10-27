@@ -40,6 +40,9 @@ func (a *Agent) sitesHandlers() *sites.Ops {
 			CountryPrefixes: func(ctx context.Context, codes []string) ([]netip.Prefix, error) {
 				return a.blocklistHandlers().CountryPrefixes(ctx, codes)
 			},
+			RemoveFunctions: func(ctx context.Context, user string) error {
+				return a.functionsHandlers().RemoveSite(ctx, user)
+			},
 			PrepareApp: func(ctx context.Context, s state.Site, dir string) (string, error) {
 				return a.runtimesHandlers().Prepare(ctx, s, dir)
 			},
