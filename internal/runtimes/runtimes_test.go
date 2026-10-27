@@ -63,6 +63,10 @@ func TestRenderUnit(t *testing.T) {
 	if err != nil || name != "cloudground-app-cg-site-7.service" {
 		t.Fatal(name, err)
 	}
+	// The start limit is a [Unit] key: systemd ignores it under [Service].
+	if u, _, _ := strings.Cut(unit, "\n[Service]\n"); !strings.Contains(u, "\nStartLimitIntervalSec=0\n") || strings.Count(unit, "StartLimitIntervalSec") != 1 {
+		t.Errorf("StartLimitIntervalSec=0 is not in [Unit]:\n%s", unit)
+	}
 	for _, want := range []string{
 		"User=cg-site-7\n", "Slice=cg-site-7.slice\n", "WorkingDirectory=/srv/sites/app.example.com/current\n",
 		"Environment=PATH=/var/lib/cloudground-runtimes/node/22/bin:/usr/local/bin:/usr/bin:/bin\n",

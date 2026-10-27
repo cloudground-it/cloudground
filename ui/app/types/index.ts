@@ -271,7 +271,12 @@ export interface Capabilities {
 
 /** An installed runtime version: as sites name it, and as it reports itself. */
 export interface RuntimeVersion { version: string, full: string }
-export interface Runtimes { node: RuntimeVersion[], python: RuntimeVersion[] }
+export interface Runtimes {
+  node: RuntimeVersion[]
+  python: RuntimeVersion[]
+  /** The distro's own Python 3.N, installed or not, newest first. */
+  python_distro?: string[]
+}
 
 /** A managed app's settings (GET /api/sites/{id}/app). */
 export interface SiteApp {

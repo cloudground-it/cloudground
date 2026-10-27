@@ -34,12 +34,9 @@ func (s *Server) handleGetRuntimes(w http.ResponseWriter, r *http.Request) {
 	v.Installed = have
 	v.Available.Node = runtimes.NodeMajors
 	// The distro's own Python: the one the server runs, installed or not.
-	v.Available.Python = []string{}
-	for _, p := range have.Python {
-		v.Available.Python = append(v.Available.Python, p.Version)
-	}
+	v.Available.Python = have.PythonDistro
 	if len(v.Available.Python) == 0 {
-		v.Available.Python = []string{"3.12"}
+		v.Available.Python = []string{have.DefaultPython()}
 	}
 	respond(w, http.StatusOK, v)
 }

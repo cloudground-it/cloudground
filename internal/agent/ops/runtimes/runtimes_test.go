@@ -51,6 +51,14 @@ func TestList(t *testing.T) {
 	if v := o.distroPythons(); strings.Join(v, ",") != "3.13,3.12" {
 		t.Fatalf("distro %v", v)
 	}
+	if strings.Join(got.PythonDistro, ",") != "3.13,3.12" || got.DefaultPython() != "3.12" {
+		t.Fatalf("distro %v, default %s", got.PythonDistro, got.DefaultPython())
+	}
+	// Nothing installed (a fresh Ubuntu 26.04): the distro's newest, not 3.12.
+	none := rpc.RuntimesResult{PythonDistro: []string{"3.14"}}
+	if none.DefaultPython() != "3.14" || (rpc.RuntimesResult{}).DefaultPython() != "3.12" {
+		t.Fatalf("default %s", none.DefaultPython())
+	}
 }
 
 func TestInstallUnits(t *testing.T) {

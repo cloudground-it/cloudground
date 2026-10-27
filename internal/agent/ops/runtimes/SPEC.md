@@ -7,7 +7,7 @@ dependency step of a managed app's release (internal/runtimes SPEC §4).
 
 | Method | Params → Result | Table row |
 |---|---|---|
-| `Runtimes` | none → `RuntimesResult{Node, Python}` (each `[{version, full}]`) | read-only, 1 min |
+| `Runtimes` | none → `RuntimesResult{Node, Python, PythonDistro}` (`Node` and `Python` each `[{version, full}]`) | read-only, 1 min |
 | `RuntimeInstall` | `RuntimeInstallParams{Runtime, Version}` → `RuntimesResult` | 20 min |
 
 `Validate` refuses a runtime other than `node` or `python` and a version of the wrong form
@@ -17,7 +17,10 @@ when a site is created without a second call.
 **Runtimes** reads, for Node, each `<runtimes>/node/<major>/VERSION` (the full version, written
 last by an install) whose `bin/node` is a regular file; for Python, every `/usr/bin/python3.N`
 whose `venv` module is there (`/usr/lib/python3.N/venv/__init__.py`) and whose `ensurepip` is
-there (Ubuntu splits them into `python3.N-venv`).
+there (Ubuntu splits them into `python3.N-venv`). `PythonDistro` is every `3.N` with a
+`/usr/bin/python3.N`, installed or not, newest first (`[]` for none): the versions a Python site can
+have. `DefaultPython()`, a new Python site's version when none is asked for, is the newest
+installed, else the newest of the distro, else `3.12`.
 
 ## 2. RuntimeInstall
 

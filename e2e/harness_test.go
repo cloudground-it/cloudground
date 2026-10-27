@@ -563,7 +563,15 @@ func (a *apiClient) waitActive(id int64, timeout time.Duration) string {
 		return "timeout"
 	}
 	for end := time.Now().Add(timeout); time.Now().Before(end); time.Sleep(pollEvery) {
-		switch a.site(id).Status {
+		// A site whose provisioning failed may be rolled back, record and
+		// all: gone is an error, not something to wait out.
+		c, b := a.get(fmt.Sprintf("/api/sites/%d", id))
+		if c == http.StatusNotFound {
+			return "error"
+		}
+		var s siteInfo
+		_ = json.Unmarshal(b, &s)
+		switch s.Status {
 		case "active":
 			return "active"
 		case "error":

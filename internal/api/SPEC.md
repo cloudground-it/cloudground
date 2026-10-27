@@ -992,7 +992,7 @@ Checks, in this order; the first that fails answers:
 
 1. The body decodes (unknown fields refused) → else 400 `malformed request: <decoder error>`.
 2. `domain`, lowercased and trimmed, is a plain host name → 400 `invalid domain "<d>"`; at most 50 `aliases` → 400 `at most 50 aliases` (as a patch's, §3.4); each alias, lowercased and trimmed, the same.
-3. `type` is one of `wordpress`, `woocommerce`, `static`, `php`, `laravel`, `proxy`, `node`, `python` → 400 `invalid site type`. `node` and `python` (§3.21): `runtime_version` well formed (internal/runtimes SPEC §1; empty: Node `22`, Python the newest the agent reports, else `3.12`) and `start_command`, when given, passes `runtimes.CheckApp` → 400 with its message; a database is asked for as on a static or plain PHP site (`create_database: true`), and they start without the page cache.
+3. `type` is one of `wordpress`, `woocommerce`, `static`, `php`, `laravel`, `proxy`, `node`, `python` → 400 `invalid site type`. `node` and `python` (§3.21): `runtime_version` well formed (internal/runtimes SPEC §1; empty: Node `22`, Python `Runtimes.DefaultPython()` from the capabilities: the newest installed, else the distro's newest, else `3.12`) and `start_command`, when given, passes `runtimes.CheckApp` → 400 with its message; a database is asked for as on a static or plain PHP site (`create_database: true`), and they start without the page cache.
 4. `profile` (after its default) is `balanced`, `commerce` or `maximum` → 400 `invalid profile`.
 5. WordPress and WooCommerce: `admin_email` parses as an address → 400 `valid admin email required for WordPress`; `admin_user` non-empty and `admin_password` at least 12 bytes → 400 `admin user and a 12+ character password required`.
 6. The database (Fase 9b, `site_create_db.go`). WordPress, WooCommerce and Laravel always get one (`create_database: false` → 400); a static or plain PHP site gets one with `create_database: true`; a proxy never (`create_database: true` → 400). A site that gets none may not name `database_name`, `database_user` or `database_password` → 400. A chosen `database_name` or `database_user` (trimmed) passes `internal/site.ClaimableBy` as §6.5's names do, and is never of the panel's `site_<n>` shape (the site has no number yet) → 400; a chosen `database_password` follows the one rule of §6.5's passwords (`dbPasswordProblem`) → 400. Each refusal of this step names its field in `fields` (§3.8).
@@ -1553,7 +1553,7 @@ tree, the releases' `node_modules` and `.venv` with it, and a restore restarts t
 **Runtimes on the server** (admin, as the PHP extensions):
 
 - `GET /api/runtimes`: the agent's `Runtimes` and the versions that can be installed (`node`:
-  `20`, `22`, `24`; `python`: the distro's).
+  `20`, `22`, `24`; `python`: `PythonDistro`, the distro's, installed or not).
 - `POST /api/runtimes/install {runtime, version}` → 202 `{task}`: job `runtime.install` (§9 of the
   jobs SPEC), audit `runtime.install`.
 

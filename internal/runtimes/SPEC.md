@@ -47,6 +47,7 @@ Default start commands: Node `node server.js`; Python `python -m gunicorn --bind
 [Unit]
 Description=<type> app for <domain>
 After=network.target mariadb.service
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -70,7 +71,6 @@ StandardOutput=append:/var/log/cloudground/<domain>/app.log
 StandardError=inherit
 Restart=always
 RestartSec=2
-StartLimitIntervalSec=0
 TimeoutStopSec=20
 KillMode=mixed
 <phpfpm.RunSandbox(site)>
@@ -79,6 +79,9 @@ KillMode=mixed
 WantedBy=multi-user.target
 ```
 
+- `StartLimitIntervalSec=0` is a `[Unit]` key (under `[Service]` systemd ignores it): a deploy, a
+  rollback and a change of environment each restart the app, and the default limit (5 starts in
+  10 s) would leave it failed with `start-limit-hit`.
 - The socket is `/run/cloudground/app/<user>/app.sock`. The runtime directory is the site user's
   and its group's (nginx's workers are in every site group); `UMask=0007` makes the socket the
   app creates writable by that group and by nobody else. `PORT` is the socket's path: Node's

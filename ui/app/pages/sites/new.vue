@@ -84,8 +84,9 @@ const phpItems = computed(() => [
 const runtimeItems = computed(() => {
   const node = state.type === 'node'
   const have = (node ? caps.value?.runtimes?.node : caps.value?.runtimes?.python) ?? []
-  const offered = node ? ['24', '22', '20'] : [...new Set([...have.map(v => v.version), '3.12'])]
-  const def = node ? '22' : (have[0]?.version ?? '3.12')
+  const distro = caps.value?.runtimes?.python_distro ?? []
+  const offered = node ? ['24', '22', '20'] : [...new Set([...have.map(v => v.version), ...(distro.length ? distro : ['3.12'])])]
+  const def = node ? '22' : (have[0]?.version ?? distro[0] ?? '3.12')
   const label = (v: string) => `${node ? 'Node.js' : 'Python'} ${v}${have.some(h => h.version === v) ? '' : ` · ${t('app.willInstall')}`}`
   return [{ label: `${t('site.phpDefault')} · ${label(def)}`, value: 'auto' }, ...offered.map(v => ({ label: label(v), value: v }))]
 })

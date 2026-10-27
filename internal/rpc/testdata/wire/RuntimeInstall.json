@@ -22,11 +22,15 @@
           "version": "Version",
           "full": "Full"
         }
+      ],
+      "python_distro": [
+        "PythonDistro"
       ]
     },
     "zero": {
       "node": null,
-      "python": null
+      "python": null,
+      "python_distro": null
     }
   }
 }

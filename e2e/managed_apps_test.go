@@ -91,6 +91,7 @@ func (h *harness) managedApps(t *testing.T) {
 			h.check(t, "#28: the app runs as the site user", show("User"), user)
 			h.check(t, "#28: in the site's slice", show("Slice"), user+".slice")
 			h.check(t, "#28: in the site's sandbox", show("ProtectSystem"), "strict")
+			h.check(t, "#28: with no start limit, so restarts in a row never leave it failed", show("StartLimitIntervalUSec"), "0")
 			pid := show("MainPID")
 			h.check(t, "#28: the app process is the site user's", strings.TrimSpace(h.run("ps", "-o", "uid=", "-p", pid).Out), strings.TrimSpace(h.run("id", "-u", user).Out))
 			sock := "/run/cloudground/app/" + user + "/app.sock"
@@ -125,6 +126,9 @@ http.createServer((req, res) => {
 				"env": map[string]string{"GREETING": "ciao"}, "secrets": map[string]string{"API_TOKEN": "cg28-secret-value"},
 			})
 			h.check(t, "#28: variables and a secret are saved", fmt.Sprint(c), "200")
+			if c != 200 {
+				t.Logf("PUT app: %s", head(ab, 300))
+			}
 			h.assert(t, "#28: the answer never shows the secret", !strings.Contains(string(ab), "cg28-secret-value"), "%s", head(ab, 300))
 			h.check(t, "#28: the app gets the variable and the secret", waitBody(ndom, "greeting=ciao token=17"), "")
 			envFile := "/etc/cloudground-app/" + user + ".env"
@@ -134,7 +138,13 @@ http.createServer((req, res) => {
 
 			// It dies: systemd starts it again.
 			before := show("NRestarts")
-			h.run("kill", "-9", show("MainPID"))
+			// A unit that is not running has MainPID 0, and kill -9 0 would
+			// kill the e2e's own process group: fail the check instead.
+			mainPID, _ := strconv.Atoi(show("MainPID"))
+			h.assert(t, "#28: the app has a main process to kill", mainPID > 0, "MainPID %d", mainPID)
+			if mainPID > 0 {
+				h.run("kill", "-9", strconv.Itoa(mainPID))
+			}
 			h.check(t, "#28: a killed app is started again", waitBody(ndom, "cg28-node-v1"), "")
 			after, _ := strconv.Atoi(show("NRestarts"))
 			b0, _ := strconv.Atoi(before)

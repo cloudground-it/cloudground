@@ -20,6 +20,22 @@ type RuntimeVersion struct {
 type RuntimesResult struct {
 	Node   []RuntimeVersion `json:"node"`
 	Python []RuntimeVersion `json:"python"`
+	// PythonDistro are the distro's own 3.N, installed or not, newest
+	// first: the ones a Python site can have (ops/runtimes SPEC §1).
+	PythonDistro []string `json:"python_distro"`
+}
+
+// DefaultPython is a new Python site's version when none is asked for:
+// the newest installed, else the distro's newest, else 3.12 (Ubuntu
+// 24.04's).
+func (r RuntimesResult) DefaultPython() string {
+	if len(r.Python) > 0 {
+		return r.Python[0].Version
+	}
+	if len(r.PythonDistro) > 0 {
+		return r.PythonDistro[0]
+	}
+	return "3.12"
 }
 
 // Has reports whether runtime's version is installed.

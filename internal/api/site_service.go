@@ -282,6 +282,10 @@ func (svc siteService) create(ctx context.Context, actor string, req newSite, re
 			return siteCreated{}, refuse(probInvalid, msg)
 		}
 	}
+	if rec.Type == state.SitePython && strings.TrimSpace(req.RuntimeVersion) == "" {
+		// The server's own Python, not a fixed one (Ubuntu 26.04 has no 3.12).
+		rec.Config.App.Version = caps.Runtimes.DefaultPython()
+	}
 	rec.SystemUser = "pending" // named after the ID, once there is one
 	rec.RootPath = filepath.Join(caps.Paths.SitesRoot, rec.Domain)
 	if db.want {

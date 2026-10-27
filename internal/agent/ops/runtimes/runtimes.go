@@ -78,7 +78,11 @@ func (o *Ops) List() rpc.RuntimesResult {
 			res.Node = append(res.Node, rpc.RuntimeVersion{Version: major, Full: strings.TrimSpace(string(v))})
 		}
 	}
-	for _, v := range o.distroPythons() {
+	res.PythonDistro = o.distroPythons()
+	if res.PythonDistro == nil {
+		res.PythonDistro = []string{}
+	}
+	for _, v := range res.PythonDistro {
 		lib := filepath.Join(o.usrLib(), "python"+v)
 		if exists(filepath.Join(lib, "venv", "__init__.py")) && exists(filepath.Join(lib, "ensurepip", "__init__.py")) {
 			res.Python = append(res.Python, rpc.RuntimeVersion{Version: v, Full: "Python " + v})
