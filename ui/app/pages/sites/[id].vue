@@ -75,6 +75,8 @@ const links = computed(() => {
     { label: t('tabs.files'), icon: 'i-cg-folder', to: `${base.value}/files` }
   )
   const more: Tab[] = [{ label: 'Cron', icon: 'i-cg-cron', to: `${base.value}/cron` }]
+  // Functions at /.functions/<name> (issue 143); a staging copy has none of its own.
+  if (!s.staging_of) more.push({ label: t('tabs.functions'), icon: 'i-cg-webhook', to: `${base.value}/functions` })
   if (s.php_version) more.push({ label: 'PHP', icon: 'i-cg-code', to: `${base.value}/php` })
   // mail() of a PHP site goes through the panel's relay (#77).
   if (s.php_version) more.push({ label: t('tabs.mail'), icon: 'i-cg-bell', to: `${base.value}/mail` })

@@ -317,7 +317,8 @@
     "protection": "Geschützte Pfade",
     "resources": "Ressourcen",
     "security": "Sicherheit",
-    "app": "App"
+    "app": "App",
+    "functions": "Funktionen"
   },
   "overview": {
     "certificate": "Zertifikat",
@@ -1928,5 +1929,47 @@
     "installed": "Installiert",
     "install": "Installieren",
     "queued": "Installation gestartet"
+  },
+  "fn": {
+    "title": "Funktionen",
+    "hint": "Kleine Handler unter /.functions/… dieser Site. Zwischen zwei Anfragen läuft nichts.",
+    "none": "Noch keine Funktionen.",
+    "new": "Neue Funktion",
+    "create": "Erstellen",
+    "namePlaceholder": "Name, z. B. kontakt-formular",
+    "nameRule": "Ein Name besteht aus Kleinbuchstaben, Ziffern und - und beginnt mit einem Buchstaben.",
+    "created": "Funktion erstellt",
+    "saved": "Funktion bereitgestellt",
+    "rolledBack": "Der vorherige Code ist wieder live",
+    "deleted": "Funktion gelöscht",
+    "deleteConfirm": "Die Funktion {name} löschen? Ihre Adresse antwortet dann nicht mehr.",
+    "scheduled": "Läuft nach Zeitplan",
+    "endpoint": "Jede Anfrage führt den Handler in einem eigenen Prozess aus, mit dem Speicher und der Zeit unten.",
+    "code": "Code",
+    "codeHelpNode": "index.js: exportiere handler(event), normal oder async. Nur die Standardbibliothek von Node.js ist verfügbar.",
+    "codeHelpPython": "main.py: def handler(event), normal oder async. Nur die Standardbibliothek von Python ist verfügbar.",
+    "memory": "Speicher",
+    "timeout": "Zeitlimit",
+    "seconds": "Sekunden",
+    "schedule": "Zeitplan",
+    "scheduleHelp": "Fünf Cron-Felder, in der Zeitzone des Panels. Leer: nie.",
+    "deploy": "Bereitstellen",
+    "test": "Testen",
+    "rollback": "Zurückrollen",
+    "invocations": "Aufrufe",
+    "invocationsHint": "Die letzten Anfragen, aus dem Zugriffslog der Site. Ein 502 ist ein Absturz, das Zeitlimit oder das Speicherlimit.",
+    "testResult": "HTTP {status} in {ms} ms",
+    "testFailed": "Keine Antwort",
+    "when": "Wann",
+    "source": "Quelle",
+    "status": "Status",
+    "duration": "Dauer",
+    "noInvocations": "Noch keine Aufrufe.",
+    "output": "Ausgabe (Konsole und Fehler)",
+    "src": {
+      "http": "Anfrage",
+      "schedule": "Zeitplan",
+      "test": "Test"
+    }
   }
 }

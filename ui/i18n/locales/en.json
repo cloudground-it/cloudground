@@ -317,7 +317,8 @@
     "protection": "Protected paths",
     "resources": "Resources",
     "security": "Security",
-    "app": "App"
+    "app": "App",
+    "functions": "Functions"
   },
   "overview": {
     "certificate": "Certificate",
@@ -1928,5 +1929,47 @@
     "installed": "Installed",
     "install": "Install",
     "queued": "Installation started"
+  },
+  "fn": {
+    "title": "Functions",
+    "hint": "Small handlers at /.functions/… on this site. Nothing runs between requests.",
+    "none": "No functions yet.",
+    "new": "New function",
+    "create": "Create",
+    "namePlaceholder": "name, e.g. contact-form",
+    "nameRule": "A name is lower-case letters, digits and -, starting with a letter.",
+    "created": "Function created",
+    "saved": "Function deployed",
+    "rolledBack": "Previous code is live again",
+    "deleted": "Function deleted",
+    "deleteConfirm": "Delete the function {name}? Its address stops answering.",
+    "scheduled": "Runs on a schedule",
+    "endpoint": "Each request runs the handler in a process of its own, with the memory and time below.",
+    "code": "Code",
+    "codeHelpNode": "index.js: export handler(event), plain or async. Only Node.js's standard library is available.",
+    "codeHelpPython": "main.py: def handler(event), plain or async. Only Python's standard library is available.",
+    "memory": "Memory",
+    "timeout": "Timeout",
+    "seconds": "seconds",
+    "schedule": "Schedule",
+    "scheduleHelp": "Five cron fields, in the panel's time zone. Empty: never.",
+    "deploy": "Deploy",
+    "test": "Test",
+    "rollback": "Roll back",
+    "invocations": "Invocations",
+    "invocationsHint": "The latest requests, from the site's access log. A 502 is a crash, a timeout or the memory limit.",
+    "testResult": "HTTP {status} in {ms} ms",
+    "testFailed": "No answer",
+    "when": "When",
+    "source": "Source",
+    "status": "Status",
+    "duration": "Duration",
+    "noInvocations": "No invocations yet.",
+    "output": "Output (console and errors)",
+    "src": {
+      "http": "Request",
+      "schedule": "Schedule",
+      "test": "Test"
+    }
   }
 }

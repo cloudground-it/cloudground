@@ -317,7 +317,8 @@
     "protection": "Percorsi protetti",
     "resources": "Risorse",
     "security": "Sicurezza",
-    "app": "App"
+    "app": "App",
+    "functions": "Funzioni"
   },
   "overview": {
     "certificate": "Certificato",
@@ -1928,5 +1929,47 @@
     "installed": "Installato",
     "install": "Installa",
     "queued": "Installazione avviata"
+  },
+  "fn": {
+    "title": "Funzioni",
+    "hint": "Piccoli gestori su /.functions/… di questo sito. Tra una richiesta e l'altra non gira niente.",
+    "none": "Ancora nessuna funzione.",
+    "new": "Nuova funzione",
+    "create": "Crea",
+    "namePlaceholder": "nome, per es. modulo-contatti",
+    "nameRule": "Un nome è fatto di lettere minuscole, cifre e -, e inizia con una lettera.",
+    "created": "Funzione creata",
+    "saved": "Funzione rilasciata",
+    "rolledBack": "Il codice precedente è di nuovo attivo",
+    "deleted": "Funzione eliminata",
+    "deleteConfirm": "Eliminare la funzione {name}? Il suo indirizzo smette di rispondere.",
+    "scheduled": "Gira a orari pianificati",
+    "endpoint": "Ogni richiesta esegue il gestore in un processo a sé, con la memoria e il tempo qui sotto.",
+    "code": "Codice",
+    "codeHelpNode": "index.js: esporta handler(event), normale o async. È disponibile solo la libreria standard di Node.js.",
+    "codeHelpPython": "main.py: def handler(event), normale o async. È disponibile solo la libreria standard di Python.",
+    "memory": "Memoria",
+    "timeout": "Tempo massimo",
+    "seconds": "secondi",
+    "schedule": "Pianificazione",
+    "scheduleHelp": "Cinque campi cron, nel fuso orario del pannello. Vuoto: mai.",
+    "deploy": "Rilascia",
+    "test": "Prova",
+    "rollback": "Torna indietro",
+    "invocations": "Esecuzioni",
+    "invocationsHint": "Le ultime richieste, dal log di accesso del sito. Un 502 è un crash, il tempo massimo o il limite di memoria.",
+    "testResult": "HTTP {status} in {ms} ms",
+    "testFailed": "Nessuna risposta",
+    "when": "Quando",
+    "source": "Origine",
+    "status": "Stato",
+    "duration": "Durata",
+    "noInvocations": "Ancora nessuna esecuzione.",
+    "output": "Output (console ed errori)",
+    "src": {
+      "http": "Richiesta",
+      "schedule": "Pianificazione",
+      "test": "Prova"
+    }
   }
 }
