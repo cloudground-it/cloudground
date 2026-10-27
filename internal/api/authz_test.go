@@ -85,6 +85,10 @@ var routePolicy = map[string]string{
 	"GET /api/backups/{id}/archive":     "manage",
 	"GET /api/settings/backup-ssh-key":  "admin",
 	"POST /api/settings/backup-ssh-key": "admin",
+	// A pull from another host opens a connection from the agent: admins
+	// only (SPEC.md §10.1).
+	"POST /api/sites/{id}/migration/pull/estimate": "admin",
+	"POST /api/sites/{id}/migration/pull":          "admin",
 
 	"GET /api/tokens":         "admin",
 	"POST /api/tokens":        "admin",

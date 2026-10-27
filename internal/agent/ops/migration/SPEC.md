@@ -13,6 +13,9 @@ it.
 | Method | Params → Result | Table row |
 |---|---|---|
 | `ImportMigration` | `MigrationParams{Site, Archive, SQL?, OldDomain?, ReleaseID, MaxRatio?}` → `MigrationResult{ReleaseID, Files, Bytes, Skipped}` | Sites, **`LockLiveSite`**, 7 h |
+| `PullEstimate` | `PullParams` → `PullEstimate{Files, Bytes, WordPress, Shell, HostKey, FreeBytes, Fits}` | Sites, read-only, 5 min |
+| `PullMigration` | `PullParams` → `PullResult{Archive, SQL, Files, Bytes, HostKey}` | Sites, `LockLiveSite`, 7 h |
+| `PullCleanup` | `PullCleanupParams{Site, ReleaseID}` → `{"removed": n}` | Sites, 1 min |
 
 The server has validated the site and holds its lock, so no deploy, restore,
 staging push or second migration runs on the site meanwhile. The handler
@@ -277,6 +280,43 @@ work directory, which is always removed.
 total size, `Skipped` the entries not created (unsafe links, special files,
 links removed because they leave the source). The API reports the skipped
 count with the task.
+
+## 8. Pulling from another host (#82)
+
+`PullParams{Site, Host, Port, User, Password | PrivateKey, HostKey, Path,
+DB, SQLPath, ReleaseID}` (internal/api SPEC §10.1). The agent connects with
+`golang.org/x/crypto/ssh` (password, keyboard-interactive answering the
+password, or the key, held in memory: never written to a file) and
+`github.com/pkg/sftp`, with a 30 s dial timeout. `HostKey`, when given, must
+be the SHA-256 fingerprint of the key the host shows (`ssh.FingerprintSHA256`),
+else the call fails before authenticating; the fingerprint seen is always
+in the result.
+
+- **Walk.** `Path` is resolved once (`RealPath`, so a `current` link names
+  its release) and walked with `Lstat`: directories, regular files and
+  symlinks (kept as links; the import decides what to do with them, §3);
+  anything else is skipped. The counts stop at `Limits.MaxEntries`/
+  `MaxFiles`/`MaxBytes` (→ `invalid`, "the old site is larger than a
+  migration takes").
+- **PullEstimate** returns the counts, whether `wp-config.php` is in the
+  folder, whether a shell answers (`DB` `dump` only: `exit 0` run in a
+  session), the free space of the site's filesystem and whether the files
+  and twice their size for the import fit with `Limits.Reserve` left.
+- **PullMigration** checks the same space first, then writes
+  `tmp/cg-pull-<release>.tar.gz` through the site's `sitefs.Root` (the site
+  user's, created new: a name already there is refused), a gzip'd tar of
+  the walk with names relative to the folder; with `DB` `file` it copies
+  `SQLPath` to `tmp/cg-pull-<release>.sql`; with `dump` it reads
+  `wp-config.php` over SFTP (at most 1 MiB), takes `DB_NAME`, `DB_USER`,
+  `DB_PASSWORD` and `DB_HOST` from its `define()` lines (missing → `invalid`)
+  and runs `mysqldump --defaults-extra-file=/dev/stdin --single-transaction
+  --quick --no-tablespaces --default-character-set=utf8mb4 -h <host> [-P
+  <port>] <name>` in a session, the `[client]` user and password written to
+  its standard input, its output streamed to that `.sql` (the arguments
+  single-quoted for the remote shell). A failure removes what was written.
+  The result names the two paths, relative to the site's root.
+- **PullCleanup** removes `tmp/cg-pull-<release>.*` of the site (a missing
+  one is no error).
 
 ## 7. Tests
 

@@ -650,6 +650,8 @@ func TestRouteBodyLimitsArePinned(t *testing.T) {
 		"POST /api/account/whats-new":                  smallBody,
 		"POST /api/users":                              smallBody,
 		"POST /api/users/{id}/password":                smallBody,
+		"POST /api/sites/{id}/migration/pull/estimate": pullBody,
+		"POST /api/sites/{id}/migration/pull":          pullBody,
 		"POST /api/tokens":                             smallBody,
 		"POST /api/backups/{id}/archive":               smallBody,
 		"PUT /api/sites/{id}/backups/policy":           smallBody,

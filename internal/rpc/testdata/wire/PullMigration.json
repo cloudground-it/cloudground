@@ -1,0 +1,38 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "host": "Host",
+      "port": 7,
+      "user": "User",
+      "password": "Password",
+      "private_key": "PrivateKey",
+      "host_key": "HostKey",
+      "path": "Path",
+      "db": "DB",
+      "sql_path": "SQLPath",
+      "release_id": "ReleaseID"
+    },
+    "zero": {
+      "site": "@state.Site",
+      "host": "",
+      "user": "",
+      "path": ""
+    }
+  },
+  "result": {
+    "full": {
+      "archive": "Archive",
+      "sql": "SQL",
+      "files": 7,
+      "bytes": 7,
+      "host_key": "HostKey"
+    },
+    "zero": {
+      "archive": "",
+      "files": 0,
+      "bytes": 0,
+      "host_key": ""
+    }
+  }
+}
