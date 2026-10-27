@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,6 +21,9 @@ type request struct {
 	body         any
 	siteSummary  bool
 	warnings     []string
+	// download: the answer is a file, streamed to this path ("-" for the
+	// standard output) instead of printed as JSON (#84).
+	download string
 }
 
 // command maps words on the command line to an API call.
@@ -111,6 +115,32 @@ func buildCleanup(a []string) (request, error) {
 		return request{method: "PUT", path: path, body: body}, nil
 	}
 	return request{}, fmt.Errorf("%q is not on, off, preview or run", a[1])
+}
+
+// logFileRe is a log the panel lets a site's managers download
+// (rpc.ValidSiteLogName); a name that is not one is a usage error here, so it
+// is also never a path to write to.
+var logFileRe = regexp.MustCompile(`^(access|error)\.log(\.[0-9]{1,3})?(\.gz)?$`)
+
+// buildLogs is `logs <site-id> [<file> [<output>|-]]` (#84): the logs a site
+// has, or one downloaded to a file of the same name in the current directory
+// (never over a file that exists).
+func buildLogs(a []string) (request, error) {
+	n, err := id(a[0])
+	if err != nil {
+		return request{}, err
+	}
+	if len(a) == 1 {
+		return request{method: "GET", path: fmt.Sprintf("/api/sites/%s/logs/files", n)}, nil
+	}
+	if !logFileRe.MatchString(a[1]) {
+		return request{}, fmt.Errorf("%q is not a log: access.log, access.log.1, access.log.2.gz, error.log, …", a[1])
+	}
+	out := a[1]
+	if len(a) > 2 {
+		out = a[2]
+	}
+	return request{method: "GET", path: fmt.Sprintf("/api/sites/%s/logs/download?file=%s", n, a[1]), download: out}, nil
 }
 
 var commands = []command{
@@ -238,6 +268,8 @@ var commands = []command{
 		}
 		return body, nil
 	})},
+	// A site's whole access and error logs, current and rotated (#84).
+	{words: []string{"logs"}, args: "<site-id> [<file> [<output>|-]]", min: 1, max: 3, build: buildLogs},
 	// A WordPress site's scheduled database cleanup (#78).
 	{words: []string{"cleanup"}, args: "<site-id> <on [keep-revisions]|off|preview|run>", min: 2, max: 3, build: buildCleanup},
 	{words: []string{"blocklist", "block"}, args: "<address-or-cidr> [minutes]", min: 1, max: 2, password: true, build: blockRequest("POST", "/api/blocklist/blocks")},

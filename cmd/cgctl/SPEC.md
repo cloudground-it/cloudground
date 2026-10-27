@@ -157,6 +157,21 @@ bypassed for 15, 30 or 60 minutes, `off` ends it now (`0`). Any other length is 
 given, `"message"`: the site answers visitors with a 503 page and Retry-After, or stops doing so.
 Anything but `on` or `off` is a usage error (exit 2). The answer is the page's settings, with the
 `preview_url` while it is on, printed as §3.
+## 6.6c logs (#84)
+
+    cgctl logs <site-id>
+    cgctl logs <site-id> <file> [<output>|-]
+
+The first is `GET /api/sites/{id}/logs/files` (internal/api SPEC §3.19), the site's downloadable
+logs, printed as §3. The second downloads one: `<file>` is `access.log`, `access.log.1`,
+`access.log.2.gz`, `error.log`, … (anything else is a usage error, exit 2, so a name is never a
+path), streamed from `GET /api/sites/{id}/logs/download?file=` to `<output>`, which is the file's
+own name in the current directory unless given, or to the standard output for `-`. Unlike every other
+command the answer is not JSON and is not held in memory, so a log of any size is written as it
+arrives (`--timeout`, an hour unless given, bounds it, not the client's minute). `<output>` is created
+and never overwritten (an existing file is an error, exit 1); a download that fails or stops short is
+removed. The panel refuses it unless the account manages the site.
+
 ## 6.7 cleanup (#78)
 
     cgctl cleanup <site-id> on [keep-revisions]

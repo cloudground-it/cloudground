@@ -117,6 +117,29 @@ Files (`tailFile`):
   first line is dropped; then the last `lines` lines; each line over 8 KiB is
   cut to 8 KiB plus ` …(line truncated)`.
 
+## 3b. Site log downloads (#84)
+
+`ListSiteLogs` `{site}` → `{files: [{name, size, modified}]}` and `ReadSiteLogChunk` `{site, name,
+offset, length}` → `{data, size}`, both read-only, `Sites: true` (the server validates the site;
+the directory is `<LogRoot>/<site.Domain>`).
+
+- **Names.** Only `rpc.ValidSiteLogName`: `access.log` or `error.log`, then optionally `.<1-3 digits>` and
+  `.gz` (what nginx writes and logrotate leaves: `access.log.1`, `access.log.2.gz`, …). The name has no
+  slash or dot segment, so it cannot leave the directory; `ReadSiteLogChunk` refuses anything else as
+  `invalid` (the parameter's `Validate` and again in the handler). `php-error.log`, `cleanup.log`,
+  `.bak` copies and every other file are not offered.
+- **The directory** must be a real directory (`Lstat`, not a link); a missing one lists no files and
+  reads as `not_found`. The file is opened through `os.Root` of that directory (nothing can resolve
+  outside it, links included), must be a regular file by `Lstat` and again by `Stat` of the open
+  descriptor, and is opened `O_NOFOLLOW|O_NONBLOCK` (a FIFO cannot hang the agent). A link or other
+  file at a log's name is `invalid`, and not listed.
+- **List.** Regular files only, current logs first (`access.log`, `error.log`), then each kind's
+  rotated files from the newest rotation (`access.log.1`, `access.log.2.gz`, …, then `error.log.*`);
+  sizes and times from `Lstat`. No files is `[]`.
+- **Read.** `length` 1 byte to 4 MiB (`rpc.MaxSiteLogChunk`) from a non-negative offset; the result
+  is at most that many bytes from `offset` and the file's size at that moment. An offset at or past
+  the end answers no bytes (a `copytruncate` rotation may have emptied the live log meanwhile).
+
 ## 4. Firewall
 
 `FirewallStatus` → `{enabled, rules}` from `host.Firewall.Status` (`ufw

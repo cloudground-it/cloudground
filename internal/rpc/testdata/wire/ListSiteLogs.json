@@ -1,0 +1,24 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site"
+    },
+    "zero": {
+      "site": "@state.Site"
+    }
+  },
+  "result": {
+    "full": {
+      "files": [
+        {
+          "name": "Name",
+          "size": 7,
+          "modified": "2026-01-02T03:04:05Z"
+        }
+      ]
+    },
+    "zero": {
+      "files": null
+    }
+  }
+}

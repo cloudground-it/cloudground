@@ -65,6 +65,8 @@ func (o *Ops) Register(s *agentrpc.Server) {
 	})
 	agentrpc.Handle(s, agentrpc.RestartService, o.RestartService)
 	agentrpc.Handle(s, agentrpc.TailLog, o.TailLog)
+	agentrpc.Handle(s, agentrpc.ListSiteLogs, o.ListSiteLogs)
+	agentrpc.Handle(s, agentrpc.ReadSiteLogChunk, o.ReadSiteLogChunk)
 	agentrpc.Handle(s, agentrpc.FirewallStatus, func(ctx context.Context, _ agentrpc.None) (rpc.FirewallStatusResult, error) {
 		return o.FirewallStatus(ctx)
 	})

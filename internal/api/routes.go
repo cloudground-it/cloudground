@@ -157,6 +157,10 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "APCu hits, misses and memory in use"},
 		{Method: get, Path: "/api/sites/{id}/logs", Query: "source=", Policy: policySignedIn, Load: loadSite, Handle: s.handleSiteLog,
 			Section: secSites, Doc: "tail one of the site's own logs: `access`, `error`, `php` or `cleanup`"},
+		{Method: get, Path: "/api/sites/{id}/logs/files", Policy: policyManage, Load: loadSite, Handle: s.handleListSiteLogs,
+			Section: secSites, Doc: "the site's access and error logs that can be downloaded, current and rotated (`files`: `name`, `size`, `modified`)"},
+		{Method: get, Path: "/api/sites/{id}/logs/download", Query: "file=", Policy: policyManage, Load: loadSite, Handle: s.handleDownloadSiteLog,
+			Section: secSites, Doc: "download one log in full, streamed (`file` is `access.log`, `access.log.1`, `access.log.2.gz`, `error.log`, …; a rotated one has its length, the current one is sent as it is); audited"},
 		{Method: post, Path: "/api/sites/{id}/migration", Policy: policyManage, Load: loadSite, Handle: s.handleImportMigration,
 			Section: secSites, Doc: "bring in a site from a files archive and a SQL dump"},
 

@@ -219,6 +219,8 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `POST` | `/api/sites/{id}/wp/cleanup/run` | manage | clean the database now (a dry run is logged first, a tested snapshot is taken before a site's first cleanup) — returns `202` and a task; 412 without backups configured |
 | `GET` | `/api/sites/{id}/cache-stats` | auth | APCu hits, misses and memory in use |
 | `GET` | `/api/sites/{id}/logs?source=` | auth | tail one of the site's own logs: `access`, `error`, `php` or `cleanup` |
+| `GET` | `/api/sites/{id}/logs/files` | manage | the site's access and error logs that can be downloaded, current and rotated (`files`: `name`, `size`, `modified`) |
+| `GET` | `/api/sites/{id}/logs/download?file=` | manage | download one log in full, streamed (`file` is `access.log`, `access.log.1`, `access.log.2.gz`, `error.log`, …; a rotated one has its length, the current one is sent as it is); audited |
 | `POST` | `/api/sites/{id}/migration` | manage | bring in a site from a files archive and a SQL dump |
 | `GET` | `/api/sites/{id}/usage` | auth | the site's resource usage for `range` `24h` (five-minute samples) or `30d` (hourly averages, with the hour's CPU peak): CPU as a share of its allowance, memory, IO and disk; its effective `limits`; the `latest` sample |
 | `GET` | `/api/sites/{id}/vulnerabilities` | auth | a WordPress site's last vulnerability check: `enabled` (the panel's switch), `checked`, `checked_at`, `attempted_at`, `error`, `core`, `components` and the `findings` (`component`, `slug`, `version`, `title`, `severity`, `cve`, `fixed_in`, `unfixed`, `link`); `source` names the database |

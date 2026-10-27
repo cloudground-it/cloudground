@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -110,6 +111,63 @@ func (p *panel) do(ctx context.Context, r request) ([]byte, error) {
 	return out, nil
 }
 
+// downloadTo makes the request and streams the answer to the file named by
+// r.download ("-" is stdout), whatever its size. A file that exists is not
+// overwritten, and one that was started and failed is removed.
+func (p *panel) downloadTo(ctx context.Context, r request, timeout time.Duration, stdout, stderr io.Writer) int {
+	// The client's own minute is for API answers; a log is as long as it is
+	// (--timeout, an hour unless given, bounds it).
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	hc := *p.http
+	hc.Timeout = 0
+	req, err := http.NewRequestWithContext(ctx, r.method, p.base+r.path, nil)
+	if err != nil {
+		fmt.Fprintln(stderr, "cgctl:", err)
+		return exitFailed
+	}
+	if p.token != "" {
+		req.Header.Set("Authorization", "Bearer "+p.token)
+	}
+	resp, err := hc.Do(req)
+	if err != nil {
+		fmt.Fprintln(stderr, "cgctl:", err)
+		return exitFailed
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		fmt.Fprintln(stderr, "cgctl:", &apiError{resp.StatusCode, body})
+		return exitFailed
+	}
+	if r.download == "-" {
+		if _, err := io.Copy(stdout, resp.Body); err != nil {
+			fmt.Fprintln(stderr, "cgctl:", err)
+			return exitFailed
+		}
+		return exitOK
+	}
+	f, err := os.OpenFile(r.download, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		fmt.Fprintln(stderr, "cgctl:", err)
+		return exitFailed
+	}
+	n, err := io.Copy(f, resp.Body)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil && resp.ContentLength >= 0 && n != resp.ContentLength {
+		err = fmt.Errorf("the download stopped after %d of %d bytes", n, resp.ContentLength)
+	}
+	if err != nil {
+		os.Remove(r.download)
+		fmt.Fprintln(stderr, "cgctl:", err)
+		return exitFailed
+	}
+	fmt.Fprintf(stderr, "cgctl: %s written (%d bytes)\n", r.download, n)
+	return exitOK
+}
+
 // authenticate picks the credential (SPEC.md §2): the token, unless the
 // command needs a password session; else email and password.
 func (p *panel) authenticate(ctx context.Context, cfg *config.Config, needsPassword bool) error {
@@ -144,6 +202,9 @@ func execute(cfg *config.Config, inv invocation, stdout, stderr io.Writer) int {
 	if err := p.authenticate(ctx, cfg, inv.cmd.password); err != nil {
 		fmt.Fprintln(stderr, "cgctl:", err)
 		return exitFailed
+	}
+	if inv.req.download != "" {
+		return p.downloadTo(ctx, inv.req, inv.timeout, stdout, stderr)
 	}
 	out, err := p.do(ctx, inv.req)
 	if err != nil {

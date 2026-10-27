@@ -1168,6 +1168,29 @@ Monday 00:00 UTC, has passed since it was last queued (`wpcleanup:site:<id>`). A
 sees for the first time is only noted, as the malware scan does: turning the schedule on does not
 clean at once (Clean now is there for that). A job that fails is an alert, as any task.
 
+### 3.19 Log downloads (#84, `site_logs.go`)
+
+The log viewer (`GET /api/sites/{id}/logs`, any signed-in account that can see the site) shows the last
+lines. For the accounts that manage the site (`manage`: administrators and the site's operators; not
+read-only accounts, who get 403) there are the whole files:
+
+- `GET /api/sites/{id}/logs/files` → 200 `{files: [{name, size, modified}]}`: the site's access and
+  error logs, current first, then rotated ones, compressed or not (agent `ListSiteLogs`,
+  internal/agent/ops/system SPEC §3b).
+- `GET /api/sites/{id}/logs/download?file=<name>`: the log streamed (agent `ReadSiteLogChunk`, one 4 MiB
+  chunk at a time: the API never holds more). `file` is `rpc.ValidSiteLogName` (`access.log`,
+  `access.log.1`, `access.log.2.gz`, `error.log`, …), else **400** before the agent is asked: no
+  slash, dot segment or other file can be named, and the directory is always the one of the site in the
+  route (an extra `site` or `domain` query is ignored). A log that is not there is **404**
+  `no such log`. The answer has `Content-Disposition: attachment; filename="<domain>-<name>"`,
+  `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Content-Type: application/gzip` for
+  `.gz` and `text/plain` otherwise. A rotated file (`….log.<n>…`) has its `Content-Length`; the
+  current one has none, since nginx is writing it, and is read until the agent has no more bytes. A
+  failure after the first chunk ends the body short (the headers are gone).
+
+Audit `site.logs.download`, subject the domain, detail the file name, written when the first chunk has
+been read. `cgctl logs` is the command-line form (cmd/cgctl SPEC §6.6c).
+
 ### 3.11 Tests
 
 `site_service_test.go` (the services without HTTP: create's defaults and
