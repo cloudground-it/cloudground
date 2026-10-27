@@ -117,7 +117,7 @@ internal/api/system_updates.go         ubuntu updates
 internal/api/drift_service.go          wordpress status and drift, security, R-0.7 reconcile
 internal/api/site_wordpress.go         woocommerce, wordpress cache, wordpress sftp, wordpress backups, migration import, wordpress releases, wordpress updates
 internal/api/wp_updates.go             wordpress updates
-internal/api/users.go                  security, R-4.3 accounts
+internal/api/users.go                  security, R-4.3 accounts, panel passkeys
 # The suite never reaches the release feed; it checks the channel it reports.
 internal/api/release_check.go          R-6.3 release channel
 internal/api/studio*.go                F4b Quarry, F9b Quarry service, SR tenant data
@@ -135,6 +135,13 @@ internal/jobs/**                       ALL
 # account exercise (every section signs in, so a queue that blocked every
 # sign-in would stop the run at its first login).
 internal/accounts/attempt.go           R-4.3 sign-in review, R-4.3 accounts, security
+# Passkeys, recovery codes and the proof that changes a factor (#156): a
+# sign-in with neither still goes through the password path every section
+# takes, which the catch-all below keeps.
+internal/accounts/passkeys.go          panel passkeys
+internal/accounts/softkey/**           panel passkeys
+internal/accounts/recovery.go          panel passkeys, R-4.3 accounts
+internal/accounts/proof.go             panel passkeys, R-4.3 accounts
 # Sign-in, sessions and the limits: every section signs in.
 internal/accounts/**                   ALL
 internal/throttle/**                   ALL

@@ -103,6 +103,7 @@ var sections = []section{
 	{name: "R-5.4 routing", run: (*harness).routing, lane: "routing"},
 	{name: "R-4.3 accounts", run: (*harness).accounts},
 	{name: "R-4.3 sign-in review", run: (*harness).signinReview},
+	{name: "panel passkeys", run: (*harness).panelPasskeys},
 	{name: "R-4.3 site settings", run: (*harness).siteSettings, lane: "settings"},
 	{name: "dev mode", run: (*harness).devMode, lane: "dev mode"},
 	{name: "maintenance page", run: (*harness).maintenancePage, lane: "maintenance page"},
