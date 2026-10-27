@@ -413,7 +413,9 @@ func (v *vhost) render() (before, block, after string) {
 			`location ~* \.(css|js|mjs|jpg|jpeg|png|gif|webp|avif|svg|ico|woff|woff2|ttf|eot|otf|mp4|webm|pdf)$ {`)
 		c.put(2, "expires 30d;", `add_header Cache-Control "public, immutable";`)
 		v.headers(&c)
-		c.put(2, "access_log off;",
+		c.put(2, "# A served asset is not worth a log line; one that failed (a missing",
+			"# image) is, for the traffic statistics' not-found list (#33).",
+			"access_log "+v.in.LogDir+"/access.log cloudground buffer=64k flush=1s if=$cg_asset_failed;",
 			"# A deploy writes .gz copies; send those rather than gzip each time.",
 			"gzip_static on;", "try_files $uri =404;")
 		c.put(1, "}")
