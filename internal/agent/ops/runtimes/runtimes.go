@@ -201,7 +201,14 @@ func (o *Ops) Prepare(ctx context.Context, s state.Site, dir string) (string, er
 	if !have.Has(rt.Of(s.Type), s.Config.App.Version) {
 		return "", agentrpc.Invalid("%s %s is not installed on this server", rt.Label(rt.Of(s.Type)), s.Config.App.Version)
 	}
-	svc := PrepareService(s, dir)
+	return o.Run(ctx, PrepareService(s, dir), "the app's dependencies")
+}
+
+// Run runs a dependency step's transient service and waits for it: its
+// output (the last 4 KiB), and a failed step refused as invalid with that
+// output; what names the step in the message. Functions run theirs here
+// too (ops/functions SPEC §2).
+func (o *Ops) Run(ctx context.Context, svc host.Service, what string) (string, error) {
 	out := host.NewTailBuffer(outputLimit)
 	res, err := o.Exec.Run(ctx, host.Cmd{Name: "systemd-run", Args: host.ServiceArgs(svc), Env: commandEnv, Stdout: out, Timeout: prepareLimit + time.Minute})
 	if err != nil && ctx.Err() != nil {
@@ -219,7 +226,7 @@ func (o *Ops) Prepare(ctx context.Context, s state.Site, dir string) (string, er
 		if text == "" {
 			text = strings.TrimSpace(string(res.Stderr))
 		}
-		return text, agentrpc.Invalid("installing the app's dependencies failed: %s", text)
+		return text, agentrpc.Invalid("installing %s failed: %s", what, text)
 	}
 	return text, fmt.Errorf("run the dependency step: %w", err)
 }

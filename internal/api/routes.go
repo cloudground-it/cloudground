@@ -23,6 +23,7 @@ const (
 	secTasks    = "Tasks and events"
 	secConn     = "Connector"
 	secMCP      = "Assistants (MCP)"
+	secFn       = "Functions"
 )
 
 // Body limits that differ from defaultMaxBody (SPEC.md §1.6).
@@ -38,6 +39,7 @@ const (
 	passkeyBody    = 64 << 10 // a new passkey's attestation, which may carry certificates
 	mcpBody        = 64 << 10 // an MCP client's metadata or one JSON-RPC message
 	pullBody       = 64 << 10 // an old host's address and a private key
+	fnBody         = 2 << 20  // a function's code: 1 MiB of files, as JSON
 )
 
 // routeTable is every route the panel serves (SPEC.md §1). Routes and
@@ -158,6 +160,35 @@ func (s *Server) routeTable() []route {
 		{Method: post, Path: "/api/mcp/actions/{id}/reject", Policy: policySignedIn, SessionOnly: true, MaxBody: smallBody, Handle: s.handleMCPRejectAction,
 			Section: secMCP, Doc: "reject one"},
 
+		// Standalone functions (functions.go, functions_domain.go; SPEC.md
+		// §17): a server-wide resource, read by global, changed by admins.
+		{Method: get, Path: "/api/functions", Policy: policyGlobal, Handle: s.handleListFunctions,
+			Section: secFn, Doc: "every function (`id`, `name`, `runtime`, `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets` (names), `auth`, `cors_origins`, `domains`, `release`, `urls`, `has_token`, `last` invocation) and the functions `domain`"},
+		{Method: post, Path: "/api/functions", Policy: policyAdmin, MaxBody: fnBody, Handle: s.handleCreateFunction,
+			Section: secFn, Doc: "create a function (`{\"name\": \"hello\", \"runtime\": \"node\", \"version\": \"22\", \"memory_mb\": 128, \"timeout_sec\": 10, \"schedule\": \"\", \"auth\": \"public\", \"cors_origins\": [], \"files\": {\"index.js\": \"…\"}, \"env\": {}, \"secrets\": {}}`; without code, the starter of `template`, `http` or `scheduled`); 201, with `token` once when `auth` is `token`"},
+		{Method: get, Path: "/api/functions/{name}", Policy: policyGlobal, Handle: s.handleGetFunction,
+			Section: secFn, Doc: "a function with its live `files`, `entry`, `release` and `releases`"},
+		{Method: put, Path: "/api/functions/{name}", Policy: policyAdmin, MaxBody: fnBody, Handle: s.handleUpdateFunction,
+			Section: secFn, Doc: "change a function (any of `files` or `code`, a new release; `version`, `memory_mb`, `timeout_sec`, `schedule`, `auth`, `cors_origins`, `env`, `secrets`)"},
+		{Method: del, Path: "/api/functions/{name}", Policy: policyAdmin, Handle: s.handleDeleteFunction,
+			Section: secFn, Doc: "delete a function: its routes, units, user, code, logs, certificate and secrets"},
+		{Method: post, Path: "/api/functions/{name}/rollback", Policy: policyAdmin, MaxBody: smallBody, Handle: s.handleRollbackFunction,
+			Section: secFn, Doc: "go back to the release before the live one, or to `{\"release\": \"…\"}`"},
+		{Method: post, Path: "/api/functions/{name}/invoke", Policy: policyAdmin, MaxBody: 128 << 10, Handle: s.handleInvokeFunction,
+			Section: secFn, Doc: "run the function once through nginx (`{\"method\": \"POST\", \"path\": \"/\", \"body\": \"…\"}`): `{status, ms, body, error}`"},
+		{Method: get, Path: "/api/functions/{name}/logs", Policy: policyGlobal, Handle: s.handleFunctionLogs,
+			Section: secFn, Doc: "the function's recent `invocations` (time, method, path, status, ms, source) and its `output`"},
+		{Method: post, Path: "/api/functions/{name}/token", Policy: policyAdmin, Handle: s.handleFunctionToken,
+			Section: secFn, Doc: "a new bearer token, shown once (`{token}`); the old one is refused from now on"},
+		{Method: put, Path: "/api/functions/{name}/domains", Policy: policyAdmin, MaxBody: smallBody, Handle: s.handleSetFunctionDomains,
+			Section: secFn, Doc: "the function's own domains (`{\"domains\": [\"api.example.com\"]}`), each answering it at `/`; a name another site, function or the panel holds → 409; the certificate's `task`"},
+		{Method: get, Path: "/api/functions/{name}/domains/status", Policy: policyGlobal, Handle: s.handleFunctionDomainsStatus,
+			Section: secFn, Doc: "each own domain's DNS check and the domains' certificate"},
+		{Method: get, Path: "/api/functions/domain/status", Policy: policyGlobal, Handle: s.handleFunctionsDomainStatus,
+			Section: secFn, Doc: "the functions domain (`domain`), its DNS check, its certificate, whether an ACME e-mail is set"},
+		{Method: put, Path: "/api/functions/domain", Policy: policyAdmin, MaxBody: smallBody, Handle: s.handleSetFunctionsDomain,
+			Section: secFn, Doc: "set the functions domain (`{\"domain\": \"fn.example.com\"}`, `\"\"` clears it): every function at `https://<domain>/<name>`; the certificate's `task`"},
+
 		// API tokens for cgctl and scripts (apitokens.go): managed from a
 		// signed-in session only.
 		{Method: get, Path: "/api/tokens", Policy: policyAdmin, SessionOnly: true, Handle: plain(s.handleListAPITokens),
@@ -224,22 +255,6 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "the app's unit (`active`, `state`, `since`, `restarts`, `last_exit`) and its health probe (`health {status, ms, error}`)"},
 		{Method: post, Path: "/api/sites/{id}/app/restart", Policy: policyManage, Load: loadSite, Handle: s.handleAppRestart,
 			Section: secSites, Doc: "restart the app; answers its status"},
-		{Method: get, Path: "/api/sites/{id}/functions", Policy: policySignedIn, Load: loadSite, Handle: s.handleListFunctions,
-			Section: secSites, Doc: "the site's functions (Lambda-style handlers at `https://<domain>/.functions/<name>`): `name`, `runtime`, `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets` (names), `release`, `url`"},
-		{Method: post, Path: "/api/sites/{id}/functions", Policy: policyManage, MaxBody: appBody, Load: loadSite, Handle: s.handleCreateFunction,
-			Section: secSites, Doc: "create a function (`{\"name\": \"hello\", \"runtime\": \"node\", \"version\": \"22\", \"memory_mb\": 128, \"timeout_sec\": 10, \"schedule\": \"*/5 * * * *\", \"code\": \"…\", \"env\": {}, \"secrets\": {}}`; without code, a starter that echoes the request); 201"},
-		{Method: get, Path: "/api/sites/{id}/functions/{name}", Policy: policySignedIn, Load: loadSite, Handle: s.handleGetFunction,
-			Section: secSites, Doc: "a function with its live `code`, `release` and `releases`"},
-		{Method: put, Path: "/api/sites/{id}/functions/{name}", Policy: policyManage, MaxBody: appBody, Load: loadSite, Handle: s.handleUpdateFunction,
-			Section: secSites, Doc: "change a function (any of `code`, a new release; `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets`)"},
-		{Method: del, Path: "/api/sites/{id}/functions/{name}", Policy: policyManage, Load: loadSite, Handle: s.handleDeleteFunction,
-			Section: secSites, Doc: "delete a function: its route, units, code and secrets"},
-		{Method: post, Path: "/api/sites/{id}/functions/{name}/rollback", Policy: policyManage, MaxBody: smallBody, Load: loadSite, Handle: s.handleRollbackFunction,
-			Section: secSites, Doc: "put the previous release of the code back live (`{\"release\": …}` for a given one)"},
-		{Method: post, Path: "/api/sites/{id}/functions/{name}/invoke", Policy: policyManage, MaxBody: 128 << 10, Load: loadSite, Handle: s.handleInvokeFunction,
-			Section: secSites, Doc: "run the function once through nginx (`{\"body\": \"…\"}`): `{status, ms, body, error}`"},
-		{Method: get, Path: "/api/sites/{id}/functions/{name}/logs", Policy: policySignedIn, Load: loadSite, Handle: s.handleFunctionLogs,
-			Section: secSites, Doc: "the function's recent `invocations` (time, method, status, ms, source) and its `output`"},
 		{Method: post, Path: "/api/sites/{id}/purge", Policy: policyManage, Load: loadSite, Handle: s.handlePurge,
 			Section: secSites, Doc: "empty the site's page cache (`{\"urls\": […]}` for some pages only); for a site with a Cloudflare zone, Cloudflare's too (`cdn`: `purged` or `failed`, with `cdn_error`)"},
 		{Method: post, Path: "/api/sites/{id}/warm", Policy: policyManage, Load: loadSite, Handle: s.handleWarmCache,

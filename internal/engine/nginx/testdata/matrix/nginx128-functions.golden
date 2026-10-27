@@ -1,0 +1,392 @@
+## /etc/nginx/sites-enabled/cloudground-fn-1.conf
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+# The function hello (id 1) on its own domains (SPEC §8.3).
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.example.test api2.example.test;
+    server_tokens off;
+    location /.well-known/acme-challenge/ { root /srv/cgt/acme; }
+    location / { return 301 https://$host$request_uri; }
+}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name api.example.test api2.example.test;
+    server_tokens off;
+    ssl_certificate /srv/cgt/fallback/cert.pem;
+    ssl_certificate_key /srv/cgt/fallback/key.pem;
+    location / {
+        set $cg_fn_id 1;
+        set $cg_fn_client "$binary_remote_addr 1";
+        if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin $cg_fn_cors_1 always;
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+            add_header Access-Control-Allow-Headers $http_access_control_request_headers always;
+            add_header Access-Control-Max-Age 600 always;
+            add_header Vary Origin always;
+            return 204;
+        }
+        default_type application/json;
+        access_log /var/log/cloudground/functions/hello.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/1.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source "";
+        proxy_set_header X-CloudGround-Prefix "";
+        proxy_read_timeout 15s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+        add_header Access-Control-Allow-Origin $cg_fn_cors_1 always;
+        add_header Vary Origin always;
+    }
+}
+## /etc/nginx/sites-enabled/cloudground-functions-internal.conf
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+# Every function's bounds (SPEC §8.4): keyed per function by $cg_fn_id and
+# per client and function by $cg_fn_client, both set in its locations.
+limit_req_zone $cg_fn_client zone=cg_fn_req:4m rate=10r/s;
+limit_conn_zone $cg_fn_client zone=cg_fn_conn:4m;
+limit_conn_zone $cg_fn_id zone=cg_fn_all:1m;
+
+# The origins function hello answers (SPEC §8.5).
+map $http_origin $cg_fn_cors_1 {
+    default "";
+    "https://app.example.test" "https://app.example.test";
+    "http://localhost:3000" "http://localhost:3000";
+}
+
+# The origins function open answers (SPEC §8.5).
+map $http_origin $cg_fn_cors_3 {
+    default "*";
+}
+
+server {
+    # The agent's own invocations (test runs and schedules): plain HTTP on a
+    # unix socket in a directory only root can enter (SPEC §8.2). No token.
+    listen unix:/var/lib/cloudground-agent/nginx-functions.sock;
+    server_name cloudground-functions;
+    server_tokens off;
+    access_log off;
+    location = /hello {
+        set $cg_fn_id 1;
+        set $cg_fn_client "$binary_remote_addr 1";
+        default_type application/json;
+        access_log /var/log/cloudground/functions/hello.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/1.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source $http_x_cloudground_source;
+        proxy_set_header X-CloudGround-Prefix /hello;
+        proxy_read_timeout 15s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+    }
+    location ^~ /hello/ {
+        set $cg_fn_id 1;
+        set $cg_fn_client "$binary_remote_addr 1";
+        default_type application/json;
+        access_log /var/log/cloudground/functions/hello.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/1.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source $http_x_cloudground_source;
+        proxy_set_header X-CloudGround-Prefix /hello;
+        proxy_read_timeout 15s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+    }
+    location = /stripe-hook {
+        set $cg_fn_id 2;
+        set $cg_fn_client "$binary_remote_addr 2";
+        default_type application/json;
+        access_log /var/log/cloudground/functions/stripe-hook.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/2.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source $http_x_cloudground_source;
+        proxy_set_header X-CloudGround-Prefix /stripe-hook;
+        proxy_read_timeout 35s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+    }
+    location ^~ /stripe-hook/ {
+        set $cg_fn_id 2;
+        set $cg_fn_client "$binary_remote_addr 2";
+        default_type application/json;
+        access_log /var/log/cloudground/functions/stripe-hook.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/2.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source $http_x_cloudground_source;
+        proxy_set_header X-CloudGround-Prefix /stripe-hook;
+        proxy_read_timeout 35s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+    }
+    location = /open {
+        set $cg_fn_id 3;
+        set $cg_fn_client "$binary_remote_addr 3";
+        default_type application/json;
+        access_log /var/log/cloudground/functions/open.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/3.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source $http_x_cloudground_source;
+        proxy_set_header X-CloudGround-Prefix /open;
+        proxy_read_timeout 15s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+    }
+    location ^~ /open/ {
+        set $cg_fn_id 3;
+        set $cg_fn_client "$binary_remote_addr 3";
+        default_type application/json;
+        access_log /var/log/cloudground/functions/open.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/3.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source $http_x_cloudground_source;
+        proxy_set_header X-CloudGround-Prefix /open;
+        proxy_read_timeout 15s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+    }
+    location / {
+        default_type application/json;
+        return 404 '{"error":"no such function"}\n';
+    }
+}
+## /etc/nginx/sites-enabled/cloudground-functions.conf
+# Managed by CloudGround — do not edit. Changes are detected as drift.
+# The functions domain (SPEC §8.3): every function at https://fn.example.test/<name>.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name fn.example.test;
+    server_tokens off;
+    location /.well-known/acme-challenge/ { root /srv/cgt/acme; }
+    location / { return 301 https://$host$request_uri; }
+}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name fn.example.test;
+    server_tokens off;
+    ssl_certificate /srv/cgt/fallback/cert.pem;
+    ssl_certificate_key /srv/cgt/fallback/key.pem;
+    location = /hello {
+        set $cg_fn_id 1;
+        set $cg_fn_client "$binary_remote_addr 1";
+        if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin $cg_fn_cors_1 always;
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+            add_header Access-Control-Allow-Headers $http_access_control_request_headers always;
+            add_header Access-Control-Max-Age 600 always;
+            add_header Vary Origin always;
+            return 204;
+        }
+        default_type application/json;
+        access_log /var/log/cloudground/functions/hello.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/1.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source "";
+        proxy_set_header X-CloudGround-Prefix /hello;
+        proxy_read_timeout 15s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+        add_header Access-Control-Allow-Origin $cg_fn_cors_1 always;
+        add_header Vary Origin always;
+    }
+    location ^~ /hello/ {
+        set $cg_fn_id 1;
+        set $cg_fn_client "$binary_remote_addr 1";
+        if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin $cg_fn_cors_1 always;
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+            add_header Access-Control-Allow-Headers $http_access_control_request_headers always;
+            add_header Access-Control-Max-Age 600 always;
+            add_header Vary Origin always;
+            return 204;
+        }
+        default_type application/json;
+        access_log /var/log/cloudground/functions/hello.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/1.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source "";
+        proxy_set_header X-CloudGround-Prefix /hello;
+        proxy_read_timeout 15s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+        add_header Access-Control-Allow-Origin $cg_fn_cors_1 always;
+        add_header Vary Origin always;
+    }
+    location = /stripe-hook {
+        set $cg_fn_id 2;
+        set $cg_fn_client "$binary_remote_addr 2";
+        default_type application/json;
+        if ($http_authorization != "Bearer cgf_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA") {
+            return 401 '{"error":"a valid bearer token is required"}\n';
+        }
+        access_log /var/log/cloudground/functions/stripe-hook.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/2.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source "";
+        proxy_set_header X-CloudGround-Prefix /stripe-hook;
+        proxy_read_timeout 35s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+    }
+    location ^~ /stripe-hook/ {
+        set $cg_fn_id 2;
+        set $cg_fn_client "$binary_remote_addr 2";
+        default_type application/json;
+        if ($http_authorization != "Bearer cgf_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA") {
+            return 401 '{"error":"a valid bearer token is required"}\n';
+        }
+        access_log /var/log/cloudground/functions/stripe-hook.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/2.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source "";
+        proxy_set_header X-CloudGround-Prefix /stripe-hook;
+        proxy_read_timeout 35s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+    }
+    location = /open {
+        set $cg_fn_id 3;
+        set $cg_fn_client "$binary_remote_addr 3";
+        if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin $cg_fn_cors_3 always;
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+            add_header Access-Control-Allow-Headers $http_access_control_request_headers always;
+            add_header Access-Control-Max-Age 600 always;
+            add_header Vary Origin always;
+            return 204;
+        }
+        default_type application/json;
+        access_log /var/log/cloudground/functions/open.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/3.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source "";
+        proxy_set_header X-CloudGround-Prefix /open;
+        proxy_read_timeout 15s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+        add_header Access-Control-Allow-Origin $cg_fn_cors_3 always;
+        add_header Vary Origin always;
+    }
+    location ^~ /open/ {
+        set $cg_fn_id 3;
+        set $cg_fn_client "$binary_remote_addr 3";
+        if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin $cg_fn_cors_3 always;
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+            add_header Access-Control-Allow-Headers $http_access_control_request_headers always;
+            add_header Access-Control-Max-Age 600 always;
+            add_header Vary Origin always;
+            return 204;
+        }
+        default_type application/json;
+        access_log /var/log/cloudground/functions/open.access.log cloudground buffer=4k flush=1s;
+        proxy_pass http://unix:/run/cloudground/fn/3.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-CloudGround-Source "";
+        proxy_set_header X-CloudGround-Prefix /open;
+        proxy_read_timeout 15s;
+        client_max_body_size 6m;
+        limit_req zone=cg_fn_req burst=20 nodelay;
+        limit_conn cg_fn_conn 8;
+        limit_conn cg_fn_all 32;
+        limit_req_status 429;
+        limit_conn_status 503;
+        add_header Access-Control-Allow-Origin $cg_fn_cors_3 always;
+        add_header Vary Origin always;
+    }
+    location / {
+        default_type application/json;
+        return 404 '{"error":"no such function"}\n';
+    }
+}

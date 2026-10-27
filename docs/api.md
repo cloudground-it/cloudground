@@ -116,6 +116,12 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `POST /api/mcp/requests/{id}/deny`: 8 KiB
   - `POST /api/mcp/actions/{id}/confirm`: 8 KiB
   - `POST /api/mcp/actions/{id}/reject`: 8 KiB
+  - `POST /api/functions`: 2 MiB
+  - `PUT /api/functions/{name}`: 2 MiB
+  - `POST /api/functions/{name}/rollback`: 8 KiB
+  - `POST /api/functions/{name}/invoke`: 128 KiB
+  - `PUT /api/functions/{name}/domains`: 8 KiB
+  - `PUT /api/functions/domain`: 8 KiB
   - `POST /api/tokens`: 8 KiB
   - `POST /api/sites/{id}/protected-paths`: 8 KiB
   - `DELETE /api/sites/{id}/protected-paths`: 8 KiB
@@ -127,10 +133,6 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   - `PUT /api/sites/{id}/routing`: 65 KiB
   - `PUT /api/sites/{id}/certificate/custom`: 256 KiB
   - `PUT /api/sites/{id}/app`: 512 KiB
-  - `POST /api/sites/{id}/functions`: 512 KiB
-  - `PUT /api/sites/{id}/functions/{name}`: 512 KiB
-  - `POST /api/sites/{id}/functions/{name}/rollback`: 8 KiB
-  - `POST /api/sites/{id}/functions/{name}/invoke`: 128 KiB
   - `PUT /api/sites/{id}/wp/cleanup`: 8 KiB
   - `POST /api/sites/{id}/migration/pull/estimate`: 64 KiB
   - `POST /api/sites/{id}/migration/pull`: 64 KiB
@@ -262,14 +264,6 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
 | `PUT` | `/api/sites/{id}/app` | manage | change the app (a field left out keeps its value; `secrets` maps a name to its value, `""` removes it, `••••••••` keeps it): the environment is written, the app restarted; 412 for a runtime version the server lacks |
 | `GET` | `/api/sites/{id}/app/status` | auth | the app's unit (`active`, `state`, `since`, `restarts`, `last_exit`) and its health probe (`health {status, ms, error}`) |
 | `POST` | `/api/sites/{id}/app/restart` | manage | restart the app; answers its status |
-| `GET` | `/api/sites/{id}/functions` | auth | the site's functions (Lambda-style handlers at `https://<domain>/.functions/<name>`): `name`, `runtime`, `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets` (names), `release`, `url` |
-| `POST` | `/api/sites/{id}/functions` | manage | create a function (`{"name": "hello", "runtime": "node", "version": "22", "memory_mb": 128, "timeout_sec": 10, "schedule": "*/5 * * * *", "code": "…", "env": {}, "secrets": {}}`; without code, a starter that echoes the request); 201 |
-| `GET` | `/api/sites/{id}/functions/{name}` | auth | a function with its live `code`, `release` and `releases` |
-| `PUT` | `/api/sites/{id}/functions/{name}` | manage | change a function (any of `code`, a new release; `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets`) |
-| `DELETE` | `/api/sites/{id}/functions/{name}` | manage | delete a function: its route, units, code and secrets |
-| `POST` | `/api/sites/{id}/functions/{name}/rollback` | manage | put the previous release of the code back live (`{"release": …}` for a given one) |
-| `POST` | `/api/sites/{id}/functions/{name}/invoke` | manage | run the function once through nginx (`{"body": "…"}`): `{status, ms, body, error}` |
-| `GET` | `/api/sites/{id}/functions/{name}/logs` | auth | the function's recent `invocations` (time, method, status, ms, source) and its `output` |
 | `POST` | `/api/sites/{id}/purge` | manage | empty the site's page cache (`{"urls": […]}` for some pages only); for a site with a Cloudflare zone, Cloudflare's too (`cdn`: `purged` or `failed`, with `cdn_error`) |
 | `POST` | `/api/sites/{id}/warm` | manage | fill the page cache from the sitemap |
 | `GET` | `/api/sites/{id}/wp/cleanup` | auth | the scheduled database cleanup of a WordPress site: `enabled`, `keep_revisions`, `last_run`, `next_run` and whether `backups_ready` |
@@ -690,6 +684,29 @@ tools at `/mcp` with a bearer token; destructive tools only record an action you
 | `GET` | `/api/mcp/actions` | auth, session only | the destructive actions your assistants asked for |
 | `POST` | `/api/mcp/actions/{id}/confirm` | auth, session only | confirm one (a proof): it runs now |
 | `POST` | `/api/mcp/actions/{id}/reject` | auth, session only | reject one |
+
+### Functions
+
+Standalone Node.js and Python functions (SPEC §17), a server-wide resource: every read is `global`
+and every change `admin`. A function answers at `https://<functions domain>/<name>` and at each of
+its own domains, runs on its schedule and from a test run; with neither domain it cannot be reached
+from the Internet.
+
+| Method | Path | Access | What it does |
+| :-- | :-- | :-- | :-- |
+| `GET` | `/api/functions` | global | every function (`id`, `name`, `runtime`, `version`, `memory_mb`, `timeout_sec`, `schedule`, `env`, `secrets` (names), `auth`, `cors_origins`, `domains`, `release`, `urls`, `has_token`, `last` invocation) and the functions `domain` |
+| `POST` | `/api/functions` | admin | create a function (`{"name": "hello", "runtime": "node", "version": "22", "memory_mb": 128, "timeout_sec": 10, "schedule": "", "auth": "public", "cors_origins": [], "files": {"index.js": "…"}, "env": {}, "secrets": {}}`; without code, the starter of `template`, `http` or `scheduled`); 201, with `token` once when `auth` is `token` |
+| `GET` | `/api/functions/{name}` | global | a function with its live `files`, `entry`, `release` and `releases` |
+| `PUT` | `/api/functions/{name}` | admin | change a function (any of `files` or `code`, a new release; `version`, `memory_mb`, `timeout_sec`, `schedule`, `auth`, `cors_origins`, `env`, `secrets`) |
+| `DELETE` | `/api/functions/{name}` | admin | delete a function: its routes, units, user, code, logs, certificate and secrets |
+| `POST` | `/api/functions/{name}/rollback` | admin | go back to the release before the live one, or to `{"release": "…"}` |
+| `POST` | `/api/functions/{name}/invoke` | admin | run the function once through nginx (`{"method": "POST", "path": "/", "body": "…"}`): `{status, ms, body, error}` |
+| `GET` | `/api/functions/{name}/logs` | global | the function's recent `invocations` (time, method, path, status, ms, source) and its `output` |
+| `POST` | `/api/functions/{name}/token` | admin | a new bearer token, shown once (`{token}`); the old one is refused from now on |
+| `PUT` | `/api/functions/{name}/domains` | admin | the function's own domains (`{"domains": ["api.example.com"]}`), each answering it at `/`; a name another site, function or the panel holds → 409; the certificate's `task` |
+| `GET` | `/api/functions/{name}/domains/status` | global | each own domain's DNS check and the domains' certificate |
+| `GET` | `/api/functions/domain/status` | global | the functions domain (`domain`), its DNS check, its certificate, whether an ACME e-mail is set |
+| `PUT` | `/api/functions/domain` | admin | set the functions domain (`{"domain": "fn.example.com"}`, `""` clears it): every function at `https://<domain>/<name>`; the certificate's `task` |
 
 These calls carry the site's own bearer token instead of a session, and a token purges only URLs on
 the domains of the site it belongs to.

@@ -350,5 +350,14 @@ tools at `/mcp` with a bearer token; destructive tools only record an action you
 
 {{routes "Assistants (MCP)"}}
 
+### Functions
+
+Standalone Node.js and Python functions (SPEC §17), a server-wide resource: every read is `global`
+and every change `admin`. A function answers at `https://<functions domain>/<name>` and at each of
+its own domains, runs on its schedule and from a test run; with neither domain it cannot be reached
+from the Internet.
+
+{{routes "Functions"}}
+
 These calls carry the site's own bearer token instead of a session, and a token purges only URLs on
 the domains of the site it belongs to.

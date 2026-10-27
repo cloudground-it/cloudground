@@ -1,0 +1,29 @@
+{
+  "params": {
+    "full": {
+      "names": [
+        "Names"
+      ]
+    },
+    "zero": {
+      "names": null
+    }
+  },
+  "result": {
+    "full": {
+      "last": {
+        "key": {
+          "time": "Time",
+          "method": "Method",
+          "path": "Path",
+          "status": 7,
+          "ms": 7,
+          "source": "Source"
+        }
+      }
+    },
+    "zero": {
+      "last": null
+    }
+  }
+}

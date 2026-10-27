@@ -80,7 +80,8 @@ func (st stagingService) record(prod state.Site, root string) (state.Site, siteS
 	rec.Status = state.SiteProvisioning
 	rec.StagingOf = prod.ID
 	rec.Config.HSTS = false
-	// Functions stay with production (§3.22).
+	// A v0.8.x function still in production's settings is moved out of it
+	// (§17.8), never copied.
 	rec.Config.Functions = nil
 	// The staging name may be a domain or an alias of another site: 409.
 	created, err := st.srv.siteSvc().insertNamed(rec)

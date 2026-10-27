@@ -1,12 +1,12 @@
 {
   "params": {
     "full": {
-      "site": "@state.Site",
+      "id": 7,
       "name": "Name",
       "release": "Release"
     },
     "zero": {
-      "site": "@state.Site",
+      "id": 0,
       "name": ""
     }
   },
@@ -15,7 +15,8 @@
       "release": "Release",
       "releases": [
         "Releases"
-      ]
+      ],
+      "output": "Output"
     },
     "zero": {
       "release": "",

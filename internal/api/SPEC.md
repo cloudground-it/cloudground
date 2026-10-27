@@ -3878,7 +3878,8 @@ it). An answer that made a token adds it once, as `token`.
 - `POST /api/functions` (at most 2 MiB) `{name, runtime, version?, memory_mb?, timeout_sec?,
   schedule?, auth?, cors_origins?, env?, secrets?, files?, code?, template?}` → **201** the view
   (with `token` when `auth` is `token`). Without code, the starter of `template` (`http` or
-  `scheduled`). `functions.Check` or `CheckFiles` → 400 with its message; a name in use → 409
+  `scheduled`). `functions.Check` or `CheckFiles` → 400 with its message; the name `domain` (a route of
+  its own) → 400 `domain is a reserved name`; a name in use → 409
   `a function named <name> exists`; a 101st → 400; a runtime version the server lacks → 412
   `install <runtime> <version> on the server first (Services → Runtimes)`; a dependency step that
   failed → 400 with its output.
@@ -3926,8 +3927,9 @@ Under the panel's functions lock, one change at a time (reads are not held):
 7. the record stored (`UpdateFunction`, with the live release).
 
 An agent refusal at 5 or 6 puts the secrets back as they were and stores nothing (a create: the row
-goes, with `DeleteFunction` for what the agent made). A deletion: `DeleteFunction`, then the row
-and its secrets, then `RenderFunctions` without it. A rollback: `RollbackFunction`, then the
+goes, with `DeleteFunction` for what the agent made). A deletion: `RenderFunctions` without it
+(nginx never proxies to a socket that is gone), then `DeleteFunction` (a failure is logged), then
+the row and its secrets. A rollback: `RollbackFunction`, then the
 release stored. A new token: sealed, `RenderFunctions`, auth stored; a refusal puts the old token
 back. Audit `function.create|update|delete|rollback|invoke|token|domains`, subject the name, detail
 the fields changed (never a value).

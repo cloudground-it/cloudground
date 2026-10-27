@@ -230,7 +230,7 @@ func (s *Server) registerJobKinds() {
 		"wp.update", "cache.warm", "wp.cleanup",
 		"database.export", "database.import", "dbstudio.export", "dbstudio.import",
 		"database.create", "database.drop",
-		"migration.import", "migration.pull", "panel.certificate", "backup.restore", "backup.archive", "php.extension", "runtime.install",
+		"migration.import", "migration.pull", "panel.certificate", "functions.certificate", "functions.migrate", "backup.restore", "backup.archive", "php.extension", "runtime.install",
 		"apt.update", "apt.upgrade",
 	} {
 		q.Register(jobs.Kind{Name: name})
@@ -375,6 +375,8 @@ func (s *Server) schedules() []jobs.Schedule {
 func (s *Server) afterJobRecovery() {
 	// Deployments a restart cut short are settled from what the sites serve.
 	s.queueDeployReconciles()
+	// v0.8.x site functions become standalone ones (SPEC.md §17.8).
+	s.queueFunctionsMigration()
 	pending, err := s.Store.UnverifiedBackups()
 	if err != nil {
 		s.logIfErr(err, "UnverifiedBackups")

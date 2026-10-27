@@ -219,6 +219,10 @@ func (o *Ops) deleteUserOnly(ctx context.Context, name string) error {
 // killWait bounds the wait for a killed user's processes to exit.
 const killWait = 10 * time.Second
 
+// KillUser is killUser, for the other users the agent removes (a
+// function's, ops/functions SPEC §3).
+func KillUser(ctx context.Context, name string) error { return killUser(ctx, name) }
+
 // killUser sends SIGKILL to every process whose uid is the user's, and
 // waits until none is left (zombies, already dead, do not count).
 func killUser(ctx context.Context, name string) error {

@@ -149,6 +149,8 @@ type Server struct {
 	// fnRuns is the functions sweep's memory of what ran in which minute
 	// (functions.go).
 	fnRuns fnRuns
+	// fnMu orders the changes to the functions (SPEC.md §17.3).
+	fnMu sync.Mutex
 
 	// dnsChecks limits the DNS readiness check; dnsLookup resolves its
 	// names (nil: the system resolver; tests replace it) (dns_check.go).

@@ -1,11 +1,11 @@
 {
   "params": {
     "full": {
-      "site": "@state.Site",
+      "id": 7,
       "name": "Name"
     },
     "zero": {
-      "site": "@state.Site",
+      "id": 0,
       "name": ""
     }
   },
@@ -15,6 +15,7 @@
         {
           "time": "Time",
           "method": "Method",
+          "path": "Path",
           "status": 7,
           "ms": 7,
           "source": "Source"

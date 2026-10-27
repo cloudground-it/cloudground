@@ -1,74 +1,108 @@
-// Package functions sets a site's functions up on the server, keeps their
-// code in releases and invokes them (#143, SPEC.md).
+// Package functions sets standalone functions up on the server: their user,
+// their code in releases with its dependencies, their units, their nginx
+// files and certificates, and invokes them (#143 v0.9.0, SPEC.md).
 package functions
 
 import (
-	"bufio"
-	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
-	"net"
-	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
-	"strconv"
-	"strings"
-	"syscall"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cloudground-it/cloudground/internal/agent/host"
+	"github.com/cloudground-it/cloudground/internal/agent/ops/rootfile"
 	"github.com/cloudground-it/cloudground/internal/agent/sitefs"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	fn "github.com/cloudground-it/cloudground/internal/functions"
-	"github.com/cloudground-it/cloudground/internal/phpfpm"
 	"github.com/cloudground-it/cloudground/internal/rpc"
 	"github.com/cloudground-it/cloudground/internal/runtimes"
 	"github.com/cloudground-it/cloudground/internal/site"
 	"github.com/cloudground-it/cloudground/internal/state"
 )
 
+// installLimit bounds a dependency step (SPEC §2).
+const installLimit = 20 * time.Minute
+
 // Ops holds what the handlers use.
 type Ops struct {
-	Systemd host.Systemd
-	// Open opens a site's tree; what it creates belongs to the site user.
-	Open func(state.Site) (*sitefs.Root, error)
-	// SystemdDir holds the units; Dir the environment files and shims
-	// ("" is functions.Dir); LogRoot the sites' logs.
-	SystemdDir, Dir, LogRoot string
+	Systemd  host.Systemd
+	Accounts host.Accounts
+	Nginx    host.Nginx
+	ACME     host.ACME
+	// LookupOwner resolves a function's user to its uid and gid; nil is
+	// the user database.
+	LookupOwner func(user string) (sitefs.Owner, error)
+	// OpenSite opens a site's tree (MigrateFunction).
+	OpenSite func(state.Site) (*sitefs.Root, error)
+	// Run runs a dependency step's transient service (ops/runtimes Run).
+	Run func(ctx context.Context, svc host.Service, what string) (string, error)
 	// Installed reports whether a runtime version is on the server.
 	Installed func(runtime, version string) bool
-	// NginxSocket is where an invocation reaches nginx ("" is
-	// fn.InvokeSocket).
+	// Preflight checks that domains answer here on port 80 (ops/certs).
+	Preflight func(ctx context.Context, domains []string) error
+	// KillUser ends a user's processes before it is deleted; nil ends
+	// none.
+	KillUser func(ctx context.Context, name string) error
+	// NginxMu and CertMu are the agent's nginx and certbot locks.
+	NginxMu, CertMu *sync.Mutex
+
+	// Where things are; "" is the package's default (internal/functions).
+	Root, Dir, LogDir string
+	// SystemdDir holds the units, SitesDir nginx's sites.
+	SystemdDir, SitesDir string
+	// CertLiveDir is certbot's live/; FallbackCert and FallbackKey the
+	// certificate a server has before its own.
+	CertLiveDir, FallbackCert, FallbackKey, ACMEWebroot string
+	// NginxSocket is the internal server's socket ("" is fn.InvokeSocket).
 	NginxSocket string
 	Now         func() time.Time
 	Log         *slog.Logger
+
+	locks sync.Map // function name -> *sync.Mutex
 }
 
 // Register wires the methods into the agent's RPC server.
 func (o *Ops) Register(s *agentrpc.Server) {
 	agentrpc.Handle(s, agentrpc.SetFunction, o.Set)
 	agentrpc.Handle(s, agentrpc.DeleteFunction, func(ctx context.Context, p rpc.FunctionRef) (agentrpc.None, error) {
-		return agentrpc.None{}, o.Delete(ctx, p.Site, p.Name)
+		return agentrpc.None{}, o.Delete(ctx, p.ID, p.Name)
 	})
 	agentrpc.Handle(s, agentrpc.FunctionCode, o.Code)
-	agentrpc.Handle(s, agentrpc.FunctionRollback, o.Rollback)
+	agentrpc.Handle(s, agentrpc.RollbackFunction, o.Rollback)
 	agentrpc.Handle(s, agentrpc.InvokeFunction, o.Invoke)
 	agentrpc.Handle(s, agentrpc.FunctionLogs, o.Logs)
+	agentrpc.Handle(s, agentrpc.FunctionsSummary, o.Summary)
+	agentrpc.Handle(s, agentrpc.RenderFunctions, o.Render)
+	agentrpc.Handle(s, agentrpc.IssueFunctionsCertificate, func(ctx context.Context, p rpc.FunctionsCertParams) (agentrpc.None, error) {
+		return agentrpc.None{}, o.IssueCertificate(ctx, p)
+	})
+	agentrpc.Handle(s, agentrpc.DeleteFunctionsCertificate, func(ctx context.Context, p rpc.FunctionsCertParams) (agentrpc.None, error) {
+		return agentrpc.None{}, o.deleteCert(ctx, p.Name)
+	})
+	agentrpc.Handle(s, agentrpc.MigrateFunction, o.Migrate)
 }
 
-func (o *Ops) dir() string {
-	if o.Dir != "" {
-		return o.Dir
+func or(a, b string) string {
+	if a != "" {
+		return a
 	}
-	return fn.Dir
+	return b
 }
+
+func (o *Ops) root() string   { return or(o.Root, fn.Root) }
+func (o *Ops) dir() string    { return or(o.Dir, fn.Dir) }
+func (o *Ops) logDir() string { return or(o.LogDir, fn.LogDir) }
 
 func (o *Ops) now() time.Time {
 	if o.Now != nil {
@@ -84,80 +118,231 @@ func (o *Ops) log() *slog.Logger {
 	return slog.Default()
 }
 
-func (o *Ops) envPath(user, name string) string { return filepath.Join(o.dir(), user+"-"+name+".env") }
+// lock serialises the changes to one function's files and units.
+func (o *Ops) lock(name string) func() {
+	m, _ := o.locks.LoadOrStore(name, &sync.Mutex{})
+	mu := m.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
 
-// rootOwned is r creating entries for root with the site's group.
+func (o *Ops) envPath(id int64) string { return filepath.Join(o.dir(), filepath.Base(fn.EnvFile(id))) }
+func (o *Ops) accessLog(name string) string {
+	return filepath.Join(o.logDir(), filepath.Base(fn.AccessLog(name)))
+}
+func (o *Ops) outputLog(name string) string {
+	return filepath.Join(o.logDir(), filepath.Base(fn.OutputLog(name)))
+}
+
+func (o *Ops) owner(user string) (sitefs.Owner, error) {
+	if o.LookupOwner != nil {
+		return o.LookupOwner(user)
+	}
+	return sitefs.LookupOwner(user)
+}
+
+// rootOwned is r creating entries for root with the function's group.
 func rootOwned(r *sitefs.Root) *sitefs.Root {
 	return r.WithOwner(sitefs.Owner{UID: 0, GID: r.Owner().GID})
 }
 
+// ensureUser makes the function's user when it is missing (SPEC §2 step 2).
+func (o *Ops) ensureUser(ctx context.Context, id int64) (sitefs.Owner, error) {
+	u := fn.User(id)
+	exists, err := o.Accounts.UserExists(ctx, u)
+	if err != nil {
+		return sitefs.Owner{}, err
+	}
+	if !exists {
+		if err := o.Accounts.CreateUser(ctx, host.UserSpec{Name: u, System: true, Home: "/nonexistent", Shell: "/usr/sbin/nologin"}); err != nil {
+			return sitefs.Owner{}, fmt.Errorf("create the function's user: %w", err)
+		}
+	}
+	return o.owner(u)
+}
+
+// openTree makes the function's directories as SPEC §2 says and opens its
+// own, creating for the function's user.
+func (o *Ops) openTree(name string, owner sitefs.Owner) (*sitefs.Root, error) {
+	if err := rootfile.MkdirAllMode(o.root(), 0o711); err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(o.root(), 0o711); err != nil {
+		return nil, err
+	}
+	top, err := sitefs.Open(o.root(), sitefs.Owner{UID: 0, GID: owner.GID})
+	if err != nil {
+		return nil, err
+	}
+	defer top.Close()
+	if err := top.Mkdir(name, 0o750); err != nil && !errors.Is(err, fs.ErrExist) {
+		return nil, err
+	}
+	if err := top.Chown(name, 0, owner.GID); err != nil {
+		return nil, err
+	}
+	if err := top.Chmod(name, 0o750); err != nil {
+		return nil, err
+	}
+	sub, err := top.Sub(name)
+	if err != nil {
+		return nil, err
+	}
+	r := sub.WithOwner(owner)
+	if err := rootOwned(r).MkdirAll("releases", 0o750); err != nil {
+		r.Close()
+		return nil, err
+	}
+	if err := r.Chown("releases", 0, owner.GID); err != nil {
+		r.Close()
+		return nil, err
+	}
+	if err := r.Chmod("releases", 0o750); err != nil {
+		r.Close()
+		return nil, err
+	}
+	return r, nil
+}
+
+// openExisting opens a function's directory to read it.
+func (o *Ops) openExisting(name string) (*sitefs.Root, error) {
+	if !fn.ValidName(name) {
+		return nil, agentrpc.Invalid("invalid function %q", name)
+	}
+	return sitefs.Open(filepath.Join(o.root(), name), sitefs.Owner{})
+}
+
 // Set is SetFunction (SPEC §2).
 func (o *Ops) Set(ctx context.Context, p rpc.SetFunctionParams) (rpc.FunctionResult, error) {
-	s, f := p.Site, p.Function
+	f := p.Function
 	if err := p.Validate(); err != nil {
 		return rpc.FunctionResult{}, agentrpc.Invalid("%s", err.Error())
-	}
-	if !site.ValidSystemUser(s.SystemUser) {
-		return rpc.FunctionResult{}, agentrpc.Invalid("invalid system user %q", s.SystemUser)
 	}
 	if o.Installed != nil && !o.Installed(f.Runtime, f.Version) {
 		return rpc.FunctionResult{}, agentrpc.Invalid("%s %s is not installed on this server", runtimes.Label(f.Runtime), f.Version)
 	}
-	r, err := o.Open(s)
+	defer o.lock(f.Name)()
+	owner, err := o.ensureUser(ctx, f.ID)
+	if err != nil {
+		return rpc.FunctionResult{}, err
+	}
+	r, err := o.openTree(f.Name, owner)
 	if err != nil {
 		return rpc.FunctionResult{}, err
 	}
 	defer r.Close()
-	if _, err := live(r, f.Name); p.Code != "" || err != nil {
-		code := p.Code
-		if code == "" {
-			code = fn.Starter(f.Runtime)
+	var out string
+	if _, err := live(r); p.Files != nil || err != nil {
+		files := p.Files
+		if files == nil {
+			files = fn.Starter(f.Runtime, fn.TemplateHTTP)
 		}
-		if err := o.newRelease(r, f, code); err != nil {
-			return rpc.FunctionResult{}, err
+		if out, err = o.newRelease(ctx, r, f, files); err != nil {
+			return rpc.FunctionResult{Output: out}, err
 		}
 	}
-	if err := o.writeShims(); err != nil {
+	if err := o.install(ctx, f, p.Env); err != nil {
 		return rpc.FunctionResult{}, err
 	}
-	if err := writeFile(o.envPath(s.SystemUser, f.Name), []byte(runtimes.RenderEnv(p.Env)), 0o600); err != nil {
-		return rpc.FunctionResult{}, err
-	}
-	if err := o.writeUnits(ctx, s, f); err != nil {
-		return rpc.FunctionResult{}, err
-	}
-	return result(r, f.Name)
+	res, err := result(r)
+	res.Output = out
+	return res, err
 }
 
-// newRelease writes code as a new release and moves current to it.
-func (o *Ops) newRelease(r *sitefs.Root, f state.SiteFunction, code string) error {
-	base := fn.CodeDir(f.Name)
-	root := rootOwned(r)
-	for _, d := range []string{"functions", base, base + "/releases"} {
-		if err := root.MkdirAll(d, 0o750); err != nil {
-			return err
-		}
-		if err := root.Chmod(d, 0o750); err != nil {
-			return err
-		}
+// install writes the shims, the environment, the log directory, the slice
+// and the units (SPEC §2 steps 5–6).
+func (o *Ops) install(ctx context.Context, f state.Function, env map[string]string) error {
+	if err := o.writeShims(); err != nil {
+		return err
 	}
+	if err := rootfile.MkdirAllMode(o.dir(), 0o755); err != nil {
+		return err
+	}
+	if err := rootfile.Replace(o.envPath(f.ID), []byte(runtimes.RenderEnv(env)), 0o600); err != nil {
+		return err
+	}
+	if err := rootfile.MkdirAllMode(o.logDir(), 0o750); err != nil {
+		return err
+	}
+	return o.writeUnits(ctx, f)
+}
+
+var runs atomic.Uint64
+
+// installService is a release's dependency step (SPEC §2).
+func (o *Ops) installService(f state.Function, release string) host.Service {
+	return host.Service{
+		Unit:        fmt.Sprintf("cg-fn-prep-%d-%d-%d.service", f.ID, time.Now().UnixNano(), runs.Add(1)),
+		Description: "CloudGround: install the dependencies of function " + f.Name,
+		User:        fn.User(f.ID), Slice: fn.Slice(f.ID),
+		Dir:        path.Join(o.root(), f.Name, "releases", release),
+		Env:        fn.PrepareEnv(f.Runtime, f.Version),
+		Props:      append(fn.InstallSandbox(f.Name, release), host.SandboxedProps...),
+		MaxRuntime: installLimit, Pipe: true,
+		Argv: []string{"/bin/sh", "-c", "exec 2>&1\n" + fn.PrepareScript(f.Runtime, f.Version)},
+	}
+}
+
+// newRelease writes files as a new release, installs its dependencies and
+// moves current to it; a failure removes the release (SPEC §2 step 4).
+func (o *Ops) newRelease(ctx context.Context, r *sitefs.Root, f state.Function, files map[string]string) (string, error) {
 	id := site.NewReleaseID(o.now())
-	dir := base + "/releases/" + id
-	if err := r.Mkdir(dir, 0o750); err != nil {
-		return err
+	rel := "releases/" + id
+	if err := r.Mkdir(rel, 0o750); err != nil {
+		return "", err
 	}
-	if err := r.WriteFile(dir+"/"+fn.File(f.Runtime), []byte(code), 0o640); err != nil {
-		return err
+	drop := func() {
+		if err := rootOwned(r).RemoveAll(rel); err != nil {
+			o.log().Warn("could not remove a failed release", "function", f.Name, "release", id, "err", err)
+		}
 	}
-	if err := root.Symlink("releases/"+id, base+"/current"); err != nil {
-		return err
+	paths := fn.SortedPaths(files)
+	for _, p := range paths {
+		if !fn.ValidPath(p) {
+			drop()
+			return "", agentrpc.Invalid("%q is not a file path a function may have", p)
+		}
+		if d := path.Dir(p); d != "." {
+			if err := r.MkdirAll(rel+"/"+d, 0o750); err != nil {
+				drop()
+				return "", err
+			}
+		}
+		content := files[p]
+		if err := r.Replace(rel+"/"+p, 0o640, func(w *os.File) error {
+			_, err := w.WriteString(content)
+			return err
+		}); err != nil {
+			drop()
+			return "", err
+		}
 	}
-	return prune(r, f.Name, id)
+	manifest, _ := json.Marshal(paths)
+	if err := rootOwned(r).Replace(rel+"/"+fn.ManifestFile, 0o644, func(w *os.File) error {
+		_, err := w.Write(manifest)
+		return err
+	}); err != nil {
+		drop()
+		return "", err
+	}
+	var out string
+	if fn.NeedsInstall(f.Runtime, files) && o.Run != nil {
+		var err error
+		if out, err = o.Run(ctx, o.installService(f, id), "the function's dependencies"); err != nil {
+			drop()
+			return out, err
+		}
+	}
+	if err := rootOwned(r).Symlink(rel, "current"); err != nil {
+		drop()
+		return out, err
+	}
+	return out, prune(r, id)
 }
 
 // releases are a function's releases, newest first.
-func releases(r *sitefs.Root, name string) []string {
-	entries, err := r.ReadDir(fn.CodeDir(name) + "/releases")
+func releases(r *sitefs.Root) []string {
+	entries, err := r.ReadDir("releases")
 	if err != nil {
 		return nil
 	}
@@ -172,13 +357,12 @@ func releases(r *sitefs.Root, name string) []string {
 }
 
 // prune keeps the newest KeepReleases, and the live one.
-func prune(r *sitefs.Root, name, liveID string) error {
-	all := releases(r, name)
-	for i, id := range all {
+func prune(r *sitefs.Root, liveID string) error {
+	for i, id := range releases(r) {
 		if i < fn.KeepReleases || id == liveID {
 			continue
 		}
-		if err := rootOwned(r).RemoveAll(fn.CodeDir(name) + "/releases/" + id); err != nil {
+		if err := rootOwned(r).RemoveAll("releases/" + id); err != nil {
 			return err
 		}
 	}
@@ -188,8 +372,8 @@ func prune(r *sitefs.Root, name, liveID string) error {
 var currentRe = regexp.MustCompile(`^releases/([0-9A-Za-z.-]+)$`)
 
 // live is the release current names; it must be a real directory.
-func live(r *sitefs.Root, name string) (string, error) {
-	target, err := r.Readlink(fn.CodeDir(name) + "/current")
+func live(r *sitefs.Root) (string, error) {
+	target, err := r.Readlink("current")
 	if err != nil {
 		return "", err
 	}
@@ -197,26 +381,26 @@ func live(r *sitefs.Root, name string) (string, error) {
 	if m == nil || !site.ValidReleaseID(m[1]) {
 		return "", fmt.Errorf("current leads nowhere a release can be")
 	}
-	fi, err := r.Lstat(fn.CodeDir(name) + "/releases/" + m[1])
+	fi, err := r.Lstat("releases/" + m[1])
 	if err != nil || !fi.IsDir() {
 		return "", fmt.Errorf("the live release is missing")
 	}
 	return m[1], nil
 }
 
-func result(r *sitefs.Root, name string) (rpc.FunctionResult, error) {
-	id, err := live(r, name)
+func result(r *sitefs.Root) (rpc.FunctionResult, error) {
+	id, err := live(r)
 	if err != nil {
 		return rpc.FunctionResult{}, err
 	}
-	return rpc.FunctionResult{Release: id, Releases: releases(r, name)}, nil
+	return rpc.FunctionResult{Release: id, Releases: releases(r)}, nil
 }
 
-// writeShims writes the two shims when they differ (SPEC §2 step 3).
+// writeShims writes the two shims when they differ.
 func (o *Ops) writeShims() error {
 	dir := filepath.Join(o.dir(), "shim")
 	for _, d := range []string{o.dir(), dir} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
+		if err := rootfile.MkdirAllMode(d, 0o755); err != nil {
 			return err
 		}
 		if err := os.Chmod(d, 0o755); err != nil {
@@ -225,45 +409,47 @@ func (o *Ops) writeShims() error {
 	}
 	for name, content := range map[string]string{"fn.mjs": fn.ShimNode, "fn.py": fn.ShimPython} {
 		p := filepath.Join(dir, name)
-		if old, err := os.ReadFile(p); err == nil && string(old) == content {
+		if old, err := rootfile.ReadNoFollow(p); err == nil && string(old) == content {
 			continue
 		}
-		if err := writeFile(p, []byte(content), 0o644); err != nil {
+		if err := rootfile.Replace(p, []byte(content), 0o644); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// writeUnits writes the socket and the service template and has systemd
-// take them; a failure puts the old files back.
-func (o *Ops) writeUnits(ctx context.Context, s state.Site, f state.SiteFunction) error {
+// writeUnits writes the parent slice, the socket and the service template
+// and has systemd take them; a failure puts the old files back.
+func (o *Ops) writeUnits(ctx context.Context, f state.Function) error {
+	socket := fn.SocketUnit(f.ID)
 	files := map[string]string{
-		filepath.Join(o.SystemdDir, fn.SocketUnit(s.SystemUser, f.Name)):      fn.RenderSocket(s, f),
-		filepath.Join(o.SystemdDir, fn.ServiceTemplate(s.SystemUser, f.Name)): fn.RenderService(s, f),
+		filepath.Join(o.SystemdDir, fn.ParentSlice):           fn.RenderParentSlice(),
+		filepath.Join(o.SystemdDir, socket):                   fn.RenderSocket(f),
+		filepath.Join(o.SystemdDir, fn.ServiceTemplate(f.ID)): fn.RenderService(f),
 	}
 	prior := map[string][]byte{}
-	changed := false
-	for path, content := range files {
-		old, err := os.ReadFile(path)
+	changed, socketChanged := false, false
+	for p, content := range files {
+		old, err := rootfile.ReadNoFollow(p)
 		if err == nil {
-			prior[path] = old
+			prior[p] = old
 		}
 		if err == nil && string(old) == content {
 			continue
 		}
-		if err := writeFile(path, []byte(content), 0o644); err != nil {
+		if err := rootfile.Replace(p, []byte(content), 0o644); err != nil {
 			return err
 		}
 		changed = true
+		socketChanged = socketChanged || filepath.Base(p) == socket
 	}
-	socket := fn.SocketUnit(s.SystemUser, f.Name)
 	restore := func(cause error) error {
-		for path := range files {
-			if old, ok := prior[path]; ok {
-				_ = writeFile(path, old, 0o644)
+		for p := range files {
+			if old, ok := prior[p]; ok {
+				_ = rootfile.Replace(p, old, 0o644)
 			} else {
-				_ = os.Remove(path)
+				_ = os.Remove(p)
 			}
 		}
 		return errors.Join(cause, o.Systemd.DaemonReload(context.WithoutCancel(ctx)))
@@ -277,7 +463,7 @@ func (o *Ops) writeUnits(ctx context.Context, s state.Site, f state.SiteFunction
 		return restore(err)
 	}
 	start := o.Systemd.Start
-	if changed {
+	if socketChanged {
 		start = o.Systemd.Restart
 	}
 	if err := start(ctx, socket); err != nil {
@@ -286,69 +472,69 @@ func (o *Ops) writeUnits(ctx context.Context, s state.Site, f state.SiteFunction
 	return nil
 }
 
-// Delete is DeleteFunction (SPEC §3).
-func (o *Ops) Delete(ctx context.Context, s state.Site, name string) error {
-	if !fn.ValidName(name) || !site.ValidSystemUser(s.SystemUser) {
+// Delete is DeleteFunction (SPEC §3): every step, whatever failed before.
+func (o *Ops) Delete(ctx context.Context, id int64, name string) error {
+	if !fn.ValidName(name) || id <= 0 {
 		return agentrpc.Invalid("invalid function %q", name)
 	}
-	errs := []error{o.removeUnits(ctx, s.SystemUser, fn.UnitBase(s.SystemUser, name))}
-	if r, err := o.Open(s); err == nil {
-		if err := rootOwned(r).RemoveAll(fn.CodeDir(name)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	defer o.lock(name)()
+	errs := []error{o.removeUnits(ctx, id)}
+	if err := o.Systemd.Stop(ctx, fn.Slice(id)); err != nil && !errors.Is(err, host.ErrNoSuchUnit) {
+		errs = append(errs, err)
+	}
+	if top, err := sitefs.Open(o.root(), sitefs.Owner{}); err == nil {
+		errs = append(errs, top.RemoveAll(name))
+		top.Close()
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		errs = append(errs, err)
+	}
+	for _, p := range []string{o.accessLog(name), o.outputLog(name)} {
+		if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			errs = append(errs, err)
 		}
-		r.Close()
 	}
+	errs = append(errs, o.deleteUser(ctx, fn.User(id)), o.deleteCert(ctx, fn.FunctionLineage(id)))
 	return errors.Join(errs...)
 }
 
-// RemoveSite removes every function of a site's user (ops/sites SPEC §11.1).
-func (o *Ops) RemoveSite(ctx context.Context, user string) error {
-	if !site.ValidSystemUser(user) {
-		return nil
-	}
-	return o.removeUnits(ctx, user, fn.UnitBase(user, ""))
+// removeUnits stops and removes a function's units and environment file.
+func (o *Ops) removeUnits(ctx context.Context, id int64) error {
+	socket := fn.SocketUnit(id)
+	return o.removeUnitFiles(ctx, socket, fn.ServiceTemplate(id), fn.UnitBase(id)+"@*.service", o.envPath(id))
 }
 
-// removeUnits stops and removes the units whose names start with prefix,
-// and their environment files.
-func (o *Ops) removeUnits(ctx context.Context, user, prefix string) error {
+// removeUnitFiles stops a socket and its instances and removes the two unit
+// files and the environment file.
+func (o *Ops) removeUnitFiles(ctx context.Context, socket, template, instances, env string) error {
 	var errs []error
-	sockets, _ := filepath.Glob(filepath.Join(o.SystemdDir, prefix+"*.socket"))
-	for _, p := range sockets {
-		unit := filepath.Base(p)
-		for _, f := range []func(context.Context, ...string) error{o.Systemd.Disable} {
-			if err := f(ctx, unit); err != nil && !errors.Is(err, host.ErrNoSuchUnit) {
-				errs = append(errs, err)
-			}
+	sockPath := filepath.Join(o.SystemdDir, socket)
+	if _, err := os.Lstat(sockPath); err == nil {
+		if err := o.Systemd.Disable(ctx, socket); err != nil && !errors.Is(err, host.ErrNoSuchUnit) {
+			errs = append(errs, err)
 		}
-		if err := o.Systemd.Stop(ctx, unit); err != nil && !errors.Is(err, host.ErrNoSuchUnit) {
+		if err := o.Systemd.Stop(ctx, socket); err != nil && !errors.Is(err, host.ErrNoSuchUnit) {
 			errs = append(errs, err)
 		}
 	}
-	if units, err := o.Systemd.ListUnits(ctx, prefix+"*@*.service"); err == nil {
+	if units, err := o.Systemd.ListUnits(ctx, instances); err == nil {
 		for _, u := range units {
 			if err := o.Systemd.Stop(ctx, u.Name); err != nil && !errors.Is(err, host.ErrNoSuchUnit) {
 				errs = append(errs, err)
 			}
 		}
 	}
-	templates, _ := filepath.Glob(filepath.Join(o.SystemdDir, prefix+"*@.service"))
 	removed := false
-	for _, p := range append(sockets, templates...) {
-		if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			errs = append(errs, err)
-		} else {
+	for _, p := range []string{sockPath, filepath.Join(o.SystemdDir, template)} {
+		err := os.Remove(p)
+		switch {
+		case err == nil:
 			removed = true
+		case !errors.Is(err, fs.ErrNotExist):
+			errs = append(errs, err)
 		}
 	}
-	envPrefix := strings.TrimPrefix(prefix, "cloudground-fn-")
-	envs, _ := filepath.Glob(filepath.Join(o.dir(), envPrefix+"*.env"))
-	for _, p := range envs {
-		if strings.HasPrefix(filepath.Base(p), user+"-") {
-			if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				errs = append(errs, err)
-			}
-		}
+	if err := os.Remove(env); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		errs = append(errs, err)
 	}
 	if removed {
 		if err := o.Systemd.DaemonReload(ctx); err != nil {
@@ -358,39 +544,109 @@ func (o *Ops) removeUnits(ctx context.Context, user, prefix string) error {
 	return errors.Join(errs...)
 }
 
+// deleteUser removes a function's user and group, its processes ended
+// first (as a site user's, ops/sites SPEC §6.8).
+func (o *Ops) deleteUser(ctx context.Context, name string) error {
+	if !fn.ValidUser(name) {
+		return nil
+	}
+	exists, err := o.Accounts.UserExists(ctx, name)
+	if err != nil || !exists {
+		return err
+	}
+	if err := o.Accounts.ExpireUser(ctx, name, true); err != nil && !errors.Is(err, host.ErrNoSuchUser) {
+		return err
+	}
+	if o.KillUser != nil {
+		if err := o.KillUser(ctx, name); err != nil {
+			return fmt.Errorf("end the processes of %s: %w", name, err)
+		}
+	}
+	if err := o.Accounts.DeleteUser(ctx, name, false); err != nil && !errors.Is(err, host.ErrNoSuchUser) {
+		return err
+	}
+	if err := o.Accounts.DeleteGroup(ctx, name); err != nil && !errors.Is(err, host.ErrNoSuchGroup) {
+		return fmt.Errorf("remove the group %s: %w", name, err)
+	}
+	return nil
+}
+
+// RemoveLegacySite removes every v0.8.x function unit of a site's user and
+// their environment files (ops/sites SPEC §6: a site deletion).
+func (o *Ops) RemoveLegacySite(ctx context.Context, user string) error {
+	if !site.ValidSystemUser(user) {
+		return nil
+	}
+	var errs []error
+	sockets, _ := filepath.Glob(filepath.Join(o.SystemdDir, fn.LegacyUnitBase(user, "")+"*.socket"))
+	for _, p := range sockets {
+		name := filepath.Base(p)
+		base := name[:len(name)-len(".socket")]
+		errs = append(errs, o.removeUnitFiles(ctx, name, base+"@.service", base+"@*.service", filepath.Join(o.dir(), base[len("cloudground-fn-"):]+".env")))
+	}
+	envs, _ := filepath.Glob(filepath.Join(o.dir(), user+"-*.env"))
+	for _, p := range envs {
+		if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
 // Code is FunctionCode (SPEC §4).
 func (o *Ops) Code(_ context.Context, p rpc.FunctionRef) (rpc.FunctionCodeResult, error) {
-	r, err := o.Open(p.Site)
-	if err != nil {
-		return rpc.FunctionCodeResult{}, err
-	}
-	defer r.Close()
-	id, err := live(r, p.Name)
+	r, err := o.openExisting(p.Name)
 	if err != nil {
 		return rpc.FunctionCodeResult{}, agentrpc.NotFound("function %s has no code: %v", p.Name, err)
 	}
-	var code []byte
-	for _, file := range []string{"index.js", "main.py"} {
-		if b, err := r.ReadFile(fn.CodeDir(p.Name)+"/releases/"+id+"/"+file, fn.MaxCode); err == nil {
-			code = b
+	defer r.Close()
+	id, err := live(r)
+	if err != nil {
+		return rpc.FunctionCodeResult{}, agentrpc.NotFound("function %s has no code: %v", p.Name, err)
+	}
+	rel := "releases/" + id + "/"
+	var paths []string
+	if b, err := r.ReadFile(rel+fn.ManifestFile, 64<<10); err == nil {
+		_ = json.Unmarshal(b, &paths)
+	} else {
+		paths = []string{"index.js", "main.py"} // a release from before v0.9.0
+	}
+	files := map[string]string{}
+	total := 0
+	for _, f := range paths {
+		if !fn.ValidPath(f) || len(files) >= fn.MaxFiles {
+			continue
+		}
+		b, err := r.ReadFile(rel+f, fn.MaxCode)
+		if err != nil {
+			continue
+		}
+		if total += len(b); total > fn.MaxCode {
 			break
 		}
+		files[f] = string(b)
 	}
-	return rpc.FunctionCodeResult{Release: id, Code: string(code), Releases: releases(r, p.Name)}, nil
+	return rpc.FunctionCodeResult{Release: id, Files: files, Releases: releases(r)}, nil
 }
 
-// Rollback is FunctionRollback (SPEC §4).
+// Rollback is RollbackFunction (SPEC §4).
 func (o *Ops) Rollback(_ context.Context, p rpc.FunctionRollbackParams) (rpc.FunctionResult, error) {
-	r, err := o.Open(p.Site)
-	if err != nil {
-		return rpc.FunctionResult{}, err
-	}
-	defer r.Close()
-	cur, err := live(r, p.Name)
+	defer o.lock(p.Name)()
+	r, err := o.openExisting(p.Name)
 	if err != nil {
 		return rpc.FunctionResult{}, agentrpc.NotFound("function %s has no code", p.Name)
 	}
-	all := releases(r, p.Name)
+	defer r.Close()
+	gid := r.Owner().GID
+	if u, err := o.owner(fn.User(p.ID)); err == nil {
+		gid = u.GID
+	}
+	r = r.WithOwner(sitefs.Owner{UID: 0, GID: gid})
+	cur, err := live(r)
+	if err != nil {
+		return rpc.FunctionResult{}, agentrpc.NotFound("function %s has no code", p.Name)
+	}
+	all := releases(r)
 	target := p.Release
 	if target == "" {
 		i := slices.Index(all, cur)
@@ -401,156 +657,8 @@ func (o *Ops) Rollback(_ context.Context, p rpc.FunctionRollbackParams) (rpc.Fun
 	} else if !slices.Contains(all, target) {
 		return rpc.FunctionResult{}, agentrpc.NotFound("release %s not found", target)
 	}
-	if err := rootOwned(r).Symlink("releases/"+target, fn.CodeDir(p.Name)+"/current"); err != nil {
+	if err := r.Symlink("releases/"+target, "current"); err != nil {
 		return rpc.FunctionResult{}, err
 	}
-	return result(r, p.Name)
-}
-
-// Invoke is InvokeFunction (SPEC §5): through nginx, as a visitor's.
-func (o *Ops) Invoke(ctx context.Context, p rpc.InvokeFunctionParams) (rpc.InvokeResult, error) {
-	sock := o.NginxSocket
-	if sock == "" {
-		sock = fn.InvokeSocket
-	}
-	timeout := time.Duration(max(p.TimeoutSec, 1)+10) * time.Second
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	// The site's own 443 server, on the unix socket only root reaches
-	// (internal/engine SPEC §4.13): no TLS on a hop that never leaves the
-	// machine, and so no certificate to take on trust.
-	tr := &http.Transport{
-		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, "unix", sock)
-		},
-		DisableKeepAlives: true,
-	}
-	c := &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://"+p.Site.Domain+"/.functions/"+p.Name, strings.NewReader(p.Body))
-	if err != nil {
-		return rpc.InvokeResult{}, err
-	}
-	req.Header.Set("User-Agent", "CloudGround-Functions/"+p.Source)
-	req.Header.Set("X-CloudGround-Source", p.Source)
-	req.Header.Set("Content-Type", "application/json")
-	start := time.Now()
-	resp, err := c.Do(req)
-	res := rpc.InvokeResult{MS: time.Since(start).Milliseconds()}
-	if err != nil {
-		res.Error = err.Error()
-		return res, nil
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
-	res.Status, res.Body = resp.StatusCode, string(body)
-	return res, nil
-}
-
-// accessLine is the cloudground log format, as far as an invocation needs.
-var accessLine = regexp.MustCompile(`^\S+ - \S+ \[([^\]]+)\] "(\S+) (\S+) [^"]*" (\d{3}) \d+ ([0-9.]+) \S+ "([^"]*)"`)
-
-// Logs is FunctionLogs (SPEC §6).
-func (o *Ops) Logs(_ context.Context, p rpc.FunctionRef) (rpc.FunctionLogsResult, error) {
-	res := rpc.FunctionLogsResult{Invocations: []rpc.Invocation{}, Output: []string{}}
-	logRoot := o.LogRoot
-	if logRoot == "" {
-		logRoot = phpfpm.LogRoot
-	}
-	prefix := "/.functions/" + p.Name
-	for _, line := range tailLines(filepath.Join(logRoot, p.Site.Domain, "access.log"), 2<<20, 0) {
-		m := accessLine.FindStringSubmatch(line)
-		if m == nil {
-			continue
-		}
-		path, _, _ := strings.Cut(m[3], "?")
-		if path != prefix && !strings.HasPrefix(path, prefix+"/") {
-			continue
-		}
-		status, _ := strconv.Atoi(m[4])
-		secs, _ := strconv.ParseFloat(m[5], 64)
-		src := "http"
-		if rest, ok := strings.CutPrefix(m[6], "CloudGround-Functions/"); ok && (rest == "schedule" || rest == "test") {
-			src = rest // the agent's own run (SPEC §5)
-		}
-		at := m[1]
-		if t, err := time.Parse("02/Jan/2006:15:04:05 -0700", m[1]); err == nil {
-			at = t.UTC().Format(time.RFC3339)
-		}
-		res.Invocations = append(res.Invocations, rpc.Invocation{Time: at, Method: m[2], Status: status, MS: int64(secs * 1000), Source: src})
-	}
-	slices.Reverse(res.Invocations)
-	if len(res.Invocations) > 100 {
-		res.Invocations = res.Invocations[:100]
-	}
-	res.Output = tailLines(filepath.Join(logRoot, p.Site.Domain, "fn-"+p.Name+".log"), 256<<10, 200)
-	if res.Output == nil {
-		res.Output = []string{}
-	}
-	return res, nil
-}
-
-// tailLines is a file's last lines within its last max bytes (at most n
-// lines when n > 0).
-func tailLines(path string, max int64, n int) []string {
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-	fi, err := f.Stat()
-	if err != nil || !fi.Mode().IsRegular() {
-		return nil
-	}
-	off := max64(0, fi.Size()-max)
-	if _, err := f.Seek(off, io.SeekStart); err != nil {
-		return nil
-	}
-	b, _ := io.ReadAll(io.LimitReader(f, max))
-	if off > 0 {
-		if i := bytes.IndexByte(b, '\n'); i >= 0 {
-			b = b[i+1:]
-		}
-	}
-	var out []string
-	sc := bufio.NewScanner(bytes.NewReader(b))
-	sc.Buffer(make([]byte, 64<<10), 1<<20)
-	for sc.Scan() {
-		out = append(out, sc.Text())
-	}
-	if n > 0 && len(out) > n {
-		out = out[len(out)-n:]
-	}
-	return out
-}
-
-func max64(a, b int64) int64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// writeFile writes path atomically with mode.
-func writeFile(path string, content []byte, mode os.FileMode) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	f, err := os.CreateTemp(dir, ".cloudground-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	_, err = f.Write(content)
-	if err == nil {
-		err = f.Chmod(mode)
-	}
-	if cerr := f.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		return err
-	}
-	return os.Rename(f.Name(), path)
+	return result(r)
 }

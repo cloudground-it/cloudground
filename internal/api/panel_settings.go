@@ -138,6 +138,9 @@ var settingFields = map[string]setting{
 	// it be typed would let the panel claim a domain it has no certificate
 	// for.
 	"panel_domain": {show: func(p state.PanelSettings) string { return p.PanelDomain }},
+	// Set by PUT /api/functions/domain (§17.5), which renders nginx and
+	// checks the name is no one else's first.
+	"functions_domain": {show: func(p state.PanelSettings) string { return p.FunctionsDomain }},
 
 	// The server-wide mail relay and who gets the alerts by email (§14).
 	"mail_host": {

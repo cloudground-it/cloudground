@@ -1,15 +1,17 @@
 # Written by CloudGround: runs one invocation of a function (#143,
-# internal/functions SPEC §4). systemd hands over the accepted connection on
+# internal/functions SPEC §4, §5). systemd hands over the accepted connection on
 # file descriptor 3; one request is read, the handler called, one answer
 # written, and the process exits.
 import asyncio
 import base64
 import datetime
+import glob
 import importlib.util
 import inspect
 import json
 import os
 import signal
+import site
 import socket
 import sys
 import time
@@ -18,7 +20,6 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlsplit
 
 STARTED = time.monotonic()
-NAME = os.environ.get("CG_FUNCTION", "")
 TIMEOUT = max(0.25, int(os.environ.get("CG_TIMEOUT_MS", "9750") or 9750) / 1000.0)
 MAX_BODY = 6 << 20
 
@@ -94,8 +95,6 @@ class Handler(BaseHTTPRequestHandler):
             return self.fail(413, "the request body is larger than 6 MiB")
         raw = self.rfile.read(length) if length > 0 else b""
         url = urlsplit(self.path)
-        prefix = "/.functions/" + NAME
-        path = url.path[len(prefix):] if url.path.startswith(prefix) else url.path
         try:
             body, b64 = raw.decode("utf-8"), False
         except UnicodeDecodeError:
@@ -104,12 +103,26 @@ class Handler(BaseHTTPRequestHandler):
         for k, v in self.headers.items():
             k = k.lower()
             headers[k] = headers[k] + ", " + v if k in headers else v
-        src = headers.get("x-cloudground-source")
+        # nginx says which part of the path names the function (/<name> on
+        # the functions domain, nothing on its own domain) and where the
+        # request came from; neither is the handler's.
+        prefix = headers.pop("x-cloudground-prefix", "")
+        src = headers.pop("x-cloudground-source", None)
+        path = url.path
+        if prefix and (path == prefix or path.startswith(prefix + "/")):
+            path = path[len(prefix):]
         event = {"method": self.command, "path": path or "/", "query": url.query, "headers": headers,
                  "body": body, "isBase64Encoded": b64,
                  "source": src if src in ("schedule", "test") else "http"}
         try:
-            spec = importlib.util.spec_from_file_location("cg_function", os.environ.get("CG_HANDLER", "main.py"))
+            entry = os.environ.get("CG_HANDLER", "main.py")
+            # The release's other modules, and its dependencies when it has
+            # a .venv (internal/functions SPEC §2).
+            here = os.path.dirname(os.path.abspath(entry))
+            sys.path.insert(0, here)
+            for packages in glob.glob(os.path.join(here, ".venv", "lib", "python*", "site-packages")):
+                site.addsitedir(packages)
+            spec = importlib.util.spec_from_file_location("cg_function", entry)
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
             fn = getattr(mod, "handler", None)

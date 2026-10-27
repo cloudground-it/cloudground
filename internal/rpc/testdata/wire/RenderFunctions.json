@@ -1,0 +1,38 @@
+{
+  "params": {
+    "full": {
+      "domain": "Domain",
+      "functions": [
+        {
+          "id": 7,
+          "name": "Name",
+          "timeout_sec": 7,
+          "token": "Token",
+          "cors_origins": [
+            "CORSOrigins"
+          ],
+          "domains": [
+            "Domains"
+          ]
+        }
+      ]
+    },
+    "zero": {
+      "domain": "",
+      "functions": null
+    }
+  },
+  "result": {
+    "full": {
+      "files": [
+        {
+          "path": "Path",
+          "sha256": "SHA256"
+        }
+      ]
+    },
+    "zero": {
+      "files": null
+    }
+  }
+}

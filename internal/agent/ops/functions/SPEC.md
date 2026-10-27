@@ -62,8 +62,8 @@ The socket stopped and disabled, the running instances (`cloudground-fn-<id>@*.s
 both unit files and the environment file removed, `daemon-reload`; `/srv/functions/<name>`
 removed (through `sitefs`), the two logs; the user `cg-fn-<id>` (its processes ended first, as a
 site user's, ops/sites SPEC §6.8) and its group; the certbot lineage `cloudground-fn-<id>` (under
-the certbot lock). Every step runs even when one before failed; the errors are joined. The nginx
-files are the panel's next `RenderFunctions`.
+the certbot lock). Every step runs even when one before failed; the errors are joined. The panel has
+rendered the nginx files without the function first (internal/api SPEC §17.3).
 
 ## 4. FunctionCode and RollbackFunction
 
