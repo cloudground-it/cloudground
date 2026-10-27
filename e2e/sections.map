@@ -84,6 +84,9 @@ internal/api/site_devmode.go           dev mode
 internal/api/site_maintenance.go       maintenance page
 internal/engine/nginx/maintenance.go   maintenance page
 internal/site/maintenance.go           maintenance page
+internal/api/site_logs.go               site log download
+internal/agent/ops/system/sitelogs.go  site log download
+internal/rpc/sitelogs.go               site log download
 internal/api/backup_policy.go          R-4.3 site settings, PHP extensions and backup hour
 internal/api/php_extensions.go         PHP extensions and backup hour
 internal/api/site_settings.go          site resources, R-4.3 site settings, wordpress slow request, R-4.7 capabilities, R-4.2 job queue, wordpress cache, wordpress sftp

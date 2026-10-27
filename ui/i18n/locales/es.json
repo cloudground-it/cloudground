@@ -883,7 +883,19 @@
     "empty": "(vacío)",
     "error": "Errores",
     "hint": "Registros del sistema y de los servicios. Los registros de cada sitio están en su pestaña Registros.",
-    "php": "Errores de PHP"
+    "php": "Errores de PHP",
+    "downloadTitle": "Descargar los registros",
+    "downloadHint": "Los registros de acceso y de errores completos, el actual y los rotados, no solo las últimas líneas. Los archivos rotados de más de un día están comprimidos.",
+    "noFiles": "Aún no hay registros: el sitio no ha recibido visitas.",
+    "file": "Archivo",
+    "size": "Tamaño",
+    "modified": "Última escritura",
+    "current": "actual",
+    "rotated": "rotado",
+    "compressed": "rotado, comprimido",
+    "download": "Descargar",
+    "reload": "Recargar",
+    "currentNote": "El registro actual se envía tal como está en ese momento, así que el tamaño indicado es solo orientativo. Los registros rotados no cambian."
   },
   "services": {
     "manual": "inicio manual",
