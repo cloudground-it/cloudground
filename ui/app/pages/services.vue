@@ -167,6 +167,8 @@ const columns = computed<TableColumn<ServiceInfo>[]>(() => [
             {{ t('osupdates.listsUpdated', { ago: fmtAgo(updates.lists_updated_at, locale) }) }}
           </p>
         </PanelSection>
+
+        <ServerRuntimes v-if="isAdmin" />
       </UContainer>
     </template>
   </UDashboardPanel>

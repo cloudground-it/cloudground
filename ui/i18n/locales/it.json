@@ -223,7 +223,9 @@
       "static": "Statico",
       "php": "PHP",
       "laravel": "Laravel",
-      "proxy": "Reverse proxy"
+      "proxy": "Reverse proxy",
+      "node": "Node.js",
+      "python": "Python"
     }
   },
   "osupdates": {
@@ -314,7 +316,8 @@
     "vhost": "Vhost",
     "protection": "Percorsi protetti",
     "resources": "Risorse",
-    "security": "Sicurezza"
+    "security": "Sicurezza",
+    "app": "App"
   },
   "overview": {
     "certificate": "Certificato",
@@ -943,7 +946,8 @@
     "empty": "(vuoto)",
     "error": "Errori",
     "hint": "Log di sistema e dei servizi. I log di ogni sito sono nella sua scheda Log.",
-    "php": "Errori PHP"
+    "php": "Errori PHP",
+    "app": "App"
   },
   "services": {
     "manual": "avvio manuale",
@@ -1495,7 +1499,9 @@
       "static": "HTML, build",
       "php": "PHP semplice",
       "laravel": "framework",
-      "proxy": "Node, Go…"
+      "proxy": "un tuo server",
+      "node": "la tua app",
+      "python": "WSGI, ASGI"
     },
     "upstreamHelp": "nginx fa da proxy con HTTP/3 e certificato; la cache resta spenta finché non la attivi.",
     "wpPart": "Amministratore di WordPress",
@@ -1874,5 +1880,53 @@
   "proof": {
     "factorHint": "Poi conferma con un secondo fattore.",
     "passkeyOnly": "Conferma con una passkey che verifichi che sei tu: impronta, volto o PIN del dispositivo."
+  },
+  "app": {
+    "willInstall": "installato con il sito",
+    "runtime": "Runtime",
+    "runtimeHelp": "La versione su cui gira l'app. Se il server non ce l'ha, viene installata con il sito.",
+    "start": "Comando di avvio",
+    "startHelp": "Eseguito dalla shell nel rilascio attivo. L'app deve ascoltare su $PORT: il percorso di un socket unix, se non imposti una porta.",
+    "startRule": "Il comando di avvio è una riga di al massimo 1024 caratteri.",
+    "statusTitle": "App",
+    "statusHint": "L'app {runtime} gira come servizio a sé, con l'utente del sito, e riparte se si ferma.",
+    "down": "Ferma",
+    "healthy": "Funziona",
+    "unhealthy": "Non risponde",
+    "unitState": "Servizio",
+    "since": "Attiva dal",
+    "restarts": "Riavvii",
+    "lastExit": "ultimo codice di uscita {code}",
+    "health": "Controllo",
+    "restart": "Riavvia",
+    "logs": "Log dell'app",
+    "settingsTitle": "Impostazioni",
+    "settingsHint": "Salvare riavvia l'app. Anche rilasci e rollback la riavviano, con il nuovo rilascio.",
+    "versionHelp": "Altre versioni si installano in Servizi → Runtime.",
+    "port": "Porta",
+    "portHelp": "0 (consigliato): un socket unix che raggiunge solo nginx. Una porta è su 127.0.0.1, dove qualunque processo del server la raggiunge.",
+    "healthPath": "Percorso del controllo",
+    "healthPathHelp": "Cosa chiede il pannello per verificare che l'app risponda.",
+    "socket": "nginx raggiunge l'app su {socket}.",
+    "envTitle": "Ambiente",
+    "envHint": "Variabili che l'app trova nel suo ambiente. Salvare la riavvia.",
+    "variables": "Variabili",
+    "name": "NOME",
+    "value": "Valore",
+    "addVariable": "Aggiungi una variabile",
+    "secrets": "Segreti",
+    "secretsHint": "Conservati cifrati e mai più mostrati; l'app li riceve come ogni variabile.",
+    "addSecret": "Aggiungi un segreto",
+    "nameRule": "{name} non è un nome di variabile: lettere maiuscole, cifre e _, senza iniziare con una cifra.",
+    "saveRestart": "Salva e riavvia",
+    "saved": "App salvata e riavviata",
+    "restarted": "App riavviata"
+  },
+  "runtimes": {
+    "title": "Runtime",
+    "hint": "Node.js e Python per i siti Node.js e Python. Node.js arriva da nodejs.org, verificato con i checksum pubblicati; Python è quello del sistema.",
+    "installed": "Installato",
+    "install": "Installa",
+    "queued": "Installazione avviata"
   }
 }

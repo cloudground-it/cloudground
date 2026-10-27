@@ -223,7 +223,9 @@
       "static": "Static",
       "php": "PHP",
       "laravel": "Laravel",
-      "proxy": "Reverse proxy"
+      "proxy": "Reverse proxy",
+      "node": "Node.js",
+      "python": "Python"
     }
   },
   "osupdates": {
@@ -314,7 +316,8 @@
     "vhost": "Vhost",
     "protection": "Protected paths",
     "resources": "Resources",
-    "security": "Security"
+    "security": "Security",
+    "app": "App"
   },
   "overview": {
     "certificate": "Certificate",
@@ -943,7 +946,8 @@
     "empty": "(empty)",
     "error": "Errors",
     "hint": "System and service logs. Each site's own logs are on its Logs tab.",
-    "php": "PHP errors"
+    "php": "PHP errors",
+    "app": "App"
   },
   "services": {
     "manual": "manual start",
@@ -1495,7 +1499,9 @@
       "static": "HTML, builds",
       "php": "plain PHP",
       "laravel": "framework",
-      "proxy": "Node, Go…"
+      "proxy": "your own server",
+      "node": "your own app",
+      "python": "WSGI, ASGI"
     },
     "upstreamHelp": "nginx proxies it with HTTP/3 and a certificate; the cache stays off until you turn it on.",
     "wpPart": "WordPress administrator",
@@ -1874,5 +1880,53 @@
   "proof": {
     "factorHint": "Then confirm with a second factor.",
     "passkeyOnly": "Confirm with a passkey that checks it is you: your fingerprint, face or device PIN."
+  },
+  "app": {
+    "willInstall": "installed when the site is created",
+    "runtime": "Runtime",
+    "runtimeHelp": "The version the app runs on. One the server lacks is installed with the site.",
+    "start": "Start command",
+    "startHelp": "Run in the live release by the shell. The app must listen on $PORT: a unix socket path unless you set a port.",
+    "startRule": "The start command is one line of at most 1024 characters.",
+    "statusTitle": "App",
+    "statusHint": "The {runtime} app runs as a service of its own, as the site user, and starts again if it stops.",
+    "down": "Stopped",
+    "healthy": "Healthy",
+    "unhealthy": "Not answering",
+    "unitState": "Service",
+    "since": "Running since",
+    "restarts": "Restarts",
+    "lastExit": "last exit code {code}",
+    "health": "Health check",
+    "restart": "Restart",
+    "logs": "App log",
+    "settingsTitle": "Settings",
+    "settingsHint": "Saving restarts the app. Deploys and rollbacks restart it too, with the new release.",
+    "versionHelp": "Install other versions under Services → Runtimes.",
+    "port": "Port",
+    "portHelp": "0 (recommended): a unix socket only nginx can reach. A port is on 127.0.0.1, where any process on the server can reach it.",
+    "healthPath": "Health check path",
+    "healthPathHelp": "What the panel asks for to check the app answers.",
+    "socket": "nginx reaches the app at {socket}.",
+    "envTitle": "Environment",
+    "envHint": "Variables the app sees in its environment. Saving restarts it.",
+    "variables": "Variables",
+    "name": "NAME",
+    "value": "Value",
+    "addVariable": "Add a variable",
+    "secrets": "Secrets",
+    "secretsHint": "Stored encrypted and never shown again; the app gets them like any variable.",
+    "addSecret": "Add a secret",
+    "nameRule": "{name} is not a variable name: capital letters, digits and _, not starting with a digit.",
+    "saveRestart": "Save and restart",
+    "saved": "App saved and restarted",
+    "restarted": "App restarted"
+  },
+  "runtimes": {
+    "title": "Runtimes",
+    "hint": "Node.js and Python for the Node.js and Python sites. Node.js comes from nodejs.org, checked against its published checksums; Python is the system's own.",
+    "installed": "Installed",
+    "install": "Install",
+    "queued": "Installation started"
   }
 }
