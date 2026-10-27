@@ -40,6 +40,10 @@ const (
 	// perAccountCeremonies is how many may wait per account and purpose; a
 	// new one past it drops the oldest.
 	perAccountCeremonies = 5
+	// perNetworkSignIns is how many passkey sign-ins (no account yet) may
+	// wait per client network; a new one past it drops that network's
+	// oldest, so one network cannot fill MaxCeremonies for everyone.
+	perNetworkSignIns = 8
 )
 
 // purpose is what a challenge was issued for; an answer is accepted only
@@ -56,6 +60,8 @@ const (
 type ceremony struct {
 	purpose purpose
 	userID  int64
+	// network is the client's (Origin.network), for a sign-in's bound.
+	network string
 	rp      RP
 	session webauthn.SessionData
 	expires time.Time
@@ -84,17 +90,23 @@ func (c *ceremonies) put(cer *ceremony, now time.Time) error {
 			delete(c.m, k)
 		}
 	}
-	if cer.userID != 0 {
+	if cer.userID != 0 || cer.network != "" {
 		var mine []string
 		for k, v := range c.m {
-			if v.userID == cer.userID && v.purpose == cer.purpose {
+			if v.purpose != cer.purpose {
+				continue
+			}
+			if (cer.userID != 0 && v.userID == cer.userID) || (cer.userID == 0 && v.userID == 0 && v.network == cer.network) {
 				mine = append(mine, k)
 			}
 		}
 		slices.SortFunc(mine, func(a, b string) int { return int(c.m[a].seq) - int(c.m[b].seq) })
 		keep := perAccountCeremonies - 1
-		if cer.purpose == purposeRegister {
+		switch {
+		case cer.purpose == purposeRegister:
 			keep = 0
+		case cer.userID == 0:
+			keep = perNetworkSignIns - 1
 		}
 		for len(mine) > keep {
 			delete(c.m, mine[0])
@@ -306,7 +318,7 @@ func (sv *Service) BeginPasskeySignIn(from Origin, rp RP) (*protocol.CredentialA
 	if err != nil {
 		return nil, err
 	}
-	if err := sv.ceremonies.put(&ceremony{purpose: purposeSignIn, rp: rp, session: *session}, sv.now()); err != nil {
+	if err := sv.ceremonies.put(&ceremony{purpose: purposeSignIn, network: from.network(), rp: rp, session: *session}, sv.now()); err != nil {
 		return nil, refuse(Throttled, err.Error())
 	}
 	return opts, nil

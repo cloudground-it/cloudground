@@ -569,8 +569,10 @@ factors in one, and it cannot be phished.
   WebAuthn request options with a fresh challenge, no credential list (the
   browser offers the passkeys it holds for the domain) and user
   verification `required`. A challenge is valid 5 minutes, for one
-  sign-in; at most 1024 wait across the panel, and past that → **429** `too
-  many passkey sign-ins at once — try again in a minute`.
+  sign-in; at most 8 wait per client network (§2.7; a ninth drops that
+  network's oldest, so one network cannot crowd out the rest) and 1024
+  across the panel, and past that → **429** `too many passkey sign-ins at
+  once — try again in a minute`.
 - `POST /api/login/passkey` `{credential}` (the `PublicKeyCredential` as
   JSON): the network and /48 limits → 429; the assertion must answer one
   of those challenges (spent by its first use, right or wrong), name a
@@ -828,9 +830,10 @@ the rules).
 - **Ceremonies.** A challenge is 32 random bytes, valid 5 minutes, kept in
   the API's memory (a restart forgets it), bound to its purpose (sign-in, a
   second factor, a proof, adding a passkey) and its account, and spent by
-  its first use, right or wrong. At most 1024 wait at once, and 5 per
-  account and purpose (a sixth drops the oldest); one registration per
-  account (a new one replaces it).
+  its first use, right or wrong. At most 1024 wait at once, 5 per account
+  and purpose (a sixth drops the oldest), 8 sign-ins per client network (a
+  ninth drops that network's oldest); one registration per account (a new
+  one replaces it).
 
 Routes (sessions only; the proof is §2.4's, and the factor's refusal on
 these is **403** `confirm with a code, a passkey or a recovery code`):
