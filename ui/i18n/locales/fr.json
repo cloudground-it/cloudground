@@ -315,7 +315,8 @@
     "protection": "Chemins protégés",
     "resources": "Ressources",
     "security": "Sécurité",
-    "redirects": "Redirections"
+    "redirects": "Redirections",
+    "traffic": "Trafic"
   },
   "overview": {
     "certificate": "Certificat",
@@ -2083,5 +2084,36 @@
     "saved": "Paramètres Cloudflare enregistrés",
     "purgedToo": "Le cache de Cloudflare a aussi été vidé.",
     "purgeFailed": "Le cache de Cloudflare n’a pas été vidé : {error}"
+  },
+  "traffic": {
+    "title": "Trafic",
+    "hint": "Calculé sur ce serveur à partir du journal d’accès nginx du site, toutes les cinq minutes.",
+    "days": "{n} jours",
+    "pageviews": "Pages vues",
+    "pageviewsNote": "Les pages ouvertes par des personnes, sans robots, fichiers statiques ni pages d’administration",
+    "visitors": "Visiteurs",
+    "visitorsNote": "Visiteurs distincts par jour, additionnés sur la période",
+    "requests": "Requêtes",
+    "botsNote": "{pct} % de robots et de scripts",
+    "bandwidth": "Données envoyées",
+    "bandwidthNote": "Le corps des réponses, tel que nginx l’enregistre",
+    "cacheHits": "Servies par le cache",
+    "cacheNote": "Parmi les requêtes passées par le cache de pages",
+    "errors": "Erreurs du serveur",
+    "errorsNote": "Réponses 5xx ; {n} introuvables ou refusées (4xx)",
+    "dayTitle": "{date} : {views} pages vues, {visitors} visiteurs",
+    "hourTitle": "{time} : {views} pages vues",
+    "chartAria": "{days} derniers jours : {views} pages vues, {visitors} visiteurs",
+    "last48": "Pages vues, 48 dernières heures",
+    "emptyRange": "Rien n’a été enregistré sur cette période.",
+    "notYet": "Pas encore de statistiques. Le journal d’accès est lu toutes les cinq minutes.",
+    "privacy": "Pas de cookies, pas de scripts dans vos pages, aucun tiers. Les adresses des visiteurs ne sont jamais conservées.",
+    "collectedAt": "Dernière lecture {at}.",
+    "topPages": "Pages les plus vues",
+    "notFound": "Introuvables",
+    "notFoundHint": "Adresses qui ont répondu 404 : liens cassés, ou scanners qui cherchent des fichiers.",
+    "path": "Chemin",
+    "hits": "Requêtes",
+    "none": "Rien pour l’instant."
   }
 }

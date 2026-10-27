@@ -117,10 +117,14 @@ const (
 // is below the 30 minutes every call had before unless the method is a
 // bounded read or a single quick change.
 var (
-	Ping            = define[None, map[string]string](Spec{Name: "Ping", Timeout: 10 * sec, ReadOnly: true, Fail: "The agent did not answer"})
-	Capabilities    = define[None, rpc.Capabilities](Spec{Name: "Capabilities", Timeout: 10 * sec, ReadOnly: true, Fail: "Could not read what this server offers"})
-	SystemStatus    = define[None, rpc.SystemStatusResult](Spec{Name: "SystemStatus", Timeout: 30 * sec, ReadOnly: true, Fail: "Could not read the system status"})
-	SiteUsage       = define[rpc.SiteUsageParams, rpc.SiteUsageResult](Spec{Name: "SiteUsage", Timeout: 2 * mins, ReadOnly: true, Fail: "Could not read the sites' resource usage"})
+	Ping         = define[None, map[string]string](Spec{Name: "Ping", Timeout: 10 * sec, ReadOnly: true, Fail: "The agent did not answer"})
+	Capabilities = define[None, rpc.Capabilities](Spec{Name: "Capabilities", Timeout: 10 * sec, ReadOnly: true, Fail: "Could not read what this server offers"})
+	SystemStatus = define[None, rpc.SystemStatusResult](Spec{Name: "SystemStatus", Timeout: 30 * sec, ReadOnly: true, Fail: "Could not read the system status"})
+	SiteUsage    = define[rpc.SiteUsageParams, rpc.SiteUsageResult](Spec{Name: "SiteUsage", Timeout: 2 * mins, ReadOnly: true, Fail: "Could not read the sites' resource usage"})
+	// TrafficCollect reads what each site's access log gained into its
+	// statistics; TrafficStats answers a site's range (#33, ops/traffic SPEC).
+	TrafficCollect  = define[rpc.TrafficCollectParams, rpc.TrafficCollectResult](Spec{Name: "TrafficCollect", Timeout: 10 * mins, Fail: "Could not read the sites' access logs"})
+	TrafficStats    = define[rpc.TrafficStatsParams, rpc.TrafficStatsResult](Spec{Name: "TrafficStats", Timeout: 1 * mins, ReadOnly: true, Fail: "Could not read the site's traffic statistics"})
 	CreateSite      = define[rpc.CreateSiteParams, rpc.CreateSiteResult](Spec{Name: "CreateSite", Timeout: 45 * mins, Sites: true, Lock: LockSite, Fail: "Could not create the site"})
 	DeleteSite      = define[rpc.SiteRef, map[string]any](Spec{Name: "DeleteSite", Timeout: 15 * mins, Sites: true, Lock: LockSite, Fail: "Could not delete the site"})
 	ApplySiteConfig = define[rpc.SiteRef, rpc.ApplyResult](Spec{Name: "ApplySiteConfig", Timeout: 15 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not apply the site's configuration"})

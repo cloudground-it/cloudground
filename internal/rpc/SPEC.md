@@ -57,6 +57,8 @@ handler.
 | | every entry an address or a CIDR (internal/blocklist SPEC §1) | `"<s>" is not an IP address or a network in CIDR form` |
 | | no block wider than /8 (IPv4) or /16 (IPv6) | `<p> is wider than /8 (IPv4) or /16 (IPv6): too broad to block` |
 | `CloudflareRangesParams` | `cfips.Parse` takes `V4` and `V6` (internal/cfips SPEC) | its message |
+| `TrafficCollectParams` | at most 4096 sites; each a positive `ID` and a valid domain, no `ID` twice | `too many sites in one traffic read`, `site <id>: …`, `site <id> is listed twice` |
+| `TrafficStatsParams` | a positive `ID`, a valid domain, `Days` 1–90 | `invalid site id`, the domain's message, `days must be 1 to 90` |
 | `ManageFileParams` | `Operation` is `mkdir`, `rename` or `delete` | `unsupported file operation "<o>"` |
 | | `rename` has a non-blank `DestPath` | `destination path required` |
 | `SSHKeyParams` | `Action` is `list`, `add` or `delete` | `unsupported SSH key action "<a>"` |

@@ -315,7 +315,8 @@
     "protection": "Percorsi protetti",
     "resources": "Risorse",
     "security": "Sicurezza",
-    "redirects": "Reindirizzamenti"
+    "redirects": "Reindirizzamenti",
+    "traffic": "Traffico"
   },
   "overview": {
     "certificate": "Certificato",
@@ -2083,5 +2084,36 @@
     "saved": "Impostazioni Cloudflare salvate",
     "purgedToo": "Anche la cache di Cloudflare è stata svuotata.",
     "purgeFailed": "La cache di Cloudflare non è stata svuotata: {error}"
+  },
+  "traffic": {
+    "title": "Traffico",
+    "hint": "Calcolato su questo server dal log di accesso nginx del sito, ogni cinque minuti.",
+    "days": "{n} giorni",
+    "pageviews": "Pagine viste",
+    "pageviewsNote": "Pagine aperte dalle persone, senza bot, risorse statiche o pagine di amministrazione",
+    "visitors": "Visitatori",
+    "visitorsNote": "Visitatori distinti per giorno, sommati sui giorni",
+    "requests": "Richieste",
+    "botsNote": "{pct}% da bot e script",
+    "bandwidth": "Dati inviati",
+    "bandwidthNote": "Il corpo delle risposte, come lo registra nginx",
+    "cacheHits": "Servite dalla cache",
+    "cacheNote": "Delle richieste passate dalla cache di pagina",
+    "errors": "Errori del server",
+    "errorsNote": "Risposte 5xx; {n} non trovate o rifiutate (4xx)",
+    "dayTitle": "{date}: {views} pagine viste, {visitors} visitatori",
+    "hourTitle": "{time}: {views} pagine viste",
+    "chartAria": "Ultimi {days} giorni: {views} pagine viste, {visitors} visitatori",
+    "last48": "Pagine viste, ultime 48 ore",
+    "emptyRange": "In questo periodo non è stato registrato nulla.",
+    "notYet": "Ancora nessuna statistica. Il log di accesso viene letto ogni cinque minuti.",
+    "privacy": "Niente cookie, niente script nelle tue pagine, nessun servizio esterno. Gli indirizzi dei visitatori non vengono mai conservati.",
+    "collectedAt": "Ultima lettura {at}.",
+    "topPages": "Pagine più viste",
+    "notFound": "Non trovate",
+    "notFoundHint": "Indirizzi che hanno risposto 404: link rotti, o scanner che cercano file.",
+    "path": "Percorso",
+    "hits": "Richieste",
+    "none": "Ancora niente."
   }
 }

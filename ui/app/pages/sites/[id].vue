@@ -77,6 +77,8 @@ const links = computed(() => {
   // mail() of a PHP site goes through the panel's relay (#77).
   if (s.php_version) more.push({ label: t('tabs.mail'), icon: 'i-cg-bell', to: `${base.value}/mail` })
   more.push({ label: t('tabs.resources'), icon: 'i-cg-gauge', to: `${base.value}/resources` })
+  // Visitor statistics from the access log (#33); a proxy site is logged too.
+  more.push({ label: t('tabs.traffic'), icon: 'i-cg-chart-bar', to: `${base.value}/traffic` })
   more.push(
     { label: t('tabs.sftp'), icon: 'i-cg-key', to: `${base.value}/sftp` },
     // A staging copy asks for its own password everywhere already.

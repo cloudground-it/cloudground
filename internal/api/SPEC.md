@@ -3151,6 +3151,34 @@ the site's slice, and the agent's CPU.
   - a file the agent no longer finds → the finding is `gone`, 409 `the file is no longer there`;
   - either way an alert evaluation follows.
 
+### 11.8 Traffic statistics (#33, `traffic.go`)
+
+Each site's visitor statistics come from its own nginx access log, read on
+the server: no script in the pages, no cookie, no third party. The agent
+parses the logs and keeps aggregates only (internal/traffic SPEC,
+ops/traffic SPEC); no address, and nothing that identifies a visitor, is
+kept beyond the day's unique-visitor sketch, and the panel never sees one.
+
+The `traffic.collect` job (quiet; every maintenance tick, five minutes, and
+`POST /api/system/maintenance`) sends the agent every site (`id`, `domain`)
+in one `TrafficCollect`. The agent reads what each log gained since the
+last round, at most 32 MiB per site per round (the rest waits for the
+next), never on a request's path: nginx writes the log as ever, and the
+parsing runs in the agent, on the panel's schedule. A site the panel no
+longer has loses its aggregates at the next round.
+
+- `GET /api/sites/{id}/traffic?days=7|30|90` (signed in, the site's
+  readers; 7 by default, another value → 400): the agent's `TrafficStats`
+  as it answers: `days` (every day of the range, oldest first, UTC, zero
+  when nothing was logged), `hours` (the last 48 hours, oldest first),
+  `totals` (the range summed), `top_pages` and `top_not_found` (20 each,
+  over the range), `collected_at` (the last round that read the site's
+  log; absent before one). Each day and the totals: `requests`,
+  `pageviews`, `visitors`, `bots`, `bytes`, `status_2xx` … `status_5xx`,
+  `cache_hit`, `cache_miss`, `cache_bypass`; each hour `requests` and
+  `pageviews`. `visitors` is per day; the totals add the days up (a
+  visitor of two days counts twice), which the page says.
+
 ## 12. Settings (R-4.3)
 
 `/api/settings` is a flat map of string keys (the settings page and cgctl

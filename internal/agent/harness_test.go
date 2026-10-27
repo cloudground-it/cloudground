@@ -63,7 +63,7 @@ func testAgent(t *testing.T) (*Agent, *testHost) {
 		FallbackCert: filepath.Join(root, "certs", "fallback.pem"), FallbackKey: filepath.Join(root, "certs", "fallback.key"),
 		CertLiveDir: dir("letsencrypt"), NginxSites: dir("nginx", "sites-enabled"), NginxConfDir: dir("nginx", "conf.d"),
 		PHPSocketDir: dir("phpsock"), PHPMasterDir: dir("php-masters"), SystemdDir: dir("systemd"),
-		NginxAuthDir: dir("nginx-auth"), CustomCertDir: dir("custom-certs"), WorkDir: dir("work"), CrontabDir: dir("crontabs"),
+		NginxAuthDir: dir("nginx-auth"), CustomCertDir: dir("custom-certs"), WorkDir: dir("work"), CrontabDir: dir("crontabs"), TrafficDir: dir("traffic"),
 		CronDir: dir("cron.d"), CronSpecDir: dir("cron-spec"), BinDir: dir("bin"),
 		SiteIndex: filepath.Join(root, "agent", "sites.json"),
 	}

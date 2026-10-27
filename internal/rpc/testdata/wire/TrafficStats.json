@@ -1,0 +1,89 @@
+{
+  "params": {
+    "full": {
+      "id": 7,
+      "domain": "Domain",
+      "days": 7
+    },
+    "zero": {
+      "id": 0,
+      "domain": "",
+      "days": 0
+    }
+  },
+  "result": {
+    "full": {
+      "days": [
+        {
+          "date": "Date",
+          "requests": 7,
+          "pageviews": 7,
+          "visitors": 7,
+          "bots": 7,
+          "bytes": 7,
+          "status_2xx": 7,
+          "status_3xx": 7,
+          "status_4xx": 7,
+          "status_5xx": 7,
+          "cache_hit": 7,
+          "cache_miss": 7,
+          "cache_bypass": 7
+        }
+      ],
+      "hours": [
+        {
+          "time": "2026-01-02T03:04:05Z",
+          "requests": 7,
+          "pageviews": 7
+        }
+      ],
+      "totals": {
+        "requests": 7,
+        "pageviews": 7,
+        "visitors": 7,
+        "bots": 7,
+        "bytes": 7,
+        "status_2xx": 7,
+        "status_3xx": 7,
+        "status_4xx": 7,
+        "status_5xx": 7,
+        "cache_hit": 7,
+        "cache_miss": 7,
+        "cache_bypass": 7
+      },
+      "top_pages": [
+        {
+          "path": "Path",
+          "count": 7
+        }
+      ],
+      "top_not_found": [
+        {
+          "path": "Path",
+          "count": 7
+        }
+      ],
+      "collected_at": "2026-01-02T03:04:05Z"
+    },
+    "zero": {
+      "days": null,
+      "hours": null,
+      "totals": {
+        "requests": 0,
+        "pageviews": 0,
+        "visitors": 0,
+        "bots": 0,
+        "bytes": 0,
+        "status_2xx": 0,
+        "status_3xx": 0,
+        "status_4xx": 0,
+        "status_5xx": 0,
+        "cache_hit": 0,
+        "cache_miss": 0,
+        "cache_bypass": 0
+      },
+      "top_pages": null,
+      "top_not_found": null
+    }
+  }
+}
