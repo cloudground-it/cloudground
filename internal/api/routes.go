@@ -162,6 +162,8 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "install your own certificate: `{fullchain, key}` in PEM"},
 		{Method: del, Path: "/api/sites/{id}/certificate/custom", Policy: policyManage, Load: loadSite, Handle: s.handleCustomCertificate,
 			Section: secSites, Doc: "remove it and go back to Let's Encrypt: the certificate for the site's current names is requested (`{status, task}`; `{status, warning}` without an ACME e-mail)"},
+		{Method: get, Path: "/api/sites/{id}/traffic", Policy: policySignedIn, Load: loadSite, Handle: s.handleTraffic,
+			Section: secSites, Doc: "visitor statistics from the site's access log, built on the server (no cookie, no third party): `?days=7|30|90` (7 by default) answers `days`, `hours` (the last 48), `totals`, `top_pages`, `top_not_found` and `collected_at`; each day `requests`, `pageviews`, `visitors` (per day), `bots`, `bytes`, `status_2xx`…`status_5xx`, `cache_hit`, `cache_miss`, `cache_bypass`"},
 		{Method: post, Path: "/api/sites/{id}/purge", Policy: policyManage, Load: loadSite, Handle: s.handlePurge,
 			Section: secSites, Doc: "empty the site's page cache"},
 		{Method: post, Path: "/api/sites/{id}/warm", Policy: policyManage, Load: loadSite, Handle: s.handleWarmCache,

@@ -38,6 +38,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/ops/sites"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/staging"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/system"
+	"github.com/cloudground-it/cloudground/internal/agent/ops/traffic"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/wp"
 	"github.com/cloudground-it/cloudground/internal/agent/sitefs"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
@@ -81,6 +82,7 @@ type Paths struct {
 	Quarantine    string // the files the malware scan moved out of the sites, per site id; "" keeps none
 	Signatures    string // the malware scan's signature set, readable in a site's sandbox
 	AuthLogSocket string // where WordPress vhosts log failed sign-ins for the block list; "" logs none
+	TrafficDir    string // each site's traffic statistics (#33), aggregates only
 }
 
 // DefaultPaths is the installer's layout.
@@ -119,6 +121,7 @@ func DefaultPaths() Paths {
 		Quarantine:    "/var/lib/cloudground-agent/quarantine",
 		Signatures:    "/var/lib/cloudground-signatures",
 		AuthLogSocket: blocklist.DefaultSocket,
+		TrafficDir:    traffic.DefaultDir,
 	}
 }
 
@@ -164,7 +167,7 @@ type Agent struct {
 	// the <domain>Handlers methods of the ops_*.go files.
 	sitesOnce, certsOnce, panelOnce, systemOnce, filesOnce, sftpOnce sync.Once
 	wpOnce, cronOnce, dbOnce, releaseOnce, backupOnce, stagingOnce   sync.Once
-	dbStudioOnce, malwareOnce, blocklistOnce                         sync.Once
+	dbStudioOnce, malwareOnce, blocklistOnce, trafficOnce            sync.Once
 
 	// index is the record of the sites this agent provisioned.
 	index     siteIndex
@@ -185,6 +188,7 @@ type Agent struct {
 	dbStudio   *dbstudio.Ops
 	malwareOps *malware.Ops
 	blocklist  *blocklist.Ops
+	trafficOps *traffic.Ops
 }
 
 // New is the agent of a real machine.
@@ -234,7 +238,7 @@ func (a *Agent) NewServer(cfg agentrpc.Config) *agentrpc.Server {
 		a.systemHandlers(), a.sitesHandlers(), a.certHandlers(), a.dbHandlers(),
 		a.releaseHandlers(), a.stagingHandlers(), a.backupHandlers(), a.cronHandlers(),
 		a.filesHandlers(), a.sftpHandlers(), a.wpHandlers(), a.panelHandlers(), a.migrationHandlers(),
-		a.dbStudioHandlers(), a.malwareHandlers(), a.blocklistHandlers(),
+		a.dbStudioHandlers(), a.malwareHandlers(), a.blocklistHandlers(), a.trafficHandlers(),
 	} {
 		d.Register(s)
 	}
