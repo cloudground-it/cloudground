@@ -28,6 +28,12 @@ const (
 // pk sends one request as a browser at pkOrigin would, with the client's
 // cookies: Host and Origin the panel's domain.
 func (a *apiClient) pk(method, path string, body any) (int, []byte) {
+	return a.pkAt(pkHost, method, path, body)
+}
+
+// pkAt is pk as a browser that reached the panel at host (Origin
+// https://host).
+func (a *apiClient) pkAt(host, method, path string, body any) (int, []byte) {
 	var rd io.Reader
 	if body != nil {
 		enc, err := json.Marshal(body)
@@ -36,14 +42,14 @@ func (a *apiClient) pk(method, path string, body any) (int, []byte) {
 		}
 		rd = bytes.NewReader(enc)
 	}
-	a.h.step(method + " " + path + " (as " + pkHost + ")")
+	a.h.step(method + " " + path + " (as " + host + ")")
 	req, err := http.NewRequest(method, a.h.Panel+path, rd)
 	if err != nil {
 		a.h.root.Logf("API %s %s: %v", method, path, err)
 		return 0, nil
 	}
-	req.Host = pkHost
-	req.Header.Set("Origin", pkOrigin)
+	req.Host = host
+	req.Header.Set("Origin", "https://"+host)
 	req.Header.Set("X-Real-IP", pkIP)
 	if rd != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -164,7 +170,9 @@ func (h *harness) panelPasskeys(t *testing.T) {
 		h.check(t, "control: the passkey session works", code(alone.pk("GET", "/api/account/sessions", nil)), "200")
 	}
 	// Reached by its IP address the panel offers no passkey.
-	st, ib := newAPIClient(h, "", "").post("/api/login/passkey/begin", map[string]string{})
+	// (The API socket's own Host, localhost, is a secure context a browser
+	// reaches through an SSH tunnel: passkeys work there, by design.)
+	st, ib := newAPIClient(h, "", "").pkAt(h.IP+":8443", "POST", "/api/login/passkey/begin", map[string]string{})
 	h.assert(t, "#156: no passkey sign-in away from a domain name", st == 400 && contains(ib, "domain name"), "HTTP %d %s", st, head(ib, 200))
 
 	// 4. A recovery code signs in once, and the use is in the audit log.
