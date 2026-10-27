@@ -61,6 +61,12 @@ type Server struct {
 	accounts *accounts.Service
 	// connectorFailLimiter counts wrong connector tokens by address.
 	connectorFailLimiter *throttle.Window
+	// The git webhook's limits by address: every delivery, and the ones
+	// that failed authentication (git_hook.go); gitq is the deploy waiting
+	// for each site (git_deploy.go).
+	gitHookLimiter     *throttle.Window
+	gitHookFailLimiter *throttle.Window
+	gitq               gitQueue
 	// studio holds Quarry's own sessions and the handoffs into it,
 	// studioGate the limits of its sign-in (studio_session.go,
 	// studio_auth.go).
@@ -175,6 +181,8 @@ func (s *Server) Init() {
 	s.accounts = accounts.New(s.Store, s.audit)
 	s.accounts.Failed = s.signInFailed
 	s.connectorFailLimiter = throttle.New(connectorFailures, time.Minute)
+	s.gitHookLimiter = throttle.New(gitHookDeliveries, time.Minute)
+	s.gitHookFailLimiter = throttle.New(gitHookFailures, time.Minute)
 	s.studioGate = newStudioGate()
 	if s.Store != nil {
 		s.startJobQueue()

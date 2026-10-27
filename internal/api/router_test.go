@@ -643,6 +643,8 @@ func TestRouteBodyLimitsArePinned(t *testing.T) {
 		"PUT /api/sites/{id}/dev-mode":                 smallBody,
 		"PUT /api/sites/{id}/maintenance":              smallBody,
 		"PUT /api/sites/{id}/wp/cleanup":               smallBody,
+		"PUT /api/sites/{id}/git-deploy":               smallBody,
+		"POST /hooks/git/{hook}":                       gitHookBody,
 		"POST /api/sites/{id}/protected-paths":         smallBody,
 		"PUT /api/sites/{id}/wp/two-factor":            smallBody,
 		"PUT /api/sites/{id}/wp/hardening":             smallBody,

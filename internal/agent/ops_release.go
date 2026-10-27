@@ -16,6 +16,9 @@ func (a *Agent) releaseHandlers() *release.Ops {
 			ReloadPHP: func(ctx context.Context, s state.Site) error {
 				return a.sitesHandlers().ReloadPHP(ctx, s)
 			},
+			ReloadNginx: func(ctx context.Context) error {
+				return a.sitesHandlers().ReloadNginx(ctx)
+			},
 			Log: a.log(),
 		}
 	})

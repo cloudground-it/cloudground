@@ -167,6 +167,35 @@ var stepMail = schemaStep{version: 29, stmts: []string{
 	`ALTER TABLE panel_settings ADD COLUMN mail TEXT NOT NULL DEFAULT '{}'`,
 }}
 
+// stepGitDeploy keeps a site's git deploy settings and the webhook
+// deliveries it received (#24, api SPEC §15). The webhook secret and the
+// deploy key are sealed secrets, not columns.
+var stepGitDeploy = schemaStep{version: 31, stmts: []string{
+	`CREATE TABLE site_git_deploys (
+		site_id       INTEGER PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
+		enabled       INTEGER NOT NULL DEFAULT 0,
+		repo          TEXT NOT NULL DEFAULT '',
+		branch        TEXT NOT NULL DEFAULT 'main',
+		build_command TEXT NOT NULL DEFAULT '',
+		public_key    TEXT NOT NULL DEFAULT '',
+		hook_id       TEXT NOT NULL UNIQUE
+	)`,
+	`CREATE TABLE site_git_deliveries (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		site_id       INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+		at            TEXT NOT NULL,
+		forge         TEXT NOT NULL,
+		event         TEXT NOT NULL DEFAULT '',
+		ref           TEXT NOT NULL DEFAULT '',
+		commit_sha    TEXT NOT NULL DEFAULT '',
+		outcome       TEXT NOT NULL,
+		detail        TEXT NOT NULL DEFAULT '',
+		deployment_id INTEGER REFERENCES deployments(id) ON DELETE SET NULL,
+		task_id       INTEGER NOT NULL DEFAULT 0
+	)`,
+	`CREATE INDEX site_git_deliveries_site ON site_git_deliveries (site_id, id)`,
+}}
+
 // stepBlocklist keeps the server's block list (#21, blocklist.go): the
 // addresses blocked by hand or for repeated failed sign-ins, the ones never
 // blocked, and the automatic blocking's settings (one JSON row; none is the

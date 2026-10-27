@@ -31,6 +31,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/ops/db"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/dbstudio"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/files"
+	"github.com/cloudground-it/cloudground/internal/agent/ops/gitdeploy"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/malware"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/panel"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/release"
@@ -164,27 +165,29 @@ type Agent struct {
 	// the <domain>Handlers methods of the ops_*.go files.
 	sitesOnce, certsOnce, panelOnce, systemOnce, filesOnce, sftpOnce sync.Once
 	wpOnce, cronOnce, dbOnce, releaseOnce, backupOnce, stagingOnce   sync.Once
+	gitDeployOnce                                                    sync.Once
 	dbStudioOnce, malwareOnce, blocklistOnce                         sync.Once
 
 	// index is the record of the sites this agent provisioned.
 	index     siteIndex
 	indexOnce sync.Once
 
-	sitesOps   *sites.Ops
-	certsOps   *certs.Ops
-	panelOps   *panel.Ops
-	systemOps  *system.Ops
-	filesOps   *files.Ops
-	sftpOps    *sftp.Ops
-	wpOps      *wp.Ops
-	cronOps    *cron.Ops
-	dbOps      *db.Ops
-	releaseOps *release.Ops
-	backupOps  *backup.Ops
-	stagingOps *staging.Ops
-	dbStudio   *dbstudio.Ops
-	malwareOps *malware.Ops
-	blocklist  *blocklist.Ops
+	sitesOps     *sites.Ops
+	certsOps     *certs.Ops
+	panelOps     *panel.Ops
+	systemOps    *system.Ops
+	filesOps     *files.Ops
+	sftpOps      *sftp.Ops
+	wpOps        *wp.Ops
+	cronOps      *cron.Ops
+	dbOps        *db.Ops
+	releaseOps   *release.Ops
+	gitDeployOps *gitdeploy.Ops
+	backupOps    *backup.Ops
+	stagingOps   *staging.Ops
+	dbStudio     *dbstudio.Ops
+	malwareOps   *malware.Ops
+	blocklist    *blocklist.Ops
 }
 
 // New is the agent of a real machine.
@@ -232,7 +235,7 @@ func (a *Agent) NewServer(cfg agentrpc.Config) *agentrpc.Server {
 	agentrpc.Handle(s, agentrpc.Capabilities, a.capabilities)
 	for _, d := range []interface{ Register(*agentrpc.Server) }{
 		a.systemHandlers(), a.sitesHandlers(), a.certHandlers(), a.dbHandlers(),
-		a.releaseHandlers(), a.stagingHandlers(), a.backupHandlers(), a.cronHandlers(),
+		a.releaseHandlers(), a.gitDeployHandlers(), a.stagingHandlers(), a.backupHandlers(), a.cronHandlers(),
 		a.filesHandlers(), a.sftpHandlers(), a.wpHandlers(), a.panelHandlers(), a.migrationHandlers(),
 		a.dbStudioHandlers(), a.malwareHandlers(), a.blocklistHandlers(),
 	} {

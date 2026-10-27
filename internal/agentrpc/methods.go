@@ -142,6 +142,7 @@ var (
 	RollbackRelease = define[rpc.ReleaseParams, map[string]string](Spec{Name: "RollbackRelease", Timeout: 10 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not roll back the release"})
 	CurrentRelease  = define[rpc.CurrentReleaseParams, rpc.CurrentReleaseResult](Spec{Name: "CurrentRelease", Timeout: 1 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the live release"})
 	RemoveReleases  = define[rpc.RemoveReleasesParams, rpc.RemoveReleasesResult](Spec{Name: "RemoveReleases", Timeout: 10 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not remove the releases"})
+	GitSync         = define[rpc.GitSyncParams, rpc.GitSyncResult](Spec{Name: "GitSync", Timeout: 50 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not fetch the repository"})
 	PruneRepository = define[rpc.TestBackupParams, map[string]any](Spec{Name: "PruneRepository", Timeout: 4 * hrs, Fail: "Could not prune the backup repository"})
 	CreateStaging   = define[rpc.StagingParams, rpc.CreateSiteResult](Spec{Name: "CreateStaging", Timeout: 2 * hrs, Sites: true, Fail: "Could not create the staging site"})
 	StagingDiff     = define[rpc.StagingParams, rpc.StagingDiffResult](Spec{Name: "StagingDiff", Timeout: 15 * mins, Sites: true, ReadOnly: true, Fail: "Could not compare staging with production"})

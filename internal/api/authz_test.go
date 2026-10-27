@@ -33,6 +33,8 @@ var routePolicy = map[string]string{
 	"GET /healthz":                  "public",
 	"/":                             "public",
 	"POST /api/connector/purge":     "token",
+	// The git webhook is judged by its signature (git_hook.go).
+	"POST /hooks/git/{hook}": "token",
 
 	"POST /api/logout":                       "auth",
 	"POST /api/account/password":             "auth",
@@ -171,6 +173,11 @@ var routePolicy = map[string]string{
 	"POST /api/sites/{id}/protected-paths":                       "manage",
 	"PUT /api/sites/{id}/blocking":                               "manage",
 	"PUT /api/sites/{id}/dev-mode":                               "manage",
+	"GET /api/sites/{id}/git-deploy":                             "manage",
+	"PUT /api/sites/{id}/git-deploy":                             "manage",
+	"POST /api/sites/{id}/git-deploy/secret":                     "manage",
+	"POST /api/sites/{id}/git-deploy/key":                        "manage",
+	"POST /api/sites/{id}/git-deploy/run":                        "manage",
 	"GET /api/sites/{id}/maintenance":                            "manage",
 	"PUT /api/sites/{id}/maintenance":                            "manage",
 	"GET /api/changelog":                                         "auth",
