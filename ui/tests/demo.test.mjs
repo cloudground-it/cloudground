@@ -52,6 +52,80 @@ test('the sample API answers what the pages ask first', () => {
   assert.equal(missing.body.error, MESSAGES.it.missing)
 })
 
+test('the demo shows what v0.5.0 to v0.8.0 added', () => {
+  const demo = createDemo({ now: Date.parse('2026-10-27T10:00:00Z') })
+  const get = path => demo.handle(req('GET', path))
+  const ok = (path) => { const r = get(path); assert.equal(r.status, 200, path); return r.body }
+  const sites = ok('/api/sites')
+  const node = sites.find(s => s.type === 'node')
+  const python = sites.find(s => s.type === 'python')
+  assert.ok(node && python, 'a Node.js and a Python site')
+  for (const s of [node, python]) {
+    assert.equal(s.php_version, '')
+    assert.ok(s.config.app.start && s.config.app.version)
+    const app = ok(`/api/sites/${s.id}/app`)
+    assert.ok(app.socket && Array.isArray(app.secrets) && app.secrets.length > 0 && Object.keys(app.env).length > 0)
+    const status = ok(`/api/sites/${s.id}/app/status`)
+    assert.equal(status.active, true)
+    assert.equal(status.health.status, 200)
+    assert.match(ok(`/api/sites/${s.id}/logs?source=app`).content, /GET \/health/)
+  }
+  assert.ok(ok(`/api/sites/${node.id}/app/status`).restarts > 0)
+  // The panel is not asked for an app of a PHP site.
+  assert.equal(get(`/api/sites/${sites.find(s => s.type === 'wordpress').id}/app`).status, 404)
+
+  // Functions: two on the Node.js site, each with its code and invocations.
+  const fns = ok(`/api/sites/${node.id}/functions`)
+  assert.equal(fns.length, 2)
+  assert.deepEqual(fns.map(f => f.runtime).sort(), ['node', 'python'])
+  for (const f of fns) {
+    assert.match(ok(`/api/sites/${node.id}/functions/${f.name}`).code, /handler/)
+    const logs = ok(`/api/sites/${node.id}/functions/${f.name}/logs`)
+    assert.ok(logs.invocations.length >= 5 && logs.output.length > 0)
+  }
+  assert.ok(fns.some(f => f.schedule))
+  assert.deepEqual(ok(`/api/sites/${python.id}/functions`), [])
+
+  // Traffic: the days asked for, ending today, with a quiet weekend and totals that add up.
+  for (const days of [7, 30, 90]) {
+    const t = ok(`/api/sites/1/traffic?days=${days}`)
+    assert.equal(t.days.length, days)
+    assert.equal(t.days.at(-1).date, '2026-10-27')
+    assert.equal(t.totals.requests, t.days.reduce((a, d) => a + d.requests, 0))
+    assert.ok(t.totals.pageviews > t.totals.visitors && t.top_pages.length > 3 && t.top_not_found.length > 0 && t.hours.length > 0)
+  }
+  const week = ok('/api/sites/1/traffic?days=7').days
+  const sat = week.find(d => new Date(d.date).getUTCDay() === 6)
+  assert.ok(sat.requests < Math.max(...week.map(d => d.requests)))
+
+  // Redirects with a canonical host; git deploy turned on with deliveries.
+  const redirects = ok('/api/sites/1/redirects')
+  assert.equal(redirects.canonical, 'shop.example.com')
+  assert.ok(redirects.rules.length >= 2 && redirects.names.includes(redirects.canonical) && redirects.counterpart_served)
+  const git = ok('/api/sites/4/git-deploy')
+  assert.equal(git.enabled, true)
+  assert.ok(git.deliveries.some(d => d.outcome === 'queued') && git.deliveries.some(d => d.outcome === 'ignored') && git.webhook_path)
+  assert.equal(ok('/api/sites/3/git-deploy').enabled, false)
+  assert.equal(ok('/api/sites/1/cloudflare').real_ip, true)
+  assert.ok(ok('/api/sites/1/logs/files').files.length > 2)
+
+  // Settings: external database servers, MCP on, passkeys, an assistant connected.
+  const servers = ok('/api/db-servers')
+  assert.deepEqual(servers.map(s => s.kind).sort(), ['mariadb', 'postgres'])
+  assert.equal(ok('/api/settings').mcp, '1')
+  assert.ok(ok('/api/mcp/grants').length > 0 && ok('/api/mcp/actions').some(a => a.status === 'pending'))
+  assert.equal(ok('/api/session').user.passkeys, 1)
+  assert.equal(ok('/api/account/passkeys').length, 1)
+  // Backups: the databases a snapshot holds, for the selective restore.
+  assert.deepEqual(ok('/api/sites/1/backups')[0].databases, ['site_1'])
+
+  // None of it can be changed.
+  for (const [method, path] of [['PUT', `/api/sites/${node.id}/app`], ['POST', `/api/sites/${node.id}/app/restart`], ['POST', `/api/sites/${node.id}/functions`],
+    ['PUT', '/api/sites/1/redirects'], ['PUT', '/api/sites/4/git-deploy'], ['POST', '/api/db-servers'], ['DELETE', '/api/mcp/grants/1'], ['POST', '/api/backups/100/archive'], ['POST', '/api/backups/100/restore']]) {
+    assert.equal(demo.handle(req(method, path, { body: {} })).status, 403, `${method} ${path}`)
+  }
+})
+
 test('every change but this browser\'s own is refused, in the language asked', () => {
   const demo = createDemo()
   const writes = [
@@ -69,7 +143,7 @@ test('every change but this browser\'s own is refused, in the language asked', (
     }
   }
   // The sample data did not change.
-  assert.equal(demo.handle(req('GET', '/api/sites')).body.length, 5)
+  assert.equal(demo.handle(req('GET', '/api/sites')).body.length, 7)
   assert.equal(demo.handle(req('GET', '/api/sites/1')).body.config.cache_enabled, true)
   // What stays in the browser: the language, and signing in and out.
   assert.equal(demo.handle(req('PUT', '/api/account/profile', { body: { locale: 'de' } })).body.locale, 'de')

@@ -48,6 +48,11 @@ interface DemoSite {
   created_at: string
 }
 
+const APP_ENV = {
+  node: { NODE_ENV: 'production', LOG_LEVEL: 'info', PUBLIC_URL: 'https://api.example.com' },
+  python: { FLASK_ENV: 'production', REPORT_TIMEZONE: 'Europe/Rome' }
+}
+
 function sitesOf(now: number): DemoSite[] {
   const base = (id: number, domain: string, type: string, profile: string, extra: Query = {}, top: Partial<DemoSite> = {}): DemoSite => ({
     id,
@@ -56,7 +61,7 @@ function sitesOf(now: number): DemoSite[] {
     type,
     profile,
     engine: 'nginx',
-    php_version: type === 'static' ? '' : '8.4',
+    php_version: type === 'static' || type === 'node' || type === 'python' ? '' : '8.4',
     system_user: `cg-site-${id}`,
     root_path: `/srv/sites/${domain}`,
     status: 'active',
@@ -81,13 +86,29 @@ function sitesOf(now: number): DemoSite[] {
     base(2, 'blog.example.com', 'wordpress', 'balanced', { wp_two_factor: 'optional' }),
     base(3, 'docs.example.com', 'static', 'balanced'),
     base(4, 'app.example.com', 'laravel', 'maximum', { public_root: 'public' }),
-    base(5, 'staging.shop.example.com', 'woocommerce', 'commerce', { cache_enabled: false }, { staging_of: 1 })
+    base(5, 'staging.shop.example.com', 'woocommerce', 'commerce', { cache_enabled: false }, { staging_of: 1 }),
+    base(6, 'api.example.com', 'node', 'balanced', {
+      cache_enabled: false,
+      app: { version: '22', start: 'node server.js', port: 3000, health_path: '/health', env: APP_ENV.node, secrets: ['DATABASE_URL', 'SESSION_SECRET'] }
+    }),
+    base(7, 'reports.example.com', 'python', 'balanced', {
+      cache_enabled: false,
+      app: { version: '3.12', start: 'gunicorn --bind unix:$SOCKET app:app', port: 0, health_path: '/healthz', env: APP_ENV.python, secrets: ['SECRET_KEY'] }
+    })
   ]
 }
 
 function logText(source: string, domain: string, now: number): string {
   const t = (s: number) => new Date(now - s * 1000).toISOString().replace('T', ' ').slice(0, 19)
   const paths = ['/', '/shop/', '/product/ceramic-mug/', '/cart/', '/wp-json/wc/store/v1/products', '/blog/hello-world/', '/robots.txt', '/favicon.ico']
+  if (source === 'app') {
+    return [
+      `${t(7300)} server listening on the socket`,
+      `${t(5200)} GET /health 200 3ms`,
+      `${t(3100)} POST /v1/orders 201 48ms`,
+      `${t(900)} GET /v1/products 200 12ms`
+    ].join('\n')
+  }
   if (source === 'error') {
     return [
       `${t(5400)} [warn] 1201#1201: *48113 an upstream response is buffered to a temporary file while reading upstream, client: 203.0.113.17, server: ${domain}`,
@@ -137,6 +158,108 @@ export function createDemo(opts: { now?: number } = {}) {
     }
   }
 
+
+  // Visitor statistics (#33): realistic days, a quieter weekend, a busier
+  // shop. The sample is built from the date, so a reload shows the same days.
+  const trafficOf = (s: DemoSite, days: number) => {
+    const scale = s.id === 1 ? 5200 : s.id === 6 ? 9000 : s.id === 7 ? 600 : 1500
+    const day = (i: number) => {
+      const at = new Date(now - (days - 1 - i) * DAY)
+      const weekend = at.getUTCDay() === 0 || at.getUTCDay() === 6
+      const wave = 0.75 + 0.25 * Math.sin(i * 1.7 + s.id) + (i % 11 === 3 ? 0.35 : 0)
+      const requests = Math.round(scale * wave * (weekend ? 0.62 : 1))
+      const bots = Math.round(requests * (0.12 + (i % 5) * 0.015))
+      const pageviews = Math.round((requests - bots) * 0.34)
+      const hit = Math.round(requests * (s.config.cache_enabled ? 0.82 : 0))
+      const miss = Math.round(requests * (s.config.cache_enabled ? 0.12 : 0))
+      return {
+        date: at.toISOString().slice(0, 10), requests, pageviews, visitors: Math.round(pageviews * 0.46), bots, bytes: requests * 41_300,
+        status_2xx: Math.round(requests * 0.9), status_3xx: Math.round(requests * 0.06), status_4xx: Math.round(requests * 0.035), status_5xx: i % 13 === 5 ? 3 : 0,
+        cache_hit: hit, cache_miss: miss, cache_bypass: s.config.cache_enabled ? requests - hit - miss : 0
+      }
+    }
+    const rows = Array.from({ length: days }, (_, i) => day(i))
+    const sum = (k: keyof ReturnType<typeof day>) => rows.reduce((a, r) => a + Number(r[k]), 0)
+    const keys = ['requests', 'pageviews', 'visitors', 'bots', 'bytes', 'status_2xx', 'status_3xx', 'status_4xx', 'status_5xx', 'cache_hit', 'cache_miss', 'cache_bypass'] as const
+    const totals = Object.fromEntries(keys.map(k => [k, sum(k)]))
+    const hours = Array.from({ length: 48 }, (_, i) => {
+      const at = new Date(now - (47 - i) * HOUR)
+      const h = at.getUTCHours()
+      const load = 0.25 + 0.75 * Math.max(0, Math.sin(((h - 6) / 24) * Math.PI * 2 * 0.9))
+      const requests = Math.round(scale / 20 * load)
+      return { time: new Date(Math.floor(at.getTime() / HOUR) * HOUR).toISOString(), requests, pageviews: Math.round(requests * 0.3) }
+    })
+    const pages = s.id === 6
+      ? [['/v1/orders', 0.34], ['/v1/products', 0.28], ['/health', 0.17], ['/v1/session', 0.12], ['/v1/webhooks/stripe', 0.09]]
+      : [['/', 0.26], ['/shop/', 0.19], ['/product/ceramic-mug/', 0.12], ['/blog/hello-world/', 0.09], ['/cart/', 0.07], ['/checkout/', 0.04], ['/contact/', 0.03]]
+    return {
+      days: rows, hours, totals,
+      top_pages: pages.map(([path, w]) => ({ path: path as string, count: Math.round(Number(totals.pageviews) * Number(w)) })),
+      top_not_found: [{ path: '/apple-touch-icon.png', count: 214 }, { path: '/wp-login.php', count: 97 }, { path: '/old-catalogue/', count: 41 }, { path: '/feed/atom/', count: 18 }],
+      collected_at: ago(now, 4 * MIN)
+    }
+  }
+
+  // Redirects (#83): the canonical host and a few rules.
+  const redirectsOf = (s: DemoSite) => {
+    const names = [s.domain, ...(s.aliases ?? [])]
+    const counterpart = s.domain.startsWith('www.') ? s.domain.slice(4) : `www.${s.domain}`
+    return {
+      canonical: s.id === 1 ? s.domain : '',
+      rules: s.id === 1
+        ? [
+          { match: 'exact', from: '/old-catalogue/', to: '/shop/', status: 301 },
+          { match: 'prefix', from: '/journal/', to: '/blog/', status: 301 },
+          { match: 'exact', from: '/summer', to: '/shop/?sale=summer', status: 302 }
+        ]
+        : [],
+      names, counterpart, counterpart_served: names.includes(counterpart)
+    }
+  }
+
+  // Node.js and Python sites (#28): the app's settings and its health.
+  const appOf = (s: DemoSite) => ({ ...(s.config.app as Query), socket: `/run/cloudground/sites/${s.domain}.sock` })
+  const appStatusOf = (s: DemoSite) => s.type === 'node'
+    ? { active: true, state: 'running', since: ago(now, 2 * DAY + 3 * HOUR), restarts: 2, last_exit: 137, health: { status: 200, ms: 14 } }
+    : { active: true, state: 'running', since: ago(now, 6 * DAY), restarts: 0, last_exit: 0, health: { status: 200, ms: 38 } }
+
+  // Functions (#143): two on the Node.js site, one by the clock.
+  const FN_CODE = {
+    'send-receipt': "export default async function handler(req) {\n  const order = await req.json()\n  // Sample code from the demo.\n  return Response.json({ ok: true, order: order.id })\n}\n",
+    'nightly-digest': "def handler(request):\n    # Sample code from the demo.\n    return {'status': 200, 'body': 'digest sent'}\n"
+  } as Record<string, string>
+  const functionsOf = (s: DemoSite) => s.id !== 6 ? [] : [
+    { name: 'send-receipt', runtime: 'node', version: '22', memory_mb: 128, timeout_sec: 10, env: { FROM: 'shop@example.com' }, secrets: ['SMTP_PASSWORD'], release: '20261023-100500', url: `https://${s.domain}/.functions/send-receipt`, releases: ['20261023-100500', '20261014-170200'] },
+    { name: 'nightly-digest', runtime: 'python', version: '3.12', memory_mb: 256, timeout_sec: 60, schedule: '0 6 * * *', env: {}, secrets: [], release: '20261020-081000', url: `https://${s.domain}/.functions/nightly-digest`, releases: ['20261020-081000'] }
+  ]
+  const functionLogs = (name: string) => name === 'send-receipt'
+    ? {
+      invocations: Array.from({ length: 12 }, (_, i) => ({ time: ago(now, (i * 17 + 4) * MIN), method: 'POST', status: i === 5 ? 502 : 200, ms: 38 + (i * 13) % 61, source: 'http' })),
+      output: ['receipt sent to customer 4021', 'receipt sent to customer 4022', 'smtp: 421 try again later (retrying)', 'receipt sent to customer 4023']
+    }
+    : {
+      invocations: Array.from({ length: 6 }, (_, i) => ({ time: ago(now, i * DAY + 4 * HOUR), method: 'GET', status: 200, ms: 1840 + i * 120, source: 'schedule' })),
+      output: ['digest: 38 orders, 3 refunds', 'digest sent to 2 recipients']
+    }
+
+  // Git deploy (#24): on for the Laravel and Node.js sites, with deliveries.
+  const gitDeployOf = (s: DemoSite) => {
+    const on = s.id === 4 || s.id === 6
+    return {
+      enabled: on, repo: on ? `git@github.com:example/${s.id === 4 ? 'app' : 'api'}.git` : '', branch: 'main', build_command: s.id === 4 ? 'composer install --no-dev && npm ci && npm run build' : s.id === 6 ? 'npm ci --omit=dev' : '',
+      webhook_path: on ? `/hooks/git/${s.id}-3f9a1c0e7b52` : '', secret: on ? 'demo-only-not-a-secret' : '',
+      public_key: on ? 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDemoOnlyNotAKeyForRealUse0000000000 cloudground-deploy' : '',
+      deliveries: on
+        ? [
+          { id: 4, at: ago(now, 3 * DAY), forge: 'github', event: 'push', ref: 'refs/heads/main', commit: '9f2c1a7d4e8b3c0a', outcome: 'queued', detail: '', deployment_id: 12, task_id: 41, release_id: '20261024-141500', status: 'promoted' },
+          { id: 3, at: ago(now, 3 * DAY + 20 * MIN), forge: 'github', event: 'push', ref: 'refs/heads/feature/search', commit: '51ab77c20d9e4f11', outcome: 'ignored', detail: 'branch', deployment_id: 0, task_id: 0 },
+          { id: 2, at: ago(now, 8 * DAY), forge: 'github', event: 'push', ref: 'refs/heads/main', commit: '51ab77c20d9e4f11', outcome: 'queued', detail: '', deployment_id: 11, task_id: 33, release_id: '20261019-093000', status: 'superseded' },
+          { id: 1, at: ago(now, 9 * DAY), forge: 'github', event: 'ping', ref: '', commit: '', outcome: 'ping', detail: '', deployment_id: 0, task_id: 0 }
+        ]
+        : []
+    }
+  }
+
   const routes: [string, RegExp, Handler][] = [
     ['GET', /^\/api\/bootstrap$/, () => ({ setup_complete: true })],
     ['GET', /^\/api\/session$/, () => ({ user: signedIn ? me : null })],
@@ -182,7 +305,7 @@ export function createDemo(opts: { now?: number } = {}) {
     })],
     ['GET', /^\/api\/settings$/, () => ({
       acme_email: 'admin@example.com', backup_repository: 'sftp:backup@storage.example.net:/cloudground', backup_password: '********', panel_domain: 'panel.example.com',
-      alert_emails: 'admin@example.com', mail_host: 'smtp.example.com', mail_port: '587', mail_security: 'starttls', mail_username: 'cloudground', mail_password: '********', mail_from: 'cloudground@example.com'
+      alert_emails: 'admin@example.com', require_2fa: 'admins', mcp: '1', mail_host: 'smtp.example.com', mail_port: '587', mail_security: 'starttls', mail_username: 'cloudground', mail_password: '********', mail_from: 'cloudground@example.com'
     })],
     ['GET', /^\/api\/blocklist$/, () => ({
       settings: { enabled: true, max_failures: 5, window_minutes: 10, ban_minutes: 60 },
@@ -250,6 +373,40 @@ export function createDemo(opts: { now?: number } = {}) {
     ['GET', /^\/api\/php\/([\d.]+)\/extensions$/, (_r, m) => ({
       version: m[1], modules: ['Core', 'date', 'json', 'mysqlnd', 'openssl', 'pcre', 'zlib'],
       extensions: ['bcmath', 'curl', 'gd', 'imagick', 'intl', 'mbstring', 'mysqli', 'opcache', 'redis', 'xml', 'zip'].map((name, i) => ({ name, installed: i !== 3 && i !== 8 }))
+    })],
+    ['GET', /^\/api\/db-servers$/, () => [
+      { id: 1, name: 'managed-mariadb', kind: 'mariadb', backup: 'dump', host: 'db1.example.net', port: 3306, tls: 'required', ca_cert: '', admin_user: 'cloudground', password_set: true, databases: 2 },
+      { id: 2, name: 'managed-postgres', kind: 'postgres', backup: 'provider', host: 'pg.example.net', port: 5432, tls: 'required', ca_cert: '', admin_user: 'cloudground', password_set: true, databases: 1 }
+    ]],
+    ['GET', /^\/api\/mcp\/grants$/, () => [
+      { id: 1, client_name: 'Claude', email: 'demo@cloudground.it', scope: 'sites:read sites:write', created_at: ago(now, 6 * DAY), last_used_at: ago(now, 2 * HOUR), expires_at: ago(now, -24 * DAY) }
+    ]],
+    ['GET', /^\/api\/mcp\/actions$/, () => [
+      { id: 2, tool: 'purge_cache', summary: 'Purge the cache of shop.example.com', client_name: 'Claude', status: 'pending', created_at: ago(now, 6 * MIN), expires_at: ago(now, -24 * MIN) },
+      { id: 1, tool: 'create_backup', summary: 'Back up blog.example.com now', client_name: 'Claude', status: 'done', created_at: ago(now, 1 * DAY), expires_at: ago(now, 1 * DAY - 30 * MIN), result: 'Backup started' }
+    ]],
+    ['GET', /^\/api\/sites\/(\d+)\/app$/, (_r, m) => { const s = siteOf(m[1]!); return s && s.config.app ? appOf(s) : notFound() }],
+    ['GET', /^\/api\/sites\/(\d+)\/app\/status$/, (_r, m) => { const s = siteOf(m[1]!); return s && s.config.app ? appStatusOf(s) : notFound() }],
+    ['GET', /^\/api\/sites\/(\d+)\/functions$/, (_r, m) => { const s = siteOf(m[1]!); return s ? functionsOf(s) : notFound() }],
+    ['GET', /^\/api\/sites\/(\d+)\/functions\/([a-z][a-z0-9-]*)$/, (_r, m) => {
+      const s = siteOf(m[1]!)
+      const f = s && functionsOf(s).find(x => x.name === m[2])
+      return f ? { ...f, code: FN_CODE[f.name] ?? '' } : notFound()
+    }],
+    ['GET', /^\/api\/sites\/(\d+)\/functions\/([a-z][a-z0-9-]*)\/logs$/, (_r, m) => functionLogs(m[2]!)],
+    ['GET', /^\/api\/sites\/(\d+)\/traffic$/, (r, m) => {
+      const s = siteOf(m[1]!)
+      const days = Number(r.query.get('days'))
+      return s ? trafficOf(s, [7, 30, 90].includes(days) ? days : 7) : notFound()
+    }],
+    ['GET', /^\/api\/sites\/(\d+)\/redirects$/, (_r, m) => { const s = siteOf(m[1]!); return s ? redirectsOf(s) : notFound() }],
+    ['GET', /^\/api\/sites\/(\d+)\/git-deploy$/, (_r, m) => { const s = siteOf(m[1]!); return s ? gitDeployOf(s) : notFound() }],
+    ['GET', /^\/api\/sites\/(\d+)\/cloudflare$/, (_r, m) => ({ real_ip: m[1] === '1', zone_id: m[1] === '1' ? '0123456789abcdef0123456789abcdef' : '', purge_ready: m[1] === '1', ranges_updated_at: ago(now, 12 * DAY) })],
+    ['GET', /^\/api\/sites\/(\d+)\/logs\/files$/, (_r, m) => ({
+      files: [
+        { name: 'access.log', size: 4_812_330, modified: ago(now, MIN) }, { name: 'access.log.1', size: 12_204_118, modified: ago(now, 1 * DAY) },
+        { name: 'access.log.2.gz', size: 1_902_443, modified: ago(now, 2 * DAY) }, { name: 'error.log', size: 20_611, modified: ago(now, 15 * MIN) }
+      ].map(f => ({ ...f, name: `${siteOf(m[1]!)?.domain ?? 'site'}.${f.name}` }))
     })],
     ['GET', /^\/api\/sites\/(\d+)\/staging\/credentials$/, () => ({ url: 'https://staging.shop.example.com', user: 'staging', password: 'demo-only-not-a-secret' })],
     ['GET', /^\/api\/sites\/(\d+)\/staging\/diff$/, () => ({ added: ['wp-content/uploads/2026/10/banner.jpg'], removed: [], modified: ['wp-content/themes/shop/style.css', 'wp-content/themes/shop/functions.php'], scanned: 4821 })],
