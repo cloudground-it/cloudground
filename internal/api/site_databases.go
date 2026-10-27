@@ -38,6 +38,7 @@ func generatedDBPassword() string { return randomToken(24) }
 // dbDatabaseView is one database in GET /databases.
 type dbDatabaseView struct {
 	Name      string    `json:"name"`
+	ServerID  int64     `json:"server_id"`
 	Primary   bool      `json:"primary"`
 	SizeBytes int64     `json:"size_bytes"`
 	Tables    int64     `json:"tables"`
@@ -47,6 +48,7 @@ type dbDatabaseView struct {
 // dbUserView is one account in GET /databases.
 type dbUserView struct {
 	Name      string          `json:"name"`
+	ServerID  int64           `json:"server_id"`
 	Primary   bool            `json:"primary"`
 	Grants    []state.DBGrant `json:"grants"`
 	CreatedAt time.Time       `json:"created_at"`
@@ -54,9 +56,21 @@ type dbUserView struct {
 
 // dbListView is GET /api/sites/{id}/databases.
 type dbListView struct {
-	Databases  []dbDatabaseView `json:"databases"`
-	Users      []dbUserView     `json:"users"`
-	StatsError string           `json:"stats_error,omitempty"`
+	Databases []dbDatabaseView `json:"databases"`
+	Users     []dbUserView     `json:"users"`
+	// Servers are the connections the site's databases use, so the page can
+	// say where an application connects (id 0: this server).
+	Servers    []dbServerRef `json:"servers"`
+	StatsError string        `json:"stats_error,omitempty"`
+}
+
+// dbServerRef is where a server is, for an application's configuration.
+type dbServerRef struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+	Host string `json:"host"`
+	Port int    `json:"port"`
+	TLS  string `json:"tls"`
 }
 
 // siteDatabases is the service.
@@ -84,7 +98,7 @@ func (d siteDatabases) list(ctx context.Context, site state.Site) (dbListView, e
 	if err != nil {
 		return dbListView{}, stored(err)
 	}
-	out := dbListView{Databases: []dbDatabaseView{}, Users: []dbUserView{}}
+	out := dbListView{Databases: []dbDatabaseView{}, Users: []dbUserView{}, Servers: []dbServerRef{}}
 	stats := map[string]rpc.DBInfo{}
 	if len(dbs) > 0 {
 		res, err := agentrpc.Call(ctx, d.s.Agent, agentrpc.ListDatabases, rpc.DBListParams{Site: site})
@@ -99,16 +113,79 @@ func (d siteDatabases) list(ctx context.Context, site state.Site) (dbListView, e
 		}
 	}
 	for _, db := range dbs {
-		v := dbDatabaseView{Name: db.Name, Primary: primaryDatabase(site, db.Name), SizeBytes: -1, Tables: -1, CreatedAt: db.CreatedAt}
+		v := dbDatabaseView{Name: db.Name, ServerID: db.ServerID, Primary: primaryDatabase(site, db.Name), SizeBytes: -1, Tables: -1, CreatedAt: db.CreatedAt}
 		if i, ok := stats[db.Name]; ok {
 			v.SizeBytes, v.Tables = i.SizeBytes, i.Tables
 		}
 		out.Databases = append(out.Databases, v)
 	}
 	for _, u := range users {
-		out.Users = append(out.Users, dbUserView{Name: u.Name, Primary: primaryUser(site, u.Name), Grants: u.Grants, CreatedAt: u.CreatedAt})
+		out.Users = append(out.Users, dbUserView{Name: u.Name, ServerID: u.ServerID, Primary: primaryUser(site, u.Name), Grants: u.Grants, CreatedAt: u.CreatedAt})
+	}
+	seen := map[int64]bool{}
+	for _, id := range append(serverIDs(dbs), userServerIDs(users)...) {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		ref := dbServerRef{ID: id, Host: "localhost", TLS: state.DBServerTLSOff}
+		if id != 0 {
+			if sv, err := st.GetDBServer(id); err == nil {
+				ref = dbServerRef{ID: id, Name: sv.Name, Host: sv.Host, Port: sv.Port, TLS: sv.TLS}
+			}
+		}
+		out.Servers = append(out.Servers, ref)
 	}
 	return out, nil
+}
+
+func serverIDs(dbs []state.SiteDatabase) []int64 {
+	out := make([]int64, 0, len(dbs))
+	for _, d := range dbs {
+		out = append(out, d.ServerID)
+	}
+	return out
+}
+
+func userServerIDs(us []state.DBUser) []int64 {
+	out := make([]int64, 0, len(us))
+	for _, u := range us {
+		out = append(out, u.ServerID)
+	}
+	return out
+}
+
+// knownServer refuses a server id that is not the box's own or a registered
+// one.
+func (d siteDatabases) knownServer(id int64) error {
+	if id == 0 {
+		return nil
+	}
+	if id < 0 {
+		return decline(http.StatusBadRequest, "unknown database server")
+	}
+	if _, err := d.s.Store.GetDBServer(id); errors.Is(err, state.ErrNotFound) {
+		return decline(http.StatusBadRequest, "unknown database server")
+	} else if err != nil {
+		return stored(err)
+	}
+	return nil
+}
+
+// grantsServer is the one server the grants' databases are on; ok is false
+// when there is no grant. Databases on two servers are 400.
+func (d siteDatabases) grantsServer(site state.Site, grants []state.DBGrant) (id int64, ok bool, err error) {
+	for _, g := range grants {
+		db, e := d.s.Store.SiteDatabaseByName(site.ID, g.Database)
+		if e != nil {
+			continue // checkGrants has said so
+		}
+		if ok && db.ServerID != id {
+			return 0, false, decline(http.StatusBadRequest, "a user's databases must be on one server")
+		}
+		id, ok = db.ServerID, true
+	}
+	return id, ok, nil
 }
 
 // checkName refuses a name the site may not take.
@@ -121,13 +198,16 @@ func checkName(site state.Site, name string) error {
 
 // createDB records a new database of the site and queues its creation. A
 // name in use anywhere on the server is 409.
-func (d siteDatabases) createDB(actor string, site state.Site, name string) (jobs.Task, error) {
+func (d siteDatabases) createDB(actor string, site state.Site, name string, serverID int64) (jobs.Task, error) {
 	name = strings.TrimSpace(name)
 	if err := checkName(site, name); err != nil {
 		return jobs.Task{}, err
 	}
+	if err := d.knownServer(serverID); err != nil {
+		return jobs.Task{}, err
+	}
 	st := d.s.Store
-	if _, err := st.AddSiteDatabase(site.ID, name); errors.Is(err, state.ErrDBNameTaken) {
+	if _, err := st.AddSiteDatabaseOn(site.ID, name, serverID); errors.Is(err, state.ErrDBNameTaken) {
 		return jobs.Task{}, decline(http.StatusConflict, "a database called %s already exists on this server", name)
 	} else if err != nil {
 		return jobs.Task{}, stored(err)
@@ -135,7 +215,7 @@ func (d siteDatabases) createDB(actor string, site state.Site, name string) (job
 	agent := d.s.Agent
 	task, err := d.s.runJob(jobReq{kind: "database.create", siteID: site.ID}, func(ctx context.Context, site state.Site, step func(int, string)) error {
 		step(20, "Creating the database "+name)
-		if err := agentrpc.Into(ctx, agent, agentrpc.CreateDatabase, rpc.SiteDatabaseParams{Site: site, Name: name}, nil); err != nil {
+		if err := agentrpc.Into(ctx, agent, agentrpc.CreateDatabase, rpc.SiteDatabaseParams{Site: site, Name: name, ServerID: serverID}, nil); err != nil {
 			d.s.logIfErr(st.RemoveSiteDatabase(site.ID, name), "RemoveSiteDatabase")
 			return err
 		}
@@ -245,6 +325,9 @@ type newDBUser struct {
 	Name     string          `json:"name"`
 	Password string          `json:"password"`
 	Grants   []state.DBGrant `json:"grants"`
+	// ServerID is the server of an account with no grants; with grants it
+	// is the server of their databases.
+	ServerID int64 `json:"server_id"`
 }
 
 // dbUserCreated answers a new account; Password is set only when the panel
@@ -268,20 +351,32 @@ func (d siteDatabases) createUser(ctx context.Context, actor string, site state.
 	if err := d.checkGrants(site, req.Grants); err != nil {
 		return dbUserCreated{}, err
 	}
+	server := req.ServerID
+	if gs, ok, err := d.grantsServer(site, req.Grants); err != nil {
+		return dbUserCreated{}, err
+	} else if ok {
+		if req.ServerID != 0 && req.ServerID != gs {
+			return dbUserCreated{}, decline(http.StatusBadRequest, "a user's databases must be on one server")
+		}
+		server = gs
+	}
+	if err := d.knownServer(server); err != nil {
+		return dbUserCreated{}, err
+	}
 	st := d.s.Store
-	u, err := st.AddDBUser(site.ID, name, state.DBUserSecret(site.ID, name), pw, req.Grants)
+	u, err := st.AddDBUserOn(site.ID, name, state.DBUserSecret(site.ID, name), pw, req.Grants, server)
 	if errors.Is(err, state.ErrDBNameTaken) {
 		return dbUserCreated{}, decline(http.StatusConflict, "a database user called %s already exists on this server", name)
 	}
 	if err != nil {
 		return dbUserCreated{}, stored(err)
 	}
-	if err := agentrpc.Into(ctx, d.s.Agent, agentrpc.CreateDBUser, rpc.DBUserParams{Site: site, User: name, Password: pw, Grants: req.Grants}, nil); err != nil {
+	if err := agentrpc.Into(ctx, d.s.Agent, agentrpc.CreateDBUser, rpc.DBUserParams{Site: site, User: name, Password: pw, Grants: req.Grants, ServerID: server}, nil); err != nil {
 		d.s.logIfErr(st.RemoveDBUser(site.ID, name), "RemoveDBUser")
 		return dbUserCreated{}, err
 	}
 	d.s.audit(actor, "database.user.create", site.Domain, name)
-	out := dbUserCreated{User: dbUserView{Name: u.Name, Grants: u.Grants, CreatedAt: u.CreatedAt}}
+	out := dbUserCreated{User: dbUserView{Name: u.Name, ServerID: u.ServerID, Grants: u.Grants, CreatedAt: u.CreatedAt}}
 	if generated {
 		out.Password = pw
 	}
@@ -344,11 +439,17 @@ func (d siteDatabases) setPassword(ctx context.Context, actor string, site state
 
 // setGrants replaces one of the site's accounts' grants.
 func (d siteDatabases) setGrants(ctx context.Context, actor string, site state.Site, name string, grants []state.DBGrant) (dbUserView, error) {
-	if _, err := d.user(site, name); err != nil {
+	user, err := d.user(site, name)
+	if err != nil {
 		return dbUserView{}, err
 	}
 	if err := d.checkGrants(site, grants); err != nil {
 		return dbUserView{}, err
+	}
+	if gs, ok, err := d.grantsServer(site, grants); err != nil {
+		return dbUserView{}, err
+	} else if ok && gs != user.ServerID {
+		return dbUserView{}, decline(http.StatusBadRequest, "a user's databases must be on the user's server")
 	}
 	if primaryUser(site, name) {
 		keeps := false
@@ -367,7 +468,7 @@ func (d siteDatabases) setGrants(ctx context.Context, actor string, site state.S
 		return dbUserView{}, stored(err)
 	}
 	d.s.audit(actor, "database.user.grants", site.Domain, name)
-	return dbUserView{Name: u.Name, Primary: primaryUser(site, u.Name), Grants: u.Grants, CreatedAt: u.CreatedAt}, nil
+	return dbUserView{Name: u.Name, ServerID: u.ServerID, Primary: primaryUser(site, u.Name), Grants: u.Grants, CreatedAt: u.CreatedAt}, nil
 }
 
 func (s *Server) handleListDatabases(w http.ResponseWriter, r *http.Request, c *call) {
@@ -377,12 +478,13 @@ func (s *Server) handleListDatabases(w http.ResponseWriter, r *http.Request, c *
 
 func (s *Server) handleCreateDatabase(w http.ResponseWriter, r *http.Request, c *call) {
 	var req struct {
-		Name string `json:"name"`
+		Name     string `json:"name"`
+		ServerID int64  `json:"server_id"`
 	}
 	if !decodeOr400(w, r, &req) {
 		return
 	}
-	task, err := s.databases().createDB(c.Actor(), c.Site, req.Name)
+	task, err := s.databases().createDB(c.Actor(), c.Site, req.Name, req.ServerID)
 	accepted(w, task, err)
 }
 

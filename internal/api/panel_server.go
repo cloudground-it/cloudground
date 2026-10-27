@@ -172,6 +172,11 @@ func (s *Server) Init() {
 	if s.accounts != nil {
 		return
 	}
+	// A call the agent answers with "unknown database server" is repeated
+	// once after the servers are handed over (db_servers.go).
+	if _, ok := s.Agent.(syncingAgent); !ok && s.Agent != nil && s.Store != nil {
+		s.Agent = syncingAgent{AgentCaller: s.Agent, s: s}
+	}
 	s.accounts = accounts.New(s.Store, s.audit)
 	s.accounts.Failed = s.signInFailed
 	s.connectorFailLimiter = throttle.New(connectorFailures, time.Minute)
