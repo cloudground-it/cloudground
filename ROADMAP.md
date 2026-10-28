@@ -12,15 +12,16 @@ What stands between today and 1.0 is trust, not features.
 
 - **Time in production.** The end-to-end suite runs green on both supported Ubuntu releases;
   what 1.0 needs on top is a long record on many real servers.
-- **An independent security review.** The internal review is documented in
-  [SECURITY.md](./SECURITY.md); a panel that holds root deserves outside eyes before 1.0.
+- **A second security review.** The internal review is documented in
+  [SECURITY.md](./SECURITY.md); before 1.0 the parts that hold root get a second, full pass. It is
+  not an external audit, and an outside one is still welcome.
 - **Restores across upgrades.** Test restores already run on a schedule; what is missing is proof
   that they keep working across CloudGround upgrades and when a backup repository moves.
-- **ARM64.** Only amd64 is built today. The Go code is portable; the tuning and the e2e suite
-  have to be shown to hold on ARM servers.
 
 ## Wanted
 
+- **ARM64.** Only amd64 is built today. The Go code is portable; the tuning and the e2e suite
+  have to be shown to hold on ARM servers.
 - **A demo to click through.** A public instance of the real panel is out of the question (its file
   manager, SQL console and cron run code), but the interface running against sample data is not.
 - **A stopped-on-purpose state for services**, so a service an administrator turned off no longer
