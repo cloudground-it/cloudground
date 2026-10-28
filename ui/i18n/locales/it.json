@@ -379,11 +379,11 @@
   },
   "wp": {
     "admin": "Accesso amministratore",
-    "adminHint": "Entra in wp-admin con un clic, senza password.",
+    "adminHint": "Apre wp-admin senza password.",
     "hAllow": "Eccezioni XML-RPC",
     "hAllowHelp": "Indirizzi IP o reti, uno per riga, che possono ancora usare XML-RPC.",
     "hardening": "Protezione",
-    "hardeningHint": "Le protezioni più comuni per WordPress, ognuna attivabile da sola. Il set consigliato non cambia ciò che vedono visitatori, clienti WooCommerce o Jetpack.",
+    "hardeningHint": "Ogni protezione si attiva da sola. Il set consigliato non cambia ciò che vedono visitatori, clienti WooCommerce o Jetpack.",
     "hFileEdit": "Disattiva l'editor dei file",
     "hFileEditHint": "Nessuna modifica al codice di temi e plugin da wp-admin.",
     "hLoginPath": "Indirizzo di accesso",
@@ -434,14 +434,14 @@
     "updateAll": "Aggiorna tutto",
     "updateNoSnapshot": "Aggiorna senza snapshot",
     "noSnapshotTitle": "Nessuno snapshot prima di questo aggiornamento",
-    "noSnapshotHint": "Non è configurato un repository di backup, quindi l’aggiornamento parte senza snapshot. Il sito viene comunque controllato dopo, ma se l’aggiornamento lo rompe non si può annullare in automatico. Imposta un repository in Impostazioni per avere il rollback automatico.",
+    "noSnapshotHint": "Nessun repository di backup: l’aggiornamento parte senza snapshot. Il sito viene controllato comunque dopo, ma un guasto non si annulla in automatico. Imposta un repository in Impostazioni.",
     "updates": "Aggiornamenti",
     "updatesPending": "{n} aggiornamenti disponibili",
     "updating": "Aggiornamento ({what}) avviato",
     "upToDate": "Tutto aggiornato",
     "version": "Versione",
     "warm": "Riscaldamento cache",
-    "warmHint": "Riempie la cache dalla sitemap, così il primo visitatore non la trova vuota.",
+    "warmHint": "Riempie la cache dalla sitemap.",
     "warming": "Riscaldamento della cache avviato",
     "warmNow": "Riscalda ora"
   },
@@ -466,7 +466,7 @@
     "pushHint": "Performance Guard misura staging e produzione: se lo staging è più lento la pubblicazione viene bloccata.",
     "pushSelected": "Pubblica la selezione ({n})",
     "pushSelectedTitle": "Pubblicare {n} elementi dallo staging?",
-    "pushStarted": "Safe Push avviato: Performance Guard sta confrontando staging e produzione",
+    "pushStarted": "Safe Push avviato",
     "pushTables": "Pubblica le tabelle ({n})",
     "pushTitle": "Pubblicare lo staging in produzione?",
     "recreate": "Ricrea lo staging",
@@ -2177,7 +2177,7 @@
     "moreUrls": "+{n} altri",
     "empty": {
       "title": "Ancora nessuna funzione",
-      "hint": "Una funzione è un piccolo programma Node.js o Python con un suo indirizzo web. Gira quando qualcuno la chiama o a orari pianificati, e da ferma non consuma niente."
+      "hint": "Una funzione è un piccolo programma Node.js o Python con un suo indirizzo web."
     },
     "noDomain": {
       "title": "Imposta un dominio per pubblicare le funzioni",
@@ -2200,7 +2200,7 @@
     },
     "create": {
       "title": "Funzione",
-      "intro": "Dalle un nome e scegli il runtime. Codice, memoria, pianificazione e indirizzi si cambiano anche dopo.",
+      "intro": "Codice, memoria, pianificazione e indirizzi si cambiano anche dopo.",
       "name": "Nome",
       "nameHelp": "Lettere minuscole, cifre e trattini, iniziando con una lettera. Diventa parte dell'indirizzo.",
       "nameRule": "Usa lettere minuscole, cifre e trattini, iniziando con una lettera (al massimo 31).",

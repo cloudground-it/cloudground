@@ -379,11 +379,11 @@
   },
   "wp": {
     "admin": "Admin access",
-    "adminHint": "Open wp-admin in one click, no password needed.",
+    "adminHint": "Opens wp-admin without a password.",
     "hAllow": "XML-RPC exceptions",
     "hAllowHelp": "IP addresses or networks, one per line, that may still use XML-RPC.",
     "hardening": "Hardening",
-    "hardeningHint": "Common WordPress hardening, each item on its own. The recommended set does not change what visitors, WooCommerce customers or Jetpack see.",
+    "hardeningHint": "Each protection can be turned on alone. The recommended set changes nothing visitors, WooCommerce customers or Jetpack see.",
     "hFileEdit": "Turn the file editor off",
     "hFileEditHint": "No theme or plugin code edited from wp-admin.",
     "hLoginPath": "Login address",
@@ -434,14 +434,14 @@
     "updateAll": "Update all",
     "updateNoSnapshot": "Update without a snapshot",
     "noSnapshotTitle": "No snapshot before this update",
-    "noSnapshotHint": "No backup repository is set up, so the update runs without a snapshot. The site is still checked afterwards, but if the update breaks it, nothing can be undone automatically. Set a repository in Settings to get the automatic rollback.",
+    "noSnapshotHint": "No backup repository: the update runs without a snapshot. The site is still checked afterwards, but a break cannot be rolled back automatically. Set a repository in Settings.",
     "updates": "Updates",
     "updatesPending": "{n} updates available",
     "updating": "Update ({what}) started",
     "upToDate": "Everything is up to date",
     "version": "Version",
     "warm": "Cache warming",
-    "warmHint": "Fills the cache from the sitemap so the first visitor never finds it cold.",
+    "warmHint": "Fills the cache from the sitemap.",
     "warming": "Cache warming started",
     "warmNow": "Warm now"
   },
@@ -466,7 +466,7 @@
     "pushHint": "Performance Guard measures staging and production; if staging is slower, publishing is blocked.",
     "pushSelected": "Publish selection ({n})",
     "pushSelectedTitle": "Publish {n} items from staging?",
-    "pushStarted": "Safe Push started: Performance Guard is comparing staging with production",
+    "pushStarted": "Safe Push started",
     "pushTables": "Publish tables ({n})",
     "pushTitle": "Publish staging to production?",
     "recreate": "Recreate staging",
@@ -2177,7 +2177,7 @@
     "moreUrls": "+{n} more",
     "empty": {
       "title": "No functions yet",
-      "hint": "A function is a small piece of Node.js or Python code with its own web address. It runs when something calls it or on a schedule, and uses nothing while idle."
+      "hint": "A function is a small piece of Node.js or Python code with its own web address."
     },
     "noDomain": {
       "title": "Set a domain to publish your functions",
@@ -2200,7 +2200,7 @@
     },
     "create": {
       "title": "Function",
-      "intro": "Name it and pick a runtime. Code, memory, schedule and addresses can all change later.",
+      "intro": "Code, memory, schedule and addresses can change later.",
       "name": "Name",
       "nameHelp": "Lower-case letters, digits and hyphens, starting with a letter. It becomes part of the address.",
       "nameRule": "Use lower-case letters, digits and hyphens, starting with a letter (at most 31).",

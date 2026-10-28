@@ -379,11 +379,11 @@
   },
   "wp": {
     "admin": "Accès administrateur",
-    "adminHint": "Ouvrez wp-admin en un clic, sans mot de passe.",
+    "adminHint": "Ouvre wp-admin sans mot de passe.",
     "hAllow": "Exceptions XML-RPC",
     "hAllowHelp": "Adresses IP ou réseaux, un par ligne, qui peuvent encore utiliser XML-RPC.",
     "hardening": "Renforcement",
-    "hardeningHint": "Le renforcement courant de WordPress, chaque élément séparément. L’ensemble recommandé ne change rien pour les visiteurs, les clients WooCommerce ni Jetpack.",
+    "hardeningHint": "Chaque protection s’active séparément. L’ensemble recommandé ne change rien pour les visiteurs, les clients WooCommerce ni Jetpack.",
     "hFileEdit": "Désactiver l’éditeur de fichiers",
     "hFileEditHint": "Aucune modification du code des thèmes et extensions depuis wp-admin.",
     "hLoginPath": "Adresse de connexion",
@@ -434,14 +434,14 @@
     "updateAll": "Tout mettre à jour",
     "updateNoSnapshot": "Mettre à jour sans snapshot",
     "noSnapshotTitle": "Aucun snapshot avant cette mise à jour",
-    "noSnapshotHint": "Aucun dépôt de sauvegardes n’est configuré : la mise à jour se fait sans snapshot. Le site est tout de même vérifié ensuite, mais si la mise à jour le casse, rien ne peut être annulé automatiquement. Configurez un dépôt dans Paramètres pour bénéficier du rollback automatique.",
+    "noSnapshotHint": "Aucun dépôt de sauvegardes : la mise à jour se fait sans snapshot. Le site est tout de même vérifié ensuite, mais une panne ne peut pas être annulée automatiquement. Configurez un dépôt dans Paramètres.",
     "updates": "Mises à jour",
     "updatesPending": "{n} mises à jour disponibles",
     "updating": "Mise à jour ({what}) lancée",
     "upToDate": "Tout est à jour",
     "version": "Version",
     "warm": "Préchauffage du cache",
-    "warmHint": "Remplit le cache à partir du sitemap, pour que le premier visiteur ne le trouve jamais vide.",
+    "warmHint": "Remplit le cache à partir du sitemap.",
     "warming": "Préchauffage du cache lancé",
     "warmNow": "Préchauffer"
   },
@@ -466,7 +466,7 @@
     "pushHint": "Performance Guard mesure le staging et la production ; si le staging est plus lent, la publication est bloquée.",
     "pushSelected": "Publier la sélection ({n})",
     "pushSelectedTitle": "Publier {n} éléments depuis le staging ?",
-    "pushStarted": "Safe Push lancé : Performance Guard compare le staging à la production",
+    "pushStarted": "Safe Push démarré",
     "pushTables": "Publier les tables ({n})",
     "pushTitle": "Publier le staging en production ?",
     "recreate": "Recréer le staging",
@@ -2177,7 +2177,7 @@
     "moreUrls": "+{n} autres",
     "empty": {
       "title": "Pas encore de fonction",
-      "hint": "Une fonction est un petit programme Node.js ou Python avec sa propre adresse web. Elle s’exécute quand on l’appelle ou selon une planification, et ne consomme rien au repos."
+      "hint": "Une fonction est un petit programme Node.js ou Python avec sa propre adresse web."
     },
     "noDomain": {
       "title": "Définissez un domaine pour publier vos fonctions",
@@ -2200,7 +2200,7 @@
     },
     "create": {
       "title": "Fonction",
-      "intro": "Nommez-la et choisissez l’environnement d’exécution. Code, mémoire, planification et adresses se modifient ensuite.",
+      "intro": "Le code, la mémoire, la planification et les adresses peuvent changer plus tard.",
       "name": "Nom",
       "nameHelp": "Minuscules, chiffres et tirets, en commençant par une lettre. Le nom fait partie de l’adresse.",
       "nameRule": "Utilisez des minuscules, des chiffres et des tirets, en commençant par une lettre (31 au plus).",
