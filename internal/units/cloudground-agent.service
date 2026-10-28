@@ -16,6 +16,11 @@ Environment=RESTIC_CACHE_DIR=/var/cache/cloudground/restic
 # update back; at any other start the agent starts anyway. It takes at most
 # 100 s, inside the guard's 2-minute wait for the restart.
 ExecStartPre=/usr/local/bin/panel-agent ensure-packages
+# The functions' code (#143, internal/functions SPEC §2), made here with root's
+# full rights (+, outside the sandbox below) before the agent starts: a server
+# updated from a release that had no functions gets it with its new unit, and
+# ReadWritePaths names it optional (-) so a start never fails for want of it.
+ExecStartPre=+/usr/bin/install -d -m 0711 /srv/functions
 TimeoutStartSec=3min
 ExecStart=/usr/local/bin/panel-agent
 Restart=on-failure
@@ -43,12 +48,12 @@ RuntimeDirectoryPreserve=yes
 # own with these same lines (host.HelperProps, held to this file by a test);
 # wp-cli runs in its site's sandbox.
 #
-# It may write only: /etc, /srv (the site trees and the functions' code), its own state, cache and log
+# It may write only: /etc, the site trees and the functions' code, its own state, cache and log
 # directories, the ACME webroot and certbot's state, cron's spool, /run and
 # /usr/local/bin (where self-update puts binaries). /usr, /boot and the rest
 # of the system are read-only, and so are /home and /root.
 ProtectSystem=strict
-ReadWritePaths=/etc /srv /var/lib/cloudground-agent /var/cache/cloudground /var/log /var/lib/letsencrypt /var/www/cloudground-acme /var/spool/cron /run /usr/local/bin
+ReadWritePaths=/etc /srv/sites -/srv/functions /var/lib/cloudground-agent /var/cache/cloudground /var/log /var/lib/letsencrypt /var/www/cloudground-acme /var/spool/cron /run /usr/local/bin
 # Optional: a local restic repository under /var/backups or a mount in /mnt.
 ReadWritePaths=-/var/backups -/mnt
 ProtectHome=read-only

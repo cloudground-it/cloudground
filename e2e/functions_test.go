@@ -128,6 +128,16 @@ func (h *harness) functionsSection(t *testing.T) {
 	h.assert(t, "#143: the function's user exists", uid != "", "no user cg-fn-%d", hello.ID)
 	h.assert(t, "#143: the function runs as its own user", strings.Contains(string(ib), `\"uid\":`+uid), "uid %s: %s", uid, head(ib, 300))
 	h.check(t, "#143: /srv/functions lists nothing to others", strings.TrimSpace(h.run("stat", "-c", "%U %a", "/srv/functions").Out), "root 711")
+	// The agent writes the site trees and the functions' code, not the rest of /srv.
+	var rw []string
+	for _, l := range strings.Split(h.run("cat", "/etc/systemd/system/cloudground-agent.service").Out, "\n") {
+		if strings.HasPrefix(l, "ReadWritePaths=") {
+			rw = append(rw, l)
+		}
+	}
+	h.check(t, "#143: the agent's unit writes exactly these paths", strings.Join(rw, "\n"),
+		"ReadWritePaths=/etc /srv/sites -/srv/functions /var/lib/cloudground-agent /var/cache/cloudground /var/log /var/lib/letsencrypt /var/www/cloudground-acme /var/spool/cron /run /usr/local/bin\n"+
+			"ReadWritePaths=-/var/backups -/mnt")
 	h.check(t, "#143: a function's tree is root's with its group, 0750",
 		strings.TrimSpace(h.run("stat", "-c", "%U %G %a", "/srv/functions/hello").Out), fmt.Sprintf("root cg-fn-%d 750", hello.ID))
 	r := h.run("runuser", "-u", siteUser, "--", "cat", "/srv/functions/hello/current/index.js")

@@ -15,7 +15,7 @@ import (
 // everyImageHas are the paths a unit may name that every Ubuntu 24.04 and
 // 26.04 image has, container images included (SPEC §3 step 10). /dev/shm is
 // also in the private /dev that PrivateDevices makes (phpfpm SPEC §4.1).
-var everyImageHas = []string{"/etc", "/srv", "/run", "/var/log", "/usr/local/bin", "/dev/shm"}
+var everyImageHas = []string{"/etc", "/run", "/var/log", "/usr/local/bin", "/dev/shm"}
 
 // covered says why path p will exist when a unit starts, or "" when nothing
 // makes sure it does.
@@ -54,7 +54,7 @@ func TestUnitPathsExistBeforeTheUnitsStart(t *testing.T) {
 		}
 	}
 	// The parser read the units at all.
-	for _, p := range []string{"/var/lib/letsencrypt", "/var/spool/cron", "/srv", "/var/lib/cloudground"} {
+	for _, p := range []string{"/var/lib/letsencrypt", "/var/spool/cron", "/srv/sites", "/var/lib/cloudground"} {
 		if !seen[p] {
 			t.Errorf("%s not found in the units: the parser missed it", p)
 		}
