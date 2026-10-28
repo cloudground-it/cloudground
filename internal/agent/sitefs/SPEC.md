@@ -114,12 +114,14 @@ Unless stated otherwise:
 | `ReadDir(rel)` | Lists through the directory's descriptor (`getdents`) and `fstatat`s each name `AT_SYMLINK_NOFOLLOW` relative to it. Never builds a path string to stat, never uses `/proc/self/fd/N`. Sorted by name. |
 | `Readlink(rel)` | `readlinkat` on the parent's descriptor. |
 | `Symlink(target, rel)` | `target` must be relative and, joined to `rel`'s directory, stay beneath (`ErrEscape` otherwise). Created at a temporary name, `fchownat(AT_SYMLINK_NOFOLLOW)` to `Owner`, then renamed over `rel`, replacing a link or file atomically. |
-| `Chown(rel, uid, gid)` | `fchownat(parent, name, AT_SYMLINK_NOFOLLOW)` (the root itself: `AT_EMPTY_PATH`). Never `chown(2)` on a path, never the coreutils tool. |
-| `Chmod(rel, mode)` | Opens the entry `O_NOFOLLOW|O_NONBLOCK` and `fchmod`s the descriptor; only regular files and directories; a symlink is `ErrSymlink`. |
+| `Chown(rel, uid, gid)` | Opens the entry `O_PATH|O_NOFOLLOW` beneath, `fstat`s that descriptor and `fchownat(fd, "", AT_EMPTY_PATH)`s it, so the check and the change are on one inode (a symlink is re-owned as a link). A **foreign link** (below) is `ErrForeignLink`. Never `chown(2)` on a path, never the coreutils tool. |
+| `Chmod(rel, mode)` | Opens the entry `O_NOFOLLOW|O_NONBLOCK` and `fchmod`s the descriptor; only regular files and directories; a symlink is `ErrSymlink`, a foreign link `ErrForeignLink`. |
 | `SubStrict(rel)` | `Sub` with `RESOLVE_NO_SYMLINKS`: no component of `rel` may be a symlink (`ErrSymlink`), so the directory checked to be real is the one then written in. The new Root's `Symlink` checks targets against the tree it was opened from (a target may climb out of `rel` while it stays beneath that tree). |
 | `Walk(rel, fn)` | Pre-order, names sorted, never following a symlink (a link is reported as a link). `fn` may return `fs.SkipDir` / `fs.SkipAll`. The start must be a real directory or file (`ErrSymlink` otherwise); its parents may be in-tree links. |
-| `ChownTree(rel)` | Gives `rel` and everything beneath to `Owner`, through descriptors, never following a link (links are re-owned as links). A non-directory with link count > 1 that belongs to someone else is **left alone**: it is a hard link to a file outside this tree, and re-owning it would hand that file over. |
-| `ChmodTree(rel, clear)` | Clears `clear` on every directory and regular file beneath, through descriptors. |
+| `ChownTree(rel)` | Gives `rel` and everything beneath to `Owner`, each entry through an `O_PATH|O_NOFOLLOW` descriptor that is `fstat`ed and then changed, never following a link (links are re-owned as links). A foreign link is **left alone**. |
+| `ChmodTree(rel, clear)` | Clears `clear` on every directory and regular file beneath, through descriptors; a foreign link is left alone. |
+
+A **foreign link** is a non-directory with a link count above 1 that belongs to someone other than `Owner`: a hard link to a file that may live outside this tree, where changing its owner or mode would change that file. The check is on the `fstat` of the descriptor the change is made through, never on an earlier listing. A tenant cannot make one today (its tree is a separate mount in the sandbox, SFTP is chrooted, every import copies hard links as content); this keeps it so if that ever changes.
 | `CopyTree(src, srcRel, dst, dstRel)` | See below. |
 
 ### `CopyTree`

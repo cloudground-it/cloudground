@@ -491,6 +491,7 @@ func TestChownAndChmodTreeNeverFollowLinks(t *testing.T) {
 	foreign := filepath.Join(root, "foreign")
 	write(t, foreign, "theirs")
 	must(t, os.Chown(foreign, 5555, 5555))
+	must(t, os.Chmod(foreign, 0o666))
 	must(t, os.Link(foreign, filepath.Join(root, "tree/hard")))
 	must(t, os.Chmod(outside, 0o777))
 
@@ -509,9 +510,23 @@ func TestChownAndChmodTreeNeverFollowLinks(t *testing.T) {
 	if st := stat(t, filepath.Join(root, "tree/sub/dirlink")); st.Uid != 4242 {
 		t.Errorf("link not re-owned as a link: %d", st.Uid)
 	}
-	if st := stat(t, foreign); st.Uid != 5555 {
-		t.Errorf("ChownTree re-owned a hard link to someone else's file: %d", st.Uid)
+	if st := stat(t, foreign); st.Uid != 5555 || st.Mode&0o777 != 0o666 {
+		t.Errorf("the trees changed a hard link to someone else's file: %d %o", st.Uid, st.Mode&0o777)
 	}
+	// Nor do the single operations: they check the inode they change.
+	if err := r.Chmod("tree/hard", 0o600); !errors.Is(err, ErrForeignLink) {
+		t.Errorf("Chmod on a foreign link: %v", err)
+	}
+	if err := r.Chown("tree/hard", 4242, 4242); !errors.Is(err, ErrForeignLink) {
+		t.Errorf("Chown on a foreign link: %v", err)
+	}
+	if st := stat(t, foreign); st.Uid != 5555 || st.Mode&0o777 != 0o666 {
+		t.Errorf("Chmod or Chown changed someone else's file: %d %o", st.Uid, st.Mode&0o777)
+	}
+	// A file of the site's own with two links is the site's to change.
+	must(t, os.Link(filepath.Join(root, "tree/sub/f"), filepath.Join(root, "tree/own-hard")))
+	must(t, r.Chmod("tree/own-hard", 0o600))
+	must(t, r.Chown("tree/own-hard", 4242, 4242))
 	must(t, os.Symlink(outside, filepath.Join(root, "toplink")))
 	if err := r.ChownTree("toplink"); !errors.Is(err, ErrSymlink) {
 		t.Errorf("ChownTree on a symlink: %v", err)
