@@ -156,7 +156,7 @@ owner, a new one is created root-owned (what `install -d -m` does).
     | Directory | Mode | Owner |
     | --- | --- | --- |
     | `/srv/sites`, `/var/log/cloudground`, `/var/cache/cloudground` | 0755 | unchanged |
-    | `/srv/functions` (the functions' code, internal/functions SPEC §2: traversed, never listed) | 0711 | root:root |
+    | `/srv/functions` (the functions' code, internal/functions SPEC §2: traversed, never listed; the agent's unit also makes it, `ExecStartPre=+install -d`, so a server updated from a release without it gets it, and names it `-/srv/functions` in `ReadWritePaths`) | 0711 | root:root |
     | `/var/lib/cloudground` (the API's state) | 0750 | cloudground:cloudground |
     | `/var/www/cloudground-acme`, `/run/cloudground`, `/run/cloudground/php` | 0755 | unchanged |
     | `/etc/cloudground-php` (each site's PHP master configuration, read by the site's user) | 0755 | root:root |
@@ -178,7 +178,7 @@ owner, a new one is created root-owned (what `install -d -m` does).
     (`/var/backups`, `/mnt`, the sandboxes' `InaccessiblePaths=`). A unit test
     (`unitpaths_test.go`) holds every absolute path of the embedded units, and the fixed paths of
     the site sandbox (`internal/phpfpm.Sandbox`) and the shell's (`ops/sftp.ShellQuiet`), to: in
-    this table, prefixed `-`, or one of `/etc`, `/srv`, `/run`, `/var/log`, `/usr/local/bin`,
+    this table, prefixed `-`, or one of `/etc`, `/run`, `/var/log`, `/usr/local/bin`,
     which every Ubuntu image has. `/etc/letsencrypt` needs no entry: the agent's unit names `/etc`,
     and step 28 creates it.
 
@@ -657,18 +657,26 @@ In order:
    start with `Managed by CloudGround` (an operator's own vhost is left), every
    `conf.d/cloudground-*.conf`, `/etc/nginx/cloudground-auth`; `/etc/cron.d/cloudground-*` and the
    legacy `/var/spool/cron/crontabs/cg-site-*`; each shell login `cg-shell-<id>` (`userdel -f`), its
-   `user@<uid>.service` mask (only a link to `/dev/null`), the group `cg-shell`.
+   `user@<uid>.service` mask (only a link to `/dev/null`), the group `cg-shell`. The functions'
+   wiring (#143): `stop cg-fn.slice` (every invocation), `disable --now` each
+   `cloudground-fn-*.socket`, then every `cloudground-fn-*.socket` and `cloudground-fn-*@.service`
+   (a v0.8.x site function's too) and `cg-fn.slice`; their nginx files are among the panel's
+   `cloudground-*` vhosts.
 4. **The sites, kept**: each site user `cg-site-<id>` stays, so its files keep their owner, and is
    **locked** (`usermod --lock --expiredate 1 --shell /usr/sbin/nologin`): its logins were guarded
    by the panel's chroot and gate, which are gone. `/srv/sites`, the site databases and database
-   accounts, MariaDB (still running) and its tuning file `99-cloudground.cnf` stay (the tuning holds
+   accounts, MariaDB (still running) and its tuning file `99-cloudground.cnf` stay. The functions'
+   code `/srv/functions` stays too, and each function user `cg-fn-<id>` is locked like a site
+   user; `/srv/functions` goes only when empty (the tuning holds
    the hardening the kept databases ran with: `local_infile` off, symbolic links off). The sites'
    certbot lineages stay (`/etc/letsencrypt/live/<domain>`); their renewal pointed at CloudGround's
    ACME webroot, so they stop renewing until re-pointed or deleted: the end of the run lists them
    with the `certbot certonly --webroot …` and `certbot delete --cert-name …` commands. The certificates brought for a
    site (`/etc/cloudground/certs/custom`) are moved to `<kept>/custom-certs`. **Nothing serves the
    sites any more**: their vhosts and PHP masters are gone.
-5. **The panel's certificate**: `certbot delete --cert-name cloudground-panel`.
+5. **The panel's certificates**: `certbot delete --cert-name cloudground-panel`, and the functions'
+   lineages `cloudground-functions` and `cloudground-fn-<id>` (#143), which served only the panel's
+   functions.
 6. **The installer's files** (§7) and the agent's global ones: the three sshd drop-ins
    (`10-cloudground-sftp.conf`, `11-cloudground-shell.conf`, `09-cloudground-sftp-keys.conf`), then `sshd -t` and `reload ssh` (a
    failing `sshd -t` fails the action: an sshd that would not restart is the operator's to see);
@@ -684,7 +692,7 @@ In order:
    `/var/lib/cloudground-agent` (update snapshots and the malware quarantine included), the malware
    scan's signature set `/var/lib/cloudground-signatures`, the runtimes
    `/var/lib/cloudground-runtimes`, the apps' environment files `/etc/cloudground-app` (#28) and the
-   functions' `/etc/cloudground-fn` (#143),
+   functions' environment files and shims `/etc/cloudground-fn` (#143),
    and its freshclam configuration
    `/etc/clamav/cloudground-freshclam.conf` (ClamAV itself, a distribution package, stays),
    `/var/cache/cloudground`,
@@ -737,7 +745,8 @@ account the agent's registry (`databases.json`) names, every `site_<n>` account 
 `cgq_<16 hex>` (Quarry's scoped accounts); `DROP DATABASE IF EXISTS` for every registry database,
 every `site_<n>` and every `cgv_`/`cgm_`/`cgh_<16 hex>` (the agent's restore-test, staging and
 holding databases); `certbot delete` of each site's lineage; `/srv/sites`; MariaDB's
-`99-cloudground.cnf`. Names are taken only when they match `^[a-z][a-z0-9_]{2,47}$` or those
+`99-cloudground.cnf`; and the functions with them: each `cg-fn-<id>` (`pkill -KILL -u`,
+`userdel -f`, `groupdel`) and `/srv/functions`, their code. Names are taken only when they match `^[a-z][a-z0-9_]{2,47}$` or those
 patterns; any other database is left. A MariaDB that does not answer fails that action, naming
 what was not dropped, and the run can be repeated once it is up. The custom certificates are
 deleted with `/etc/cloudground`, not moved.
