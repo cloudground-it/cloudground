@@ -45,7 +45,7 @@
   },
   "whatsnew": {
     "title": "Neuigkeiten",
-    "hint": "Was sich in jeder CloudGround-Version geändert hat, die neueste zuerst. Die Hinweise sind auf Englisch.",
+    "hint": "Neueste zuerst. Die Hinweise sind auf Englisch.",
     "full": "Vollständiges Changelog auf GitHub",
     "none": "Diese Version enthält keine Release-Hinweise.",
     "new": "Neu",
@@ -86,18 +86,17 @@
     "passwordLength": "Das Passwort braucht mindestens 12 Zeichen",
     "passwordMismatch": "Die Passwörter stimmen nicht überein",
     "setup": "CloudGround einrichten",
-    "setupHint": "Erstelle das Administratorkonto, um die Installation abzuschließen.",
+    "setupHint": "Lege das Administratorkonto an.",
     "setupPending": "Die Installation ist nicht abgeschlossen: Öffne den einmaligen Einrichtungslink, den das Installationsprogramm ausgegeben hat.",
     "signIn": "Anmelden",
-    "signInHint": "Melde dich bei deinem Control Panel an.",
     "twoFactor": "Zwei-Faktor-Authentifizierung",
     "twoFactorHint": "Gib den Code aus deiner Authenticator-App ein.",
     "verify": "Bestätigen",
     "firstName": "Vorname",
     "lastName": "Nachname",
     "recoveryCode": "Wiederherstellungscode",
-    "recoveryHint": "Gib einen der Wiederherstellungscodes ein, die du beim Einrichten der Zwei-Faktor-Authentifizierung gespeichert hast. Jeder funktioniert nur einmal.",
-    "passkeyHint": "Bestätige mit deinem Passkey, um die Anmeldung abzuschließen.",
+    "recoveryHint": "Gib einen deiner Wiederherstellungscodes ein. Jeder gilt nur einmal.",
+    "passkeyHint": "Bestätige mit deinem Passkey.",
     "usePasskey": "Passkey verwenden",
     "useCode": "Authenticator-App verwenden",
     "useRecoveryCode": "Wiederherstellungscode verwenden",
@@ -110,7 +109,7 @@
   },
   "alerts": {
     "description": "Was Aufmerksamkeit braucht, jede Minute aktualisiert.",
-    "none": "Keine Warnungen: Alles in Ordnung.",
+    "none": "Keine Warnungen.",
     "open": "Öffnen",
     "title": "Warnungen",
     "kind": {
@@ -135,7 +134,7 @@
   "tasks": {
     "activity": "Aktivität",
     "none": "Keine aktuellen Aktivitäten",
-    "noneHint": "Backups, Releases und die anderen Vorgänge des Panels erscheinen hier, während sie laufen.",
+    "noneHint": "Backups, Releases und andere Vorgänge erscheinen hier.",
     "queued": "in Warteschlange",
     "recent": "Letzte Aktivitäten",
     "status": {
@@ -152,7 +151,7 @@
     "agent": "Agent {version}",
     "agentDown": "Der Agent antwortet nicht",
     "capacity": "Auslastung der letzten 24 Stunden",
-    "capacityEmpty": "Der Verlauf füllt sich von selbst, alle fünf Minuten ein Messwert.",
+    "capacityEmpty": "Alle fünf Minuten ein Messpunkt.",
     "capacityHint": "Belegte CPU, Arbeitsspeicher und Festplatte.",
     "cpuDetail": "{cores} Kerne · Last {load}",
     "disk": "Festplatte",
@@ -1981,7 +1980,7 @@
   },
   "proof": {
     "factorHint": "Bestätige dann mit einem zweiten Faktor.",
-    "passkeyOnly": "Bestätige mit einem Passkey, der prüft, dass du es bist: Fingerabdruck, Gesicht oder Geräte-PIN."
+    "passkeyOnly": "Bestätige mit einem Passkey: Fingerabdruck, Gesicht oder Geräte-PIN."
   },
   "assistants": {
     "title": "KI-Assistenten",

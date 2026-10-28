@@ -126,11 +126,8 @@ const factorReady = computed(() => method.value === 'code' ? state.totp.trim().l
         :title="t(`cg.pages.${factorStep ? 'totp' : 'login'}.title`)"
         :accent="t(`cg.pages.${factorStep ? 'totp' : 'login'}.accent`)"
       />
-      <p class="text-sm text-muted">
-        <template v-if="!factorStep">
-          {{ t('auth.signInHint') }}
-        </template>
-        <template v-else-if="method === 'recovery'">
+      <p v-if="factorStep" class="text-sm text-muted">
+        <template v-if="method === 'recovery'">
           {{ t('auth.recoveryHint') }}
         </template>
         <template v-else-if="hasTotp">

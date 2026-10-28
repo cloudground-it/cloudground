@@ -45,7 +45,7 @@
   },
   "whatsnew": {
     "title": "Novedades",
-    "hint": "Qué cambió en cada versión de CloudGround, de la más reciente a la más antigua. Las notas están en inglés.",
+    "hint": "Las más recientes primero. Las notas están en inglés.",
     "full": "Registro completo en GitHub",
     "none": "No hay notas de versión en esta compilación.",
     "new": "Nuevo",
@@ -86,18 +86,17 @@
     "passwordLength": "La contraseña necesita al menos 12 caracteres",
     "passwordMismatch": "Las contraseñas no coinciden",
     "setup": "Configurar CloudGround",
-    "setupHint": "Crea la cuenta de administrador para terminar la instalación.",
+    "setupHint": "Crea la cuenta de administrador.",
     "setupPending": "La instalación no ha terminado: abre el enlace de configuración de un solo uso que mostró el instalador.",
     "signIn": "Iniciar sesión",
-    "signInHint": "Inicia sesión en tu panel de control.",
     "twoFactor": "Verificación en dos pasos",
     "twoFactorHint": "Introduce el código de tu app de autenticación.",
     "verify": "Verificar",
     "firstName": "Nombre",
     "lastName": "Apellidos",
     "recoveryCode": "Código de recuperación",
-    "recoveryHint": "Introduce uno de los códigos de recuperación que guardaste al activar la verificación en dos pasos. Cada uno sirve una sola vez.",
-    "passkeyHint": "Confirma con tu llave de acceso para terminar de iniciar sesión.",
+    "recoveryHint": "Introduce uno de tus códigos de recuperación. Cada uno sirve una sola vez.",
+    "passkeyHint": "Confirma con tu llave de acceso.",
     "usePasskey": "Usar una llave de acceso",
     "useCode": "Usar la app de autenticación",
     "useRecoveryCode": "Usar un código de recuperación",
@@ -110,7 +109,7 @@
   },
   "alerts": {
     "description": "Lo que requiere atención, actualizado cada minuto.",
-    "none": "No hay alertas: todo está en orden.",
+    "none": "Ninguna alerta.",
     "open": "Abrir",
     "title": "Alertas",
     "kind": {
@@ -135,7 +134,7 @@
   "tasks": {
     "activity": "Actividad",
     "none": "No hay actividad reciente",
-    "noneHint": "Las copias de seguridad, las releases y las demás operaciones del panel aparecen aquí mientras se ejecutan.",
+    "noneHint": "Las copias de seguridad, los releases y otras operaciones aparecen aquí.",
     "queued": "en cola",
     "recent": "Actividad reciente",
     "status": {
@@ -152,7 +151,7 @@
     "agent": "agente {version}",
     "agentDown": "El agente no responde",
     "capacity": "Capacidad en las últimas 24 horas",
-    "capacityEmpty": "El historial se rellena solo, con una muestra cada cinco minutos.",
+    "capacityEmpty": "Una muestra cada cinco minutos.",
     "capacityHint": "CPU, memoria y disco en uso.",
     "cpuDetail": "{cores} núcleos · carga {load}",
     "disk": "Disco",
@@ -1981,7 +1980,7 @@
   },
   "proof": {
     "factorHint": "Después confirma con un segundo factor.",
-    "passkeyOnly": "Confirma con una llave de acceso que compruebe que eres tú: huella, cara o PIN del dispositivo."
+    "passkeyOnly": "Confirma con una llave de acceso: huella, cara o PIN del dispositivo."
   },
   "assistants": {
     "title": "Asistentes de IA",

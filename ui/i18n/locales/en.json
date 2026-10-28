@@ -45,7 +45,7 @@
   },
   "whatsnew": {
     "title": "What's new",
-    "hint": "What changed in each CloudGround release, newest first. The notes are in English.",
+    "hint": "Newest first. The notes are in English.",
     "full": "Full changelog on GitHub",
     "none": "No release notes in this build.",
     "new": "New",
@@ -86,18 +86,17 @@
     "passwordLength": "The password needs at least 12 characters",
     "passwordMismatch": "The passwords do not match",
     "setup": "Set up CloudGround",
-    "setupHint": "Create the administrator account to finish the installation.",
+    "setupHint": "Create the administrator account.",
     "setupPending": "Installation is not finished: open the one-time setup link the installer printed.",
     "signIn": "Sign in",
-    "signInHint": "Sign in to your control panel.",
     "twoFactor": "Two-step verification",
     "twoFactorHint": "Enter the code from your authenticator app.",
     "verify": "Verify",
     "firstName": "First name",
     "lastName": "Last name",
     "recoveryCode": "Recovery code",
-    "recoveryHint": "Enter one of the recovery codes you saved when you turned on two-step verification. Each one works once.",
-    "passkeyHint": "Confirm with your passkey to finish signing in.",
+    "recoveryHint": "Enter one of your recovery codes. Each works once.",
+    "passkeyHint": "Confirm with your passkey.",
     "usePasskey": "Use a passkey",
     "useCode": "Use the authenticator app",
     "useRecoveryCode": "Use a recovery code",
@@ -110,7 +109,7 @@
   },
   "alerts": {
     "description": "What needs attention, refreshed every minute.",
-    "none": "No alerts: everything is fine.",
+    "none": "No alerts.",
     "open": "Open",
     "title": "Alerts",
     "kind": {
@@ -135,7 +134,7 @@
   "tasks": {
     "activity": "Activity",
     "none": "No recent activity",
-    "noneHint": "Backups, releases and the panel's other tasks appear here as they run.",
+    "noneHint": "Backups, releases and other tasks appear here.",
     "queued": "queued",
     "recent": "Recent activity",
     "status": {
@@ -152,7 +151,7 @@
     "agent": "agent {version}",
     "agentDown": "The agent is not answering",
     "capacity": "Capacity over the last 24 hours",
-    "capacityEmpty": "History fills in by itself, one sample every five minutes.",
+    "capacityEmpty": "One sample every five minutes.",
     "capacityHint": "CPU, memory and disk in use.",
     "cpuDetail": "{cores} cores · load {load}",
     "disk": "Disk",
@@ -1981,7 +1980,7 @@
   },
   "proof": {
     "factorHint": "Then confirm with a second factor.",
-    "passkeyOnly": "Confirm with a passkey that checks it is you: your fingerprint, face or device PIN."
+    "passkeyOnly": "Confirm with a passkey: your fingerprint, face or device PIN."
   },
   "assistants": {
     "title": "AI assistants",

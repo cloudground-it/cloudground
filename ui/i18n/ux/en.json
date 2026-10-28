@@ -5,11 +5,11 @@
     },
     "pages": {
       "sites": "No sites on this server yet. | One site on this server. | {n} sites on this server.",
-      "firewall": "Which ports of this server are open, and to whom. SSH, HTTP and HTTPS always stay open.",
-      "blocklist": "Addresses this server refuses on every port: blocked by hand, or for repeated failed sign-ins at SSH, WordPress and this panel.",
+      "firewall": "Open ports and who can reach them. SSH, HTTP and HTTPS always stay open.",
+      "blocklist": "Addresses blocked by hand or after repeated failed sign-ins to SSH, WordPress and this panel.",
       "audit": "Who changed what on this panel, newest first.",
-      "users": "The people who sign in to this panel and what each of them may do.",
-      "settings": "Where backups go, certificates, notifications and updates, for the whole server.",
+      "users": "People who sign in to this panel, with their role.",
+      "settings": "Backups, certificates, notifications and updates for the whole server.",
       "security": "Your profile, password, two-step verification and sessions ({email})."
     },
     "audit": {

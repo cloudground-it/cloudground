@@ -45,7 +45,7 @@
   },
   "whatsnew": {
     "title": "Novità",
-    "hint": "Cosa è cambiato in ogni versione di CloudGround, dalla più recente. Le note sono in inglese.",
+    "hint": "Dalla più recente. Le note sono in inglese.",
     "full": "Changelog completo su GitHub",
     "none": "Nessuna nota di rilascio in questa versione.",
     "new": "Nuovo",
@@ -86,18 +86,17 @@
     "passwordLength": "La password deve avere almeno 12 caratteri",
     "passwordMismatch": "Le password non coincidono",
     "setup": "Configura CloudGround",
-    "setupHint": "Crea l'account amministratore per completare l'installazione.",
+    "setupHint": "Crea l’account amministratore.",
     "setupPending": "L'installazione non è completa: apri il link di setup monouso stampato dall'installer.",
     "signIn": "Accedi",
-    "signInHint": "Accedi al tuo pannello di controllo.",
     "twoFactor": "Verifica in due passaggi",
     "twoFactorHint": "Inserisci il codice della tua app di autenticazione.",
     "verify": "Verifica",
     "firstName": "Nome",
     "lastName": "Cognome",
     "recoveryCode": "Codice di recupero",
-    "recoveryHint": "Inserisci uno dei codici di recupero che hai salvato quando hai attivato la verifica in due passaggi. Ognuno vale una volta sola.",
-    "passkeyHint": "Conferma con la tua passkey per completare l’accesso.",
+    "recoveryHint": "Inserisci uno dei tuoi codici di recupero. Ognuno vale una volta sola.",
+    "passkeyHint": "Conferma con la tua passkey.",
     "usePasskey": "Usa una passkey",
     "useCode": "Usa l’app di autenticazione",
     "useRecoveryCode": "Usa un codice di recupero",
@@ -110,7 +109,7 @@
   },
   "alerts": {
     "description": "Cosa richiede attenzione, aggiornato ogni minuto.",
-    "none": "Nessun avviso: è tutto in ordine.",
+    "none": "Nessun avviso.",
     "open": "Apri",
     "title": "Avvisi",
     "kind": {
@@ -135,7 +134,7 @@
   "tasks": {
     "activity": "Attività",
     "none": "Nessuna attività recente",
-    "noneHint": "Backup, rilasci e le altre attività del pannello compaiono qui mentre sono in corso.",
+    "noneHint": "Backup, rilasci e altre attività compaiono qui.",
     "queued": "in coda",
     "recent": "Attività recenti",
     "status": {
@@ -152,7 +151,7 @@
     "agent": "agent {version}",
     "agentDown": "L'agent non risponde",
     "capacity": "Capacità nelle ultime 24 ore",
-    "capacityEmpty": "Lo storico si riempie da solo, un campione ogni cinque minuti.",
+    "capacityEmpty": "Un campione ogni cinque minuti.",
     "capacityHint": "Percentuale usata di CPU, RAM e disco.",
     "cpuDetail": "{cores} core · carico {load}",
     "disk": "Disco",
@@ -1981,7 +1980,7 @@
   },
   "proof": {
     "factorHint": "Poi conferma con un secondo fattore.",
-    "passkeyOnly": "Conferma con una passkey che verifichi che sei tu: impronta, volto o PIN del dispositivo."
+    "passkeyOnly": "Conferma con una passkey: impronta, volto o PIN del dispositivo."
   },
   "assistants": {
     "title": "Assistenti AI",

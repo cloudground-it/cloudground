@@ -5,11 +5,11 @@
     },
     "pages": {
       "sites": "Ancora nessun sito su questo server. | Un sito su questo server. | {n} siti su questo server.",
-      "firewall": "Quali porte del server sono aperte, e per chi. SSH, HTTP e HTTPS restano sempre aperte.",
-      "blocklist": "Gli indirizzi che questo server rifiuta su ogni porta: bloccati a mano, o per accessi falliti ripetuti a SSH, WordPress e questo pannello.",
+      "firewall": "Porte aperte e chi può raggiungerle. SSH, HTTP e HTTPS restano sempre aperte.",
+      "blocklist": "Indirizzi bloccati a mano o dopo accessi falliti ripetuti a SSH, WordPress e a questo pannello.",
       "audit": "Chi ha cambiato cosa in questo pannello, dal più recente.",
-      "users": "Le persone che accedono a questo pannello e cosa può fare ciascuna.",
-      "settings": "Dove vanno i backup, certificati, notifiche e aggiornamenti, per tutto il server.",
+      "users": "Chi accede a questo pannello e con quale ruolo.",
+      "settings": "Backup, certificati, notifiche e aggiornamenti per tutto il server.",
       "security": "Il tuo profilo, la password, la verifica in due passaggi e le sessioni ({email})."
     },
     "audit": {
