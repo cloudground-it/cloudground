@@ -21,6 +21,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/sitefs"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/backuprepo"
+	"github.com/cloudground-it/cloudground/internal/rpc"
 	"github.com/cloudground-it/cloudground/internal/state"
 )
 
@@ -85,6 +86,11 @@ type Ops struct {
 	// Hostname scopes retention to this server; nil is os.Hostname.
 	Hostname func() (string, error)
 	Log      *slog.Logger
+	// Reconfigure gives a site restored from another server's backup its
+	// own credentials where the application keeps them (SPEC §5, a
+	// WordPress site's wp-config.php), once the restored tree is live. Nil
+	// does nothing.
+	Reconfigure func(context.Context, state.Site, rpc.ForeignRestore) error
 
 	locks sync.Map // repository URL -> *repoLock
 }
@@ -103,6 +109,8 @@ func (o *Ops) Register(s *agentrpc.Server) {
 	agentrpc.Handle(s, agentrpc.DeleteArchive, o.DeleteArchive)
 	agentrpc.Handle(s, agentrpc.RepositoryInfo, o.RepositoryInfo)
 	agentrpc.Handle(s, agentrpc.CopyRepository, o.CopyRepository)
+	agentrpc.Handle(s, agentrpc.RepositorySites, o.RepositorySites)
+	agentrpc.Handle(s, agentrpc.ForeignSnapshot, o.ForeignSnapshot)
 }
 
 func (o *Ops) log() *slog.Logger {
@@ -281,6 +289,9 @@ type siteSnaps struct {
 	site state.Site
 	list []host.Snapshot
 	read bool
+	// foreign is the other server whose snapshots a restore from another
+	// server takes as this one's (SPEC §5); "" for every other call.
+	foreign string
 }
 
 func (o *Ops) siteSnaps(repo host.Repo, s state.Site) *siteSnaps {
@@ -352,10 +363,15 @@ func (o *Ops) hostname() (string, error) {
 // ours reports why snap is not a backup of site s made on this server, or
 // "" when it is: tagged site:<domain> and recorded with this host's name
 // (SR-T6). A repository may hold other sites' snapshots, and other
-// servers' (of a site with the same domain).
-func (o *Ops) ours(snap host.Snapshot, s state.Site) string {
+// servers' (of a site with the same domain). foreign, when not "", is the
+// one other server a restore from another server names (SPEC §5): its
+// snapshots pass too, and only its.
+func (o *Ops) ours(snap host.Snapshot, s state.Site, foreign string) string {
 	if !slices.Contains(snap.Tags, tagSite+s.Domain) {
 		return "it is not a backup of " + s.Domain
+	}
+	if foreign != "" && snap.Hostname == foreign {
+		return ""
 	}
 	hn, err := o.hostname()
 	if err != nil {
@@ -377,11 +393,14 @@ func (o *Ops) siteSnapshot(ctx context.Context, l *siteSnaps, id string) (host.S
 	if err != nil {
 		return host.Snapshot{}, err
 	}
-	if why := o.ours(snap, l.site); why != "" {
+	if why := o.ours(snap, l.site, l.foreign); why != "" {
 		return host.Snapshot{}, agentrpc.Invalid("snapshot %s cannot be restored here: %s", id, why)
 	}
 	if slices.Contains(snap.Tags, tagDatabase) {
 		return host.Snapshot{}, agentrpc.Invalid("snapshot %s is a database part, not a site backup", id)
+	}
+	if slices.Contains(snap.Tags, tagManifestPart) {
+		return host.Snapshot{}, agentrpc.Invalid("snapshot %s is the description of a backup, not a site backup", id)
 	}
 	if !ValidSnapshotID(snap.ID) {
 		return host.Snapshot{}, fmt.Errorf("the repository lists an invalid snapshot id")

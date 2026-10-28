@@ -233,6 +233,8 @@ var commands = []command{
 	{words: []string{"backup", "verify"}, args: "<backup-id>", min: 1, max: 1, build: call("POST", "/api/backups/%s/verify", nil)},
 	{words: []string{"backup", "restore"}, args: "<backup-id> <domain> [full|files|database] [--database <name> ...]", min: 2, max: -1, build: buildRestore},
 	{words: []string{"backup", "move"}, args: backupMoveArgs, min: 2, max: -1, password: true, build: buildBackupMove},
+	{words: []string{"backup", "foreign"}, password: true, build: get("/api/backups/foreign")},
+	{words: []string{"backup", "import"}, args: backupImportArgs, min: 2, max: -1, password: true, build: buildBackupImport},
 	{words: []string{"database", "import"}, args: "<site-id> <domain> <site-relative.sql> [database]", min: 3, max: 4, build: call("POST", "/api/sites/%s/database/import", func(a []string) (any, error) {
 		body := map[string]string{"confirm": a[1], "path": a[2]}
 		if len(a) == 4 {

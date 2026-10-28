@@ -61,6 +61,9 @@ type RestoreParams struct {
 	// Paths limits a files restore to these files or folders, relative to
 	// the site's root (#23, ops/backup SPEC §5); empty restores the tree.
 	Paths []string `json:"paths,omitempty"`
+	// Foreign, set only by the panel's restore from another server (#193),
+	// lets the snapshot be another server's (ForeignRestore).
+	Foreign *ForeignRestore `json:"foreign,omitempty"`
 }
 
 // Sites lists the site restored.
@@ -74,6 +77,9 @@ func (p *RestoreParams) Validate() error {
 	case "", "full", "files", "database":
 	default:
 		return errors.New("restore mode must be full, files, or database")
+	}
+	if p.Foreign != nil {
+		return p.Foreign.validate(mode, p)
 	}
 	if len(p.Paths) == 0 {
 		return nil

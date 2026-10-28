@@ -263,23 +263,56 @@ type siteCreated struct {
 // summary's panel link).
 func (svc siteService) create(ctx context.Context, actor string, req newSite, reqHost string) (siteCreated, error) {
 	srv := svc.srv
-	rec, db, err := checkNewSite(&req)
+	p, err := svc.prepare(ctx, actor, req)
 	if err != nil {
 		return siteCreated{}, err
 	}
+	task, err := srv.startJob(jobReq{kind: "site.create", siteID: p.site.ID, locks: siteLocks(p.site.ID)},
+		func(ctx context.Context, rec state.Site, progress func(int, string)) error {
+			return svc.provision(ctx, rec, p.sec, p.admin, progress)
+		})
+	if err != nil {
+		srv.rollbackCreatedSite(p.site)
+		return siteCreated{}, queueFailure{err}
+	}
+	ps, _ := srv.Store.PanelSettings()
+	return siteCreated{site: p.site, task: task,
+		summary: summaryOf(p.site, req.AdminUser, p.sec.dbPassword, p.caps.Paths.MySQLSocket, panelHost(ps, reqHost))}, nil
+}
+
+// preparedSite is a new site's record as §3.2's checks and insert leave
+// it, with what its provisioning needs: the job that provisions it is the
+// caller's (site.create, or backup.import, §5.10).
+type preparedSite struct {
+	site  state.Site
+	sec   siteSecrets
+	admin *wpAdmin
+	caps  rpc.Capabilities
+}
+
+// prepare checks a new site, inserts its record with its secrets and its
+// primary database, and audits site.create (§3.2, steps 1-12). A caller
+// that cannot queue the provisioning removes the record
+// (rollbackCreatedSite).
+func (svc siteService) prepare(ctx context.Context, actor string, req newSite) (preparedSite, error) {
+	srv := svc.srv
+	rec, db, err := checkNewSite(&req)
+	if err != nil {
+		return preparedSite{}, err
+	}
 	caps, err := srv.capabilities(ctx)
 	if err != nil {
-		return siteCreated{}, agentFailure{err}
+		return preparedSite{}, agentFailure{err}
 	}
 	if caps.Paths.SitesRoot == "" {
-		return siteCreated{}, agentFailure{errNoSitesRoot}
+		return preparedSite{}, agentFailure{errNoSitesRoot}
 	}
 	if runsPHP(rec.Type) {
 		rec.PHPVersion = req.PHPVersion
 		if rec.PHPVersion == "" {
 			rec.PHPVersion = srv.defaultPHP(caps)
 		} else if msg := phpVersionError(caps, rec.PHPVersion); msg != "" {
-			return siteCreated{}, refuse(probInvalid, msg)
+			return preparedSite{}, refuse(probInvalid, msg)
 		}
 	}
 	if rec.Type == state.SitePython && strings.TrimSpace(req.RuntimeVersion) == "" {
@@ -290,13 +323,13 @@ func (svc siteService) create(ctx context.Context, actor string, req newSite, re
 	rec.RootPath = filepath.Join(caps.Paths.SitesRoot, rec.Domain)
 	if db.want {
 		if err := svc.claimFree(db); err != nil {
-			return siteCreated{}, err
+			return preparedSite{}, err
 		}
 	}
 
 	created, err := svc.insertNamed(rec)
 	if err != nil {
-		return siteCreated{}, err
+		return preparedSite{}, err
 	}
 	created, err = srv.Store.MutateSite(created.ID, func(st *state.Site) error {
 		st.SystemUser = siteUser(st.ID)
@@ -310,21 +343,21 @@ func (svc siteService) create(ctx context.Context, actor string, req newSite, re
 	})
 	if err != nil {
 		srv.logIfErr(srv.Store.DeleteSite(created.ID), "DeleteSite")
-		return siteCreated{}, err
+		return preparedSite{}, err
 	}
 	// A site whose credentials could not be kept could never reach its
 	// database: nothing is provisioned for it.
 	sec := newSiteSecrets(db.password)
 	if err := sec.store(srv.Store, created.ID); err != nil {
 		srv.logIfErr(srv.Store.DeleteSite(created.ID), "DeleteSite")
-		return siteCreated{}, err
+		return preparedSite{}, err
 	}
 	if err := recordPrimaryDB(srv.Store, created); err != nil {
 		srv.logIfErr(srv.Store.DeleteSite(created.ID), "DeleteSite")
 		if errors.Is(err, state.ErrDBNameTaken) {
-			return siteCreated{}, takenProblem(err)
+			return preparedSite{}, takenProblem(err)
 		}
-		return siteCreated{}, err
+		return preparedSite{}, err
 	}
 	srv.audit(actor, "site.create", created.Domain, string(created.Type))
 
@@ -332,17 +365,7 @@ func (svc siteService) create(ctx context.Context, actor string, req newSite, re
 	if isWordPress(created.Type) {
 		admin = &wpAdmin{email: req.AdminEmail, user: req.AdminUser, password: req.AdminPassword, title: req.Title}
 	}
-	task, err := srv.startJob(jobReq{kind: "site.create", siteID: created.ID, locks: siteLocks(created.ID)},
-		func(ctx context.Context, rec state.Site, progress func(int, string)) error {
-			return svc.provision(ctx, rec, sec, admin, progress)
-		})
-	if err != nil {
-		srv.rollbackCreatedSite(created)
-		return siteCreated{}, queueFailure{err}
-	}
-	ps, _ := srv.Store.PanelSettings()
-	return siteCreated{site: created, task: task,
-		summary: summaryOf(created, req.AdminUser, sec.dbPassword, caps.Paths.MySQLSocket, panelHost(ps, reqHost))}, nil
+	return preparedSite{site: created, sec: sec, admin: admin, caps: caps}, nil
 }
 
 // insertNamed inserts a new site record once no other site uses its domain

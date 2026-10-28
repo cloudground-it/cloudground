@@ -31,7 +31,7 @@ flowchart TB
 
 | # | Boundary | Enforced by |
 | --- | --- | --- |
-| 1 | browser or script → panel | TLS; argon2id passwords; opaque session tokens in the database, so they can be revoked; cookies `HttpOnly`, `SameSite=Strict`; per-network and per-account sign-in limits that delay and never lock (a delay grows to a minute for the network that fails, and adds at most 2 s for the owner signing in from elsewhere); optional TOTP with replay refused; an optional rule that admins must enrol in 2FA; API tokens only for enabled admins, for automating sites: never for account, user, token, site-shell or routing routes, nor for the panel's governance (the 2FA requirement, backup destination and keys, alert webhook, DNS credential, release channel, firewall, panel certificate, self-update, accepting drift) (internal/api/SPEC.md §1.2, §1.2.1, §2) |
+| 1 | browser or script → panel | TLS; argon2id passwords; opaque session tokens in the database, so they can be revoked; cookies `HttpOnly`, `SameSite=Strict`; per-network and per-account sign-in limits that delay and never lock (a delay grows to a minute for the network that fails, and adds at most 2 s for the owner signing in from elsewhere); optional TOTP with replay refused; an optional rule that admins must enrol in 2FA; API tokens only for enabled admins, for automating sites: never for account, user, token, site-shell or routing routes, nor for the panel's governance (the 2FA requirement, backup destination and keys, alert webhook, DNS credential, release channel, firewall, panel certificate, self-update, accepting drift, moving the backups, restoring from another server) (internal/api/SPEC.md §1.2, §1.2.1, §2) |
 | 2 | API → agent | peer uid from the kernel, a shared token in constant time, a fixed method table, central site validation ([the agent/API boundary](./agent-api-boundary.md)) |
 | 3 | WordPress → panel | a per-site connector token, looked up by its hash; a purge keeps only URLs on that site's domain and aliases (internal/api/SPEC.md §8) |
 | 4 | site → site, site → system | a Unix user, a PHP-FPM master and a systemd sandbox per site, a database account per site (below) |
@@ -69,6 +69,16 @@ throwaway account granted on that database alone (read-only: `SELECT, SHOW VIEW`
 server, not an inspection of the SQL, enforces the boundary (internal/agent/ops/db/SPEC.md §3).
 A read-only panel account sees the tables and their structure only: the rows and the SQL editor
 are for administrators and operators, as wp-config.php is in the file manager.
+
+A restore, a restore test and a download take only a snapshot of the site's own domain that this
+server recorded (its restic hostname): a repository can hold other sites' backups and other
+servers', and a files restore once swapped in whatever tree an ID named (ops/backup SPEC §5,
+SR-T6). There is one exception, and it is explicit: restoring a site from another server's backup
+(internal/api SPEC §5.10). Only an administrator signed in with a session can ask for it (an API
+token gets 403), the domain must be typed, the site must not exist here, the request names the
+one server whose snapshot it takes, the restore is whole and into a site the panel has just made,
+and both the request and its outcome are in the audit log (`backup.import`, `backup.imported`).
+Retention still touches only this server's snapshots.
 
 ## Secrets at rest
 

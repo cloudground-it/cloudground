@@ -63,13 +63,26 @@ func (o *Ops) ForgetSnapshot(ctx context.Context, p rpc.ForgetSnapshotParams) (r
 		}
 		return rpc.ForgetSnapshotResult{Forgotten: append([]string{}, orphans...), Originals: originalsOf(snaps, orphans), Missing: true}, nil
 	}
-	if slices.Contains(files.Tags, tagDatabase) {
-		return rpc.ForgetSnapshotResult{}, agentrpc.Invalid("snapshot %s is the database half of a backup; delete the backup it belongs to", short(files.ID))
+	if isPart(*files) {
+		return rpc.ForgetSnapshotResult{}, agentrpc.Invalid("snapshot %s is a part of a backup (its database or its description); delete the backup it belongs to", short(files.ID))
 	}
 	doomed := []string{files.ID}
 	for _, t := range files.Tags {
 		dbID, ok := strings.CutPrefix(t, tagDB)
-		if !ok || !ValidSnapshotID(dbID) {
+		if !ok {
+			// The site's description goes with its backup too (SPEC §9).
+			if mID, isManifest := strings.CutPrefix(t, tagManifest); isManifest && ValidSnapshotID(mID) {
+				m, err := matchSnapshot(snaps, mID)
+				if err == nil && m == nil {
+					m, err = matchOriginal(snaps, mID)
+				}
+				if err == nil && m != nil && slices.Contains(m.Tags, tagManifestPart) {
+					doomed = append(doomed, m.ID)
+				}
+			}
+			continue
+		}
+		if !ValidSnapshotID(dbID) {
 			continue
 		}
 		// Only a database snapshot of this site goes with it; one the tag
@@ -124,9 +137,9 @@ func matchSnapshot(snaps []host.Snapshot, id string) (*host.Snapshot, error) {
 	return found, nil
 }
 
-// orphanDatabases lists the database snapshots of snaps that no files
-// snapshot of snaps names in its db: tag, by their ID or the one they had
-// before a copy.
+// orphanDatabases lists the parts of snaps (database snapshots, the site's
+// descriptions) that no files snapshot of snaps names in its db: or
+// manifest: tag, by their ID or the one they had before a copy.
 func orphanDatabases(snaps []host.Snapshot) []string {
 	var named []string
 	for _, s := range snaps {
@@ -134,11 +147,14 @@ func orphanDatabases(snaps []host.Snapshot) []string {
 			if v, ok := strings.CutPrefix(t, tagDB); ok && ValidSnapshotID(v) {
 				named = append(named, v)
 			}
+			if v, ok := strings.CutPrefix(t, tagManifest); ok && ValidSnapshotID(v) {
+				named = append(named, v)
+			}
 		}
 	}
 	var out []string
 	for _, s := range snaps {
-		if slices.Contains(s.Tags, tagDatabase) && ValidSnapshotID(s.ID) && !protected(s.ID, named) &&
+		if isPart(s) && ValidSnapshotID(s.ID) && !protected(s.ID, named) &&
 			(s.Original == "" || !protected(s.Original, named)) {
 			out = append(out, s.ID)
 		}

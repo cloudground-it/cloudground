@@ -54,6 +54,17 @@ func (o *Ops) RunBackup(ctx context.Context, p rpc.BackupParams) (rpc.BackupResu
 	defer unlock()
 
 	tags := []string{"--tag", tagSite + p.Site.Domain, "--tag", tagKind + kind}
+	// The site's description first (SPEC §4): what another server needs to
+	// create the site again before restoring it.
+	// Its databases are the ones this backup holds.
+	manifest, err := o.manifestOf(ctx, p.Site, databases)
+	if err != nil {
+		return rpc.BackupResult{}, err
+	}
+	msum, err := o.backupManifest(ctx, repo, manifest, tags)
+	if err != nil {
+		return rpc.BackupResult{}, err
+	}
 	// Every database of the site, each in a snapshot of its own; one that
 	// fails takes the ones made before it along.
 	var dbSums []host.BackupSummary
@@ -61,6 +72,7 @@ func (o *Ops) RunBackup(ctx context.Context, p rpc.BackupParams) (rpc.BackupResu
 		for _, s := range dbSums {
 			o.forget(ctx, repo, s.SnapshotID)
 		}
+		o.forget(ctx, repo, msum.SnapshotID)
 	}
 	var dbBytes int64
 	for _, name := range databases {
@@ -76,6 +88,7 @@ func (o *Ops) RunBackup(ctx context.Context, p rpc.BackupParams) (rpc.BackupResu
 	for _, s := range dbSums {
 		args = append(args, "--tag", tagDB+s.SnapshotID)
 	}
+	args = append(args, "--tag", tagManifest+msum.SnapshotID)
 	for _, d := range TransientDirs {
 		args = append(args, "--exclude", path.Join(p.Site.RootPath, d))
 	}

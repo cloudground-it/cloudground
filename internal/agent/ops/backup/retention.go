@@ -169,12 +169,17 @@ func planRetention(groups []host.ForgetGroup, protect []string) (rpc.RetentionRe
 	return res, nil
 }
 
-// pairedDatabases lists the database snapshots the kept file snapshots name.
+// pairedDatabases lists the parts the kept file snapshots name: their
+// database snapshots and their descriptions (manifest:).
 func pairedDatabases(kept []string, tags map[string][]string) []string {
 	var out []string
 	for _, id := range kept {
 		for _, t := range tags[id] {
-			if v, ok := strings.CutPrefix(t, tagDB); ok && ValidSnapshotID(v) {
+			v, ok := strings.CutPrefix(t, tagDB)
+			if !ok {
+				v, ok = strings.CutPrefix(t, tagManifest)
+			}
+			if ok && ValidSnapshotID(v) {
 				out = append(out, v)
 			}
 		}

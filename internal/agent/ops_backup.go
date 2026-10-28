@@ -2,14 +2,19 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
+	"path"
+	"strconv"
 
 	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/backup"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/cache"
 	"github.com/cloudground-it/cloudground/internal/backuprepo"
+	"github.com/cloudground-it/cloudground/internal/phpfpm"
 	"github.com/cloudground-it/cloudground/internal/rpc"
+	"github.com/cloudground-it/cloudground/internal/site"
 	"github.com/cloudground-it/cloudground/internal/state"
 )
 
@@ -31,6 +36,45 @@ func (a *Agent) CheckRestic(ctx context.Context) {
 	case !v.TypedExitCodes():
 		a.log().Warn("restic is older than 0.17 (no typed exit codes); run the installer again to get the pinned release", "version", v.Line)
 	}
+}
+
+// reconfigureRestored gives a WordPress site restored from another
+// server's backup its own database credentials and connector token in
+// wp-config.php (ops/backup SPEC §5), as provisioning wrote them: the
+// restored file holds the old server's. Secrets go on stdin, never in argv.
+// Other site types keep their credentials where their owner put them.
+func (a *Agent) reconfigureRestored(ctx context.Context, s state.Site, f rpc.ForeignRestore) error {
+	if s.Type != state.SiteWordPress && s.Type != state.SiteWooCommerce {
+		return nil
+	}
+	d := s.Config.Database
+	if !d.Enabled || d.External {
+		return nil
+	}
+	steps := []struct {
+		what, secret string
+		args         []string
+	}{
+		{"database name", "", []string{"config", "set", "DB_NAME", d.Name}},
+		{"database user", "", []string{"config", "set", "DB_USER", d.User}},
+		{"database host", "", []string{"config", "set", "DB_HOST", d.Host + ":" + strconv.Itoa(d.Port)}},
+		{"database password", f.DBPassword, []string{"config", "set", "DB_PASSWORD", "--prompt"}},
+	}
+	if f.ConnectorToken != "" {
+		steps = append(steps, struct {
+			what, secret string
+			args         []string
+		}{"connector token", f.ConnectorToken, []string{"config", "set", "CLOUDGROUND_SITE_TOKEN", "--prompt"}})
+	}
+	for _, st := range steps {
+		if _, err := a.wpcli().Run(ctx, host.Invocation{
+			User: s.SystemUser, Path: path.Join(s.RootPath, "current"), Args: st.args, Stdin: st.secret,
+			Slice: site.Slice(s.SystemUser), Sandbox: phpfpm.RunSandbox(s),
+		}); err != nil {
+			return fmt.Errorf("wp-config.php (%s): %w", st.what, err)
+		}
+	}
+	return nil
 }
 
 // backupHandlers returns the agent's ops/backup handlers (backups, restores,
@@ -62,8 +106,9 @@ func (a *Agent) backupHandlers() *backup.Ops {
 				_, err := purger.Purge(context.Background(), rpc.PurgeParams{Site: s})
 				return err
 			},
-			WorkDir:  a.Paths.WorkDir,
-			CacheDir: os.Getenv("RESTIC_CACHE_DIR"),
+			Reconfigure: a.reconfigureRestored,
+			WorkDir:     a.Paths.WorkDir,
+			CacheDir:    os.Getenv("RESTIC_CACHE_DIR"),
 			RepoRules: backuprepo.Options{
 				AllowPrivate: a.AllowPrivateRepo,
 				Rclone:       func() bool { _, err := exec.LookPath("rclone"); return err == nil },

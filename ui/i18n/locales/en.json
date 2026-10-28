@@ -702,6 +702,23 @@
       "safe": "Nothing changes until the check passes. The old repository is left as it is: delete it once the restore tests pass.",
       "start": "Move",
       "started": "Move started"
+    },
+    "foreign": {
+      "open": "Restore from another server",
+      "title": "Restore from another server",
+      "hint": "Sites in the backup repository that this panel does not have, from any server. A restore creates the site and puts its backup back.",
+      "server": "Server",
+      "reload": "Reload",
+      "none": "Nothing to restore",
+      "noneHint": "Every site in the backup repository is already on this panel. To restore another server’s sites, point the backups at its repository first.",
+      "noManifest": "Backup from before 1.0: you choose the type",
+      "count": "{n} backups",
+      "restoreTitle": "Restore {domain}",
+      "restoreHint": "The site is created on this server and its newest backup is restored in full. Then it is backed up here.",
+      "askType": "This backup does not say what kind of site it is. Choose the type and PHP version it had.",
+      "confirm": "Type {domain} to confirm",
+      "start": "Restore",
+      "started": "Restore started"
     }
   },
   "ssl": {

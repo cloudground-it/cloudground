@@ -14,7 +14,15 @@
       ],
       "paths": [
         "Paths"
-      ]
+      ],
+      "foreign": {
+        "hostname": "Hostname",
+        "databases": {
+          "key": "Databases"
+        },
+        "db_password": "DBPassword",
+        "connector_token": "ConnectorToken"
+      }
     },
     "zero": {
       "site": "@state.Site",

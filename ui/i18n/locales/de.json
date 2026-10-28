@@ -702,6 +702,23 @@
       "safe": "Nichts ändert sich, bevor die Prüfung bestanden ist. Das alte Repository bleibt, wie es ist: Lösche es, sobald die Wiederherstellungstests bestanden sind.",
       "start": "Verschieben",
       "started": "Verschieben gestartet"
+    },
+    "foreign": {
+      "open": "Von einem anderen Server wiederherstellen",
+      "title": "Von einem anderen Server wiederherstellen",
+      "hint": "Websites im Backup-Repository, die dieses Panel nicht hat, von jedem Server. Eine Wiederherstellung legt die Website an und spielt ihr Backup zurück.",
+      "server": "Server",
+      "reload": "Neu laden",
+      "none": "Nichts wiederherzustellen",
+      "noneHint": "Jede Website im Backup-Repository ist schon in diesem Panel. Um die Websites eines anderen Servers wiederherzustellen, richte die Backups zuerst auf dessen Repository.",
+      "noManifest": "Backup von vor 1.0: Du wählst den Typ",
+      "count": "{n} Backups",
+      "restoreTitle": "{domain} wiederherstellen",
+      "restoreHint": "Die Website wird auf diesem Server angelegt und ihr neuestes Backup vollständig wiederhergestellt. Danach wird hier ein Backup gemacht.",
+      "askType": "Dieses Backup sagt nicht, was für eine Website es ist. Wähle den Typ und die PHP-Version, die sie hatte.",
+      "confirm": "Gib {domain} zur Bestätigung ein",
+      "start": "Wiederherstellen",
+      "started": "Wiederherstellung gestartet"
     }
   },
   "ssl": {

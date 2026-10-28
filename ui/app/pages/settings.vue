@@ -307,6 +307,7 @@ async function selfUpdate() {
                 <UButton :label="t('common.save')" :loading="busy" :disabled="!backupDirty" @click="save(BACKUP_KEYS)" />
                 <UButton color="neutral" variant="outline" icon="i-cg-signal" :label="t('settings.testRepo')" :disabled="busy || backupDirty || !saved.backup_repository" @click="testRepo" />
                 <UButton color="neutral" variant="outline" icon="i-cg-backup" :label="t('backup.move.open')" :disabled="busy || backupDirty || !saved.backup_repository" @click="moveOpen = true" />
+                <UButton color="neutral" variant="outline" icon="i-cg-restore" :label="t('backup.foreign.open')" :disabled="busy || backupDirty || !saved.backup_repository" to="/sites/restore" />
                 <span class="text-[13px] text-muted">{{ backupDirty ? t('ux.backup.saveFirst') : t('ux.backup.testHelp') }}</span>
               </template>
             </PanelSection>

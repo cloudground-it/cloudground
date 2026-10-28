@@ -107,3 +107,41 @@ func readSecretFile(path string) (string, error) {
 	}
 	return string(b), nil
 }
+
+// backup import (SPEC.md §6.7, internal/api SPEC §5.10, #193).
+
+const backupImportArgs = "<snapshot> <domain> [--type <type>] [--php <version>]"
+
+// buildBackupImport is `backup import`: a site restored from another
+// server's backup, its domain typed to confirm; the type and PHP version
+// for a backup without a description.
+func buildBackupImport(a []string) (request, error) {
+	body := map[string]any{}
+	var pos []string
+	for i := 0; i < len(a); i++ {
+		name, val, hasVal := strings.Cut(a[i], "=")
+		switch {
+		case name == "--type" || name == "--php":
+			if !hasVal {
+				if i+1 >= len(a) {
+					return request{}, fmt.Errorf("%s needs a value", name)
+				}
+				i++
+				val = a[i]
+			}
+			if val == "" {
+				return request{}, fmt.Errorf("%s needs a value", name)
+			}
+			body[map[string]string{"--type": "type", "--php": "php_version"}[name]] = val
+		case strings.HasPrefix(a[i], "-"):
+			return request{}, fmt.Errorf("unknown flag %s", name)
+		default:
+			pos = append(pos, a[i])
+		}
+	}
+	if len(pos) != 2 {
+		return request{}, errors.New("usage: cgctl backup import " + backupImportArgs)
+	}
+	body["snapshot"], body["confirm"] = pos[0], pos[1]
+	return request{method: "POST", path: "/api/backups/foreign/restore", body: body}, nil
+}

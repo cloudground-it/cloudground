@@ -240,6 +240,14 @@ var (
 	CopyRepository = define[rpc.CopyRepositoryParams, rpc.CopyRepositoryResult](Spec{Name: "CopyRepository", Timeout: 13 * hrs, Fail: "Could not copy the backups to the new repository"})
 )
 
+// Restoring a site from another server's backups (#193, ops/backup SPEC
+// §14): the sites a repository holds, from any server, and one backup of
+// them with its description.
+var (
+	RepositorySites = define[rpc.TestBackupParams, rpc.RepositorySitesResult](Spec{Name: "RepositorySites", Timeout: 15 * mins, ReadOnly: true, Fail: "Could not list the sites in the backup repository"})
+	ForeignSnapshot = define[rpc.ForeignSnapshotParams, rpc.ForeignSnapshotResult](Spec{Name: "ForeignSnapshot", Timeout: 15 * mins, ReadOnly: true, Fail: "Could not read the backup"})
+)
+
 // The server's own packages (internal/agent/ops/system/SPEC.md §7, #27). A
 // refresh writes apt's lists and an upgrade the system, so neither is
 // read-only; the panel names no package.
