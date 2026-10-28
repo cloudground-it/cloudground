@@ -463,6 +463,24 @@ func routerRefusal(rt route, status int, msg string) bool {
 // S-H4 on every row: a write from another site is refused before anything
 // else, with or without a session, and must be JSON (or a raw upload where
 // the row allows one). The connector's token row is exempt.
+// The reads with a side effect are same-origin only (SPEC.md §1.5): the
+// event stream, and the archive download, which deletes the archive once
+// sent.
+func TestReadsWithSideEffectsAreSameOrigin(t *testing.T) {
+	s, _, _ := testServer(t)
+	want := map[string]bool{"/api/events": false, "/api/backups/{id}/archive": false}
+	for _, rt := range s.routeTable() {
+		if _, ok := want[rt.Path]; ok && rt.Method == http.MethodGet {
+			want[rt.Path] = rt.SameOriginRead
+		}
+	}
+	for path, same := range want {
+		if !same {
+			t.Errorf("GET %s is not SameOriginRead", path)
+		}
+	}
+}
+
 func TestRouteTableCrossSiteRules(t *testing.T) {
 	s, _, ts := testServer(t)
 	send := func(method, path, ctype string, hdr map[string]string) (int, string) {

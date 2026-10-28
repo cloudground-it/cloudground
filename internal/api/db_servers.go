@@ -234,7 +234,14 @@ func (s *Server) handleUpdateDBServer(w http.ResponseWriter, r *http.Request, c 
 		respondErr(w, http.StatusBadRequest, "the kind of a database server cannot change")
 		return
 	}
+	before := d
 	pw := req.apply(&d)
+	if pw == "" && c.ViaToken() && (d.Host != before.Host || d.Port != before.Port || d.TLS != before.TLS ||
+		d.CACert != before.CACert || d.AdminUser != before.AdminUser) {
+		// The stored password would go wherever the token says (SPEC.md §6.5).
+		respondErr(w, http.StatusBadRequest, "send the admin password again to change where the panel connects")
+		return
+	}
 	if err := checkDBServer(d, pw); err != nil {
 		fail(w, err)
 		return

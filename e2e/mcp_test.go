@@ -233,7 +233,7 @@ func (h *harness) mcpServer(t *testing.T) {
 		return
 	}
 
-	access, refresh, clientID := h.mcpConnect(t, m, owner, pw, codes[0], map[string][]int64{"sites": {siteID}})
+	access, refresh, clientID := h.mcpConnect(t, m, owner, pw, codes[0], map[string][]int64{"sites": {siteID}, "cache": {siteID}})
 	if access == "" {
 		return
 	}
@@ -242,9 +242,12 @@ func (h *harness) mcpServer(t *testing.T) {
 	st, out := m.rpc(access, "tools/call", map[string]any{"name": "list_sites", "arguments": map[string]any{}})
 	text, isErr := toolText(out)
 	h.assert(t, "#70: list_sites lists the site", st == 200 && !isErr && strings.Contains(text, h.dom("mcp")), "HTTP %d %s", st, head([]byte(text), 300))
+	_, out = m.rpc(access, "tools/call", map[string]any{"name": "create_backup", "arguments": map[string]any{"site_id": siteID}})
+	text, isErr = toolText(out)
+	h.assert(t, "#70: a write outside the grant is refused", isErr && strings.Contains(text, "may not use backups"), "%s", text)
 	_, out = m.rpc(access, "tools/call", map[string]any{"name": "purge_cache", "arguments": map[string]any{"site_id": siteID}})
 	text, isErr = toolText(out)
-	h.assert(t, "#70: a write outside the grant is refused", isErr && strings.Contains(text, "may not use cache"), "%s", text)
+	h.assert(t, "#36: a granted write with no body runs", !isErr, "%s", text)
 
 	_, out = m.rpc(access, "tools/call", map[string]any{"name": "delete_site", "arguments": map[string]any{"site_id": siteID}})
 	text, isErr = toolText(out)

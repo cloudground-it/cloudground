@@ -339,7 +339,7 @@ func (s *Server) routeTable() []route {
 			Section: secBackups, Doc: "restore in place — `mode` is `full`, `files` or `database`; `confirm` is the domain; `databases`, optional, restores only these of the snapshot's (a backup lists them in `databases`); `paths`, optional with `files`, only these files or folders"},
 		{Method: post, Path: "/api/backups/{id}/archive", Policy: policyManage, Load: loadBackup, MaxBody: smallBody, Handle: s.handleArchiveBackup,
 			Section: secBackups, Doc: "prepare a download of the backup — `part` is `full`, `files` or `database`; returns `202` with the task"},
-		{Method: get, Path: "/api/backups/{id}/archive", Query: "part=", Policy: policyManage, Load: loadBackup, Handle: s.handleDownloadArchive,
+		{Method: get, Path: "/api/backups/{id}/archive", Query: "part=", Policy: policyManage, SameOriginRead: true, Load: loadBackup, Handle: s.handleDownloadArchive,
 			Section: secBackups, Doc: "download the prepared archive (`.tar.gz`: `files/`, `databases/<name>.sql`), streamed; deleted once sent"},
 		{Method: get, Path: "/api/settings/backup-ssh-key", Policy: policyAdmin, Handle: s.handleGetBackupSSHKey,
 			Section: secBackups, Doc: "the public key the panel signs in to an SFTP backup destination with (`\"\"` before one is made)"},

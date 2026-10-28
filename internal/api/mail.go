@@ -217,6 +217,13 @@ func (s *Server) handlePutSiteMail(w http.ResponseWriter, r *http.Request, c *ca
 		internalError(w, "GetSite", err, "could not read the site")
 		return
 	}
+	if old := cur.Config.Mail.Relay; relay != nil && old != nil && c.ViaToken() &&
+		(relay.Password == nil || *relay.Password == secretMask) &&
+		(relay.Host != old.Host || relay.Port != old.Port || relay.Security != old.Security || relay.Username != old.Username) {
+		// The stored password would go wherever the token says (SPEC.md §14).
+		respondErr(w, http.StatusBadRequest, "send the relay's password again to change where it is sent")
+		return
+	}
 	change := func(cfg *state.SiteConfig) {
 		m := &cfg.Mail
 		if req.Off != nil {

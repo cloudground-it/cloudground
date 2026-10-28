@@ -414,3 +414,55 @@ func TestPostgresServers(t *testing.T) {
 		t.Fatalf("a user of another server granted a PostgreSQL database: %d %s", resp.StatusCode, b)
 	}
 }
+
+// A token may not send a stored password to a host of its choosing: moving
+// a database server, or a site's relay, takes the password again
+// (SPEC.md §6.5, §14).
+func TestTokenMovingAStoredPasswordSendsItAgain(t *testing.T) {
+	s, _, ts := testServer(t)
+	admin := setupAdmin(t, s, ts)
+	resp, body := admin.do("POST", dbsPath, map[string]any{"name": "managed", "host": "db.example.com", "admin_user": "cgadmin", "admin_password": "pw"})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("register: %d %s", resp.StatusCode, body)
+	}
+	var d struct {
+		ID int64 `json:"id"`
+	}
+	_ = json.Unmarshal(body, &d)
+	tok := mintToken(t, admin, "automation", 1)
+	path := fmt.Sprintf("%s/%d", dbsPath, d.ID)
+	for name, req := range map[string]map[string]any{
+		"a new host":     {"host": "evil.example.net"},
+		"tls off":        {"tls": "off"},
+		"a new user":     {"admin_user": "other"},
+		"a masked value": {"host": "evil.example.net", "admin_password": maskedPassword},
+	} {
+		if code, body := bearer(t, ts, tok.Token, "PUT", path, req); code != http.StatusBadRequest || !strings.Contains(string(body), "admin password again") {
+			t.Errorf("token, %s: %d %s, want 400", name, code, body)
+		}
+	}
+	if code, body := bearer(t, ts, tok.Token, "PUT", path, map[string]any{"host": "db2.example.com", "admin_password": "pw2"}); code != http.StatusOK {
+		t.Errorf("token with the password: %d %s", code, body)
+	}
+	if code, body := bearer(t, ts, tok.Token, "PUT", path, map[string]any{"backup": "skip"}); code == http.StatusBadRequest && strings.Contains(string(body), "again") {
+		t.Errorf("token, no destination change: %d %s", code, body)
+	}
+	if resp, body := admin.do("PUT", path, map[string]any{"host": "db3.example.com"}); resp.StatusCode != http.StatusOK {
+		t.Errorf("session, a new host: %d %s", resp.StatusCode, body)
+	}
+
+	site := seedActiveSite(t, s, "m.example.com", state.SiteWordPress, "8.4", 0)
+	mail := fmt.Sprintf("/api/sites/%d/mail", site.ID)
+	if resp, body := admin.do("PUT", mail, map[string]any{"relay": map[string]any{"host": "smtp.example.org", "username": "shop", "password": "pw1"}}); resp.StatusCode != http.StatusOK {
+		t.Fatalf("site relay: %d %s", resp.StatusCode, body)
+	}
+	if code, body := bearer(t, ts, tok.Token, "PUT", mail, map[string]any{"relay": map[string]any{"host": "mx.evil.example.net", "username": "shop"}}); code != http.StatusBadRequest || !strings.Contains(string(body), "password again") {
+		t.Errorf("token moves the relay: %d %s, want 400", code, body)
+	}
+	if code, body := bearer(t, ts, tok.Token, "PUT", mail, map[string]any{"relay": map[string]any{"host": "smtp.example.org", "username": "shop", "from": "news@m.example.com"}}); code != http.StatusOK {
+		t.Errorf("token, same relay: %d %s", code, body)
+	}
+	if pw, _ := s.Store.Secret(state.SiteSecret(site.ID, state.SiteSecretMailPassword)); pw != "pw1" {
+		t.Errorf("relay password %q", pw)
+	}
+}

@@ -83,9 +83,88 @@ func (s *Server) purge(ctx context.Context, site state.Site, req purgeRequest) (
 	res, err := agentrpc.Call(ctx, s.Agent, agentrpc.PurgeCache, params)
 	if err == nil && site.Config.Cloudflare.ZoneID != "" {
 		// Cloudflare's cache too, without holding WordPress up (SPEC.md §8).
-		go s.purgeCloudflare(context.WithoutCancel(ctx), site, params.URLs, req.All)
+		s.cdnPurges.add(site, params.URLs, req.All, func(site state.Site, urls []string, all bool) {
+			s.purgeCloudflare(context.Background(), site, urls, all)
+		})
 	}
 	return res, err
+}
+
+// The connector's Cloudflare purges, per site (SPEC.md §8): one runs at a
+// time, what arrives meanwhile waits for the next, at least cdnPurgeGap
+// later, and more than cdnPurgeMaxURLs waiting become a purge of the site's
+// names. A valid token is never limited, so this is what keeps a site's PHP
+// from turning its calls into as many requests on the panel's token.
+const (
+	cdnPurgeGap     = 10 * time.Second
+	cdnPurgeMaxURLs = 10 * cfPurgeBatch
+)
+
+type cdnPurges struct {
+	mu      sync.Mutex
+	pending map[int64]*cdnPending // a site's entry exists while its purges run
+	gap     time.Duration         // cdnPurgeGap when zero (tests shorten it)
+}
+
+// cdnPending is what waits for a site's next purge.
+type cdnPending struct {
+	site state.Site
+	urls []string
+	seen map[string]bool
+	all  bool
+}
+
+// add queues a purge, and starts the site's runs if none is under way.
+func (q *cdnPurges) add(site state.Site, urls []string, all bool, run func(state.Site, []string, bool)) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.pending == nil {
+		q.pending = map[int64]*cdnPending{}
+	}
+	p, running := q.pending[site.ID]
+	if !running {
+		p = &cdnPending{}
+		q.pending[site.ID] = p
+		go q.drain(site.ID, run)
+	}
+	p.site = site
+	if all || p.all {
+		p.all, p.urls, p.seen = true, nil, nil
+		return
+	}
+	if p.seen == nil {
+		p.seen = map[string]bool{}
+	}
+	for _, u := range urls {
+		if !p.seen[u] {
+			p.seen[u] = true
+			p.urls = append(p.urls, u)
+		}
+	}
+	if len(p.urls) > cdnPurgeMaxURLs {
+		p.all, p.urls, p.seen = true, nil, nil
+	}
+}
+
+// drain runs a site's waiting purges until none is left.
+func (q *cdnPurges) drain(id int64, run func(state.Site, []string, bool)) {
+	gap := q.gap
+	if gap == 0 {
+		gap = cdnPurgeGap
+	}
+	for {
+		q.mu.Lock()
+		p := q.pending[id]
+		if !p.all && len(p.urls) == 0 {
+			delete(q.pending, id)
+			q.mu.Unlock()
+			return
+		}
+		q.pending[id] = &cdnPending{site: p.site}
+		q.mu.Unlock()
+		run(p.site, p.urls, p.all)
+		time.Sleep(gap)
+	}
 }
 
 func (s *Server) handleConnectorPurge(w http.ResponseWriter, r *http.Request) {

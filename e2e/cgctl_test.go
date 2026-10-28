@@ -100,6 +100,20 @@ func (f *feat) cgctlTokens(t *testing.T) {
 		h.assert(t, "R-4.5: no key from the token's refused request", !strings.Contains(string(kb), "cg-e2e-token"), "keys: %s", head(kb, 400))
 	}
 
+	// Nor send a stored password to a host of its choosing (#36): moving the
+	// site's relay takes the password again.
+	c, _ = h.api.put(f.api("/mail"), map[string]any{"relay": map[string]any{"host": "smtp.example.org", "username": "e2e", "password": "e2e-relay-pw"}})
+	if c == 200 {
+		h.undo("drop the e2e site relay", func() { h.api.put(f.api("/mail"), map[string]any{"relay": nil}) })
+		c, b = h.api.do("PUT", f.api("/mail"), map[string]any{"relay": map[string]any{"host": "mx.e2e-elsewhere.example.net", "username": "e2e"}},
+			"Authorization: Bearer "+created.Token)
+		h.assert(t, "#36: a token cannot move a site's relay without its password", c == 400 && strings.Contains(string(b), "password again"), "= %d %s", c, head(b, 300))
+		_, mb := h.api.get(f.api("/mail"))
+		h.assert(t, "#36: the relay is where the admin put it", strings.Contains(string(mb), "smtp.example.org"), "mail: %s", head(mb, 300))
+	} else {
+		h.fail(t, "#36: set a site relay for the token check", "= %d", c)
+	}
+
 	f.cgctlPasswordSession(t, name)
 	f.tokenGovernance(t, created.Token)
 
