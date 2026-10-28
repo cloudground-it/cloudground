@@ -577,8 +577,10 @@ factors in one, and it cannot be phished.
   browser offers the passkeys it holds for the domain) and user
   verification `required`. A challenge is valid 5 minutes, for one
   sign-in; at most 8 wait per client network (§2.7; a ninth drops that
-  network's oldest, so one network cannot crowd out the rest) and 1024
-  across the panel, and past that → **429** `too many passkey sign-ins at
+  network's oldest, so one network cannot crowd out the rest), 32 per IPv6
+  /48 (the same way), 512 across the panel and 1024 challenges of every kind,
+  so the challenges of signed-in accounts (a second factor, a proof, a new
+  passkey) always find room; past that → **429** `too many passkey sign-ins at
   once — try again in a minute`.
 - `POST /api/login/passkey` `{credential}` (the `PublicKeyCredential` as
   JSON): the network and /48 limits → 429; the assertion must answer one
@@ -3681,8 +3683,10 @@ code_challenge, code_challenge_method, scope, state, resource`:
 - an unknown `client_id`, or a `redirect_uri` that is not exactly one the
   client registered → **400** `invalid_request` as JSON, no redirect (it
   could send the browser anywhere);
-- otherwise refusals go back to the `redirect_uri` with `error`, `state` and
-  `iss` (RFC 9207): `response_type` not `code` → `unsupported_response_type`;
+- otherwise refusals are **400** as JSON too, never a redirect: anyone may
+  register a client (§16.2), so redirecting them would make the panel an
+  open redirect to any address. `response_type` not `code` →
+  `unsupported_response_type`;
   no `code_challenge`, or a method other than `S256` → `invalid_request`
   (PKCE is required, `plain` is not taken); a `resource` other than `R` →
   `invalid_target`;

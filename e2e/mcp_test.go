@@ -237,6 +237,11 @@ func (h *harness) mcpServer(t *testing.T) {
 	if access == "" {
 		return
 	}
+	// A refusal stays on the panel, even for a client's registered address:
+	// anyone may register one, so following it would be an open redirect.
+	resp, _ = m.do("GET", "/oauth/authorize?"+url.Values{"response_type": {"token"}, "client_id": {clientID}, "redirect_uri": {mcpE2ERedirect}}.Encode(), "", "")
+	h.assert(t, "#36: a refused authorisation is answered, not redirected", resp.StatusCode == 400 && resp.Header.Get("Location") == "",
+		"HTTP %d %q", resp.StatusCode, resp.Header.Get("Location"))
 	st, init := m.rpc(access, "initialize", map[string]any{"protocolVersion": "2025-06-18", "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "e2e"}})
 	h.assert(t, "#70: initialize answers with the protocol version", st == 200 && strings.Contains(fmt.Sprint(init["result"]), "protocolVersion:2025-06-18"), "HTTP %d %v", st, init)
 	st, out := m.rpc(access, "tools/call", map[string]any{"name": "list_sites", "arguments": map[string]any{}})
