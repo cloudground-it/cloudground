@@ -832,8 +832,9 @@ install --release`) on an installed server is refused (§5 step 3a) and names `c
 
 ## 11. Version compatibility
 
-Versions are `vX.Y.Z` (stable) and `vX.Y.Z-beta.N`; before 1.0 the minor (`Y`) plays the major's
-role.
+Versions are `vX.Y.Z` (stable) and `vX.Y.Z-beta.N`, with semantic versioning from 1.0.0: a patch
+fixes, a minor adds, and only a major (`X`) removes or changes what an earlier release of the same
+major offers. Before 1.0 the minor played the major's role.
 
 - **A patch release** (`Z`) fixes: no state schema step, no unit file change, no change to the
   agent protocol (internal/agentrpc), no setting or file format the previous patch cannot read. A
@@ -843,6 +844,11 @@ role.
   `daemon-reload`), and add settings with defaults. It may not remove or rename an agent method or
   a parameter field that the previous minor's API sends: a removal takes two minors (stop sending,
   then stop serving).
+- **A major release** (`X`) may remove or rename a route, a field, a `cgctl` command or flag, an
+  MCP tool, an agent method or a setting, each marked deprecated in the changelog of an earlier
+  minor. It updates from the last minor of the previous major, and restores its backups.
+- **Backups**: every release restores the backups of every earlier one, in every mode (proved by
+  the e2e section R-6.6 on backups made by real older releases).
 - **The state database** is migrated only forward and only by the API at start; a build refuses a
   database at a newer schema than its own (`SchemaNewerError`, internal/state). The way back is the
   pre-update snapshot, which a failed update restores on its own.

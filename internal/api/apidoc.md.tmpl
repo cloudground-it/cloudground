@@ -94,6 +94,16 @@ When **Require 2FA for admins** is on, an `admin` account without two-factor aut
   endpoints also take the raw file as `application/octet-stream`. Otherwise the answer is `403` or
   `415`. Clients that send neither header, such as `curl` and `cgctl`, are unaffected.
 
+## Stability
+
+From 1.0 the API is stable within a major version. A 1.x release may add endpoints, fields in
+answers, optional fields in requests and new values where a field's description says more may
+come. It does not remove or rename an endpoint or a field, change what one means or its type, or
+start refusing a request an earlier 1.x accepted, except to close a security hole. The same holds for `cgctl`'s commands and flags and for the MCP server's tools. Anything that
+will go is marked deprecated in the changelog at least one minor release before 2.0 removes it.
+
+Clients should ignore fields they do not know: answers gain fields within 1.x.
+
 ## Endpoints
 
 ### First setup and sessions

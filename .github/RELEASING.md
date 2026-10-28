@@ -4,8 +4,6 @@ A release is a pushed tag, built and published by `.github/workflows/release.yml
 Releases of `cloudground-it/cloudground`. The rules a release must pass, and how servers check
 it, are in `internal/version/SPEC.md`.
 
-Until Phase 10 the repository is private: the release feed, the downloads and
-`get.cloudground.it` answer only with credentials, so releases serve tests only.
 
 ## Tags and channels
 
@@ -125,10 +123,8 @@ Once the domain `cloudground.it` is registered:
    `curl -fsSL https://get.cloudground.it/ | sha256sum` equals the `install.sh` line of the newest
    release's `SHA256SUMS`; `curl -sI http://get.cloudground.it/` redirects to https.
 
-Pages for a **private** repository needs a paid GitHub plan for the organisation; until Phase 10
-the repository is private, the release assets answer only with credentials, and the public command
-does not work yet. Tests before Phase 10 download `install.sh` of a release with credentials (`gh
-release download <tag> -p install.sh`) and run it on the test server.
+The repository is public, so the release assets, the feed and `get.cloudground.it` need no
+credentials.
 
 ### What the docs say to run
 

@@ -84,4 +84,6 @@ A case where one of these lines does not hold in practice is exactly the report 
 
 ## Supported versions
 
-Before 1.0, security fixes go into the latest release only.
+Security fixes go into a new release of the latest 1.x only. Updating within 1.x keeps the API,
+`cgctl`, the MCP tools and the backups compatible (`internal/install/SPEC.md` §11), so a fix is
+one update away: `cgctl update`, or the button in the panel.
