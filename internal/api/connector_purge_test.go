@@ -95,11 +95,6 @@ func TestCDNPurgesCoalescePerSite(t *testing.T) {
 		}
 		return out
 	}
-	q.add(a, urls(10, 0), false, run)
-	for i := range 40 {
-		q.add(a, urls(10, 100+10*i), false, run)
-	}
-	q.add(b, urls(3, 0), false, run)
 	waitFor := func(n int) {
 		t.Helper()
 		deadline := time.Now().Add(5 * time.Second)
@@ -116,10 +111,26 @@ func TestCDNPurgesCoalescePerSite(t *testing.T) {
 			time.Sleep(5 * time.Millisecond)
 		}
 	}
+	q.add(a, urls(10, 0), false, run)
+	waitFor(1) // the first run has begun: what follows waits for the next
+	for i := range 40 {
+		q.add(a, urls(10, 100+10*i), false, run)
+	}
+	q.add(b, urls(3, 0), false, run)
 	waitFor(2) // site 1's first, and site 2's, which does not wait for site 1
 	close(release)
 	waitFor(3)
-	time.Sleep(200 * time.Millisecond)
+	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+		q.mu.Lock()
+		left := len(q.pending)
+		q.mu.Unlock()
+		if left == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%d sites still pending", left)
+		}
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	if len(calls) != 3 {
@@ -133,11 +144,5 @@ func TestCDNPurgesCoalescePerSite(t *testing.T) {
 	}
 	if calls[0] != (call{1, 10, false}) || second != (call{1, 0, true}) {
 		t.Fatalf("calls %+v: want 10 URLs, then the names (400 waiting > 300)", calls)
-	}
-	q.mu.Lock()
-	left := len(q.pending)
-	q.mu.Unlock()
-	if left != 0 {
-		t.Fatalf("%d sites still pending", left)
 	}
 }
