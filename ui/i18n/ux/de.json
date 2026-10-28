@@ -5,11 +5,11 @@
     },
     "pages": {
       "sites": "Noch keine Sites auf diesem Server. | Eine Site auf diesem Server. | {n} Sites auf diesem Server.",
-      "firewall": "Welche Ports dieses Servers offen sind, und für wen. SSH, HTTP und HTTPS bleiben immer offen.",
-      "blocklist": "Adressen, die dieser Server auf allen Ports abweist: von Hand gesperrt oder wegen wiederholt fehlgeschlagener Anmeldungen bei SSH, WordPress und diesem Panel.",
+      "firewall": "Offene Ports und wer sie erreichen kann. SSH, HTTP und HTTPS bleiben immer offen.",
+      "blocklist": "Von Hand oder nach wiederholten fehlgeschlagenen Anmeldungen bei SSH, WordPress und diesem Panel gesperrte Adressen.",
       "audit": "Wer was in diesem Panel geändert hat, das Neueste zuerst.",
-      "users": "Die Personen, die sich an diesem Panel anmelden, und was jede von ihnen darf.",
-      "settings": "Wohin Backups gehen, Zertifikate, Benachrichtigungen und Updates, für den ganzen Server.",
+      "users": "Wer sich an diesem Panel anmeldet, mit der jeweiligen Rolle.",
+      "settings": "Backups, Zertifikate, Benachrichtigungen und Updates für den ganzen Server.",
       "security": "Dein Profil, Passwort, die Zwei-Schritt-Verifizierung und Sitzungen ({email})."
     },
     "audit": {
@@ -40,12 +40,6 @@
       },
       "destHelp": {
         "local": "Die Snapshots liegen in einem Ordner auf diesem Server.",
-        "aws": "Die Snapshots gehen in einen S3-Bucket in der gewählten Region.",
-        "r2": "Die Snapshots gehen in einen R2-Bucket deines Cloudflare-Kontos.",
-        "b2": "Die Snapshots gehen über die S3-kompatible API in einen B2-Bucket.",
-        "wasabi": "Die Snapshots gehen in einen Wasabi-Bucket in der gewählten Region.",
-        "hetzner": "Die Snapshots gehen in einen Hetzner-Bucket am gewählten Standort.",
-        "ovh": "Die Snapshots gehen in einen S3-Bucket von OVHcloud in der gewählten Region.",
         "other": "Jeder Dienst mit S3-API, unter der angegebenen Adresse.",
         "advanced": "Das restic-Repository vollständig ausgeschrieben: SFTP, REST-Server oder jede andere Art, die restic unterstützt."
       },
@@ -58,7 +52,7 @@
       "regionHelp": "So wie der Anbieter sie schreibt, zum Beispiel {example}.",
       "regionOther": "Nur wenn der Dienst eine verlangt.",
       "endpoint": "Endpoint",
-      "endpointHelp": "Die Adresse des Dienstes, zum Beispiel https://minio.example.com.",
+      "endpointHelp": "Zum Beispiel https://minio.example.com.",
       "bucket": "Bucket",
       "bucketHelp": "Lege ihn zuerst beim Anbieter an; er kann privat bleiben.",
       "prefix": "Ordner im Bucket",

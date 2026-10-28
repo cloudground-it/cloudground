@@ -380,7 +380,7 @@ onBeforeRouteLeave(async () => {
       <UContainer class="flex flex-col gap-6">
         <UPageHeader
           :title="phase === 'form' ? t('site.new') : created?.domain"
-          :description="phase === 'form' ? t('site.newHint') : t('newSite.summaryHint')"
+          :description="phase === 'form' ? undefined : t('newSite.summaryHint')"
         />
 
         <!-- The wizard -->

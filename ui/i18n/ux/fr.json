@@ -5,11 +5,11 @@
     },
     "pages": {
       "sites": "Aucun site sur ce serveur pour l’instant. | Un site sur ce serveur. | {n} sites sur ce serveur.",
-      "firewall": "Quels ports de ce serveur sont ouverts, et pour qui. SSH, HTTP et HTTPS restent toujours ouverts.",
-      "blocklist": "Les adresses que ce serveur refuse sur tous les ports : bloquées à la main, ou pour des connexions échouées répétées à SSH, WordPress et ce panneau.",
+      "firewall": "Ports ouverts et qui peut les joindre. SSH, HTTP et HTTPS restent toujours ouverts.",
+      "blocklist": "Adresses bloquées à la main ou après des connexions échouées répétées à SSH, WordPress et à ce panneau.",
       "audit": "Qui a modifié quoi sur ce panneau, du plus récent au plus ancien.",
-      "users": "Les personnes qui se connectent à ce panneau et ce que chacune peut faire.",
-      "settings": "Destination des sauvegardes, certificats, notifications et mises à jour, pour tout le serveur.",
+      "users": "Les personnes qui se connectent à ce panneau, avec leur rôle.",
+      "settings": "Sauvegardes, certificats, notifications et mises à jour pour tout le serveur.",
       "security": "Votre profil, votre mot de passe, la vérification en deux étapes et vos sessions ({email})."
     },
     "audit": {
@@ -40,12 +40,6 @@
       },
       "destHelp": {
         "local": "Les snapshots restent dans un dossier de ce serveur.",
-        "aws": "Les snapshots vont dans un bucket S3, dans la région choisie.",
-        "r2": "Les snapshots vont dans un bucket R2 de votre compte Cloudflare.",
-        "b2": "Les snapshots vont dans un bucket B2 par son API compatible S3.",
-        "wasabi": "Les snapshots vont dans un bucket Wasabi, dans la région choisie.",
-        "hetzner": "Les snapshots vont dans un bucket Hetzner, à l’emplacement choisi.",
-        "ovh": "Les snapshots vont dans un bucket S3 d’OVHcloud, dans la région choisie.",
         "other": "Tout service qui parle l’API S3, à l’adresse indiquée.",
         "advanced": "Le dépôt restic écrit en entier : SFTP, serveur REST ou tout autre type pris en charge par restic."
       },
@@ -58,7 +52,7 @@
       "regionHelp": "Telle que le fournisseur l’écrit, par exemple {example}.",
       "regionOther": "Seulement si le service en demande une.",
       "endpoint": "Endpoint",
-      "endpointHelp": "L’adresse du service, par exemple https://minio.example.com.",
+      "endpointHelp": "Par exemple https://minio.example.com.",
       "bucket": "Bucket",
       "bucketHelp": "Créez-le d’abord chez le fournisseur ; il peut rester privé.",
       "prefix": "Dossier dans le bucket",

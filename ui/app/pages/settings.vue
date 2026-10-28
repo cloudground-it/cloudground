@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DestinationKind } from '~/utils/backupDestination'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const api = useApi()
 const toast = useToast()
 const { isAdmin } = useAuth()
@@ -201,7 +201,7 @@ async function selfUpdate() {
 
             <PanelSection id="backups" :title="t('settings.backups')" :description="t('settings.backupsHint')" icon="i-cg-backup">
               <div class="flex flex-col gap-5">
-                <UFormField :label="t('ux.backup.destination')" :help="t(`ux.backup.destHelp.${dest.kind}`)">
+                <UFormField :label="t('ux.backup.destination')" :help="te(`ux.backup.destHelp.${dest.kind}`) ? t(`ux.backup.destHelp.${dest.kind}`) : undefined">
                   <USelect :model-value="dest.kind" :items="kindItems" class="w-full sm:w-96" :disabled="!isAdmin" @update:model-value="v => onKind(v as DestinationKind)" />
                 </UFormField>
 
