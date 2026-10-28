@@ -40,7 +40,8 @@
     "services": "Servizi",
     "settings": "Impostazioni",
     "sites": "Siti",
-    "users": "Utenti"
+    "users": "Utenti",
+    "functions": "Funzioni"
   },
   "whatsnew": {
     "title": "Novità",
@@ -319,8 +320,7 @@
     "security": "Sicurezza",
     "redirects": "Reindirizzamenti",
     "traffic": "Traffico",
-    "app": "App",
-    "functions": "Funzioni"
+    "app": "App"
   },
   "overview": {
     "certificate": "Certificato",
@@ -2171,44 +2171,187 @@
   },
   "fn": {
     "title": "Funzioni",
-    "hint": "Piccoli gestori su /.functions/… di questo sito. Tra una richiesta e l'altra non gira niente.",
-    "none": "Ancora nessuna funzione.",
+    "intro": "Codice Node.js e Python che gira quando viene chiamato o a orari pianificati. Nel frattempo non gira niente.",
     "new": "Nuova funzione",
-    "create": "Crea",
-    "namePlaceholder": "nome, per es. modulo-contatti",
-    "nameRule": "Un nome è fatto di lettere minuscole, cifre e -, e inizia con una lettera.",
-    "created": "Funzione creata",
-    "saved": "Funzione rilasciata",
-    "rolledBack": "Il codice precedente è di nuovo attivo",
-    "deleted": "Funzione eliminata",
-    "deleteConfirm": "Eliminare la funzione {name}? Il suo indirizzo smette di rispondere.",
-    "scheduled": "Gira a orari pianificati",
-    "endpoint": "Ogni richiesta esegue il gestore in un processo a sé, con la memoria e il tempo qui sotto.",
-    "code": "Codice",
-    "codeHelpNode": "index.js: esporta handler(event), normale o async. È disponibile solo la libreria standard di Node.js.",
-    "codeHelpPython": "main.py: def handler(event), normale o async. È disponibile solo la libreria standard di Python.",
-    "memory": "Memoria",
-    "timeout": "Tempo massimo",
-    "seconds": "secondi",
-    "schedule": "Pianificazione",
-    "scheduleHelp": "Cinque campi cron, nel fuso orario del pannello. Vuoto: mai.",
-    "deploy": "Rilascia",
-    "test": "Prova",
-    "rollback": "Torna indietro",
-    "invocations": "Esecuzioni",
-    "invocationsHint": "Le ultime richieste, dal log di accesso del sito. Un 502 è un crash, il tempo massimo o il limite di memoria.",
-    "testResult": "HTTP {status} in {ms} ms",
-    "testFailed": "Nessuna risposta",
-    "when": "Quando",
-    "source": "Origine",
-    "status": "Stato",
-    "duration": "Durata",
-    "noInvocations": "Ancora nessuna esecuzione.",
-    "output": "Output (console ed errori)",
-    "src": {
-      "http": "Richiesta",
+    "open": "Apri",
+    "never": "Mai eseguita",
+    "notPublished": "Non pubblicata",
+    "moreUrls": "+{n} altri",
+    "empty": {
+      "title": "Ancora nessuna funzione",
+      "hint": "Una funzione è un piccolo programma Node.js o Python con un suo indirizzo web. Gira quando qualcuno la chiama o a orari pianificati, e da ferma non consuma niente."
+    },
+    "noDomain": {
+      "title": "Imposta un dominio per pubblicare le funzioni",
+      "hint": "Fino ad allora una funzione gira solo da una prova, a orari pianificati o su un dominio suo.",
+      "action": "Imposta il dominio"
+    },
+    "col": {
+      "name": "Nome",
+      "runtime": "Runtime",
+      "addresses": "Indirizzo",
+      "auth": "Accesso",
       "schedule": "Pianificazione",
-      "test": "Prova"
+      "last": "Ultima esecuzione"
+    },
+    "auth": {
+      "public": "Pubblica",
+      "token": "Token",
+      "publicHint": "Chiunque abbia l'indirizzo può chiamarla.",
+      "tokenHint": "Chi la chiama invia Authorization: Bearer e il token. Il resto riceve un 401."
+    },
+    "create": {
+      "title": "Funzione",
+      "intro": "Dalle un nome e scegli il runtime. Codice, memoria, pianificazione e indirizzi si cambiano anche dopo.",
+      "name": "Nome",
+      "nameHelp": "Lettere minuscole, cifre e trattini, iniziando con una lettera. Diventa parte dell'indirizzo.",
+      "nameRule": "Usa lettere minuscole, cifre e trattini, iniziando con una lettera (al massimo 31).",
+      "runtime": "Runtime",
+      "entry": "File di ingresso {file}",
+      "version": "Versione",
+      "notInstalled": "non installata",
+      "installFirst": "{runtime} {version} non è installato su questo server. Installalo prima in Servizi → Runtime.",
+      "openRuntimes": "Apri Runtime",
+      "starter": "Codice di partenza",
+      "template": {
+        "http": "Gestore HTTP",
+        "httpHint": "Risponde a ogni richiesta con quello che ha ricevuto.",
+        "scheduled": "Attività pianificata",
+        "scheduledHint": "Gira a orari pianificati, per cominciare ogni ora."
+      },
+      "access": "Chi può chiamarla",
+      "submit": "Crea funzione",
+      "done": "Funzione creata",
+      "open": "Vai alla funzione"
+    },
+    "token": {
+      "title": "Copia ora il token",
+      "hint": "Non lo vedrai più. Chi chiama la funzione lo invia nell'header Authorization; se lo perdi, generane uno nuovo.",
+      "done": "L'ho copiato"
+    },
+    "tabs": {
+      "label": "Sezioni della funzione",
+      "code": "Codice",
+      "addresses": "Indirizzi",
+      "settings": "Impostazioni",
+      "runs": "Esecuzioni",
+      "releases": "Rilasci"
+    },
+    "code": {
+      "title": "Codice",
+      "hint": {
+        "node": "index.js esporta handler(event), normale o async. Quello che restituisce diventa la risposta.",
+        "python": "main.py definisce handler(event), normale o async. Quello che restituisce diventa la risposta."
+      },
+      "files": "File",
+      "entry": "ingresso",
+      "addFile": "Aggiungi file",
+      "remove": "Rimuovi {path}",
+      "pathRule": "Lettere, cifre, punti, trattini e trattini bassi, con / tra le cartelle.",
+      "pathExists": "{path} c'è già.",
+      "deps": {
+        "node": "Con un package.json le dipendenze si installano al rilascio.",
+        "python": "Con un requirements.txt le dipendenze si installano al rilascio."
+      },
+      "unsaved": "Non rilasciato",
+      "deploy": "Rilascia",
+      "discard": "Annulla modifiche",
+      "deployHint": "Ogni rilascio è nuovo e separato. Se una dipendenza non si installa, resta attivo quello di prima.",
+      "deployed": "Funzione rilasciata",
+      "deployFailed": "Rilascio non riuscito. Quello attuale resta attivo."
+    },
+    "test": {
+      "title": "Prova",
+      "hint": "Esegue sul server il codice rilasciato con la richiesta qui sotto. Il token non serve.",
+      "method": "Metodo",
+      "path": "Percorso",
+      "body": "Corpo",
+      "run": "Prova",
+      "noAnswer": "Nessuna risposta",
+      "empty": "(corpo vuoto)",
+      "notDeployed": "Le modifiche non sono rilasciate: la prova usa il rilascio attivo."
+    },
+    "addr": {
+      "urlsTitle": "Indirizzi pubblici",
+      "urlsHint": "Dove risponde la funzione. Ci arriva anche ogni percorso sotto un indirizzo.",
+      "noUrls": "Ancora nessun indirizzo pubblico. La funzione gira comunque da una prova o a orari pianificati.",
+      "domainsTitle": "Domini propri",
+      "domainsHint": "Ognuno risponde solo per questa funzione, da / in giù. Punta il suo DNS su questo server e il certificato arriva da sé.",
+      "domains": "Domini",
+      "noDomains": "Nessun dominio proprio.",
+      "addDomain": "Aggiungi dominio",
+      "domainsSaved": "Domini salvati",
+      "domainsSaveHint": "Al massimo 10. Per i nomi nuovi si chiede un certificato appena li salvi.",
+      "accessTitle": "Accesso",
+      "accessHint": "Chi può chiamare la funzione e quali siti possono chiamarla da un browser.",
+      "hasToken": "Un token è impostato. È stato mostrato una volta sola, quando è stato creato.",
+      "noToken": "Ancora nessun token: viene creato quando salvi.",
+      "newToken": "Genera nuovo token",
+      "newTokenTitle": "Generare un nuovo token?",
+      "newTokenHint": "Il token attuale smette di funzionare dalla prossima richiesta. Se l'accesso era pubblico, passa a token.",
+      "cors": "Origini CORS",
+      "corsHelp": "Una per riga: * per qualunque sito, o un'origine come https://www.example.com. Vuoto: nessun header CORS.",
+      "accessSaved": "Accesso salvato"
+    },
+    "dns": {
+      "title": "DNS e certificato",
+      "certificate": "Certificato di {issuer}, valido fino al {date}.",
+      "noCertificate": "Ancora nessun certificato. Viene emesso quando il DNS punta qui ed è impostata un'e-mail ACME."
+    },
+    "settings": {
+      "title": "Esecuzione",
+      "runHint": "Valgono dalla prossima esecuzione. Non c'è niente da riavviare: ogni esecuzione parte da zero.",
+      "versionHelp": "Altre versioni in Servizi → Runtime.",
+      "memory": "Memoria",
+      "timeout": "Tempo massimo",
+      "schedule": "Pianificazione",
+      "scheduleHelp": "Cinque campi cron, nel fuso orario del pannello. Vuoto: mai.",
+      "envHint": "Variabili che la funzione trova nel suo ambiente. I segreti sono conservati cifrati.",
+      "secretsHint": "Conservati cifrati e mai più mostrati; la funzione li riceve come ogni variabile.",
+      "saveHint": "Salvare non crea un nuovo rilascio.",
+      "saved": "Impostazioni salvate",
+      "dangerTitle": "Elimina",
+      "delete": "Elimina funzione",
+      "deleteTitle": "Eliminare {name}?",
+      "deleteHint": "Codice, rilasci, segreti e indirizzi vengono rimossi, e i suoi indirizzi smettono di rispondere.",
+      "deleted": "Funzione eliminata"
+    },
+    "runs": {
+      "title": "Esecuzioni",
+      "hint": "Le ultime chiamate, dalla più recente. Un 502 è un crash, il tempo massimo o il limite di memoria.",
+      "when": "Quando",
+      "request": "Richiesta",
+      "status": "Stato",
+      "duration": "Durata",
+      "source": "Origine",
+      "src": {
+        "http": "Richiesta",
+        "schedule": "Pianificazione",
+        "test": "Prova"
+      },
+      "none": "Ancora nessuna esecuzione.",
+      "output": "Output",
+      "outputHint": "Quello che la funzione ha stampato, e i suoi errori.",
+      "noOutput": "Ancora nessun output."
+    },
+    "releases": {
+      "title": "Rilasci",
+      "hint": "Ogni rilascio ha le sue dipendenze. Si tengono gli ultimi 10; il rollback ne riporta uno esattamente com'era.",
+      "live": "Attivo",
+      "rollback": "Rollback",
+      "rollbackTitle": "Tornare al rilascio del {when}?",
+      "rollbackHint": "La prossima chiamata esegue quel codice, con le dipendenze con cui era stato rilasciato.",
+      "rolledBack": "Quel rilascio è di nuovo attivo",
+      "none": "Ancora nessun rilascio"
+    },
+    "server": {
+      "hint": "Ogni funzione risponde su questo dominio con il suo nome, per esempio https://fn.example.com/contact-form.",
+      "domain": "Dominio delle funzioni",
+      "domainHelp": "Un nome usato solo per le funzioni, come fn.example.com, che punta a questo server. Vuoto: le funzioni non hanno un indirizzo comune.",
+      "domainSaved": "Dominio delle funzioni salvato",
+      "domainCleared": "Dominio delle funzioni rimosso",
+      "noAcme": "Non è impostata un'e-mail ACME, quindi non si può emettere un certificato. Aggiungila in Certificati, qui sotto.",
+      "open": "Vai alle funzioni"
     }
   }
 }

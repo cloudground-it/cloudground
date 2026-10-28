@@ -18,7 +18,13 @@ const groups = computed<{ label: string, links: NavLink[] }[]>(() => {
     links: [
       { label: t('nav.dashboard'), icon: 'i-cg-dashboard', to: '/', exact: true },
       { label: t('nav.sites'), icon: 'i-cg-sites', to: '/sites', count: sites.value?.length },
-      ...(isOperator.value ? [] : [{ label: t('nav.logs'), icon: 'i-cg-logs', to: '/logs' }])
+      // Functions are the server's, not a site's (issue 143): no operator sees them.
+      ...(isOperator.value
+        ? []
+        : [
+            { label: t('nav.functions'), icon: 'i-cg-webhook', to: '/functions' },
+            { label: t('nav.logs'), icon: 'i-cg-logs', to: '/logs' }
+          ])
     ] as NavLink[]
   }]
   if (!isOperator.value) {
@@ -97,7 +103,10 @@ const searchGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
     ? [{
         id: 'actions',
         label: t('cg.shell.actions'),
-        items: [{ label: t('site.new'), icon: 'i-cg-plus', to: '/sites/new' }]
+        items: [
+          { label: t('site.new'), icon: 'i-cg-plus', to: '/sites/new' },
+          { label: t('fn.new'), icon: 'i-cg-plus', to: '/functions/new' }
+        ]
       }]
     : [])
 ])

@@ -3,6 +3,7 @@ package nginx
 import (
 	"flag"
 	"fmt"
+	"github.com/cloudground-it/cloudground/internal/functions"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -403,17 +404,6 @@ func matrixCases() []matrixCase {
 			add(fmt.Sprintf("%s-opt-%s", b.name, typ), b, in)
 		}
 	}
-	// Functions (#143, SPEC §4.13), last for the same reason: a WordPress
-	// site with two of them.
-	for _, b := range matrixBuilds {
-		id++
-		in := matrixInput(id, state.SiteWordPress, state.ProfileBalanced, true)
-		for i, name := range []string{"hello", "webhook-2"} {
-			in.Functions = append(in.Functions, engine.FunctionRoute{Name: name, Socket: fmt.Sprintf("/run/cloudground/fn/cg-site-%d/%s.sock", id, name), TimeoutSec: 10 * (i + 1)})
-			in.FunctionsInvokeSocket = "/var/lib/cloudground-agent/nginx-functions.sock"
-		}
-		add(fmt.Sprintf("%s-opt-functions", b.name), b, in)
-	}
 	return cases
 }
 
@@ -451,6 +441,23 @@ func TestRenderMatrix(t *testing.T) {
 					files[r.BannedFile()] = Banned([]netip.Prefix{netip.MustParsePrefix("198.51.100.7/32")}, nil)
 				}
 				dumpCase(t, filepath.Join(dump, c.build.name), files)
+			}
+		})
+	}
+	// The standalone functions' files (#143 v0.9.0, SPEC §8), per build: a
+	// functions domain and three functions, one with its own domains and a
+	// list of origins, one behind a token, one open to every origin.
+	for _, b := range matrixBuilds {
+		name := b.name + "-functions"
+		t.Run(name, func(t *testing.T) {
+			files, err := r.FunctionsFiles(matrixFunctions(b))
+			if err != nil {
+				t.Fatal(err)
+			}
+			seen[name+".golden"] = true
+			checkMatrix(t, name, matrixText(files))
+			if dump != "" {
+				dumpCase(t, filepath.Join(dump, b.name), files)
 			}
 		})
 	}
@@ -507,5 +514,26 @@ func dumpCase(t *testing.T, dir string, files map[string]string) {
 		if err := os.WriteFile(dst, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+// matrixFunctions is the functions' input of a build (SPEC §8).
+func matrixFunctions(b matrixBuild) FunctionsInput {
+	cert, key := matrixRoot+"/fallback/cert.pem", matrixRoot+"/fallback/key.pem"
+	fn := func(id int64, name string) FunctionServer {
+		return FunctionServer{ID: id, Name: name, Socket: functions.SocketPath(id), TimeoutSec: 10, AccessLog: functions.AccessLog(name)}
+	}
+	hello := fn(1, "hello")
+	hello.CORSOrigins = []string{"https://app.example.test", "http://localhost:3000"}
+	hello.Domains, hello.CertFile, hello.KeyFile = []string{"api.example.test", "api2.example.test"}, cert, key
+	hook := fn(2, "stripe-hook")
+	hook.Token = "cgf_" + strings.Repeat("A", 43)
+	hook.TimeoutSec = 30
+	open := fn(3, "open")
+	open.CORSOrigins = []string{"*"}
+	return FunctionsInput{
+		Domain: "fn.example.test", DomainCert: cert, DomainKey: key, ACMEWebroot: matrixRoot + "/acme",
+		InternalSocket: "/var/lib/cloudground-agent/nginx-functions.sock", HTTP2Directive: b.http2Directive,
+		Functions: []FunctionServer{hook, hello, open},
 	}
 }

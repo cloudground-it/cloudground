@@ -1,0 +1,1 @@
+import{lt as e}from"./D1YatBRq.js";var t=Symbol(`current-function`);function n(){let n=e(t);if(!n)throw Error(`useCurrentFunction outside a function page`);return n}export{n,t};

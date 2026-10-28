@@ -97,6 +97,9 @@ for b in cgctl panel-api panel-agent cg-site-shell; do cmp -s "$build/$b" "/usr/
 grep -q '^worker_connections\|worker_connections 4096;' /etc/nginx/nginx.conf || die "nginx.conf not tuned"
 grep -q 'cloudground-tuned' /etc/nginx/nginx.conf || die "nginx.conf has no marker"
 [[ -f /etc/systemd/system/cloudground-api.socket ]] || die "units not written"
+# The functions' code (#143): root 0711, so no function or site lists it.
+[[ $(stat -c '%a %U:%G' /srv/functions) == "711 root:root" ]] || die "/srv/functions: $(stat -c '%a %U:%G' /srv/functions)"
+grep -qx 'ExecStartPre=+/usr/bin/install -d -m 0711 /srv/functions' /etc/systemd/system/cloudground-agent.service || die "the agent's unit does not make /srv/functions"
 
 # systemd is not PID 1 here, so the units never start; what can be checked
 # is what made the agent fail at NAMESPACE on a fresh 26.04: every path the
@@ -140,10 +143,13 @@ say "cgctl uninstall --plan"
 "$cg" uninstall --plan || die "uninstall --plan"
 [[ -e /usr/local/bin/panel-agent && -e /etc/cloudground/agent.token ]] || die "uninstall --plan removed something"
 mkdir -p /srv/sites/kept.test/current && echo kept >/srv/sites/kept.test/current/index.html
+mkdir -p /srv/functions/kept-fn/releases/r1 && echo kept >/srv/functions/kept-fn/releases/r1/index.js
 say "cgctl uninstall --yes"
 "$cg" uninstall --yes || die "uninstall"
 [[ $(cat /srv/sites/kept.test/current/index.html) == kept ]] || die "the default tier removed a site's files"
 rm -rf /srv/sites/kept.test
+[[ $(cat /srv/functions/kept-fn/releases/r1/index.js) == kept ]] || die "the default tier removed a function's code"
+rm -rf /srv/functions
 left=$(snapshot | comm -13 /tmp/before.paths - | grep -v '^/srv/sites$' || true)
 [[ -z $left ]] || die "the uninstall left these behind: $left"
 gone=$(snapshot | comm -23 /tmp/before.paths - | grep -v '^/etc/nginx/sites-enabled/default$' || true)

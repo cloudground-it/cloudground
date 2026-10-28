@@ -75,10 +75,15 @@ type Inventory struct {
 	SiteVhosts, SiteConfs, Units []string
 	// SliceUnits are the sites' slice units, with their limits (#19).
 	SliceUnits []string
+	// The functions (#143): their users cg-fn-<id>, their socket and
+	// service units (v0.8.x site functions' too) and their lineages.
+	FnUsers, FnUnits, FnLineages []string
 }
 
 var (
 	siteUserRe    = regexp.MustCompile(`^cg-site-([1-9][0-9]*)$`)
+	fnUserRe      = regexp.MustCompile(`^cg-fn-[1-9][0-9]*$`)
+	fnLineageRe   = regexp.MustCompile(`^cloudground-(functions|fn-[1-9][0-9]*)$`)
 	shellUserRe   = regexp.MustCompile(`^cg-shell-[1-9][0-9]*$`)
 	dbNameRe      = regexp.MustCompile(`^[a-z][a-z0-9_]{2,47}$`)
 	siteDBRe      = regexp.MustCompile(`^site_[1-9][0-9]*$`)
@@ -92,6 +97,7 @@ const (
 	siteIndexFile  = "/var/lib/cloudground-agent/sites.json"
 	dbRegistryFile = "/var/lib/cloudground-agent/databases.json"
 	sitesRoot      = "/srv/sites"
+	functionsRoot  = "/srv/functions"
 	unitDir        = "/etc/systemd/system"
 	mariadbTuning  = "/etc/mysql/mariadb.conf.d/99-cloudground.cnf"
 	nginxPre       = managed.NginxConf + ".cloudground-pre"
@@ -127,6 +133,8 @@ func (e *Env) TakeInventory(ctx context.Context) Inventory {
 			site(id)
 		} else if _, _, ok := e.Acct.User(u); ok && shellUserRe.MatchString(u) {
 			inv.ShellUsers = append(inv.ShellUsers, u)
+		} else if ok && fnUserRe.MatchString(u) {
+			inv.FnUsers = append(inv.FnUsers, u)
 		}
 	}
 	known := map[string]bool{}
@@ -191,6 +199,12 @@ func (e *Env) TakeInventory(ctx context.Context) Inventory {
 		}
 	}
 	inv.PanelLineage = e.exists("/etc/letsencrypt/renewal/cloudground-panel.conf")
+	for _, r := range e.glob("/etc/letsencrypt/renewal/cloudground-f*.conf") {
+		if n := strings.TrimSuffix(filepath.Base(r), ".conf"); fnLineageRe.MatchString(n) {
+			inv.FnLineages = append(inv.FnLineages, n)
+		}
+	}
+	inv.FnUnits = append(e.glob(unitDir+"/cloudground-fn-*.socket"), e.glob(unitDir+"/cloudground-fn-*@.service")...)
 	inv.SiteVhosts = e.cloudgroundVhosts()
 	inv.SiteConfs = e.glob("/etc/nginx/conf.d/cloudground-*.conf")
 	inv.Units = e.glob(unitDir + "/cloudground-php-*.service")
@@ -344,6 +358,17 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 		rm("site.unit-files", u, u+".d")
 	}
 	rm("site.slice-units", inv.SliceUnits...)
+	// The functions' processes and units (#143): their slice holds every
+	// invocation, their sockets would start new ones.
+	if !noSystemd {
+		follow("functions.stop", "stop cg-fn.slice (every function's processes)", sd("stop", "cg-fn.slice"))
+		for _, u := range inv.FnUnits {
+			if strings.HasSuffix(u, ".socket") {
+				add("fn.unit", "stop and disable "+filepath.Base(u), sd("disable", "--now", filepath.Base(u)))
+			}
+		}
+	}
+	rm("fn.unit-files", append(append([]string{}, inv.FnUnits...), unitDir+"/cg-fn.slice")...)
 	rm("nginx.site-files", append(append(append([]string{}, inv.SiteVhosts...), inv.SiteConfs...), "/etc/nginx/cloudground-auth")...)
 	rm("cron.files", append(e.glob("/etc/cron.d/cloudground-*"), e.glob("/var/spool/cron/crontabs/cg-site-*")...)...)
 	for _, u := range inv.ShellUsers {
@@ -373,17 +398,7 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 				continue
 			}
 			if _, _, ok := e.Acct.User(s.User); ok {
-				u := s.User
-				add("site.user", "kill the processes of "+u+", remove the user and its group", func(ctx context.Context) error {
-					_, _ = e.Cmd.Run(ctx, "pkill", "-KILL", "-u", u)
-					if out, err := e.Cmd.Run(ctx, "userdel", "-f", u); err != nil && !strings.Contains(out, "does not exist") {
-						return fmt.Errorf("userdel %s: %v: %s", u, err, strings.TrimSpace(out))
-					}
-					if _, ok := e.Acct.Group(u); ok {
-						_, _ = e.Cmd.Run(ctx, "groupdel", u)
-					}
-					return nil
-				})
+				add("site.user", "kill the processes of "+s.User+", remove the user and its group", e.delSiteUser(s.User))
 			}
 		}
 		if inv.MariaDB {
@@ -404,7 +419,17 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 		}
 		rm("site.trees", sitesRoot)
 		rm("site.tuning", mariadbTuning)
+		// The functions' users and code go with the sites (#143).
+		for _, u := range inv.FnUsers {
+			add("fn.user", "kill the processes of "+u+", remove the user and its group", e.delSiteUser(u))
+		}
+		rm("fn.trees", functionsRoot)
 	} else {
+		for _, u := range inv.FnUsers {
+			// The function's code stays its own, as a site's files do.
+			follow("fn.lock", "lock the function user "+u+" (its code stays its own)",
+				e.cmdWarn("usermod", "--lock", "--expiredate", "1", "--shell", "/usr/sbin/nologin", u))
+		}
 		for _, s := range inv.Sites {
 			if s.User == "" {
 				continue
@@ -421,6 +446,9 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 				return e.moveInto("/etc/cloudground/certs/custom", filepath.Join(o.KeptDir, "custom-certs"))
 			})
 		}
+	}
+	for _, l := range inv.FnLineages {
+		add("cert.functions", "delete the functions' certificate "+l+" (certbot delete)", e.cmdWarn("certbot", "delete", "--cert-name", l, "--non-interactive"))
 	}
 	if inv.PanelLineage {
 		add("cert.panel", "delete the panel's certificate cloudground-panel (certbot delete)",
@@ -499,7 +527,7 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 	rm("binaries", bins...)
 
 	// 5. The state and the directories.
-	rm("state", "/etc/cloudground", "/etc/cloudground-php", "/var/lib/cloudground", "/var/lib/cloudground-agent",
+	rm("state", "/etc/cloudground", "/etc/cloudground-php", "/etc/cloudground-fn", "/var/lib/cloudground", "/var/lib/cloudground-agent",
 		"/var/lib/cloudground-signatures", "/etc/clamav/cloudground-freshclam.conf", "/var/cache/cloudground", "/var/log/cloudground", "/run/cloudground", acmeWebroot,
 		"/var/log/cloudground-install.log", "/tmp/cloudground-install.log")
 	if e.Acct != nil {
@@ -539,6 +567,12 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 			return nil
 		})
 	}
+	if !o.RemoveSites && e.exists(functionsRoot) {
+		follow("fn.root", "remove "+functionsRoot+" if no function is left in it", func(context.Context) error {
+			_ = os.Remove(e.path(functionsRoot)) // only an empty directory goes
+			return nil
+		})
+	}
 
 	// 6. The packages the installer installed (--purge-packages).
 	if o.PurgePackages {
@@ -548,6 +582,21 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 		return nil // nothing of CloudGround's is left here
 	}
 	return a
+}
+
+// delSiteUser ends a user's processes and removes it and its group: a
+// site's or a function's (--remove-sites).
+func (e *Env) delSiteUser(u string) func(ctx context.Context) error {
+	return func(ctx context.Context) error {
+		_, _ = e.Cmd.Run(ctx, "pkill", "-KILL", "-u", u)
+		if out, err := e.Cmd.Run(ctx, "userdel", "-f", u); err != nil && !strings.Contains(out, "does not exist") {
+			return fmt.Errorf("userdel %s: %v: %s", u, err, strings.TrimSpace(out))
+		}
+		if _, ok := e.Acct.Group(u); ok {
+			_, _ = e.Cmd.Run(ctx, "groupdel", u)
+		}
+		return nil
+	}
 }
 
 // PrintUninstallPlan writes one line per action.

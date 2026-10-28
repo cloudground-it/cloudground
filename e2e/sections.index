@@ -215,6 +215,8 @@ e2e/fixtures_test.go	harness.wooSite	woocommerce|F9b Quarry service|woocommerce 
 e2e/fixtures_test.go	init	ALL
 e2e/fixtures_test.go	sectionOf	ALL
 e2e/fixtures_test.go	testName	ALL
+e2e/functions_test.go	decodeFn	functions
+e2e/functions_test.go	harness.functionsMigration	functions
 e2e/functions_test.go	harness.functionsSection	functions
 e2e/git_deploy_test.go	harness.gitDeployWebhook	git deploy webhook
 e2e/git_deploy_test.go	head2	git deploy webhook

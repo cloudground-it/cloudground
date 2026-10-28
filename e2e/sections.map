@@ -99,7 +99,8 @@ internal/api/runtimes.go               managed apps
 internal/runtimes/**                   managed apps
 internal/agent/ops/runtimes/**         managed apps
 internal/agent/ops/sites/app.go        managed apps
-internal/api/functions.go              functions
+internal/api/functions*.go             functions
+internal/engine/nginx/functions.go     functions
 internal/functions/**                  functions
 internal/agent/ops/functions/**        functions
 internal/engine/nginx/maintenance.go   maintenance page

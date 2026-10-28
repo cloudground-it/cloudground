@@ -41,7 +41,7 @@ func (a *Agent) sitesHandlers() *sites.Ops {
 				return a.blocklistHandlers().CountryPrefixes(ctx, codes)
 			},
 			RemoveFunctions: func(ctx context.Context, user string) error {
-				return a.functionsHandlers().RemoveSite(ctx, user)
+				return a.functionsHandlers().RemoveLegacySite(ctx, user)
 			},
 			PrepareApp: func(ctx context.Context, s state.Site, dir string) (string, error) {
 				return a.runtimesHandlers().Prepare(ctx, s, dir)

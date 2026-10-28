@@ -32,13 +32,11 @@ in the rendered comments (they are part of the output and stay with it) and
 | `ProtectedPaths` | the site's protected paths (#26), each `{Path, File}`: the path and its password file (§4.5) |
 | `AuthLogSocket` | the agent's datagram socket for failed sign-ins (#21, §4.6); empty logs none |
 | `Blocking` | the visitors the site refuses (#25, §4.7): addresses, user agents, countries already resolved to their prefixes, and this machine's addresses (never refused); nil refuses nobody |
-| `Functions` | the site's functions (#143, §4.13): each `{Name, Socket, TimeoutSec}` |
-| `FunctionsInvokeSocket` | the unix socket the agent invokes functions through (§4.13) |
 | `CloudflareInclude` | the file of Cloudflare's ranges (`<ConfDir>/cloudground-cloudflare.inc`) when the visitor's address comes from Cloudflare (#22, §4.11); empty: it does not |
 | `AppUpstream` | a managed app's address (#28, §4.12): `unix:/run/cloudground/app/<user>/app.sock` or `127.0.0.1:<port>`; empty for every other site |
 
-`Renderer` has `SiteFiles(Input) (path → content)`, `GlobalFiles()` and
-`Routing(Input) (RoutingView)` (§7.5).
+`Renderer` has `SiteFiles(Input) (path → content)`, `GlobalFiles()`,
+`Routing(Input) (RoutingView)` (§7.5) and `FunctionsFiles(FunctionsInput)` (§8).
 
 ## 2. Files
 
@@ -48,6 +46,7 @@ in the rendered comments (they are part of the output and stay with it) and
 | `<ConfDir>/cloudground-cache-<id>.conf` (default `/etc/nginx/conf.d`) | the policy caches: the cache zone (§3.2) |
 | `<ConfDir>/cloudground-block-<id>.conf` | `Blocking` set: the site's refused visitors (§4.7) |
 | `<ConfDir>/cloudground-global.conf` | `GlobalFiles`: http-level maps and tuning (§3.1) |
+| `<SitesDir>/cloudground-functions.conf`, `cloudground-functions-internal.conf`, `cloudground-fn-<id>.conf` | `FunctionsFiles`: the functions' servers (§8) |
 | `<ConfDir>/cloudground-cloudflare.inc`, `<ConfDir>/cloudground-banned.conf` | written by the agent, not the renderer (ops/sites SPEC §10): Cloudflare's ranges and the server's block list, for `CloudflareInclude` (§4.11) |
 
 Refused before anything is rendered:
@@ -503,45 +502,11 @@ A custom routing block may `proxy_pass http://cg_app_<id>` for **its own** id (�
 name allowed, and counted as this machine's, so the Host rule holds); any other `cg_app_` name is a
 host name and refused.
 
-### 4.13 Functions (#143)
+### 4.13 Functions (removed in v0.9.0)
 
-Each function of `Functions` (internal/api SPEC §3.22) gets, in the 443 server before the routing
-block, `location = /.functions/<name>` and `location ^~ /.functions/<name>/` (an exact and a
-prefix location: both win over every regex location, the hidden-files one included), with:
-
-```
-proxy_pass http://unix:<Socket>:;
-proxy_set_header Host $host;
-proxy_set_header X-Real-IP $remote_addr;
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-proxy_set_header X-Forwarded-Proto $scheme;
-proxy_set_header X-CloudGround-Source "";
-proxy_read_timeout <TimeoutSec + 5>s;
-client_max_body_size 6m;
-limit_req zone=cg_fn_req_<id> burst=20 nodelay;
-limit_conn cg_fn_conn_<id> 8;
-limit_conn cg_fn_all_<id> 32;
-limit_req_status 429;
-limit_conn_status 503;
-<the security headers>
-```
-
-with, before the server blocks, `limit_req_zone $binary_remote_addr zone=cg_fn_req_<id>:1m
-rate=10r/s;`, `limit_conn_zone $binary_remote_addr zone=cg_fn_conn_<id>:1m;` and
-`limit_conn_zone $server_port zone=cg_fn_all_<id>:1m;` (the same key for every request of the
-site's 443 server: its total). Every invocation is a process (internal/functions SPEC §3), so these
-bound what a flood can start: per client 10 requests a second, a burst of 20 (beyond: 429) and 8 at
-a time; per site 32 at a time, the socket's `MaxConnections` (beyond: 503).
-
-HTTP/1.0 to the socket (nginx's default for a proxy): one request per connection, so one process
-per invocation (internal/functions SPEC §3). A visitor's `X-CloudGround-Source` is emptied: only the
-agent's own invocation says `schedule` or `test` — nginx sets it again from the request only when
-it came in on `FunctionsInvokeSocket` (`$cg_fn_source_<id>`, a map of `$remote_addr`, `unix:` there,
-before the server blocks). With functions and a `FunctionsInvokeSocket`, the 443 server also has
-`listen unix:<FunctionsInvokeSocket>;`: plain HTTP on a socket nginx makes 0666, in the agent's
-state directory (`/var/lib/cloudground-agent`, root's 0700), so only root, the agent, can reach it; the request gets the site's server as a visitor's does
-(its locations, limits, logs, maintenance page and passwords), without TLS on the local hop. A name is `^[a-z][a-z0-9-]{0,30}$` and a socket
-`/run/cloudground/fn/cg-site-<id>/<name>.sock`, else nothing is rendered.
+Until v0.8.x a site's vhost routed `/.functions/<name>` to its functions and listened on the
+agent's invocation socket. Functions are no site's any more (§8): a vhost has neither, and
+`/.functions/` is a path like any other.
 
 ## 5. Page-cache policy (`velocity.PolicyFor`)
 
@@ -823,3 +788,148 @@ brace, so the headers it declares do not silently drop the panel's.
   panel's part of the vhost read-only above and below the editor, the block
   in a code editor, Save and "Restore default"; a refusal is shown with its
   line and the site keeps serving.
+
+## 8. Functions (#143, v0.9.0)
+
+`FunctionsFiles(FunctionsInput)` renders the servers of the standalone functions (internal/functions
+SPEC §1.2) as up to three kinds of file in the sites directory. Input:
+
+| Field | Meaning |
+|---|---|
+| `Domain` | the functions domain; `""`: none |
+| `DomainCert`, `DomainKey` | its certificate (lineage `cloudground-functions`, else the fallback) |
+| `ACMEWebroot` | where HTTP-01 challenges are served from |
+| `InternalSocket` | the agent's invocation socket (`/var/lib/cloudground-agent/nginx-functions.sock`) |
+| `HTTP2Directive` | `http2 on;` instead of `listen … http2` |
+| `Functions` | each `{ID, Name, Socket, TimeoutSec, AccessLog, Token, CORSOrigins, Domains, CertFile, KeyFile}` |
+
+Refused before anything is rendered: a name that is not `^[a-z][a-z0-9-]{0,30}$`, two functions of
+one name or one id, a socket other than `/run/cloudground/fn/<id>.sock`, an access log other than
+`/var/log/cloudground/functions/<name>.access.log`, a timeout outside 1–300, a domain that is not a
+plain host name (`site.ValidateDomain`) or that two servers would claim, a token that is not
+`cgf_` and 43 URL-safe characters, an origin that is not `*` or `http[s]://host[:port]`, a path
+(certificates, webroot, socket) that is not clean and absolute.
+
+### 8.1 Files
+
+| File | When | What |
+|---|---|---|
+| `cloudground-functions-internal.conf` | at least one function | the http-level zones and maps (§8.4, §8.5) and the internal server (§8.2) |
+| `cloudground-functions.conf` | `Domain` set | the functions domain (§8.3): port 80 for ACME and the redirect; 443 with every function at `/<name>` |
+| `cloudground-fn-<id>.conf` | the function has domains | its own domains: port 80 for ACME and the redirect; 443 with the function at `/` |
+
+Each starts with the managed-file line. With neither a domain nor a function nothing is rendered,
+and the agent removes the files (ops/functions SPEC §7). nginx reads the sites directory in name
+order: a zone or a map used in `cloudground-fn-<id>.conf` and defined in the internal file is
+resolved when the whole configuration has been read.
+
+### 8.2 The internal server
+
+```
+server {
+    # The agent's own invocations (test runs and schedules): plain HTTP on a
+    # unix socket in a directory only root can enter.
+    listen unix:<InternalSocket>;
+    server_name cloudground-functions;
+    server_tokens off;
+    access_log off;
+    <each function's locations, prefix /<name>, source from the request>
+    location / { <the JSON 404> }
+}
+```
+
+Only root reaches the socket (nginx makes it 0666 in the agent's state directory, root's 0700), so
+it has no token check and passes the agent's `X-CloudGround-Source` on (`schedule` or `test`);
+every other server sets it to `""`. It works without any domain.
+
+### 8.3 The public servers
+
+Port 80 (`server_name` the domain or domains):
+
+```
+location /.well-known/acme-challenge/ { root <ACMEWebroot>; }
+location / { return 301 https://$host$request_uri; }
+```
+
+Port 443, `listen 443 ssl` (and `[::]`), the certificate, `server_tokens off`, the function's (or
+every function's) locations, and on the functions domain `location /` the JSON 404:
+
+```
+default_type application/json;
+return 404 '{"error":"no such function"}\n';
+```
+
+A name that no server claims falls to the default server, which closes the connection (444,
+internal/install SPEC): a function with no domain is not reachable from outside.
+
+### 8.4 A function's location
+
+On the functions domain and the internal server, `location = /<name>` and `location ^~ /<name>/`;
+on its own domains, `location /`. Each:
+
+```
+set $cg_fn_id <id>;
+set $cg_fn_client "$binary_remote_addr <id>";
+<CORS preflight, §8.5>
+<the token check: if ($http_authorization != "Bearer <token>") { return 401 '{"error":"a valid bearer token is required"}\n'; }>
+access_log <AccessLog> cloudground buffer=4k flush=1s;
+default_type application/json;
+proxy_pass http://unix:<Socket>:;
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-CloudGround-Source "";          (the internal server: $http_x_cloudground_source)
+proxy_set_header X-CloudGround-Prefix /<name>;     (own domains: "")
+proxy_read_timeout <TimeoutSec + 5>s;
+client_max_body_size 6m;
+limit_req zone=cg_fn_req burst=20 nodelay;
+limit_conn cg_fn_conn 8;
+limit_conn cg_fn_all 32;
+limit_req_status 429;
+limit_conn_status 503;
+<CORS headers, §8.5>
+```
+
+The token check is left out on the internal server and for a public function. With the zones,
+once, in the internal file:
+
+```
+limit_req_zone $cg_fn_client zone=cg_fn_req:4m rate=10r/s;
+limit_conn_zone $cg_fn_client zone=cg_fn_conn:4m;
+limit_conn_zone $cg_fn_id zone=cg_fn_all:1m;
+```
+
+`set` runs in the rewrite phase, before the limits, so the keys are the function's: per client and
+function 10 requests a second, a burst of 20 (beyond: 429), 8 at a time; per function 32 at a
+time, the socket's `MaxConnections` (beyond: 503), whichever server the request came to. HTTP/1.0
+to the socket: one request per connection, one process per invocation.
+
+### 8.5 CORS
+
+For a function with `CORSOrigins`, in the internal file:
+
+```
+map $http_origin $cg_fn_cors_<id> {
+    default "";
+    "https://app.example.com" "https://app.example.com";   (one line per origin; with * : default "*";)
+}
+```
+
+and in its public locations, before the token check (a preflight carries no token):
+
+```
+if ($request_method = OPTIONS) {
+    add_header Access-Control-Allow-Origin $cg_fn_cors_<id> always;
+    add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+    add_header Access-Control-Allow-Headers $http_access_control_request_headers always;
+    add_header Access-Control-Max-Age 600 always;
+    add_header Vary Origin always;
+    return 204;
+}
+```
+
+and after the proxy lines `add_header Access-Control-Allow-Origin $cg_fn_cors_<id> always;` and
+`add_header Vary Origin always;`. An empty value sends no header, so an origin not listed gets
+none. No other `add_header` is declared in these locations or their servers.
+

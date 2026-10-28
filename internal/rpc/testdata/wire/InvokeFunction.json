@@ -1,14 +1,14 @@
 {
   "params": {
     "full": {
-      "site": "@state.Site",
       "name": "Name",
       "source": "Source",
+      "method": "Method",
+      "path": "Path",
       "body": "Body",
       "timeout_sec": 7
     },
     "zero": {
-      "site": "@state.Site",
       "name": "",
       "source": "",
       "timeout_sec": 0

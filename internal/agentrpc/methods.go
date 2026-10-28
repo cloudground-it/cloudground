@@ -180,18 +180,24 @@ var (
 	SetAppEnv      = define[rpc.AppEnvParams, None](Spec{Name: "SetAppEnv", Timeout: 2 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not set the app's environment"})
 	AppStatus      = define[rpc.SiteRef, rpc.AppStatusResult](Spec{Name: "AppStatus", Timeout: 30 * sec, Sites: true, ReadOnly: true, Fail: "Could not read the app's status"})
 	AppControl     = define[rpc.AppControlParams, rpc.AppStatusResult](Spec{Name: "AppControl", Timeout: 2 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not control the app"})
-	// A site's functions (#143, ops/functions SPEC).
-	SetFunction      = define[rpc.SetFunctionParams, rpc.FunctionResult](Spec{Name: "SetFunction", Timeout: 2 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not set the function up"})
-	DeleteFunction   = define[rpc.FunctionRef, None](Spec{Name: "DeleteFunction", Timeout: 2 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not delete the function"})
-	FunctionCode     = define[rpc.FunctionRef, rpc.FunctionCodeResult](Spec{Name: "FunctionCode", Timeout: 30 * sec, Sites: true, ReadOnly: true, Fail: "Could not read the function's code"})
-	FunctionRollback = define[rpc.FunctionRollbackParams, rpc.FunctionResult](Spec{Name: "FunctionRollback", Timeout: 1 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not roll the function back"})
-	InvokeFunction   = define[rpc.InvokeFunctionParams, rpc.InvokeResult](Spec{Name: "InvokeFunction", Timeout: 6 * mins, Sites: true, ReadOnly: true, Fail: "Could not invoke the function"})
-	FunctionLogs     = define[rpc.FunctionRef, rpc.FunctionLogsResult](Spec{Name: "FunctionLogs", Timeout: 30 * sec, Sites: true, ReadOnly: true, Fail: "Could not read the function's logs"})
-	FirewallRule     = define[rpc.FirewallRuleParams, map[string]string](Spec{Name: "FirewallRule", Timeout: 2 * mins, Fail: "Could not change the firewall"})
-	FirewallEnable   = define[rpc.FirewallEnableParams, rpc.FirewallStatusResult](Spec{Name: "FirewallEnable", Timeout: 2 * mins, Fail: "Could not turn the firewall on"})
-	ArchiveSnapshot  = define[rpc.ArchiveParams, rpc.ArchiveResult](Spec{Name: "ArchiveSnapshot", Timeout: 7 * hrs, Sites: true, Fail: "Could not prepare the backup for download"})
-	ReadArchiveChunk = define[rpc.ArchiveChunkParams, rpc.ArchiveChunkResult](Spec{Name: "ReadArchiveChunk", Timeout: 2 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the backup archive"})
-	DeleteArchive    = define[rpc.ArchiveChunkParams, map[string]any](Spec{Name: "DeleteArchive", Timeout: 1 * mins, Sites: true, Fail: "Could not delete the backup archive"})
+	// Standalone functions (#143 v0.9.0, ops/functions SPEC §1): no site,
+	// no site lock; ops/functions serialises them itself.
+	SetFunction                = define[rpc.SetFunctionParams, rpc.FunctionResult](Spec{Name: "SetFunction", Timeout: 25 * mins, Fail: "Could not set the function up"})
+	DeleteFunction             = define[rpc.FunctionRef, None](Spec{Name: "DeleteFunction", Timeout: 2 * mins, Fail: "Could not delete the function"})
+	FunctionCode               = define[rpc.FunctionRef, rpc.FunctionCodeResult](Spec{Name: "FunctionCode", Timeout: 30 * sec, ReadOnly: true, Fail: "Could not read the function's code"})
+	RollbackFunction           = define[rpc.FunctionRollbackParams, rpc.FunctionResult](Spec{Name: "RollbackFunction", Timeout: 1 * mins, Fail: "Could not roll the function back"})
+	InvokeFunction             = define[rpc.InvokeFunctionParams, rpc.InvokeResult](Spec{Name: "InvokeFunction", Timeout: 6 * mins, ReadOnly: true, Fail: "Could not invoke the function"})
+	FunctionLogs               = define[rpc.FunctionRef, rpc.FunctionLogsResult](Spec{Name: "FunctionLogs", Timeout: 30 * sec, ReadOnly: true, Fail: "Could not read the function's logs"})
+	FunctionsSummary           = define[rpc.FunctionsSummaryParams, rpc.FunctionsSummaryResult](Spec{Name: "FunctionsSummary", Timeout: 30 * sec, ReadOnly: true, Fail: "Could not read the functions' invocations"})
+	RenderFunctions            = define[rpc.RenderFunctionsParams, rpc.RenderFunctionsResult](Spec{Name: "RenderFunctions", Timeout: 2 * mins, Fail: "Could not configure nginx for the functions"})
+	IssueFunctionsCertificate  = define[rpc.FunctionsCertParams, None](Spec{Name: "IssueFunctionsCertificate", Timeout: 20 * mins, Fail: "Could not issue the functions' certificate"})
+	DeleteFunctionsCertificate = define[rpc.FunctionsCertParams, None](Spec{Name: "DeleteFunctionsCertificate", Timeout: 2 * mins, Fail: "Could not delete the functions' certificate"})
+	MigrateFunction            = define[rpc.MigrateFunctionParams, rpc.FunctionResult](Spec{Name: "MigrateFunction", Timeout: 25 * mins, Sites: true, Lock: LockLiveSite, Fail: "Could not move the function out of its site"})
+	FirewallRule               = define[rpc.FirewallRuleParams, map[string]string](Spec{Name: "FirewallRule", Timeout: 2 * mins, Fail: "Could not change the firewall"})
+	FirewallEnable             = define[rpc.FirewallEnableParams, rpc.FirewallStatusResult](Spec{Name: "FirewallEnable", Timeout: 2 * mins, Fail: "Could not turn the firewall on"})
+	ArchiveSnapshot            = define[rpc.ArchiveParams, rpc.ArchiveResult](Spec{Name: "ArchiveSnapshot", Timeout: 7 * hrs, Sites: true, Fail: "Could not prepare the backup for download"})
+	ReadArchiveChunk           = define[rpc.ArchiveChunkParams, rpc.ArchiveChunkResult](Spec{Name: "ReadArchiveChunk", Timeout: 2 * mins, Sites: true, ReadOnly: true, Fail: "Could not read the backup archive"})
+	DeleteArchive              = define[rpc.ArchiveChunkParams, map[string]any](Spec{Name: "DeleteArchive", Timeout: 1 * mins, Sites: true, Fail: "Could not delete the backup archive"})
 	// The block list (internal/agent/ops/blocklist SPEC). Reading the
 	// failures takes them away, so it is not read-only: a reply lost to a
 	// cancelled caller would lose them.

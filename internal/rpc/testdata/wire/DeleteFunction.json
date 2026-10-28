@@ -1,11 +1,11 @@
 {
   "params": {
     "full": {
-      "site": "@state.Site",
+      "id": 7,
       "name": "Name"
     },
     "zero": {
-      "site": "@state.Site",
+      "id": 0,
       "name": ""
     }
   },

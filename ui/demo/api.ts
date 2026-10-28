@@ -223,24 +223,61 @@ export function createDemo(opts: { now?: number } = {}) {
     ? { active: true, state: 'running', since: ago(now, 2 * DAY + 3 * HOUR), restarts: 2, last_exit: 137, health: { status: 200, ms: 14 } }
     : { active: true, state: 'running', since: ago(now, 6 * DAY), restarts: 0, last_exit: 0, health: { status: 200, ms: 38 } }
 
-  // Functions (#143): two on the Node.js site, one by the clock.
-  const FN_CODE = {
-    'send-receipt': "export default async function handler(req) {\n  const order = await req.json()\n  // Sample code from the demo.\n  return Response.json({ ok: true, order: order.id })\n}\n",
-    'nightly-digest': "def handler(request):\n    # Sample code from the demo.\n    return {'status': 200, 'body': 'digest sent'}\n"
-  } as Record<string, string>
-  const functionsOf = (s: DemoSite) => s.id !== 6 ? [] : [
-    { name: 'send-receipt', runtime: 'node', version: '22', memory_mb: 128, timeout_sec: 10, env: { FROM: 'shop@example.com' }, secrets: ['SMTP_PASSWORD'], release: '20261023-100500', url: `https://${s.domain}/.functions/send-receipt`, releases: ['20261023-100500', '20261014-170200'] },
-    { name: 'nightly-digest', runtime: 'python', version: '3.12', memory_mb: 256, timeout_sec: 60, schedule: '0 6 * * *', env: {}, secrets: [], release: '20261020-081000', url: `https://${s.domain}/.functions/nightly-digest`, releases: ['20261020-081000'] }
+  // Functions (#143, v0.9.0): the server's, at fn.example.com or a domain of
+  // their own; one public form handler, a nightly report and a webhook.
+  const FN_DOMAIN = 'fn.example.com'
+  const SERVER_IP = '203.0.113.10'
+  const dnsHere = (domain: string) => ({ domain, status: 'here', addresses: [{ family: 4, address: SERVER_IP, own: true }], server: [SERVER_IP] })
+  const certFor = (days: number) => ({ exists: true, not_after: ago(now, -days * DAY), issuer: "Let's Encrypt R11" })
+  const FN_FILES: Record<string, Record<string, string>> = {
+    'contact-form': {
+      'index.js': "const { validate } = require('./lib/validate')\nconst nodemailer = require('nodemailer')\n\nconst mailer = nodemailer.createTransport({\n  host: 'smtp.example.com',\n  auth: { user: 'forms', pass: process.env.SMTP_PASSWORD }\n})\n\nexports.handler = async (event) => {\n  if (event.method !== 'POST') return { statusCode: 405, body: 'POST only' }\n  const form = JSON.parse(event.body || '{}')\n  const problem = validate(form)\n  if (problem) return { statusCode: 422, body: JSON.stringify({ error: problem }) }\n  await mailer.sendMail({\n    from: 'forms@example.com',\n    to: process.env.MAIL_TO,\n    replyTo: form.email,\n    subject: `Contact form: ${form.name}`,\n    text: form.message\n  })\n  return { ok: true }\n}\n",
+      'lib/validate.js': "exports.validate = (form) => {\n  if (!form.name) return 'name is required'\n  if (!/^[^\\s@]+@[^\\s@]+$/.test(form.email || '')) return 'a valid email is required'\n  if (!form.message || form.message.length > 5000) return 'message is required (at most 5000 characters)'\n  return null\n}\n",
+      'package.json': '{\n  "name": "contact-form",\n  "private": true,\n  "dependencies": {\n    "nodemailer": "^6.9.16"\n  }\n}\n'
+    },
+    'nightly-report': {
+      'main.py': "import os\nfrom datetime import date, timedelta\n\nimport psycopg\n\n\ndef handler(event):\n    day = date.today() - timedelta(days=1)\n    with psycopg.connect(os.environ['DB_URL']) as db:\n        orders, revenue = db.execute(\n            'select count(*), coalesce(sum(total), 0) from orders where created::date = %s', (day,)\n        ).fetchone()\n    print(f'report {day}: {orders} orders, {revenue:.2f} EUR')\n    return {'day': day.isoformat(), 'orders': orders, 'revenue': float(revenue)}\n",
+      'requirements.txt': 'psycopg[binary]==3.2.3\n'
+    },
+    'stripe-webhook': {
+      'index.js': "export async function handler(event) {\n  const payload = JSON.parse(event.body || '{}')\n  switch (payload.type) {\n    case 'checkout.session.completed':\n      console.log('paid', payload.data.object.id)\n      break\n    case 'charge.refunded':\n      console.log('refunded', payload.data.object.id)\n      break\n    default:\n      console.log('ignored', payload.type)\n  }\n  return { received: true }\n}\n"
+    }
+  }
+  // Release IDs are ULIDs: the first ten characters are the time.
+  const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+  const ulidAt = (ms: number, seed: number) => {
+    let time = ''
+    for (let i = 0, t = Math.floor(ms); i < 10; i++, t = Math.floor(t / 32)) time = CROCKFORD[t % 32] + time
+    let rest = ''
+    for (let i = 0, x = seed * 7919 + 13; i < 16; i++, x = (x * 75 + 74) % 65537) rest += CROCKFORD[x % 32]
+    return time + rest
+  }
+  const releasesOf = (ages: number[], seed: number) => ages.map((a, i) => ulidAt(now - a, seed * 10 + i))
+  const fnInvocations: Record<string, Query[]> = {
+    'contact-form': Array.from({ length: 14 }, (_, i) => ({ time: ago(now, (i * 37 + 6) * MIN), method: i === 9 ? 'GET' : 'POST', path: '/', status: i === 4 ? 422 : i === 9 ? 405 : 200, ms: 180 + (i * 53) % 240, source: i === 11 ? 'test' : 'http' })),
+    'nightly-report': Array.from({ length: 7 }, (_, i) => ({ time: ago(now, i * DAY + 4 * HOUR), method: 'POST', path: '/', status: i === 3 ? 502 : 200, ms: i === 3 ? 120000 : 2400 + i * 170, source: 'schedule' })),
+    'stripe-webhook': Array.from({ length: 9 }, (_, i) => ({ time: ago(now, (i * 95 + 20) * MIN), method: 'POST', path: '/', status: i === 2 ? 401 : 200, ms: 40 + (i * 17) % 50, source: 'http' }))
+  }
+  const fnOutput: Record<string, string[]> = {
+    'contact-form': ['mail sent to hello@example.com (reply-to anna@example.org)', 'mail sent to hello@example.com (reply-to marco@example.net)', 'rejected: a valid email is required', 'mail sent to hello@example.com (reply-to j.smith@example.com)'],
+    'nightly-report': ['report 2026-10-26: 41 orders, 3184.50 EUR', 'report 2026-10-25: 37 orders, 2911.20 EUR', 'Error: the function ran out of time after 120 s', 'report 2026-10-23: 52 orders, 4020.00 EUR'],
+    'stripe-webhook': ['paid cs_live_a1B2c3D4', 'ignored customer.updated', 'refunded ch_3Pq9Lm2eZvKu', 'paid cs_live_e5F6g7H8']
+  }
+  const fnBase = (name: string, runtime: string, version: string, extra: Query) => ({
+    id: 0, name, runtime, version, memory_mb: 128, timeout_sec: 10, schedule: '', env: {}, secrets: [], auth: 'public', cors_origins: [], domains: [] as string[],
+    created_at: ago(now, 20 * DAY), updated_at: ago(now, 2 * DAY), has_token: false, ...extra
+  })
+  const fnRecords = [
+    { ...fnBase('contact-form', 'node', '22', { id: 1, env: { MAIL_TO: 'hello@example.com' }, secrets: ['SMTP_PASSWORD'], cors_origins: ['https://www.example.com'], domains: ['forms.example.com'] }), releases: releasesOf([2 * DAY, 9 * DAY, 16 * DAY], 1) },
+    { ...fnBase('nightly-report', 'python', '3.12', { id: 2, memory_mb: 256, timeout_sec: 120, schedule: '0 6 * * *', env: { REPORT_TZ: 'Europe/Rome' }, secrets: ['DB_URL'], auth: 'token', has_token: true }), releases: releasesOf([5 * DAY, 12 * DAY], 2) },
+    { ...fnBase('stripe-webhook', 'node', '24', { id: 3, timeout_sec: 15, secrets: ['STRIPE_WEBHOOK_SECRET'], auth: 'token', has_token: true, created_at: ago(now, 6 * DAY) }), releases: releasesOf([6 * DAY], 3) }
   ]
-  const functionLogs = (name: string) => name === 'send-receipt'
-    ? {
-      invocations: Array.from({ length: 12 }, (_, i) => ({ time: ago(now, (i * 17 + 4) * MIN), method: 'POST', status: i === 5 ? 502 : 200, ms: 38 + (i * 13) % 61, source: 'http' })),
-      output: ['receipt sent to customer 4021', 'receipt sent to customer 4022', 'smtp: 421 try again later (retrying)', 'receipt sent to customer 4023']
-    }
-    : {
-      invocations: Array.from({ length: 6 }, (_, i) => ({ time: ago(now, i * DAY + 4 * HOUR), method: 'GET', status: 200, ms: 1840 + i * 120, source: 'schedule' })),
-      output: ['digest: 38 orders, 3 refunds', 'digest sent to 2 recipients']
-    }
+  const fnView = (f: typeof fnRecords[number]) => {
+    const { releases, ...rest } = f
+    return { ...rest, release: releases[0], urls: [`https://${FN_DOMAIN}/${f.name}`, ...f.domains.map(d => `https://${d}`)] }
+  }
+  const fnOf = (name: string) => fnRecords.find(f => f.name === name)
+  const fnWithCode = (f: typeof fnRecords[number]) => ({ ...fnView(f), entry: f.runtime === 'node' ? 'index.js' : 'main.py', files: FN_FILES[f.name] ?? {}, releases: f.releases })
 
   // Git deploy (#24): on for the Laravel and Node.js sites, with deliveries.
   const gitDeployOf = (s: DemoSite) => {
@@ -385,15 +422,21 @@ export function createDemo(opts: { now?: number } = {}) {
       { id: 2, tool: 'purge_cache', summary: 'Purge the cache of shop.example.com', client_name: 'Claude', status: 'pending', created_at: ago(now, 6 * MIN), expires_at: ago(now, -24 * MIN) },
       { id: 1, tool: 'create_backup', summary: 'Back up blog.example.com now', client_name: 'Claude', status: 'done', created_at: ago(now, 1 * DAY), expires_at: ago(now, 1 * DAY - 30 * MIN), result: 'Backup started' }
     ]],
+    ['GET', /^\/api\/runtimes$/, () => ({
+      installed: { node: [{ version: '24', full: 'v24.11.1' }, { version: '22', full: 'v22.21.1' }], python: [{ version: '3.12', full: 'Python 3.12.3' }] },
+      available: { node: ['24', '22', '20'], python: ['3.13', '3.12'] }
+    })],
+    ['GET', /^\/api\/functions$/, () => ({ domain: FN_DOMAIN, functions: fnRecords.map(f => ({ ...fnView(f), last: fnInvocations[f.name]?.[0] })) })],
+    ['GET', /^\/api\/functions\/domain\/status$/, () => ({ domain: FN_DOMAIN, dns: dnsHere(FN_DOMAIN), certificate: certFor(62), acme_email: true })],
+    ['GET', /^\/api\/functions\/([a-z][a-z0-9-]*)$/, (_r, m) => { const f = fnOf(m[1]!); return f ? fnWithCode(f) : notFound() }],
+    ['GET', /^\/api\/functions\/([a-z][a-z0-9-]*)\/logs$/, (_r, m) => fnOf(m[1]!) ? { invocations: fnInvocations[m[1]!] ?? [], output: fnOutput[m[1]!] ?? [] } : notFound()],
+    ['GET', /^\/api\/functions\/([a-z][a-z0-9-]*)\/domains\/status$/, (_r, m) => {
+      const f = fnOf(m[1]!)
+      if (!f) return notFound()
+      return { domains: f.domains.map(d => ({ domain: d, dns: dnsHere(d) })), certificate: f.domains.length ? certFor(48) : { exists: false } }
+    }],
     ['GET', /^\/api\/sites\/(\d+)\/app$/, (_r, m) => { const s = siteOf(m[1]!); return s && s.config.app ? appOf(s) : notFound() }],
     ['GET', /^\/api\/sites\/(\d+)\/app\/status$/, (_r, m) => { const s = siteOf(m[1]!); return s && s.config.app ? appStatusOf(s) : notFound() }],
-    ['GET', /^\/api\/sites\/(\d+)\/functions$/, (_r, m) => { const s = siteOf(m[1]!); return s ? functionsOf(s) : notFound() }],
-    ['GET', /^\/api\/sites\/(\d+)\/functions\/([a-z][a-z0-9-]*)$/, (_r, m) => {
-      const s = siteOf(m[1]!)
-      const f = s && functionsOf(s).find(x => x.name === m[2])
-      return f ? { ...f, code: FN_CODE[f.name] ?? '' } : notFound()
-    }],
-    ['GET', /^\/api\/sites\/(\d+)\/functions\/([a-z][a-z0-9-]*)\/logs$/, (_r, m) => functionLogs(m[2]!)],
     ['GET', /^\/api\/sites\/(\d+)\/traffic$/, (r, m) => {
       const s = siteOf(m[1]!)
       const days = Number(r.query.get('days'))

@@ -35,10 +35,13 @@ func installed(t *testing.T) *machine {
 	m.acct.users["cg-site-1"] = [2]int{1001, 1001}
 	m.acct.groups["cg-site-1"] = 1001
 	m.acct.users["cg-shell-1"] = [2]int{1001, 1001}
+	m.acct.users["cg-fn-3"] = [2]int{1003, 1003}
+	m.acct.groups["cg-fn-3"] = 1003
 	m.acct.groups["cg-shell"] = 990
 	m.acct.groups["cg-sftp-keys"] = 991
 	m.write("/etc/passwd", "root:x:0:0::/root:/bin/bash\ncloudground:x:901:901::/:/usr/sbin/nologin\n"+
-		"cg-site-1:x:1001:1001::/srv/sites/a.test:/usr/sbin/nologin\ncg-shell-1:x:1001:1001::/srv/sites/a.test:/usr/local/bin/cg-site-shell\n", 0o644)
+		"cg-site-1:x:1001:1001::/srv/sites/a.test:/usr/sbin/nologin\ncg-shell-1:x:1001:1001::/srv/sites/a.test:/usr/local/bin/cg-site-shell\n"+
+		"cg-fn-3:x:1003:1003::/nonexistent:/usr/sbin/nologin\n", 0o644)
 	m.write("/var/lib/cloudground-agent/sites.json", `{"version":1,"sites":{"1":"a.test"}}`, 0o600)
 	m.write("/var/lib/cloudground-agent/databases.json", `{"version":1,"databases":{"shop_db":1},"users":{"shop_user":{"site":1}}}`, 0o600)
 	m.write("/var/lib/cloudground-signatures/cloudground.json", `{}`, 0o644)
@@ -67,6 +70,14 @@ func installed(t *testing.T) *machine {
 	m.write("/usr/local/bin/panel-agent.bak", "old\n", 0o755)
 	m.write("/var/cache/cloudground/a.test/x", "cached\n", 0o644)
 	m.write("/var/log/cloudground/a.test/access.log", "GET /\n", 0o644)
+	// A function (#143): its code, units, slice, nginx file, environment and lineage.
+	m.write("/srv/functions/hello/releases/01JC0000000000000000000001/index.js", "exports.handler = () => 1;\n", 0o640)
+	m.write("/etc/systemd/system/cloudground-fn-3.socket", "[Socket]\n", 0o644)
+	m.write("/etc/systemd/system/cloudground-fn-3@.service", "[Service]\n", 0o644)
+	m.write("/etc/systemd/system/cg-fn.slice", "[Slice]\n", 0o644)
+	m.write("/etc/nginx/sites-enabled/cloudground-functions-internal.conf", "# Managed by CloudGround — do not edit. Changes are detected as drift.\n", 0o600)
+	m.write("/etc/cloudground-fn/3.env", "A=1\n", 0o600)
+	m.write("/etc/letsencrypt/renewal/cloudground-fn-3.conf", "x\n", 0o644)
 
 	st, err := state.Open(m.path(stateDB))
 	if err != nil {
@@ -131,6 +142,8 @@ var removedByDefault = []string{
 	"/etc/nginx/sites-enabled/a.test.conf", "/etc/nginx/sites-enabled/cloudground-panel.conf",
 	"/etc/nginx/conf.d/cloudground-cache-1.conf", "/etc/nginx/conf.d/cloudground-global.conf",
 	"/etc/cron.d/cloudground-cg-site-1",
+	"/etc/systemd/system/cloudground-fn-3.socket", "/etc/systemd/system/cloudground-fn-3@.service", "/etc/systemd/system/cg-fn.slice",
+	"/etc/nginx/sites-enabled/cloudground-functions-internal.conf", "/etc/cloudground-fn",
 	"/etc/cloudground", "/etc/cloudground-php", "/var/lib/cloudground", "/var/lib/cloudground-agent",
 	"/var/lib/cloudground-signatures", "/etc/clamav/cloudground-freshclam.conf",
 	"/var/cache/cloudground", "/var/log/cloudground", "/run/cloudground", "/var/www/cloudground-acme",
@@ -151,7 +164,7 @@ func TestUninstallKeepsTheSites(t *testing.T) {
 			t.Errorf("%s is still there", p)
 		}
 	}
-	for _, p := range []string{"/srv/sites/a.test/current/index.html", mariadbTuning, "/etc/nginx/sites-enabled/operator.conf", "/etc/systemd/system/user.slice"} {
+	for _, p := range []string{"/srv/sites/a.test/current/index.html", "/srv/functions/hello/releases/01JC0000000000000000000001/index.js", mariadbTuning, "/etc/nginx/sites-enabled/operator.conf", "/etc/systemd/system/user.slice"} {
 		if m.gone(p) {
 			t.Errorf("%s was removed", p)
 		}
@@ -167,6 +180,12 @@ func TestUninstallKeepsTheSites(t *testing.T) {
 	}
 	if m.cmd.ran("usermod --lock --expiredate 1 --shell /usr/sbin/nologin cg-site-1") != 1 {
 		t.Error("the site's user was not locked")
+	}
+	if m.cmd.ran("usermod --lock --expiredate 1 --shell /usr/sbin/nologin cg-fn-3") != 1 {
+		t.Error("the function's user was not locked")
+	}
+	if m.cmd.ran("certbot delete --cert-name cloudground-fn-3") != 1 {
+		t.Error("the function's certificate was not deleted")
 	}
 	for _, u := range []string{"cloudground", "cg-shell-1"} {
 		if _, _, ok := m.acct.User(u); ok {
@@ -184,7 +203,8 @@ func TestUninstallKeepsTheSites(t *testing.T) {
 	if m.cmd.ran("certbot delete --cert-name cloudground-panel") != 1 {
 		t.Error("the panel's certificate was not deleted")
 	}
-	for _, call := range []string{"disable --now cloudground-agent.service", "disable --now cloudground-php-cg-site-1.service", "stop cg-site.slice", "daemon-reload"} {
+	for _, call := range []string{"disable --now cloudground-agent.service", "disable --now cloudground-php-cg-site-1.service", "stop cg-site.slice",
+		"stop cg-fn.slice", "disable --now cloudground-fn-3.socket", "daemon-reload"} {
 		if !m.sd.did(call) {
 			t.Errorf("systemctl %s did not run", call)
 		}
@@ -239,13 +259,16 @@ func TestUninstallRemoveSites(t *testing.T) {
 	if err := m.uninstall(UninstallOptions{RemoveSites: true, KeptDir: DefaultKeptDir}); err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range append(removedByDefault, "/srv/sites", mariadbTuning) {
+	for _, p := range append(removedByDefault, "/srv/sites", "/srv/functions", mariadbTuning) {
 		if !m.gone(p) {
 			t.Errorf("%s is still there", p)
 		}
 	}
 	if _, _, ok := m.acct.User("cg-site-1"); ok {
 		t.Error("the site's user is still there")
+	}
+	if _, _, ok := m.acct.User("cg-fn-3"); ok {
+		t.Error("the function's user is still there")
 	}
 	for _, stmt := range []string{"DROP DATABASE IF EXISTS `site_1`", "DROP DATABASE IF EXISTS `shop_db`", "DROP DATABASE IF EXISTS `cgv_0123456789abcdef`",
 		"DROP USER IF EXISTS 'shop_user'@'localhost'", "DROP USER IF EXISTS 'site_1'@'localhost'", "DROP USER IF EXISTS 'cgq_0123456789abcdef'@'localhost'"} {

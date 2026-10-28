@@ -25,6 +25,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/ops/rootfile"
 	"github.com/cloudground-it/cloudground/internal/agent/sitefs"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
+	"github.com/cloudground-it/cloudground/internal/functions"
 	"github.com/cloudground-it/cloudground/internal/rpc"
 	"github.com/cloudground-it/cloudground/internal/site"
 	"github.com/cloudground-it/cloudground/internal/state"
@@ -169,7 +170,7 @@ func (o *Ops) writeCloudflareCredentials(token string) (string, error) {
 func (o *Ops) CertStatus(ctx context.Context, p rpc.CertStatusParams) (rpc.CertStatusResult, error) {
 	res := rpc.CertStatusResult{Certs: map[string]rpc.CertInfo{}}
 	for _, name := range p.Names {
-		if name != PanelLineage && site.ValidateDomain(name) != nil {
+		if name != PanelLineage && !functions.ValidLineage(name) && site.ValidateDomain(name) != nil {
 			return rpc.CertStatusResult{}, agentrpc.Invalid("invalid certificate name %q", name)
 		}
 	}

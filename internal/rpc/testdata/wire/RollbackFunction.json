@@ -1,0 +1,26 @@
+{
+  "params": {
+    "full": {
+      "id": 7,
+      "name": "Name",
+      "release": "Release"
+    },
+    "zero": {
+      "id": 0,
+      "name": ""
+    }
+  },
+  "result": {
+    "full": {
+      "release": "Release",
+      "releases": [
+        "Releases"
+      ],
+      "output": "Output"
+    },
+    "zero": {
+      "release": "",
+      "releases": null
+    }
+  }
+}

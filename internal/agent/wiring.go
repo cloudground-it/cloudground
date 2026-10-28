@@ -88,6 +88,10 @@ type Paths struct {
 	TrafficDir    string // each site's traffic statistics (#33), aggregates only
 	RuntimesDir   string // installed Node.js majors (#28); "" is runtimes.Dir
 	FunctionsDir  string // the functions' environment files and shims (#143); "" is functions.Dir
+	// FunctionsRoot holds each function's code, FunctionsLogDir its logs
+	// (#143 v0.9.0); "" is functions.Root and functions.LogDir.
+	FunctionsRoot   string
+	FunctionsLogDir string
 }
 
 // DefaultPaths is the installer's layout.
@@ -129,6 +133,9 @@ func DefaultPaths() Paths {
 		TrafficDir:    traffic.DefaultDir,
 		RuntimesDir:   "/var/lib/cloudground-runtimes",
 		FunctionsDir:  "/etc/cloudground-fn",
+		// Each function's code: root's 0711, a function's own beneath.
+		FunctionsRoot:   "/srv/functions",
+		FunctionsLogDir: "/var/log/cloudground/functions",
 	}
 }
 

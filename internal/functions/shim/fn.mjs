@@ -1,5 +1,5 @@
 // Written by CloudGround: runs one invocation of a function (#143,
-// internal/functions SPEC §4). systemd hands over the accepted connection
+// internal/functions SPEC §4, §5). systemd hands over the accepted connection
 // on file descriptor 3; one request is read, the handler called, one
 // answer written, and the process exits.
 import http from "node:http";
@@ -7,7 +7,6 @@ import net from "node:net";
 import { pathToFileURL } from "node:url";
 
 const started = Date.now();
-const name = process.env.CG_FUNCTION || "";
 const timeoutMs = Math.max(250, Number(process.env.CG_TIMEOUT_MS) || 9750);
 const maxBody = 6 << 20;
 let done = false;
@@ -68,14 +67,20 @@ const server = http.createServer({ maxHeaderSize: 64 << 10 }, (req, res) => {
   req.on("end", async () => {
     const raw = Buffer.concat(chunks);
     const url = new URL(req.url, "http://function");
-    const prefix = "/.functions/" + name;
-    let path = url.pathname.startsWith(prefix) ? url.pathname.slice(prefix.length) : url.pathname;
+    const headers = {};
+    for (const [k, v] of Object.entries(req.headers)) headers[k] = Array.isArray(v) ? v.join(", ") : String(v);
+    // nginx says which part of the path names the function (/<name> on the
+    // functions domain, nothing on its own domain) and where the request
+    // came from; neither is the handler's.
+    const prefix = headers["x-cloudground-prefix"] || "";
+    const src = headers["x-cloudground-source"];
+    delete headers["x-cloudground-prefix"];
+    delete headers["x-cloudground-source"];
+    let path = url.pathname;
+    if (prefix && (path === prefix || path.startsWith(prefix + "/"))) path = path.slice(prefix.length);
     if (path === "") path = "/";
     const text = raw.toString("utf8");
     const utf8 = Buffer.from(text, "utf8").equals(raw);
-    const headers = {};
-    for (const [k, v] of Object.entries(req.headers)) headers[k] = Array.isArray(v) ? v.join(", ") : String(v);
-    const src = headers["x-cloudground-source"];
     const event = {
       method: req.method, path, query: url.search.replace(/^\?/, ""), headers,
       body: utf8 ? text : raw.toString("base64"), isBase64Encoded: !utf8,

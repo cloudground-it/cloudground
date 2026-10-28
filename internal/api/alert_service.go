@@ -251,6 +251,9 @@ func (s *Server) evaluateAlertsAt(ctx context.Context, now time.Time) error {
 	if open, err := s.Store.ListDriftEvents(false); keep(err, "alerts: ListDriftEvents") {
 		keep(s.Store.SyncAlerts("drift", driftConditions(open)), "SyncAlerts drift")
 	}
+	if ps, err := s.Store.PanelSettings(); keep(err, "alerts: PanelSettings") {
+		keep(s.Store.SyncAlerts("functions", functionsConditions(ps)), "SyncAlerts functions")
+	}
 	if noted, err := s.Store.NotedDeployments(); keep(err, "alerts: NotedDeployments") {
 		keep(s.Store.SyncAlerts("deploy", deployConditions(noted)), "SyncAlerts deploy")
 	}

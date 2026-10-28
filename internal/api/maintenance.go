@@ -235,6 +235,7 @@ func (s *Server) runCertificateSweep(ctx context.Context, r *jobs.Run) error {
 	if ps.PanelDomain != "" {
 		names = append(names, panelName)
 	}
+	names = append(names, s.functionLineages(ps)...)
 	var status rpc.CertStatusResult
 	if err := agentrpc.Into(ctx, s.Agent, agentrpc.CertStatus, rpc.CertStatusParams{Names: names}, &status); err != nil {
 		return err
@@ -266,6 +267,7 @@ func (s *Server) runCertificateSweep(ctx context.Context, r *jobs.Run) error {
 			s.audit("system", "cert.renew_failed", ps.PanelDomain, err.Error())
 		}
 	}
+	s.renewFunctionsCerts(ctx, ps, status.Certs)
 	r.Progress(100, fmt.Sprintf("%d site certificates due for renewal", due))
 	return nil
 }

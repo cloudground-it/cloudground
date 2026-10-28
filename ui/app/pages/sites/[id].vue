@@ -67,14 +67,6 @@ const links = computed(() => {
   if (s.type !== 'proxy') items.push({ label: t('tabs.security'), icon: 'i-cg-shield-check', to: `${base.value}/security` })
   if (!s.staging_of) items.push({ label: 'Staging', icon: 'i-cg-staging', to: `${base.value}/staging` })
   items.push({ label: t('tabs.deployments'), icon: 'i-cg-release', to: `${base.value}/deployments` })
-  // Functions at /.functions/<name> (issue 143); a staging copy has none of its
-  // own. They sit right after Releases, where the bar has room: always on a
-  // Node.js or Python site (beside its App tab), and on every site but
-  // WordPress and WooCommerce, whose bar is already full at laptop width (the
-  // WordPress tab) and keep Functions under "More".
-  const functions: Tab = { label: t('tabs.functions'), icon: 'i-cg-webhook', to: `${base.value}/functions` }
-  const functionsFirst = !s.staging_of && (isAppSite(s) || !isWordPress(s))
-  if (functionsFirst) items.push(functions)
   items.push(
     { label: t('tabs.backups'), icon: 'i-cg-backup', to: `${base.value}/backups` },
     { label: 'SSL', icon: 'i-cg-certificate', to: `${base.value}/ssl` },
@@ -83,7 +75,6 @@ const links = computed(() => {
     { label: t('tabs.files'), icon: 'i-cg-folder', to: `${base.value}/files` }
   )
   const more: Tab[] = [{ label: 'Cron', icon: 'i-cg-cron', to: `${base.value}/cron` }]
-  if (!s.staging_of && !functionsFirst) more.push(functions)
   if (s.php_version) more.push({ label: 'PHP', icon: 'i-cg-code', to: `${base.value}/php` })
   // mail() of a PHP site goes through the panel's relay (#77).
   if (s.php_version) more.push({ label: t('tabs.mail'), icon: 'i-cg-bell', to: `${base.value}/mail` })

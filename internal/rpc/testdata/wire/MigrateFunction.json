@@ -1,0 +1,71 @@
+{
+  "params": {
+    "full": {
+      "site": "@state.Site",
+      "old_name": "OldName",
+      "function": {
+        "id": 7,
+        "name": "Name",
+        "runtime": "Runtime",
+        "version": "Version",
+        "memory_mb": 7,
+        "timeout_sec": 7,
+        "schedule": "Schedule",
+        "env": {
+          "key": "Env"
+        },
+        "secrets": [
+          "Secrets"
+        ],
+        "auth": "Auth",
+        "cors_origins": [
+          "CORSOrigins"
+        ],
+        "domains": [
+          "Domains"
+        ],
+        "release": "Release",
+        "created_at": "CreatedAt",
+        "updated_at": "UpdatedAt"
+      },
+      "env": {
+        "key": "Env"
+      }
+    },
+    "zero": {
+      "site": "@state.Site",
+      "old_name": "",
+      "function": {
+        "id": 0,
+        "name": "",
+        "runtime": "",
+        "version": "",
+        "memory_mb": 0,
+        "timeout_sec": 0,
+        "schedule": "",
+        "env": null,
+        "secrets": null,
+        "auth": "",
+        "cors_origins": null,
+        "domains": null,
+        "release": "",
+        "created_at": "",
+        "updated_at": ""
+      },
+      "env": null
+    }
+  },
+  "result": {
+    "full": {
+      "release": "Release",
+      "releases": [
+        "Releases"
+      ],
+      "output": "Output"
+    },
+    "zero": {
+      "release": "",
+      "releases": null
+    }
+  }
+}

@@ -53,6 +53,12 @@ type PanelSettings struct {
 	// MCPEnabled turns on the remote MCP server (api SPEC §16); off by
 	// default.
 	MCPEnabled bool
+	// FunctionsDomain is the functions domain (#143 v0.9.0, internal/functions
+	// SPEC §1.2): every function answers at https://<it>/<name>; "" is none.
+	FunctionsDomain string
+	// FunctionsMigration is the v0.8.x functions migration's marker (api SPEC
+	// §17.8): "" not run, "done", or "failed: <first error>".
+	FunctionsMigration string
 }
 
 // AlertEmailList is AlertEmails one address each.
@@ -118,13 +124,13 @@ func (p PanelSettings) EffectiveProbeTarget() string {
 	return p.ProbeTarget
 }
 
-const panelCols = `acme_email, panel_domain, probe_target, backup_repository, backup_s3_access_key, backup_s3_region, require_2fa_admin, require_2fa_all, update_check, update_channel, vulnerability_check, malware_scan, mail, mcp_enabled`
+const panelCols = `acme_email, panel_domain, probe_target, backup_repository, backup_s3_access_key, backup_s3_region, require_2fa_admin, require_2fa_all, update_check, update_channel, vulnerability_check, malware_scan, mail, mcp_enabled, functions_domain, functions_migration`
 
 func scanPanel(row interface{ Scan(...any) error }) (PanelSettings, error) {
 	var p PanelSettings
 	var mail string
 	err := row.Scan(&p.ACMEEmail, &p.PanelDomain, &p.ProbeTarget, &p.BackupRepository,
-		&p.BackupS3AccessKey, &p.BackupS3Region, &p.Require2FAAdmin, &p.Require2FAAll, &p.UpdateCheck, &p.UpdateChannel, &p.VulnerabilityCheck, &p.MalwareScan, &mail, &p.MCPEnabled)
+		&p.BackupS3AccessKey, &p.BackupS3Region, &p.Require2FAAdmin, &p.Require2FAAll, &p.UpdateCheck, &p.UpdateChannel, &p.VulnerabilityCheck, &p.MalwareScan, &mail, &p.MCPEnabled, &p.FunctionsDomain, &p.FunctionsMigration)
 	if err != nil {
 		return p, err
 	}
@@ -172,9 +178,9 @@ func (s *Store) UpdatePanelSettings(fn func(*PanelSettings) error) (PanelSetting
 			return err
 		}
 		if _, err := conn.ExecContext(ctx, `UPDATE panel_settings SET acme_email=?, panel_domain=?, probe_target=?,
-			backup_repository=?, backup_s3_access_key=?, backup_s3_region=?, require_2fa_admin=?, require_2fa_all=?, update_check=?, update_channel=?, vulnerability_check=?, malware_scan=?, mail=?, mcp_enabled=? WHERE id=1`,
+			backup_repository=?, backup_s3_access_key=?, backup_s3_region=?, require_2fa_admin=?, require_2fa_all=?, update_check=?, update_channel=?, vulnerability_check=?, malware_scan=?, mail=?, mcp_enabled=?, functions_domain=?, functions_migration=? WHERE id=1`,
 			p.ACMEEmail, p.PanelDomain, p.ProbeTarget, repo, p.BackupS3AccessKey, p.BackupS3Region,
-			p.Require2FAAdmin, p.Require2FAAll, p.UpdateCheck, p.UpdateChannel, p.VulnerabilityCheck, p.MalwareScan, string(mail), p.MCPEnabled); err != nil {
+			p.Require2FAAdmin, p.Require2FAAll, p.UpdateCheck, p.UpdateChannel, p.VulnerabilityCheck, p.MalwareScan, string(mail), p.MCPEnabled, p.FunctionsDomain, p.FunctionsMigration); err != nil {
 			return fmt.Errorf("update panel settings: %w", err)
 		}
 		out = p

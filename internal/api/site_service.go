@@ -358,6 +358,9 @@ func (svc siteService) insertNamed(rec state.Site) (state.Site, error) {
 		if owner == rec.Domain {
 			return state.Site{}, refuse(probConflict, "a site with this domain already exists")
 		}
+		if !siteOwner(owner) {
+			return state.Site{}, refuse(probConflict, rec.Domain+" is already used by "+owner)
+		}
 		return state.Site{}, refuse(probConflict, rec.Domain+" is already an alias of "+owner)
 	}
 	for _, a := range rec.Aliases {

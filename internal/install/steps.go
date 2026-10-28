@@ -97,6 +97,9 @@ var directories = []struct {
 	w    want
 }{
 	{"/srv/sites", want{mode: 0o755}},
+	// The functions' code (internal/functions SPEC §2): traversed, never
+	// listed, by the functions' users.
+	{"/srv/functions", want{mode: 0o711, user: "root", group: "root"}},
 	{"/var/log/cloudground", want{mode: 0o755}},
 	{"/var/cache/cloudground", want{mode: 0o755}},
 	{"/var/lib/cloudground", want{mode: 0o750, user: "cloudground", group: "cloudground"}},
