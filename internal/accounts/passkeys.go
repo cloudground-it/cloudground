@@ -44,6 +44,13 @@ const (
 	// wait per client network; a new one past it drops that network's
 	// oldest, so one network cannot fill MaxCeremonies for everyone.
 	perNetworkSignIns = 8
+	// perWideSignIns is the same bound for an IPv6 /48, whose 2^16 /64s
+	// would otherwise each get perNetworkSignIns.
+	perWideSignIns = 32
+	// MaxSignIns is how many passkey sign-ins may wait across the panel, so
+	// that the challenges of signed-in accounts (a second factor, a proof,
+	// a registration: bounded per account) always find room.
+	MaxSignIns = MaxCeremonies / 2
 )
 
 // purpose is what a challenge was issued for; an answer is accepted only
@@ -60,12 +67,13 @@ const (
 type ceremony struct {
 	purpose purpose
 	userID  int64
-	// network is the client's (Origin.network), for a sign-in's bound.
-	network string
-	rp      RP
-	session webauthn.SessionData
-	expires time.Time
-	seq     uint64
+	// network and wide are the client's (Origin.network, Origin.Wide), for
+	// a sign-in's bounds.
+	network, wide string
+	rp            RP
+	session       webauthn.SessionData
+	expires       time.Time
+	seq           uint64
 }
 
 // ceremonies are the challenges waiting, by challenge. They live in the
@@ -113,6 +121,20 @@ func (c *ceremonies) put(cer *ceremony, now time.Time) error {
 			mine = mine[1:]
 		}
 	}
+	if cer.userID == 0 && cer.wide != "" {
+		c.dropOldest(cer.purpose, perWideSignIns-1, func(v *ceremony) bool { return v.userID == 0 && v.wide == cer.wide })
+	}
+	if cer.userID == 0 {
+		n := 0
+		for _, v := range c.m {
+			if v.userID == 0 {
+				n++
+			}
+		}
+		if n >= MaxSignIns {
+			return errTooManyCeremonies
+		}
+	}
 	if len(c.m) >= MaxCeremonies {
 		return errTooManyCeremonies
 	}
@@ -120,6 +142,22 @@ func (c *ceremonies) put(cer *ceremony, now time.Time) error {
 	cer.seq, cer.expires = c.seq, now.Add(ceremonyTTL)
 	c.m[cer.session.Challenge] = cer
 	return nil
+}
+
+// dropOldest keeps at most keep of the purpose's challenges that match,
+// dropping the oldest.
+func (c *ceremonies) dropOldest(p purpose, keep int, match func(*ceremony) bool) {
+	var mine []string
+	for k, v := range c.m {
+		if v.purpose == p && match(v) {
+			mine = append(mine, k)
+		}
+	}
+	slices.SortFunc(mine, func(a, b string) int { return int(c.m[a].seq) - int(c.m[b].seq) })
+	for len(mine) > keep {
+		delete(c.m, mine[0])
+		mine = mine[1:]
+	}
 }
 
 // take spends a challenge, right or wrong: nil when there is none waiting.
@@ -318,7 +356,7 @@ func (sv *Service) BeginPasskeySignIn(from Origin, rp RP) (*protocol.CredentialA
 	if err != nil {
 		return nil, err
 	}
-	if err := sv.ceremonies.put(&ceremony{purpose: purposeSignIn, network: from.network(), rp: rp, session: *session}, sv.now()); err != nil {
+	if err := sv.ceremonies.put(&ceremony{purpose: purposeSignIn, network: from.network(), wide: from.Wide, rp: rp, session: *session}, sv.now()); err != nil {
 		return nil, refuse(Throttled, err.Error())
 	}
 	return opts, nil

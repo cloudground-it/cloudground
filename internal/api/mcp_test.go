@@ -226,7 +226,8 @@ func TestMCPRegistrationAndAuthorizationRefusals(t *testing.T) {
 		t.Errorf("authorize to an unregistered redirect = %d", resp.StatusCode)
 	}
 	resp, _ := m.do("GET", "/oauth/authorize?"+url.Values{"client_id": {clientID}, "redirect_uri": {mcpRedirect}, "response_type": {"code"}, "state": {"s"}}.Encode(), "", nil)
-	if loc := resp.Header.Get("Location"); resp.StatusCode != http.StatusFound || !strings.Contains(loc, "error=invalid_request") || !strings.HasPrefix(loc, mcpRedirect) {
+	// Nor is a registered one, for a refusal: anyone may register a client.
+	if loc := resp.Header.Get("Location"); resp.StatusCode != http.StatusBadRequest || loc != "" {
 		t.Errorf("authorize without PKCE = %d %s", resp.StatusCode, loc)
 	}
 	_, challenge := pkcePair()

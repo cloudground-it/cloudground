@@ -365,11 +365,9 @@ func (s *Server) handleMCPAuthorize(w http.ResponseWriter, r *http.Request) {
 		oauthErr(w, http.StatusBadRequest, "invalid_request", "unknown client_id, or a redirect_uri it did not register")
 		return
 	}
-	fail := func(code, desc string) {
-		http.Redirect(w, r, redirectWith(redirectURI, url.Values{
-			"error": {code}, "error_description": {desc}, "state": {q.Get("state")}, "iss": {base},
-		}), http.StatusFound)
-	}
+	// Refusals are answered here, never sent to the redirect_uri: anyone may
+	// register a client, so its redirect would be an open redirect.
+	fail := func(code, desc string) { oauthErr(w, http.StatusBadRequest, code, desc) }
 	switch {
 	case q.Get("response_type") != "code":
 		fail("unsupported_response_type", "response_type must be code")
