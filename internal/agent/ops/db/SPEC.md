@@ -196,18 +196,31 @@ Helpers (exported for backup, restore, staging and migration):
   account `importAs(db)` names (SR-T7):
   - a site's database: **as an account of that site with `all` on it** (the
     record says which: the database's namesake first, then the first by
-    name), granted only the site's databases (never SUPER or SET USER);
-    none: a scoped account without `TRIGGER` (a dump with a trigger then
-    fails, rather than leave a trigger whose definer is dropped). The
-    agent has not its password: `host` borrows the account, giving it a
-    second, random password beside its own for the import (`ALTER USER …
-    IDENTIFIED VIA <its plugin> USING <its stored hash> OR
-    mysql_native_password USING PASSWORD(<random>)`, in a root-only
-    defaults file) and putting its own authentication back alone when the
-    client exits, success or not. The site keeps signing in with its
-    password throughout; one borrow per account at a time; only
+    name), granted only the site's databases (never SUPER or SET USER), so
+    the site's triggers, views and routines keep their owner; none found: a
+    scoped account without `TRIGGER` (a dump with a trigger then fails,
+    rather than leave a trigger whose definer is dropped). On the **box's
+    own server** the agent has not the account's password, so `host`
+    borrows the account, giving it a second, random password beside its own
+    for the import (`ALTER USER … IDENTIFIED VIA <its plugin> USING <its
+    stored hash> OR mysql_native_password USING PASSWORD(<random>)`, in a
+    root-only defaults file) and putting its own authentication back alone
+    when the client exits, success or not. The site keeps signing in with
+    its password throughout; one borrow per account at a time; only
     `mysql_native_password` and `ed25519` accounts (whose stored string is
-    the whole credential) are borrowed, others fail the import;
+    the whole credential) are borrowed, others fail the import. On an
+    **external server** borrowing needs `mysql.global_priv`, which a managed
+    server rarely grants, so the panel sends the account's own password in
+    the request (`DBImportParams`/`RestoreParams` `accounts`, user →
+    password, from the secret store, only for a database on an external
+    server); the agent signs in as the account the record picks, using the
+    password only for that user, never one the request names otherwise. The
+    administrator is never used to run a dump — only to create and drop a
+    throwaway account. Without a password for that account the import falls
+    back to a throwaway account scoped to the one database (with `TRIGGER`),
+    `DEFINER` CURRENT_USER, and the task result/log says plainly that any
+    triggers, views or routines it imported will not run until they are
+    recreated;
   - the restore test's `cgv_` database: a scoped account with `TRIGGER`
     too (the database and its objects are dropped with it);
   - a staged migration's `cgm_` database: a scoped account without
@@ -216,12 +229,15 @@ Helpers (exported for backup, restore, staging and migration):
   Every `DEFINER=` clause of the dump is rewritten on the way in
   (`host.RewriteDefiners`, a streaming filter that follows quotes and
   comments and treats `/*! … */` as code) to the importing account:
-  `` `site_<id>`@`localhost` ``, or `CURRENT_USER` for a scratch database.
+  `` `site_<id>`@`localhost` `` for a borrowed account on the box's own
+  server, or `CURRENT_USER` (the account signed in as) for the site account
+  on an external server, a scratch database, or the external fallback.
   Before, the import ran as a scoped account without `TRIGGER`: a dump with
   a plugin's trigger (or a view of another definer) failed, and with it the
   restore, the staging push and the rollback that import such dumps. A
   `DEFINER` of a privileged account is never kept: the filter replaces it,
-  and one it missed is refused by the server (no SET USER). It is the only place a `mariadb` process
+  and the importing account cannot set another (no SET USER), so one the
+  filter missed is refused by the server. It is the only place a `mariadb` process
   is started, and its argv is the adapter's, unchanged. `--local-infile=0`:
   the client runs as root, and before it a `LOAD DATA LOCAL INFILE
   '/root/…'` in a tenant's dump imported that file into a table (measured

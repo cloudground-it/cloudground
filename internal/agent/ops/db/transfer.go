@@ -77,8 +77,12 @@ func (o *Ops) importFileMaria(ctx context.Context, database, path string) error 
 	if err != nil {
 		return err
 	}
-	if err := m.Import(ctx, database, f, o.importAs(ctx, database)); err != nil {
+	note, err := m.Import(ctx, database, f, o.importAs(ctx, database))
+	if err != nil {
 		return fmt.Errorf("import into %s: %w", database, err)
+	}
+	if note.SiteUnderTempAccount {
+		addImportWarning(ctx, fmt.Sprintf("%s holds triggers, views or routines that were imported under a temporary account and will NOT run until they are recreated: the panel has no stored password for its database account on the external server", database))
 	}
 	return nil
 }
@@ -280,6 +284,10 @@ func createExport(r *sitefs.Root, database string, now time.Time) (*os.File, str
 // Import replaces the site's own database from a .sql file in its tree,
 // copied first into root's work directory (SPEC §5).
 func (o *Ops) Import(ctx context.Context, p rpc.DBImportParams) (rpc.DBImportResult, error) {
+	// The site's account passwords (for a database on an external server)
+	// and the collector for a fallback warning travel with the request.
+	ctx = WithImportAccounts(ctx, p.Accounts)
+	ctx, collected := WithImportWarnings(ctx)
 	database, err := o.SiteDatabase(ctx, p.Site, p.Database)
 	if err != nil {
 		return rpc.DBImportResult{}, err
@@ -317,6 +325,7 @@ func (o *Ops) Import(ctx context.Context, p rpc.DBImportParams) (rpc.DBImportRes
 		return rpc.DBImportResult{}, fmt.Errorf("the database import failed: %w", err)
 	}
 	tx.Commit()
+	warnings = append(warnings, collected.Messages()...)
 	return rpc.DBImportResult{Imported: p.RelPath, SizeBytes: size, Warnings: warnings}, nil
 }
 

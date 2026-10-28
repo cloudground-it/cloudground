@@ -823,16 +823,29 @@ func (o *Ops) importAs(ctx context.Context, database string) host.ImportAs {
 	if err != nil {
 		return host.ImportAs{}
 	}
-	if rec.Users[database][database] == site.GrantAll {
-		return host.ImportAs{Site: database}
-	}
-	for _, u := range sortedUsers(rec.Users) {
-		if rec.Users[u][database] == site.GrantAll {
-			return host.ImportAs{Site: u}
+	var user string
+	switch {
+	case rec.Users[database][database] == site.GrantAll:
+		user = database
+	default:
+		for _, u := range sortedUsers(rec.Users) {
+			if rec.Users[u][database] == site.GrantAll {
+				user = u
+				break
+			}
 		}
 	}
-	o.log().Warn("no account of the site has all privileges on the database: importing as a scoped account, without triggers", "database", database)
-	return host.ImportAs{}
+	if user == "" {
+		o.log().Warn("no account of the site has all privileges on the database: importing as a scoped account, without triggers", "database", database)
+		return host.ImportAs{}
+	}
+	// For a database on an external server the agent cannot borrow the
+	// account, so it needs its password. The panel sends the site's account
+	// passwords in the request; the agent uses one only for the user it
+	// picked here, never a user the request names (importAccounts is keyed
+	// by user and read only at this key). Without it the import falls back
+	// to a throwaway one-database account (host.importActor).
+	return host.ImportAs{Site: user, SitePassword: importAccounts(ctx)[user]}
 }
 
 // tenantAccount reports whether user is an account of a site, for the

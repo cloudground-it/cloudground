@@ -14,7 +14,10 @@
       ],
       "paths": [
         "Paths"
-      ]
+      ],
+      "accounts": {
+        "key": "Accounts"
+      }
     },
     "zero": {
       "site": "@state.Site",

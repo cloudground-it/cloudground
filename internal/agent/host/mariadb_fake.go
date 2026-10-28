@@ -157,34 +157,38 @@ func (f *FakeMariaDB) Unborrow(ctx context.Context, tenant func(string) bool) er
 	return f.Exec(ctx, "UNBORROW")
 }
 
-func (f *FakeMariaDB) Import(ctx context.Context, database string, r io.Reader, as ImportAs) error {
+func (f *FakeMariaDB) Import(ctx context.Context, database string, r io.Reader, as ImportAs) (ImportNote, error) {
 	if !ValidDatabaseName(database) {
-		return ErrInvalidDatabase
+		return ImportNote{}, ErrInvalidDatabase
+	}
+	who := as.definer()
+	if as.SitePassword != "" {
+		who = "login:" + as.Site
 	}
 	f.mu.Lock()
-	f.ImportedAs = append(f.ImportedAs, database+" "+as.definer())
+	f.ImportedAs = append(f.ImportedAs, database+" "+who)
 	f.mu.Unlock()
 	acct, err := f.ScopedAccount(ctx, database, false)
 	if err != nil {
-		return err
+		return ImportNote{}, err
 	}
 	defer acct.Close()
 	b, err := io.ReadAll(r)
 	if err != nil {
-		return err
+		return ImportNote{}, err
 	}
 	f.mu.Lock()
 	hook := f.OnImport
 	f.mu.Unlock()
 	if hook != nil {
 		if err := hook(database, string(b)); err != nil {
-			return err
+			return ImportNote{}, err
 		}
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.Imported[database] += string(b)
-	return nil
+	return ImportNote{}, nil
 }
 
 var _ MariaDB = (*FakeMariaDB)(nil)

@@ -3,6 +3,7 @@ package rpc
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/site"
 	"github.com/cloudground-it/cloudground/internal/state"
@@ -176,10 +177,41 @@ type DBImportParams struct {
 	Site     state.Site `json:"site"`
 	Database string     `json:"database"`
 	RelPath  string     `json:"rel_path"`
+	// Accounts carries the site's database-account passwords (user →
+	// password) for a database on an external server, where the agent
+	// cannot borrow the account (ops/db SR-T7). The agent uses one only
+	// for the account its own record picks; empty for a database on the
+	// box's own server.
+	Accounts map[string]string `json:"accounts,omitempty"`
 }
 
 // Sites lists the site imported into.
 func (p *DBImportParams) Sites() []*state.Site { return []*state.Site{&p.Site} }
+
+// Validate bounds the import accounts (RelPath and Database are checked by
+// the agent against its own record).
+func (p *DBImportParams) Validate() error { return CheckImportAccounts(p.Accounts) }
+
+// MaxImportAccounts bounds how many account passwords a request carries.
+const MaxImportAccounts = 64
+
+// CheckImportAccounts refuses an account map that is too large, names an
+// account that is not a database user's, or holds a password with a NUL or
+// a line break (it would go into a defaults file).
+func CheckImportAccounts(accounts map[string]string) error {
+	if len(accounts) > MaxImportAccounts {
+		return errors.New("too many database accounts")
+	}
+	for user, pw := range accounts {
+		if !site.ValidDBName(user) {
+			return errors.New("invalid database account name " + strconvQuote(user))
+		}
+		if len(pw) > 256 || strings.ContainsAny(pw, "\x00\n\r") {
+			return errors.New("a database account password is too long or has a line break")
+		}
+	}
+	return nil
+}
 
 // DBImportResult names the file imported and its size. Warnings are what
 // the agent noticed in the file before importing it (statements that read
