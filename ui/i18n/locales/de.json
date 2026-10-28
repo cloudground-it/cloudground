@@ -151,7 +151,7 @@
     "agent": "Agent {version}",
     "agentDown": "Der Agent antwortet nicht",
     "capacity": "Auslastung der letzten 24 Stunden",
-    "capacityEmpty": "Alle fünf Minuten ein Messpunkt.",
+    "capacityEmpty": "Noch keine Daten: alle fünf Minuten ein Messpunkt.",
     "capacityHint": "Belegte CPU, Arbeitsspeicher und Festplatte.",
     "cpuDetail": "{cores} Kerne · Last {load}",
     "disk": "Festplatte",

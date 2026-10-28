@@ -151,7 +151,7 @@
     "agent": "agent {version}",
     "agentDown": "L’agent ne répond pas",
     "capacity": "Capacité sur les dernières 24 heures",
-    "capacityEmpty": "Un échantillon toutes les cinq minutes.",
+    "capacityEmpty": "Pas encore de données : un échantillon toutes les cinq minutes.",
     "capacityHint": "CPU, mémoire et disque utilisés.",
     "cpuDetail": "{cores} cœurs · charge {load}",
     "disk": "Disque",
