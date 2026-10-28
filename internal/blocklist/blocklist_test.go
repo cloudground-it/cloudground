@@ -209,6 +209,7 @@ func TestNginxFailure(t *testing.T) {
 func TestNftScript(t *testing.T) {
 	got := NftScript(
 		[]netip.Prefix{netip.MustParsePrefix("203.0.113.0/24"), netip.MustParsePrefix("203.0.113.9/32"), netip.MustParsePrefix("192.0.2.1/32"), netip.MustParsePrefix("2001:db8::/64")},
+		[]netip.Prefix{netip.MustParsePrefix("192.0.2.7/32"), netip.MustParsePrefix("2001:db8:1::/64")},
 		[]netip.Prefix{netip.MustParsePrefix("198.51.100.0/24")},
 	)
 	want := `table inet cloudground
@@ -229,6 +230,14 @@ table inet cloudground {
 		type ipv6_addr; flags interval;
 		elements = { 2001:db8::/64 }
 	}
+	set web4 {
+		type ipv4_addr; flags interval;
+		elements = { 192.0.2.7/32 }
+	}
+	set web6 {
+		type ipv6_addr; flags interval;
+		elements = { 2001:db8:1::/64 }
+	}
 	chain input {
 		type filter hook input priority -10; policy accept;
 		iif "lo" accept
@@ -236,6 +245,10 @@ table inet cloudground {
 		ip6 saddr @allow6 accept
 		ip saddr @block4 drop
 		ip6 saddr @block6 drop
+		ip saddr @web4 tcp dport { 80, 443 } drop
+		ip saddr @web4 udp dport 443 drop
+		ip6 saddr @web6 tcp dport { 80, 443 } drop
+		ip6 saddr @web6 udp dport 443 drop
 	}
 }
 `

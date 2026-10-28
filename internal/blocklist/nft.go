@@ -10,18 +10,22 @@ import (
 const NftTable = "cloudground"
 
 // NftScript is the `nft -f` input that replaces the table with one
-// enforcing block and allow (SPEC §5).
-func NftScript(block, allow []netip.Prefix) string {
+// enforcing block (every port), web (the sites' ports only) and allow
+// (SPEC §5).
+func NftScript(block, web, allow []netip.Prefix) string {
 	var b strings.Builder
 	b.WriteString("table inet " + NftTable + "\n")
 	b.WriteString("delete table inet " + NftTable + "\n")
 	b.WriteString("table inet " + NftTable + " {\n")
 	allow4, allow6 := byFamily(allow)
 	block4, block6 := byFamily(block)
+	web4, web6 := byFamily(web)
 	set(&b, "allow4", "ipv4_addr", allow4)
 	set(&b, "allow6", "ipv6_addr", allow6)
 	set(&b, "block4", "ipv4_addr", block4)
 	set(&b, "block6", "ipv6_addr", block6)
+	set(&b, "web4", "ipv4_addr", web4)
+	set(&b, "web6", "ipv6_addr", web6)
 	b.WriteString("\tchain input {\n" +
 		"\t\ttype filter hook input priority -10; policy accept;\n" +
 		"\t\tiif \"lo\" accept\n" +
@@ -29,6 +33,10 @@ func NftScript(block, allow []netip.Prefix) string {
 		"\t\tip6 saddr @allow6 accept\n" +
 		"\t\tip saddr @block4 drop\n" +
 		"\t\tip6 saddr @block6 drop\n" +
+		"\t\tip saddr @web4 tcp dport { 80, 443 } drop\n" +
+		"\t\tip saddr @web4 udp dport 443 drop\n" +
+		"\t\tip6 saddr @web6 tcp dport { 80, 443 } drop\n" +
+		"\t\tip6 saddr @web6 udp dport 443 drop\n" +
 		"\t}\n}\n")
 	return b.String()
 }

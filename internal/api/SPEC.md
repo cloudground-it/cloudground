@@ -2651,8 +2651,10 @@ make hundreds a day).
 
 **The watcher** (`watchBlocklist`, every 10 s, or at once when a block was
 made): deletes the blocks that have ended, reads and counts the agent's
-failures, and sends the list (`BlocklistApply {block, allow}`: every block
-that has not ended, every allowed prefix, each sorted) when it differs from
+failures, and sends the list (`BlocklistApply {block, block_web, allow}`:
+every block that has not ended, a `wordpress` one in `block_web`, which
+netfilter applies to the sites' ports only (internal/blocklist SPEC §5), the
+others in `block`, every allowed prefix, each sorted) when it differs from
 the last one the agent took, when the last apply failed, or when it is 10
 minutes old (netfilter forgets the table at a reboot, and nothing else
 would tell). A failed apply is logged once per distinct error.

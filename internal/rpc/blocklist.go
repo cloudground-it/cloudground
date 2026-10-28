@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/cloudground-it/cloudground/internal/blocklist"
 )
@@ -31,16 +32,20 @@ const MaxBlocklistEntries = 100000
 // now: the addresses and networks to drop and those never dropped.
 type BlocklistApplyParams struct {
 	Block []string `json:"block"`
-	Allow []string `json:"allow"`
+	// BlockWeb is blocked from the sites only (80 and 443), not from SSH or
+	// the panel: the blocks a site's WordPress caused (internal/blocklist
+	// SPEC §5).
+	BlockWeb []string `json:"block_web,omitempty"`
+	Allow    []string `json:"allow"`
 }
 
 // Validate requires every entry to be an address or a CIDR, and every
 // block to be no wider than /8 or /16 (internal/blocklist SPEC §1).
 func (p *BlocklistApplyParams) Validate() error {
-	if len(p.Block) > MaxBlocklistEntries || len(p.Allow) > MaxBlocklistEntries {
+	if len(p.Block) > MaxBlocklistEntries || len(p.BlockWeb) > MaxBlocklistEntries || len(p.Allow) > MaxBlocklistEntries {
 		return fmt.Errorf("at most %d entries in each list", MaxBlocklistEntries)
 	}
-	for _, s := range p.Block {
+	for _, s := range append(slices.Clone(p.Block), p.BlockWeb...) {
 		pfx, err := blocklist.ParsePrefix(s)
 		if err != nil {
 			return err

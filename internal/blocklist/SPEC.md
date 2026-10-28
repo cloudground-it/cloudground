@@ -110,6 +110,8 @@ table inet cloudground {
 	set allow6 { type ipv6_addr; flags interval; elements = { … } }
 	set block4 { type ipv4_addr; flags interval; elements = { … } }
 	set block6 { type ipv6_addr; flags interval; elements = { … } }
+	set web4 { type ipv4_addr; flags interval; elements = { … } }
+	set web6 { type ipv6_addr; flags interval; elements = { … } }
 	chain input {
 		type filter hook input priority -10; policy accept;
 		iif "lo" accept
@@ -117,9 +119,22 @@ table inet cloudground {
 		ip6 saddr @allow6 accept
 		ip saddr @block4 drop
 		ip6 saddr @block6 drop
+		ip saddr @web4 tcp dport { 80, 443 } drop
+		ip saddr @web4 udp dport 443 drop
+		ip6 saddr @web6 tcp dport { 80, 443 } drop
+		ip6 saddr @web6 udp dport 443 drop
 	}
 }
 ```
+
+**Two scopes.** `block` keeps an address from every port; `web` only from
+the sites (80 and 443, TCP and HTTP/3's UDP). A block the `wordpress` source
+caused is `web`: the mark comes from a site's own PHP, which may set it on
+any of its answers and with any count up to 100, so a site could otherwise
+get anyone who posts to it (the panel's admin, editing that site) shut out
+of SSH and the panel for the ban's length. Blocks from `ssh`, `panel` and by
+hand keep the whole server, as do the sites behind Cloudflare in nginx
+(ops/sites SPEC §10), which see both lists.
 
 - The first two lines make the replacement atomic: the table is created if
   missing, deleted, and defined again, all or nothing.

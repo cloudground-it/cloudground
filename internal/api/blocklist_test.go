@@ -78,7 +78,9 @@ func TestBlocklistAutomatic(t *testing.T) {
 	s.recordFailure("203.0.113.10", blocklist.SourceWordPress, 1, time.Now())
 	s.signInFailed("unix") // the API socket without nginx: nobody to block
 	s.blocklistRound(ctx)
-	if sent := sentBlocklist(agent); !slices.Equal(sent.Block, []string{"203.0.113.10/32", "203.0.113.9/32"}) {
+	// A block WordPress caused keeps the address from the sites only
+	// (internal/blocklist SPEC §5): a site's code may mark any answer.
+	if sent := sentBlocklist(agent); !slices.Equal(sent.Block, []string{"203.0.113.9/32"}) || !slices.Equal(sent.BlockWeb, []string{"203.0.113.10/32"}) {
 		t.Fatalf("the agent was sent %+v", sent)
 	}
 

@@ -1116,7 +1116,7 @@
     "banFor": "Bloquear durante (minutos)",
     "block": "Bloquear una dirección",
     "blocked": "{address} está bloqueada",
-    "blockedHint": "Sus paquetes se descartan en todos los puertos: SSH, los sitios y este panel.",
+    "blockedHint": "Sus paquetes se descartan en todos los puertos: SSH, los sitios y este panel. Un bloqueo causado por el WordPress de un sitio solo los aparta de los sitios.",
     "blockedTitle": "Direcciones bloqueadas",
     "blockHint": "Sus paquetes se descartan de inmediato en todos los puertos. Este servidor, el loopback, la red de Cloudflare y las direcciones siempre permitidas no se pueden bloquear.",
     "disallowed": "{address} ya no está siempre permitida",

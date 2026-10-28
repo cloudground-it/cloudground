@@ -168,7 +168,11 @@ func (o *Ops) Apply(ctx context.Context, p rpc.BlocklistApplyParams) (rpc.Blockl
 	if err != nil {
 		return rpc.BlocklistApplyResult{}, err
 	}
-	for _, pfx := range block {
+	web, err := parse(p.BlockWeb)
+	if err != nil {
+		return rpc.BlocklistApplyResult{}, err
+	}
+	for _, pfx := range append(slices.Clone(block), web...) {
 		if err := bl.CheckBlockWidth(pfx); err != nil {
 			return rpc.BlocklistApplyResult{}, agentrpc.Invalid("%s", err.Error())
 		}
@@ -177,8 +181,8 @@ func (o *Ops) Apply(ctx context.Context, p rpc.BlocklistApplyParams) (rpc.Blockl
 	if err != nil {
 		return rpc.BlocklistApplyResult{}, err
 	}
-	block, allow = bl.Minimal(block), bl.Minimal(allow)
-	_, err = o.Exec.Run(ctx, host.Cmd{Name: "nft", Args: []string{"-f", "-"}, Stdin: strings.NewReader(bl.NftScript(block, allow)), Timeout: time.Minute})
+	block, web, allow = bl.Minimal(block), bl.Minimal(web), bl.Minimal(allow)
+	_, err = o.Exec.Run(ctx, host.Cmd{Name: "nft", Args: []string{"-f", "-"}, Stdin: strings.NewReader(bl.NftScript(block, web, allow)), Timeout: time.Minute})
 	if errors.Is(err, exec.ErrNotFound) {
 		return rpc.BlocklistApplyResult{}, agentrpc.Wrap(agentrpc.CodeUnavailable, "nftables is not installed on this server: apt install nftables", err)
 	}
@@ -188,11 +192,12 @@ func (o *Ops) Apply(ctx context.Context, p rpc.BlocklistApplyParams) (rpc.Blockl
 	// The sites behind Cloudflare, whose visitors netfilter cannot see
 	// (SPEC §3, ops/sites SPEC §10).
 	if o.Banned != nil {
-		if err := o.Banned(ctx, block, allow); err != nil {
+		// nginx refuses a site's visitors only: both lists apply there.
+		if err := o.Banned(ctx, bl.Minimal(append(slices.Clone(block), web...)), allow); err != nil {
 			return rpc.BlocklistApplyResult{}, fmt.Errorf("nginx: %w", err)
 		}
 	}
-	return rpc.BlocklistApplyResult{Blocked: len(block), Allowed: len(allow)}, nil
+	return rpc.BlocklistApplyResult{Blocked: len(block) + len(web), Allowed: len(allow)}, nil
 }
 
 // Serve runs both readers until ctx ends (SPEC §1).

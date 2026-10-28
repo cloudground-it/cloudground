@@ -1116,7 +1116,7 @@
     "banFor": "Bloquer pendant (minutes)",
     "block": "Bloquer une adresse",
     "blocked": "{address} est bloquée",
-    "blockedHint": "Leurs paquets sont rejetés sur tous les ports : SSH, les sites et ce panneau.",
+    "blockedHint": "Leurs paquets sont rejetés sur tous les ports : SSH, les sites et ce panneau. Un blocage causé par le WordPress d’un site ne les écarte que des sites.",
     "blockedTitle": "Adresses bloquées",
     "blockHint": "Ses paquets sont rejetés aussitôt sur tous les ports. Ce serveur, le loopback, le réseau de Cloudflare et les adresses toujours autorisées ne peuvent pas être bloqués.",
     "disallowed": "{address} n'est plus toujours autorisée",
