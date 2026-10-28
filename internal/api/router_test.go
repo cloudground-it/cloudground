@@ -129,6 +129,7 @@ var sessionOnly = map[string]bool{
 	"PUT /api/blocklist/settings":         true,
 	"POST /api/panel/certificate":         true,
 	"POST /api/panel/update":              true,
+	"POST /api/backups/repository/move":   true,
 	"POST /api/system/updates/apply":      true,
 	// An API token cannot open Quarry.
 	"POST /api/sites/{id}/quarry/handoff": true,

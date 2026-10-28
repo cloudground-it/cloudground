@@ -274,6 +274,7 @@ var routePolicy = map[string]string{
 	"POST /api/backups/{id}/verify":          "manage",
 	"POST /api/backups/{id}/restore":         "manage",
 	"POST /api/backups/test":                 "admin",
+	"POST /api/backups/repository/move":      "admin",
 	"DELETE /api/backups/{id}":               "admin",
 	"POST /api/sites/{id}/backups/retention": "admin",
 

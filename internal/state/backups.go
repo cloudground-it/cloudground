@@ -1,6 +1,7 @@
 package state
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"strings"
@@ -173,6 +174,58 @@ func (s *Store) BackupRepositories() ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+// ErrRepositoryChanged is a move of the backup repository that finds the
+// setting no longer naming the repository it moves from.
+var ErrRepositoryChanged = errors.New("the backup repository changed")
+
+// BackupsInRepository is every record in repository, oldest first.
+func (s *Store) BackupsInRepository(repository string) ([]Backup, error) {
+	return s.queryBackups(`WHERE repository=? ORDER BY id`, RepoKey(repository))
+}
+
+// MoveBackupRepository points the setting and every record in from at the
+// repository change sets (internal/api SPEC §5.9, #192), in one write
+// transaction: change edits the settings (their repository, its
+// credentials), and secrets are written with them (a value "" deletes
+// one). The settings must still name from, else ErrRepositoryChanged and
+// nothing changes. It returns how many records moved.
+func (s *Store) MoveBackupRepository(from string, change func(*PanelSettings) error, secrets map[string]string) (int, error) {
+	moved := 0
+	err := s.writeTx(func(conn *sql.Conn, ctx context.Context) error {
+		q := connExec{conn: conn, ctx: ctx}
+		p, err := s.updatePanelTx(conn, ctx, func(p *PanelSettings) error {
+			if RepoKey(p.BackupRepository) != RepoKey(from) {
+				return ErrRepositoryChanged
+			}
+			return change(p)
+		})
+		if err != nil {
+			return err
+		}
+		for name, v := range secrets {
+			if err := s.setSecret(q, name, v); err != nil {
+				return err
+			}
+		}
+		to, err := s.storedRepo(q, p.BackupRepository)
+		if err != nil {
+			return err
+		}
+		res, err := conn.ExecContext(ctx, `UPDATE backups SET repository=? WHERE repository=?`, to, RepoKey(from))
+		if err != nil {
+			return err
+		}
+		n, err := res.RowsAffected()
+		moved = int(n)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	s.publish(events.SettingsChanged, 0, nil)
+	return moved, nil
 }
 
 // DeleteBackup removes one record (its snapshot has been forgotten).

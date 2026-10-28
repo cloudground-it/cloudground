@@ -679,6 +679,29 @@
       "full": "Alles (Dateien und Datenbanken)",
       "files": "Nur Dateien",
       "database": "Nur Datenbanken"
+    },
+    "move": {
+      "open": "Backups verschieben",
+      "title": "Backups verschieben",
+      "hint": "Alle Backups kommen ins neue Repository. Das Panel wechselt erst, wenn es geprüft hat, dass jedes dort ist.",
+      "from": "Aktuelles Repository",
+      "to": "Neues Repository",
+      "toHelp": "Ein Ordner auf dem Server oder s3:…, b2:…, sftp:…, rest:…, wie restic es schreibt.",
+      "same": "Das ist das aktuelle Repository.",
+      "how": "Wie",
+      "mode": {
+        "copy": "Das Panel kopiert sie",
+        "moved": "Schon kopiert"
+      },
+      "modeHint": {
+        "copy": "Das Panel kopiert jeden Snapshot mit restic. Große Repositorys brauchen Stunden.",
+        "moved": "Du hast das Repository selbst kopiert (rsync, rclone, das Werkzeug deines Anbieters). Das Panel prüft es nur."
+      },
+      "passwordHelp": "Leer lassen, wenn es gleich bleibt.",
+      "keysHelp": "Leer lassen, um die aus den Einstellungen zu behalten.",
+      "safe": "Nichts ändert sich, bevor die Prüfung bestanden ist. Das alte Repository bleibt, wie es ist: Lösche es, sobald die Wiederherstellungstests bestanden sind.",
+      "start": "Verschieben",
+      "started": "Verschieben gestartet"
     }
   },
   "ssl": {

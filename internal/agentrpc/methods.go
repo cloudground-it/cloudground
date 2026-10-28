@@ -232,6 +232,14 @@ var (
 	PullCleanup       = define[rpc.PullCleanupParams, map[string]int](Spec{Name: "PullCleanup", Timeout: 1 * mins, Sites: true, Fail: "Could not remove the copied files"})
 )
 
+// Moving the backup repository (#192, ops/backup SPEC §13): a read of one,
+// and a copy of every snapshot of one into another (restic's own bound is
+// 12 h).
+var (
+	RepositoryInfo = define[rpc.RepositoryInfoParams, rpc.RepositoryInfoResult](Spec{Name: "RepositoryInfo", Timeout: 15 * mins, ReadOnly: true, Fail: "Could not read the backup repository"})
+	CopyRepository = define[rpc.CopyRepositoryParams, rpc.CopyRepositoryResult](Spec{Name: "CopyRepository", Timeout: 13 * hrs, Fail: "Could not copy the backups to the new repository"})
+)
+
 // The server's own packages (internal/agent/ops/system/SPEC.md §7, #27). A
 // refresh writes apt's lists and an upgrade the system, so neither is
 // read-only; the panel names no package.

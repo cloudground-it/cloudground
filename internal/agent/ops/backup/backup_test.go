@@ -43,12 +43,19 @@ const (
 // pids. It keeps what a stdin backup was fed in stdin, answers
 // `snapshots <id>` from snap-<id>.json and a bare `snapshots` from
 // all.json, `restore <id>` from the tree tree-<id>, `dump <id>` from
-// dump-<id>, and a dry-run forget from plan.
+// dump-<id>, and a dry-run forget from plan. `cat config` prints
+// config<key> (the repository with / and : as _), else config; missing<key>
+// makes that repository not exist (exit 10) until an init. A copy's source
+// (RESTIC_FROM_REPOSITORY) is logged to from-repos.
 const fakeResticScript = `#!/bin/sh
 d="$FAKE_RESTIC"
 echo "$*" >> "$d/log"
 echo "$RESTIC_REPOSITORY" >> "$d/repos"
+[ -n "$RESTIC_FROM_REPOSITORY" ] && echo "$1 $RESTIC_FROM_REPOSITORY $RESTIC_FROM_PASSWORD" >> "$d/from-repos"
+key=$(echo "$RESTIC_REPOSITORY" | tr '/:' '__')
 cmd=$1; shift
+if [ "$cmd" = cat ] && [ -f "$d/missing$key" ]; then echo "Fatal: repository does not exist" >&2; exit 10; fi
+if [ "$cmd" = init ]; then rm -f "$d/missing$key"; fi
 sub=$cmd
 if [ "$cmd" = backup ]; then
   case " $* " in *" --stdin "*) sub=backup-stdin ;; *) sub=backup-files ;; esac
@@ -71,7 +78,8 @@ if [ -f "$d/exit-$sub" ] && [ "$cmd" != backup ]; then
   exit $(cat "$d/exit-$sub")
 fi
 case "$cmd" in
-cat|init|check|prune) ;;
+cat) cat "$d/config$key" 2>/dev/null || cat "$d/config" 2>/dev/null || true ;;
+init|check|prune|copy) ;;
 forget) case " $* " in *" --dry-run "*) cat "$d/plan" ;; esac ;;
 backup)
   if [ $sub = backup-stdin ]; then cat > "$d/stdin"; id=` + dbID + `
@@ -900,8 +908,8 @@ func TestRetentionForgetsOnlyUnprotectedSnapshots(t *testing.T) {
 		t.Fatalf("kept = %v", res.Kept)
 	}
 	calls := strings.Split(strings.TrimSpace(f.log()), "\n")
-	if len(calls) != 2 || calls[0] != "forget --dry-run --json --tag site:docs.example.com --host box --keep-within 30d" ||
-		calls[1] != "forget --prune "+snapOld {
+	if len(calls) != 3 || calls[0] != "forget --dry-run --json --tag site:docs.example.com --host box --keep-within 30d" ||
+		calls[1] != "snapshots --json --tag site:docs.example.com" || calls[2] != "forget --prune "+snapOld {
 		t.Fatalf("restic calls = %q", calls)
 	}
 }

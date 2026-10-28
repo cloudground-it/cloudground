@@ -70,7 +70,8 @@ For every request, in this order; the first step that refuses answers.
    `/api/tokens` routes, `POST /api/sites/{id}/ssh-shell` (R-4.5), `GET` and
    `PUT /api/sites/{id}/routing` (R-5.4), and the panel's own governance:
    `POST /api/firewall/rule`, `POST /api/firewall/enable`, `POST
-   /api/panel/certificate` and `POST /api/panel/update`. So a leaked token cannot mint another, create an
+   /api/panel/certificate`, `POST /api/panel/update` and `POST
+   /api/backups/repository/move` (§5.9). So a leaked token cannot mint another, create an
    admin, reset a password, open a site's shell, open the firewall or
    replace the panel's binary. `PUT /api/settings` is an `admin` row a token
    reaches, and its handler refuses a token any change but to `acme_email`
@@ -122,7 +123,7 @@ panel itself (§1.2 step 6):
 | a site's shell and routing | a shell is a login on the server; the routing block is nginx configuration |
 | `require_2fa`, `require_2fa_admin` | it would take the second factor away from every account the requirement covers |
 | `mcp` | it would open the panel to AI assistants (§16) |
-| `backup_repository`, `backup_password`, the S3 keys and region | it would send every backup, with the key that opens it, to a store of its choosing |
+| `backup_repository`, `backup_password`, the S3 keys and region, `POST /api/backups/repository/move` | it would send every backup, with the key that opens it, to a store of its choosing |
 | `notify_webhook` | it would receive every alert |
 | `cloudflare_api_token` | it is the DNS credential of the panel's certificates |
 | `update_channel`, `update_check`, `POST /api/panel/update` | it would choose what the panel runs |
@@ -1824,6 +1825,7 @@ accounts read it).
 | `POST /api/backups/test` (`admin`) | 412 | the agent's `TestBackup` now: `200 {"reachable", "snapshots"}`, or `repository not reachable: …` with the agent error's status |
 | `POST /api/sites/{id}/backups/retention` (`admin`) | 412; 400 `this site has no backup retention window` | `202`, job `backup.retention` |
 | `PUT /api/sites/{id}/backups/policy` (`manage`) | §5.5 | `200` with the policy |
+| `POST /api/backups/repository/move` (`admin`, sessions only) | §5.9 | `202 {"task"}`, job `backup.move` |
 
 ### 5.6 Restoring one file or folder (#23)
 
@@ -1890,6 +1892,80 @@ settings show:
   an `sftp:` repository carries the key (ops/backup SPEC §2); the
   destination's host key is learned at its first connection (the test
   when the setting is saved) and checked from then on.
+
+### 5.9 Moving the repository (#192, `backup_move.go`)
+
+Changing `backup_repository` in the settings points new backups at the new
+place and leaves every record where it was taken. A move points the records
+too, once the new place is known to hold them:
+
+`POST /api/backups/repository/move` (`admin`, sessions only: it chooses
+where every backup goes, §1.2.1) `{"mode", "repository", "password"?,
+"s3_access_key"?, "s3_secret_key"?, "s3_region"?, "b2_account_id"?,
+"b2_account_key"?}`. `password` and the credentials are the new
+repository's; one left out (or empty) keeps the current setting's value.
+
+| `mode` | The administrator says | The panel |
+| --- | --- | --- |
+| `copy` | copy the backups there | copies every snapshot with `restic copy` (ops/backup SPEC §13; a new repository is made first), then checks |
+| `moved` | the files are already there (copied by hand: rsync, `rclone`, the provider's own tool) | checks only |
+
+Refusals, in order: a body that does not decode → 400 `malformed request`;
+a `mode` other than the two → 400 `mode must be copy or moved`; backups not
+configured → 412 (§5.2); no `repository` → 400 `give the new repository`;
+one the destination rules refuse (`internal/backuprepo`) → 400 with the
+rule's message; the configured repository itself (`state.RepoKey` equal)
+→ 400 `this is already the backup repository`. Then `backup.move` is
+queued under both repositories' locks (`repo:<hash>` of each), audited
+`backup.move` (`<mode> to <new repository, its credentials masked>`):
+**202** `{"task"}`. Its payload names the mode and the two repositories
+masked; the password and credentials stay in the job's memory, so the job
+is not resumable (a restart fails it; ask again).
+
+The job:
+
+1. The settings read again must still name the repository the move was
+   asked from, else it fails (`the backup repository changed while the move
+   waited; ask again`).
+2. The records in that repository (`BackupsInRepository`) are what must
+   arrive.
+3. `RepositoryInfo` of the current repository: its restic ID.
+4. `moved`: `RepositoryInfo` of the new one, expecting every record's
+   snapshot. One that does not exist fails (`the new repository does not
+   exist: copy the backups there first, or let the panel copy them`); one
+   with another ID fails (`this is another repository (ID <8 hex>), not a
+   copy of the current one (ID <8 hex>)`: restic gives every repository its
+   own ID at `init`, and a copy of the files keeps it).
+   `copy`: `CopyRepository` from the current repository to the new one
+   (the long step; its failure fails the job), then `RepositoryInfo` of the
+   new one, expecting every record's snapshot.
+5. A record whose snapshot is not in the new repository, by its ID or by
+   the one it had before `restic copy` gave it a new one (ops/backup SPEC
+   §5), fails the job (`<n> recorded backups are not in the new repository
+   (<ids>)`), naming at most three.
+6. A checkpoint: a cancel stops here, before anything of the panel changed.
+7. `state.MoveBackupRepository`: the setting (the repository, its password
+   and credentials when given) and every record of the old repository point
+   at the new one, in one transaction. The records keep their snapshot IDs:
+   the agent finds a copied snapshot by the ID it had (ops/backup SPEC §5).
+8. The newest record of each site in it gets its restore test
+   (`backup.verify`), from the new repository.
+9. Audited `backup.moved` by `system`: `<n> backups moved from <old> to
+   <new> (<mode>)`, both masked.
+
+Until step 7 nothing of the panel points at the new repository: a failure
+anywhere before leaves every record, and the setting, on the old one (the
+new repository keeps what a copy put there, harmless; run the move again,
+and `restic copy` skips what it already copied). The old repository is
+never changed or deleted: the administrator removes it once the restore
+tests pass. A verify or a deletion queued under the old repository's lock
+before the move runs against the record's repository as it reads it at its
+start: it is requeued under the new lock when the two differ (jobs SPEC
+§3.6).
+
+`cgctl backup move <repository> [--copy | --already-copied]` calls the
+route through the panel's socket session (an admin's, never a token) and
+follows the task (cmd/cgctl SPEC).
 
 ### 5.5 The policy
 
@@ -2001,7 +2077,13 @@ credentials reaching the agent). e2e: `wordpress backups`, `R-4.3 deploys
 and backups`, `R-4.3 site settings` (the policy, R-8.2), `backup
 destinations and selective restore` (#23: an SFTP repository on a second
 site of the box, one file restored behind its safety snapshot, a
-download).
+download), `backup repository move` (§5.9: a local repository copied and
+moved both ways, the old one deleted, the old records restored in every
+mode, tested and downloaded from the new one; another repository and a
+missing snapshot refused, the records left where they were).
+`backup_move_test.go` (§5.9: the refusals, the session-only row, the copy
+and the check, the transaction, the verifies, a failure leaving the records
+and the setting as they were).
 ## 6. Site proxies (R-4.3)
 
 Files, WordPress, the database console and Quarry are thin proxies: the

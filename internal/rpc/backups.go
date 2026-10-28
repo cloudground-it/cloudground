@@ -139,6 +139,67 @@ type TestBackupParams struct {
 	Env        map[string]string `json:"env,omitempty"`
 }
 
+// RepositoryInfoParams reads a repository without changing it (#192,
+// ops/backup SPEC §13): its ID and which of Expect, snapshot IDs full or
+// short, it does not hold.
+type RepositoryInfoParams struct {
+	Repository string            `json:"repository"`
+	Password   string            `json:"password"`
+	Env        map[string]string `json:"env,omitempty"`
+	Expect     []string          `json:"expect,omitempty"`
+}
+
+// MaxExpect is how many snapshot IDs one RepositoryInfo may look for.
+const MaxExpect = 100000
+
+// Validate requires each expected ID to be a snapshot ID, and at most
+// MaxExpect of them.
+func (p *RepositoryInfoParams) Validate() error {
+	if len(p.Expect) > MaxExpect {
+		return errors.New("too many snapshot ids")
+	}
+	for _, id := range p.Expect {
+		if !snapshotID(id) {
+			return errors.New("invalid snapshot id")
+		}
+	}
+	return nil
+}
+
+// RepositoryInfoResult is the repository's ID (restic's config id), how
+// many snapshots it holds, and the expected IDs none of them is (by its ID
+// or the one it had before a copy).
+type RepositoryInfoResult struct {
+	ID        string   `json:"id"`
+	Snapshots int      `json:"snapshots"`
+	Missing   []string `json:"missing"`
+}
+
+// CopyRepositoryParams copies every snapshot of From into To, which is made
+// when it does not exist (#192, ops/backup SPEC §13).
+type CopyRepositoryParams struct {
+	From TestBackupParams `json:"from"`
+	To   TestBackupParams `json:"to"`
+}
+
+// Validate requires two repositories, each with its password.
+func (p *CopyRepositoryParams) Validate() error {
+	if p.From.Repository == "" || p.From.Password == "" || p.To.Repository == "" || p.To.Password == "" {
+		return errors.New("repository and password required")
+	}
+	if p.From.Repository == p.To.Repository {
+		return errors.New("the two repositories are the same")
+	}
+	return nil
+}
+
+// CopyRepositoryResult is the destination's ID and how many snapshots it
+// holds after the copy.
+type CopyRepositoryResult struct {
+	ID        string `json:"id"`
+	Snapshots int    `json:"snapshots"`
+}
+
 // RetentionParams forgets a site's snapshots older than KeepWithinDays.
 // Protect lists snapshot IDs (full or short) kept whatever their age: the
 // panel names the site's newest verified snapshot, so failed verifications
@@ -156,10 +217,12 @@ type RetentionParams struct {
 func (p *RetentionParams) Sites() []*state.Site { return []*state.Site{&p.Site} }
 
 // RetentionResult lists, by full ID, the snapshots forgotten and the ones
-// kept.
+// kept. Originals are the IDs the forgotten snapshots had before `restic
+// copy` gave them new ones (ops/backup SPEC §5): a record may hold those.
 type RetentionResult struct {
 	Forgotten []string `json:"forgotten"`
 	Kept      []string `json:"kept"`
+	Originals []string `json:"originals,omitempty"`
 }
 
 // ForgetSnapshotParams deletes one backup of a site from its repository:
@@ -184,6 +247,10 @@ func (p *ForgetSnapshotParams) Validate() error {
 	return nil
 }
 
+// ValidSnapshotID reports whether id is a restic snapshot ID, full or
+// short: 8 to 64 hex digits.
+func ValidSnapshotID(id string) bool { return snapshotID(id) }
+
 // snapshotID reports whether id is a restic snapshot ID, full or short.
 func snapshotID(id string) bool {
 	if len(id) < 8 || len(id) > 64 {
@@ -202,6 +269,9 @@ func snapshotID(id string) bool {
 // was forgotten: it is already gone).
 type ForgetSnapshotResult struct {
 	Forgotten []string `json:"forgotten"`
+	// Originals are the IDs the forgotten snapshots had before a copy
+	// (RetentionResult).
+	Originals []string `json:"originals,omitempty"`
 	Missing   bool     `json:"missing,omitempty"`
 }
 

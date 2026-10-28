@@ -1,0 +1,40 @@
+{
+  "params": {
+    "full": {
+      "from": {
+        "repository": "Repository",
+        "password": "Password",
+        "env": {
+          "key": "Env"
+        }
+      },
+      "to": {
+        "repository": "Repository",
+        "password": "Password",
+        "env": {
+          "key": "Env"
+        }
+      }
+    },
+    "zero": {
+      "from": {
+        "repository": "",
+        "password": ""
+      },
+      "to": {
+        "repository": "",
+        "password": ""
+      }
+    }
+  },
+  "result": {
+    "full": {
+      "id": "ID",
+      "snapshots": 7
+    },
+    "zero": {
+      "id": "",
+      "snapshots": 0
+    }
+  }
+}

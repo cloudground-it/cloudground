@@ -98,13 +98,14 @@ func (o *Ops) ArchiveSnapshot(ctx context.Context, p rpc.ArchiveParams) (rpc.Arc
 	}
 	defer unlock()
 
-	files, err := o.siteSnapshot(ctx, repo, s, p.SnapshotID)
+	snaps := o.siteSnaps(repo, s)
+	files, err := o.siteSnapshot(ctx, snaps, p.SnapshotID)
 	if err != nil {
 		return rpc.ArchiveResult{}, err
 	}
 	var parts []dbPart
 	if part != "files" {
-		if parts, err = o.databaseParts(ctx, repo, s, files); err != nil {
+		if parts, err = o.databaseParts(ctx, snaps, files); err != nil {
 			return rpc.ArchiveResult{}, err
 		}
 		if part == "database" && len(parts) == 0 {
@@ -132,7 +133,7 @@ func (o *Ops) ArchiveSnapshot(ctx context.Context, p rpc.ArchiveParams) (rpc.Arc
 	gz := gzip.NewWriter(tmp)
 	tw := tar.NewWriter(gz)
 	if part != "database" {
-		if err := o.archiveFiles(ctx, repo, s, p.SnapshotID, tw); err != nil {
+		if err := o.archiveFiles(ctx, repo, s, files.ID, tw); err != nil {
 			tmp.Close()
 			return rpc.ArchiveResult{}, err
 		}

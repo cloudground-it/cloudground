@@ -679,6 +679,29 @@
       "full": "Todo (archivos y bases de datos)",
       "files": "Solo archivos",
       "database": "Solo bases de datos"
+    },
+    "move": {
+      "open": "Trasladar las copias",
+      "title": "Trasladar las copias de seguridad",
+      "hint": "Todas las copias de seguridad pasan al nuevo repositorio. El panel cambia solo después de comprobar que están todas.",
+      "from": "Repositorio actual",
+      "to": "Nuevo repositorio",
+      "toHelp": "Una carpeta del servidor, o s3:…, b2:…, sftp:…, rest:… como lo escribe restic.",
+      "same": "Es el repositorio actual.",
+      "how": "Cómo",
+      "mode": {
+        "copy": "El panel las copia",
+        "moved": "Ya copiadas"
+      },
+      "modeHint": {
+        "copy": "El panel copia cada snapshot con restic. Un repositorio grande tarda horas.",
+        "moved": "Copiaste tú el repositorio (rsync, rclone, la herramienta de tu proveedor). El panel solo lo comprueba."
+      },
+      "passwordHelp": "Déjala vacía si es la misma de ahora.",
+      "keysHelp": "Déjalas vacías para mantener las de los ajustes.",
+      "safe": "No cambia nada hasta que la comprobación pase. El repositorio antiguo queda como está: bórralo cuando pasen las pruebas de restauración.",
+      "start": "Trasladar",
+      "started": "Traslado iniciado"
     }
   },
   "ssl": {

@@ -101,6 +101,8 @@ func (o *Ops) Register(s *agentrpc.Server) {
 	agentrpc.Handle(s, agentrpc.ArchiveSnapshot, o.ArchiveSnapshot)
 	agentrpc.Handle(s, agentrpc.ReadArchiveChunk, o.ReadArchiveChunk)
 	agentrpc.Handle(s, agentrpc.DeleteArchive, o.DeleteArchive)
+	agentrpc.Handle(s, agentrpc.RepositoryInfo, o.RepositoryInfo)
+	agentrpc.Handle(s, agentrpc.CopyRepository, o.CopyRepository)
 }
 
 func (o *Ops) log() *slog.Logger {
@@ -245,7 +247,8 @@ func (o *Ops) ensureRepo(ctx context.Context, repo host.Repo) error {
 	return nil
 }
 
-// snapshot reads one snapshot's metadata.
+// snapshot reads one snapshot's metadata. One restic does not know by that
+// ID is a *missingSnapshot.
 func (o *Ops) snapshot(ctx context.Context, repo host.Repo, id string) (host.Snapshot, error) {
 	out, err := o.run(ctx, repo, metaTimeout, "snapshots", "--json", id)
 	if err != nil {
@@ -256,9 +259,81 @@ func (o *Ops) snapshot(ctx context.Context, repo host.Repo, id string) (host.Sna
 		return host.Snapshot{}, err
 	}
 	if len(snaps) != 1 {
-		return host.Snapshot{}, agentrpc.NotFound("snapshot %s not found", id)
+		return host.Snapshot{}, &missingSnapshot{agentrpc.NotFound("snapshot %s not found", id)}
 	}
 	return snaps[0], nil
+}
+
+// missingSnapshot is a snapshot ID restic lists nothing for (not a missing
+// repository, which is not_found too).
+type missingSnapshot struct{ err error }
+
+func (e *missingSnapshot) Error() string { return e.err.Error() }
+func (e *missingSnapshot) Unwrap() error { return e.err }
+
+// siteSnaps resolves the IDs of one call against a repository for site
+// (SPEC §5): by restic's own ID first, then, for a snapshot copied by
+// `restic copy` (which gives it a new ID), by its original ID among the
+// site's snapshots, listed once.
+type siteSnaps struct {
+	o    *Ops
+	repo host.Repo
+	site state.Site
+	list []host.Snapshot
+	read bool
+}
+
+func (o *Ops) siteSnaps(repo host.Repo, s state.Site) *siteSnaps {
+	return &siteSnaps{o: o, repo: repo, site: s}
+}
+
+// find is the snapshot id names: its own, or the copy of it.
+func (l *siteSnaps) find(ctx context.Context, id string) (host.Snapshot, error) {
+	snap, err := l.o.snapshot(ctx, l.repo, id)
+	var missing *missingSnapshot
+	if err == nil || !errors.As(err, &missing) {
+		return snap, err
+	}
+	if !l.read {
+		out, lerr := l.o.run(ctx, l.repo, metaTimeout, "snapshots", "--json", "--tag", tagSite+l.site.Domain)
+		if lerr != nil {
+			return host.Snapshot{}, lerr
+		}
+		if l.list, lerr = host.DecodeSnapshots(out); lerr != nil {
+			return host.Snapshot{}, lerr
+		}
+		l.read = true
+	}
+	found, ferr := matchOriginal(l.list, id)
+	if ferr != nil {
+		return host.Snapshot{}, ferr
+	}
+	if found == nil {
+		return host.Snapshot{}, err
+	}
+	return *found, nil
+}
+
+// matchOriginal is the snapshot of snaps whose original ID is id (either
+// may be a prefix of the other); nil for none, invalid for two.
+func matchOriginal(snaps []host.Snapshot, id string) (*host.Snapshot, error) {
+	var found *host.Snapshot
+	for i := range snaps {
+		if snaps[i].Original == "" || !ValidSnapshotID(snaps[i].ID) || !protected(snaps[i].Original, []string{id}) {
+			continue
+		}
+		if found != nil {
+			return nil, agentrpc.Invalid("snapshot id %s is ambiguous", id)
+		}
+		found = &snaps[i]
+	}
+	return found, nil
+}
+
+// names reports whether snap is the snapshot id names: by its ID or by the
+// ID it had before a copy (SPEC §5).
+func names(snap host.Snapshot, id string) bool {
+	return snap.ID != "" && protected(snap.ID, []string{id}) || snap.Original != "" && protected(snap.Original, []string{id})
 }
 
 // hostname is this server's name, as restic records it in a snapshot.
@@ -292,19 +367,24 @@ func (o *Ops) ours(snap host.Snapshot, s state.Site) string {
 	return ""
 }
 
-// siteSnapshot reads the file snapshot id and requires it to be one of the
-// site's own, made on this server, and not a database part (SR-T6). Before,
-// a files restore swapped in whatever tree the ID named.
-func (o *Ops) siteSnapshot(ctx context.Context, repo host.Repo, s state.Site, id string) (host.Snapshot, error) {
-	snap, err := o.snapshot(ctx, repo, id)
+// siteSnapshot reads the file snapshot id (resolved by l, SPEC §5) and
+// requires it to be one of the site's own, made on this server, and not a
+// database part (SR-T6). Before, a files restore swapped in whatever tree
+// the ID named. The snapshot returned carries restic's own ID, which every
+// later call names.
+func (o *Ops) siteSnapshot(ctx context.Context, l *siteSnaps, id string) (host.Snapshot, error) {
+	snap, err := l.find(ctx, id)
 	if err != nil {
 		return host.Snapshot{}, err
 	}
-	if why := o.ours(snap, s); why != "" {
+	if why := o.ours(snap, l.site); why != "" {
 		return host.Snapshot{}, agentrpc.Invalid("snapshot %s cannot be restored here: %s", id, why)
 	}
 	if slices.Contains(snap.Tags, tagDatabase) {
 		return host.Snapshot{}, agentrpc.Invalid("snapshot %s is a database part, not a site backup", id)
+	}
+	if !ValidSnapshotID(snap.ID) {
+		return host.Snapshot{}, fmt.Errorf("the repository lists an invalid snapshot id")
 	}
 	return snap, nil
 }

@@ -40,10 +40,12 @@ func (o *Ops) siteDatabases(ctx context.Context, s state.Site) ([]string, error)
 	return o.DB.BackedUpDatabases(ctx, s)
 }
 
-// databaseParts reads the database snapshots the file snapshot names, each
-// required to be one of the site's own made on this server (SR-T6). A
-// backup from before R-0.2 names none.
-func (o *Ops) databaseParts(ctx context.Context, repo host.Repo, s state.Site, files host.Snapshot) ([]dbPart, error) {
+// databaseParts reads the database snapshots the file snapshot names
+// (resolved by l: by ID, or by the ID they had before a copy, SPEC §5),
+// each required to be one of the site's own made on this server (SR-T6).
+// A backup from before R-0.2 names none.
+func (o *Ops) databaseParts(ctx context.Context, l *siteSnaps, files host.Snapshot) ([]dbPart, error) {
+	s := l.site
 	var parts []dbPart
 	for _, t := range files.Tags {
 		dbID, ok := strings.CutPrefix(t, tagDB)
@@ -53,9 +55,12 @@ func (o *Ops) databaseParts(ctx context.Context, repo host.Repo, s state.Site, f
 		if !ValidSnapshotID(dbID) {
 			return nil, fmt.Errorf("snapshot %s names an invalid database snapshot", files.ID)
 		}
-		snap, err := o.snapshot(ctx, repo, dbID)
+		snap, err := l.find(ctx, dbID)
 		if err != nil {
 			return nil, err
+		}
+		if !ValidSnapshotID(snap.ID) {
+			return nil, fmt.Errorf("the repository lists an invalid snapshot id")
 		}
 		if o.ours(snap, s) != "" || !slices.Contains(snap.Tags, tagDatabase) {
 			return nil, agentrpc.Invalid("snapshot %s is not a database backup of %s made on this server", dbID, s.Domain)
@@ -84,7 +89,7 @@ func (o *Ops) databaseParts(ctx context.Context, repo host.Repo, s state.Site, f
 		if slices.ContainsFunc(parts, func(p dbPart) bool { return p.Name == name }) {
 			return nil, agentrpc.Invalid("snapshot %s holds the database %s twice", files.ID, name)
 		}
-		parts = append(parts, dbPart{ID: dbID, Name: name, Tables: tables})
+		parts = append(parts, dbPart{ID: snap.ID, Name: name, Tables: tables})
 	}
 	return parts, nil
 }

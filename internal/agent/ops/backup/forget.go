@@ -45,6 +45,12 @@ func (o *Ops) ForgetSnapshot(ctx context.Context, p rpc.ForgetSnapshotParams) (r
 		return rpc.ForgetSnapshotResult{}, err
 	}
 	if files == nil {
+		// A copied backup: the panel holds the ID it had before (SPEC §5).
+		if files, err = matchOriginal(snaps, p.SnapshotID); err != nil {
+			return rpc.ForgetSnapshotResult{}, err
+		}
+	}
+	if files == nil {
 		// Already gone. A database half no files snapshot names any more
 		// (the files half was forgotten without it) goes now: nothing can
 		// restore from it. The exclusive lock means no backup is between
@@ -55,7 +61,7 @@ func (o *Ops) ForgetSnapshot(ctx context.Context, p rpc.ForgetSnapshotParams) (r
 				return rpc.ForgetSnapshotResult{}, err
 			}
 		}
-		return rpc.ForgetSnapshotResult{Forgotten: append([]string{}, orphans...), Missing: true}, nil
+		return rpc.ForgetSnapshotResult{Forgotten: append([]string{}, orphans...), Originals: originalsOf(snaps, orphans), Missing: true}, nil
 	}
 	if slices.Contains(files.Tags, tagDatabase) {
 		return rpc.ForgetSnapshotResult{}, agentrpc.Invalid("snapshot %s is the database half of a backup; delete the backup it belongs to", short(files.ID))
@@ -68,7 +74,11 @@ func (o *Ops) ForgetSnapshot(ctx context.Context, p rpc.ForgetSnapshotParams) (r
 		}
 		// Only a database snapshot of this site goes with it; one the tag
 		// names that is not there is already gone.
-		if d, err := matchSnapshot(snaps, dbID); err == nil && d != nil && slices.Contains(d.Tags, tagDatabase) {
+		d, err := matchSnapshot(snaps, dbID)
+		if err == nil && d == nil {
+			d, err = matchOriginal(snaps, dbID)
+		}
+		if err == nil && d != nil && slices.Contains(d.Tags, tagDatabase) {
 			doomed = append(doomed, d.ID)
 		}
 	}
@@ -82,7 +92,19 @@ func (o *Ops) ForgetSnapshot(ctx context.Context, p rpc.ForgetSnapshotParams) (r
 	if _, err := o.run(ctx, repo, planTimeout, append([]string{"forget"}, doomed...)...); err != nil {
 		return rpc.ForgetSnapshotResult{}, err
 	}
-	return rpc.ForgetSnapshotResult{Forgotten: doomed}, nil
+	return rpc.ForgetSnapshotResult{Forgotten: doomed, Originals: originalsOf(snaps, doomed)}, nil
+}
+
+// originalsOf is the original ID of each snapshot of ids that has one (a
+// copy, SPEC §5): the panel's records may hold those.
+func originalsOf(snaps []host.Snapshot, ids []string) []string {
+	var out []string
+	for _, s := range snaps {
+		if s.Original != "" && ValidSnapshotID(s.Original) && slices.Contains(ids, s.ID) {
+			out = append(out, s.Original)
+		}
+	}
+	return out
 }
 
 // matchSnapshot finds the snapshot id names among snaps (either may be a
@@ -103,7 +125,8 @@ func matchSnapshot(snaps []host.Snapshot, id string) (*host.Snapshot, error) {
 }
 
 // orphanDatabases lists the database snapshots of snaps that no files
-// snapshot of snaps names in its db: tag.
+// snapshot of snaps names in its db: tag, by their ID or the one they had
+// before a copy.
 func orphanDatabases(snaps []host.Snapshot) []string {
 	var named []string
 	for _, s := range snaps {
@@ -115,7 +138,8 @@ func orphanDatabases(snaps []host.Snapshot) []string {
 	}
 	var out []string
 	for _, s := range snaps {
-		if slices.Contains(s.Tags, tagDatabase) && ValidSnapshotID(s.ID) && !protected(s.ID, named) {
+		if slices.Contains(s.Tags, tagDatabase) && ValidSnapshotID(s.ID) && !protected(s.ID, named) &&
+			(s.Original == "" || !protected(s.Original, named)) {
 			out = append(out, s.ID)
 		}
 	}
