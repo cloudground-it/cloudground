@@ -39,7 +39,16 @@ var (
 	ErrTooLarge = errors.New("file too large")
 	// ErrNotRegular: the entry is not a regular file.
 	ErrNotRegular = errors.New("not a regular file")
+	// ErrForeignLink: a hard link to someone else's file (SPEC.md).
+	ErrForeignLink = errors.New("a hard link to a file the site does not own")
 )
+
+// foreign reports whether st is a foreign link of r's: a non-directory with
+// more than one link that belongs to someone other than r's owner, which
+// may be a file outside the tree.
+func (r *Root) foreign(st *unix.Stat_t) bool {
+	return st.Mode&unix.S_IFMT != unix.S_IFDIR && st.Nlink > 1 && int(st.Uid) != r.owner.UID
+}
 
 // Rename flags.
 const (
@@ -763,7 +772,19 @@ func (r *Root) Chown(rel string, uid, gid int) error {
 		return err
 	}
 	defer unix.Close(pfd)
-	if err := unix.Fchownat(pfd, base, uid, gid, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+	fd, err := unix.Openat(pfd, base, unix.O_PATH|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return pathErr("chown", c, err)
+	}
+	defer unix.Close(fd)
+	var st unix.Stat_t
+	if err := unix.Fstat(fd, &st); err != nil {
+		return pathErr("chown", c, err)
+	}
+	if r.foreign(&st) {
+		return pathErr("chown", c, ErrForeignLink)
+	}
+	if err := unix.Fchownat(fd, "", uid, gid, unix.AT_EMPTY_PATH); err != nil {
 		return pathErr("chown", c, err)
 	}
 	return nil
@@ -790,6 +811,9 @@ func (r *Root) Chmod(rel string, mode os.FileMode) error {
 	}
 	if t := st.Mode & unix.S_IFMT; t != unix.S_IFREG && t != unix.S_IFDIR {
 		return pathErr("chmod", c, ErrNotRegular)
+	}
+	if r.foreign(&st) {
+		return pathErr("chmod", c, ErrForeignLink)
 	}
 	if err := unix.Fchmod(fd, uint32(mode.Perm())); err != nil {
 		return pathErr("chmod", c, err)

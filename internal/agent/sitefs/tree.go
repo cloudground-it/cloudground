@@ -187,19 +187,28 @@ func postEntry(dirfd int, name string, st *unix.Stat_t, fn func(int, string, *un
 }
 
 // ChownTree gives rel and everything beneath it to the Root's owner, never
-// following a symlink (a link is re-owned as a link). A non-directory with
-// more than one link that belongs to someone else is a hard link to a file
-// outside this tree, and is left alone.
+// following a symlink (a link is re-owned as a link). A foreign link (a
+// hard link to someone else's file, maybe outside this tree) is left
+// alone; the check is on the descriptor the change is made through.
 func (r *Root) ChownTree(rel string) error {
 	if err := r.refuseProtected("chown", rel); err != nil {
 		return err
 	}
 	uid, gid := r.owner.UID, r.owner.GID
-	return r.postOrder(rel, func(dirfd int, name string, st *unix.Stat_t) error {
-		if st.Mode&unix.S_IFMT != unix.S_IFDIR && st.Nlink > 1 && int(st.Uid) != uid {
+	return r.postOrder(rel, func(dirfd int, name string, _ *unix.Stat_t) error {
+		fd, err := unix.Openat(dirfd, name, unix.O_PATH|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		if err != nil {
+			return err
+		}
+		defer unix.Close(fd)
+		var now unix.Stat_t
+		if err := unix.Fstat(fd, &now); err != nil {
+			return err
+		}
+		if r.foreign(&now) {
 			return nil
 		}
-		return unix.Fchownat(dirfd, name, uid, gid, unix.AT_SYMLINK_NOFOLLOW)
+		return unix.Fchownat(fd, "", uid, gid, unix.AT_EMPTY_PATH)
 	})
 }
 
@@ -226,6 +235,9 @@ func (r *Root) ChmodTree(rel string, clear os.FileMode) error {
 		}
 		if now.Mode&unix.S_IFMT != t {
 			return ErrNotRegular
+		}
+		if r.foreign(&now) {
+			return nil
 		}
 		return unix.Fchmod(fd, (now.Mode&0o7777)&^mask)
 	})
