@@ -2,7 +2,7 @@ module github.com/cloudground-it/cloudground
 
 go 1.26.0
 
-toolchain go1.26.9
+toolchain go1.26.10
 
 require (
 	github.com/coreos/go-systemd/v22 v22.7.0
