@@ -40,12 +40,6 @@
       },
       "destHelp": {
         "local": "Snapshots are kept in a folder on this server.",
-        "aws": "Snapshots go to an S3 bucket in the region you choose.",
-        "r2": "Snapshots go to an R2 bucket of your Cloudflare account.",
-        "b2": "Snapshots go to a B2 bucket through its S3-compatible API.",
-        "wasabi": "Snapshots go to a Wasabi bucket in the region you choose.",
-        "hetzner": "Snapshots go to a Hetzner bucket in the location you choose.",
-        "ovh": "Snapshots go to an OVHcloud S3 bucket in the region you choose.",
         "other": "Any service that speaks the S3 API, at the address you give.",
         "advanced": "The restic repository written out in full: SFTP, REST server, or any other kind restic supports."
       },
@@ -58,7 +52,7 @@
       "regionHelp": "As the provider writes it, for example {example}.",
       "regionOther": "Only if the service asks for one.",
       "endpoint": "Endpoint",
-      "endpointHelp": "The address of the service, for example https://minio.example.com.",
+      "endpointHelp": "For example https://minio.example.com.",
       "bucket": "Bucket",
       "bucketHelp": "Create it first at the provider; it can stay private.",
       "prefix": "Folder in the bucket",

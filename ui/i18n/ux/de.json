@@ -40,12 +40,6 @@
       },
       "destHelp": {
         "local": "Die Snapshots liegen in einem Ordner auf diesem Server.",
-        "aws": "Die Snapshots gehen in einen S3-Bucket in der gewählten Region.",
-        "r2": "Die Snapshots gehen in einen R2-Bucket deines Cloudflare-Kontos.",
-        "b2": "Die Snapshots gehen über die S3-kompatible API in einen B2-Bucket.",
-        "wasabi": "Die Snapshots gehen in einen Wasabi-Bucket in der gewählten Region.",
-        "hetzner": "Die Snapshots gehen in einen Hetzner-Bucket am gewählten Standort.",
-        "ovh": "Die Snapshots gehen in einen S3-Bucket von OVHcloud in der gewählten Region.",
         "other": "Jeder Dienst mit S3-API, unter der angegebenen Adresse.",
         "advanced": "Das restic-Repository vollständig ausgeschrieben: SFTP, REST-Server oder jede andere Art, die restic unterstützt."
       },
@@ -58,7 +52,7 @@
       "regionHelp": "So wie der Anbieter sie schreibt, zum Beispiel {example}.",
       "regionOther": "Nur wenn der Dienst eine verlangt.",
       "endpoint": "Endpoint",
-      "endpointHelp": "Die Adresse des Dienstes, zum Beispiel https://minio.example.com.",
+      "endpointHelp": "Zum Beispiel https://minio.example.com.",
       "bucket": "Bucket",
       "bucketHelp": "Lege ihn zuerst beim Anbieter an; er kann privat bleiben.",
       "prefix": "Ordner im Bucket",
