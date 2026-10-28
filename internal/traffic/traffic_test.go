@@ -137,7 +137,10 @@ func TestSiteCounts(t *testing.T) {
 
 func TestSketchEstimate(t *testing.T) {
 	for _, n := range []int{1, 50, 10000} {
+		// A fixed salt: the standard error is 1.6 %, so a fresh salt's
+		// estimate falls outside 5 % about once in 500 runs.
 		s := NewSketch()
+		s.Salt = "0123456789abcdef0123456789abcdef"
 		for i := range n {
 			s.Add(fmt.Sprintf("10.0.%d.%d", i/256, i%256), firefox)
 			s.Add(fmt.Sprintf("10.0.%d.%d", i/256, i%256), firefox) // twice: counted once
