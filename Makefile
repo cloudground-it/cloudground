@@ -29,7 +29,7 @@ UI_BUILD_DIR = /tmp/cloudground-ui
 DOCKER_NODE = docker run --rm -v "$(CURDIR)/ui":$(UI_BUILD_DIR) -v cloudground-ui-modules:$(UI_BUILD_DIR)/node_modules -w $(UI_BUILD_DIR) $(NODE_IMAGE)
 
 .PHONY: build ui test vet dist clean e2e-bin e2e-index api-doc \
-	docker-test docker-dist docker-demo docker-e2e-bin docker-e2e-index docker-api-doc docker-nginx-test docker-install-test docker-php-test docker-upgrade-bundle docker-vulncheck \
+	docker-test docker-dist docker-demo docker-e2e-bin docker-e2e-index docker-api-doc docker-nginx-test docker-install-test docker-php-test docker-upgrade-bundle docker-restore-upgrade-bundle docker-vulncheck \
 	release release-build release-sign release-verify release-require-key \
 	docker-release docker-release-build docker-release-repro
 
@@ -105,6 +105,15 @@ docker-e2e-bin:
 # "R-6.5 upgrade" (docs/e2e.md).
 docker-upgrade-bundle:
 	$(DOCKER_GO) bash scripts/upgrade-bundle.sh dist/upgrade
+
+# The restore test's releases (scripts/restore-upgrade-bundle.sh): real old
+# tags, each built with its own toolchain, and this tree labelled the next
+# patch; copy dist/restore-upgrade/restore-upgrade-bundle.tar.gz to the box
+# for the e2e section "R-6.6 restore across updates" (docs/e2e.md). Runs
+# docker itself, once per toolchain. RESTORE_TAGS overrides v0.1.0 v0.9.0.
+RESTORE_TAGS ?=
+docker-restore-upgrade-bundle:
+	GO_VOLUMES='$(GO_VOLUMES)' bash scripts/restore-upgrade-bundle.sh dist/restore-upgrade $(RESTORE_TAGS)
 
 docker-e2e-index:
 	$(DOCKER_GO) env CG_E2E_UPDATE_INDEX=1 go test -count=1 -run TestSectionsIndex ./e2e

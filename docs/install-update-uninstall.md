@@ -107,6 +107,9 @@ flowchart TD
   channel; any release not newer than the running one or than the newest ever installed here
   (`/var/lib/cloudground-agent/highest-release`); an update while a backup, a restore or a job that
   cannot resume is running.
+- **Backups**: a backup taken by any 0.x or 1.x release restores on every 1.x release, in every
+  mode (everything, files, database, one file or folder) and as a download, and passes its restore
+  test there. The e2e section `R-6.6 restore across updates` checks it on real old releases.
 - **Rolled back**: a release that is not healthy within 60 s (both services running the new
   binaries, and the API's `/healthz` answering, which pings the agent) is replaced by the previous
   one, with the state as it was before the update. `cgctl update` exits 1 and says so; the guard's

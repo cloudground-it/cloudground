@@ -45,6 +45,7 @@ bench/**                               NONE
 .github/**                             NONE
 scripts/upgrade-bundle.sh              R-6.5 upgrade
 scripts/upgrade-e2e/**                 R-6.5 upgrade
+scripts/restore-upgrade-bundle.sh      R-6.6 restore across updates
 scripts/**                             NONE
 **/SPEC.md                             NONE
 **/testdata/**                         NONE
@@ -212,10 +213,10 @@ internal/agent/ops/cache/**            woocommerce, wordpress cache, wordpress b
 internal/agent/ops/certs/**            wordpress certificates, wordpress status and drift, R-3.9 certificates and panel
 internal/agent/host/acme.go            wordpress certificates, R-3.9 certificates and panel
 internal/agent/ops_certs_panel.go      wordpress certificates, R-3.9 certificates and panel
-internal/agent/ops/panel/guard.go      R-6.5 upgrade
-internal/agent/ops/panel/snapshot.go   R-6.5 upgrade
+internal/agent/ops/panel/guard.go      R-6.5 upgrade, R-6.6 restore across updates
+internal/agent/ops/panel/snapshot.go   R-6.5 upgrade, R-6.6 restore across updates
 internal/agent/ops/panel/plan.go       R-6.5 upgrade
-internal/agent/ops/panel/selfupdate.go R-6.5 upgrade
+internal/agent/ops/panel/selfupdate.go R-6.5 upgrade, R-6.6 restore across updates
 internal/agent/ops/panel/packages.go   R-6.5 upgrade, R-6.1 installer, blocklist
 internal/agent/ops/panel/**            R-3.9 certificates and panel, firewall, R-6.5 upgrade
 # Every root file and directory the agent makes outside site trees: the

@@ -78,6 +78,7 @@ A golden file changes only when the output is meant to change. List the change i
 | `make docker-nginx-test` | after a change to the nginx renderer: runs `nginx -t` on the whole render matrix with the nginx of Ubuntu 24.04 and 26.04 (internal/engine/nginx/SPEC.md §6) |
 | `make docker-install-test` | after a change to the installer, the bootstrap or the uninstall: in Ubuntu 24.04 and 26.04 containers (systemd not running, apt skipped), the bootstrap's refusals, `cgctl install --plan`, `cgctl install`, `doctor`, nginx and sshd answering, then `cgctl uninstall` leaving the machine's file list as it was before the install, and a second install (internal/install/SPEC.md §8) |
 | `make docker-upgrade-bundle` | the signed throwaway releases the e2e section `R-6.5 upgrade` updates through ([Run the end-to-end suite](./e2e.md)) |
+| `make docker-restore-upgrade-bundle` | real old releases built from their tags, and this tree as the next one, for the e2e section `R-6.6 restore across updates` |
 | `go test -tags hostintegration -run Integration ./internal/agent/host/` | the host adapters against real tools, in a throwaway container only (`CG_TEST_MYSQL_SOCKET` for MariaDB) |
 | `go test ./connector` | the connector's PHP tests, with a local `php` or a `php:8.4-cli` container (`CG_PHP_IMAGE`) |
 | `CG_UIDEV_ADDR=0.0.0.0:5252 CG_UIDEV_UI=ui/dist go test -tags uidev -run TestUIDevServer -timeout 0 ./internal/api/` | a local panel with a fake agent, to look at the UI; sign in as `admin@example.com` / `dev-password-123` |
