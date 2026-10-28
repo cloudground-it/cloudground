@@ -113,6 +113,8 @@ type Server struct {
 	alertsSettled bool
 	alertKick     chan struct{}
 	guesses       tokenGuesses
+	// cdnPurges coalesces the connector's Cloudflare purges per site.
+	cdnPurges     cdnPurges
 	webhookClient *http.Client
 	// webhookLookup resolves a webhook's host when it is saved (nil: the
 	// system resolver; tests replace it).

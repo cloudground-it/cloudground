@@ -104,7 +104,9 @@ func (s *Server) mcpDo(ctx context.Context, mc *mcpCaller, method, path string, 
 	if mc.realIP != "" {
 		req.Header.Set("X-Real-IP", mc.realIP)
 	}
-	if body != nil {
+	if body != nil || method != http.MethodGet {
+		// A write with no body still says JSON: the cross-site rule (SPEC.md
+		// §1.5) answers 415 to a write without it.
 		req.Header.Set("Content-Type", "application/json")
 	}
 	w := &memWriter{h: http.Header{}}

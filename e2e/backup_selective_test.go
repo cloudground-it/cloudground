@@ -100,6 +100,9 @@ func (h *harness) backupSelective(t *testing.T) {
 	// The backup, downloaded.
 	st, ab := h.api.post(fmt.Sprintf("/api/backups/%d/archive", backupID), map[string]string{"part": "files"})
 	h.check(t, "#23: preparing a download succeeds", h.api.waitTask(taskIDOf(ab), 10*time.Minute), "succeeded")
+	// A sibling site's page cannot fetch it (and so throw it away, #36).
+	st, _ = h.api.do("GET", fmt.Sprintf("/api/backups/%d/archive?part=files", backupID), nil, "Sec-Fetch-Site: same-site")
+	h.check(t, "#36: the download is refused to another site's page", fmt.Sprint(st), "403")
 	st, gz := h.api.get(fmt.Sprintf("/api/backups/%d/archive?part=files", backupID))
 	want := "files/" + path
 	got, found := "", false

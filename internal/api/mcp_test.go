@@ -298,6 +298,10 @@ func TestMCPToolsScopesAndPendingActions(t *testing.T) {
 	if text, isErr := toolResult(t, mustCall(m, access, "list_sites", nil)); isErr || !strings.Contains(text, "mcp.example.com") {
 		t.Fatalf("list_sites: %v %s", isErr, text)
 	}
+	// A granted write with no body runs (its route needs the JSON type).
+	if text, isErr := toolResult(t, mustCall(m, access, "purge_cache", map[string]any{"site_id": site.ID})); isErr {
+		t.Fatalf("purge in the scope: %s", text)
+	}
 	// Writing outside the grant is refused before any route runs.
 	if text, isErr := toolResult(t, mustCall(m, access, "purge_cache", map[string]any{"site_id": other.ID})); !isErr || !strings.Contains(text, "may not use cache") {
 		t.Fatalf("purge outside the scope: %v %s", isErr, text)

@@ -182,7 +182,10 @@ one, and the panel creates `staging.<domain>` itself), so state-changing
 requests carry their own proof:
 
 - Methods `GET`, `HEAD`, `OPTIONS` are reads and pass, unless the row says
-  `SameOriginRead` (the event stream), which then gets the next check too.
+  `SameOriginRead`, which then gets the next check too: the event stream,
+  and the backup archive's download, a read that deletes the archive once
+  sent (§5.7), so a sibling page could otherwise throw away a download
+  someone just prepared.
 - `Sec-Fetch-Site`, when sent, must be `same-origin` or `none` → else 403
   `cross-site request refused`.
 - `Origin`, when sent, must parse, must not be `null`, and its host must equal
@@ -305,8 +308,8 @@ the UI's `index.html` that a browser executes (not a JSON data block).
   listener answers 404/405 for every other row.
 - `TestRouteTableCrossSiteRules`: every write row (but the token one) refuses
   a foreign `Sec-Fetch-Site` or `Origin` with 403 and a non-JSON body with 415,
-  takes `application/octet-stream` exactly where it says `bodyUpload`; the
-  event stream refuses a cross-site read.
+  takes `application/octet-stream` exactly where it says `bodyUpload`; every
+  `SameOriginRead` row refuses a cross-site read.
 - `TestRouteBodyLimits`, `TestErrorReply`, `TestAPIDocIsCurrent`.
 
 ## 2. Accounts (R-4.3)
@@ -2265,7 +2268,7 @@ accounts and grant privileges (`ALL PRIVILEGES … WITH GRANT OPTION`). Its pass
 | --- | --- |
 | `GET /api/db-servers` (`global`) | `[{id, name, kind: "mariadb", host, port, tls, ca_cert, admin_user, password_set, databases}]`, `databases` the number of databases on it |
 | `POST /api/db-servers` (`admin`) | registers a server after the agent has connected to it with the credentials (`TestDBServer`: a refusal is **400** with the server's own message, nothing stored). 201 with the row. Audit `dbserver.create`, detail the name |
-| `PUT /api/db-servers/{id}` (`admin`) | changes any field, tested again; 404 for an unknown id. Audit `dbserver.update` |
+| `PUT /api/db-servers/{id}` (`admin`) | changes any field, tested again; 404 for an unknown id. With an API token, a change of `host`, `port`, `tls`, `ca_cert` or `admin_user` must send `admin_password` again → else 400 `send the admin password again to change where the panel connects`: a token must not point the stored password at a host of its choosing (§1.2.1). Audit `dbserver.update` |
 | `POST /api/db-servers/{id}/test` (`admin`) | connects now: 200 `{ok: true, version}`, or 502 with the error |
 | `DELETE /api/db-servers/{id}` (`admin`) | 409 `drop its databases first` while any database is on it; the secret goes. Audit `dbserver.delete` |
 
@@ -2749,6 +2752,12 @@ site's WordPress connector with `Authorization: Bearer <site token>`.
    `PurgeCache` → 200, the agent's result. A site that purges Cloudflare's
    cache too (§3.20) then has the same URLs (or its names, for `all`) sent
    to Cloudflare in the background: the answer does not wait for it.
+   Since a valid token is never limited, these purges are coalesced per
+   site: one runs at a time, what arrives meanwhile waits for the next,
+   which starts at least 10 s after the last, and more than 300 URLs
+   waiting become a purge of the site's names. A site's PHP calling in a
+   loop costs the panel's Cloudflare token at most ten requests per site
+   every 10 s.
 
 ## 9. Tasks (R-4.3)
 
@@ -3415,7 +3424,7 @@ and sends nothing (connector/SPEC.md §2.9), and the gate refuses its user
 | Route (policy) | Does |
 | --- | --- |
 | `GET /api/sites/{id}/mail` (`signedIn`) | `{off, from, dkim_selector, relay: {host, port, security, username, password_set} or null, effective: "site", "server" or "none", sender}` |
-| `PUT /api/sites/{id}/mail` (`admin`) | any of `off`, `from`, `dkim_selector`, `relay` (an object `{host, port, security, username, from, password}`, its `from` the site's when left empty; `null` drops the site's own relay; its `password` as a secret of §12: `••••••••` or left out keeps it, `""` clears it). A staging copy → 400 `a staging copy sends no mail`; a bad address, host, port, security or selector → 400 with `fields`. A change of `off` or `from` renders the site (its pool) and is stored once the agent applied it, as §6.2.1 does; the rest is stored at once. Audit `mail.site` (`off=<b> from=<addr> relay=<host or server>`). Answers as `GET` |
+| `PUT /api/sites/{id}/mail` (`admin`) | any of `off`, `from`, `dkim_selector`, `relay` (an object `{host, port, security, username, from, password}`, its `from` the site's when left empty; `null` drops the site's own relay; its `password` as a secret of §12: `••••••••` or left out keeps it, `""` clears it; with an API token, a change of the relay's `host`, `port`, `security` or `username` must send the password again → else 400 `send the relay's password again to change where it is sent`, so a token cannot point the stored password at a host of its choosing, §1.2.1). A staging copy → 400 `a staging copy sends no mail`; a bad address, host, port, security or selector → 400 with `fields`. A change of `off` or `from` renders the site (its pool) and is stored once the agent applied it, as §6.2.1 does; the rest is stored at once. Audit `mail.site` (`off=<b> from=<addr> relay=<host or server>`). Answers as `GET` |
 | `GET /api/sites/{id}/mail/checks` (`signedIn`) | the sender's domain in DNS: `{domain, spf: {found, record}, dmarc: {found, record}, dkim: {selector, found}}`, from the TXT records of `<domain>` (the one starting `v=spf1`), `_dmarc.<domain>` (`v=DMARC1`) and, with a selector, `<selector>._domainkey.<domain>`, 3 s each; a failed lookup reads as not found. The relay's provider says what the records must hold; the panel says whether they are there |
 | `POST /api/sites/{id}/mail/test` (`manage`) `{to}` | one test message through the site's effective relay, from its sender, now: 200 `{"sent": 1}`, 412 `no mail relay is configured`, 502 with the relay's error. Audit `mail.test` |
 | `POST /api/settings/mail/test` (`admin`) `{to}` | the same through the server-wide relay |
