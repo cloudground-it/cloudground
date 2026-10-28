@@ -490,27 +490,14 @@ func (m *MariaDBAdmin) Import(ctx context.Context, database string, r io.Reader,
 	if !ValidDatabaseName(database) {
 		return ErrInvalidDatabase
 	}
-	var acct *ScopedAccount
-	var err error
-	switch {
-	case as.Login != nil:
-		acct, err = m.loginAccount(*as.Login)
-	case as.Site != "" && m.Remote != nil:
-		acct, err = m.adminClientFile()
-	case as.Site != "":
-		acct, err = m.borrow(ctx, as.Site)
-	case as.Triggers:
-		acct, err = m.scopedAccount(ctx, database, scopedWritePrivileges+", TRIGGER")
-	default:
-		acct, err = m.ScopedAccount(ctx, database, false)
-	}
+	acct, definer, err := m.importActor(ctx, database, as)
 	if err != nil {
 		return err
 	}
 	pr, pw := io.Pipe()
 	rewrote := make(chan error, 1)
 	go func() {
-		_, err := RewriteDefiners(pw, r, m.definerOf(as))
+		_, err := RewriteDefiners(pw, r, definer)
 		pw.CloseWithError(err)
 		rewrote <- err
 	}()
@@ -522,6 +509,44 @@ func (m *MariaDBAdmin) Import(ctx context.Context, database string, r io.Reader,
 		ferr = nil
 	}
 	return errors.Join(err, ferr, acct.Close())
+}
+
+// importActor is the account an import runs as and the DEFINER its clauses
+// are rewritten to. The account is never the server's administrator: a dump
+// is tenant content, so it runs with no more than one database's privileges,
+// enforced by the server's own grants (SR-T7).
+//
+//   - A signed-in database user (Login) runs as itself, scoped by its own
+//     grants; its DEFINER names it.
+//   - On the box's own server a site database import runs as the site's own
+//     account (borrow), so the site's triggers and views keep their owner.
+//   - On an external server borrowing needs mysql.global_priv, which a
+//     managed server rarely grants, so the import runs as a throwaway account
+//     scoped to exactly that one database (GRANT … ON `db`.* only, never the
+//     administrator), its DEFINER clauses rewritten to CURRENT_USER. The
+//     administrator is used only to create and drop that account, never to
+//     run the dump.
+func (m *MariaDBAdmin) importActor(ctx context.Context, database string, as ImportAs) (*ScopedAccount, string, error) {
+	switch {
+	case as.Login != nil:
+		acct, err := m.loginAccount(*as.Login)
+		return acct, m.definerOf(as), err
+	case as.Site != "" && m.Remote != nil:
+		// No admin: a scoped account on the external server, with TRIGGER so
+		// the dump's triggers and views import (owned by this account; the
+		// box's own server keeps the site's own owner through borrow).
+		acct, err := m.scopedAccount(ctx, database, scopedWritePrivileges+", TRIGGER")
+		return acct, "CURRENT_USER", err
+	case as.Site != "":
+		acct, err := m.borrow(ctx, as.Site)
+		return acct, m.definerOf(as), err
+	case as.Triggers:
+		acct, err := m.scopedAccount(ctx, database, scopedWritePrivileges+", TRIGGER")
+		return acct, m.definerOf(as), err
+	default:
+		acct, err := m.ScopedAccount(ctx, database, false)
+		return acct, m.definerOf(as), err
+	}
 }
 
 // errImportEnded closes the filter's pipe once the client has exited.

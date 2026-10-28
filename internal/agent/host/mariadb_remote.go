@@ -153,8 +153,10 @@ func removeClientFile(file string) error {
 }
 
 // adminClientFile is a defaults file signed in as the administrator of a
-// remote server, for one import (the account has every privilege there; the
-// client's --one-database keeps the SQL inside the database).
+// remote server, for a read the agent itself issues (a dump). It is never
+// used to run a tenant's dump: --one-database is a client-side filter, not a
+// privilege boundary, so an import runs as a one-database account instead
+// (importActor), never as the administrator.
 func (m *MariaDBAdmin) adminClientFile() (*ScopedAccount, error) {
 	if m.Remote == nil {
 		return nil, errors.New("not an external server")

@@ -413,9 +413,11 @@ pushed.
 - **The adapter** is `host.MariaDBAdmin` with `Remote` set (host SPEC, mariadb): the same SQL, an
   account's host part `'localhost'` read as `'%'`, TLS as the server's setting says, `REQUIRE SSL`
   on every account made when TLS is required. An import into a database of an external server runs
-  the sandboxed client as the administrator, scoped by `--one-database`, with every `DEFINER`
-  clause rewritten to the site's account on `'%'` (a managed server rarely lets the agent read
-  `mysql.global_priv`, which borrowing a site's account needs).
+  the sandboxed client as a throwaway account scoped to exactly that one database (never the
+  administrator: `--one-database` is a client filter, not a boundary), with every `DEFINER` clause
+  rewritten to `CURRENT_USER`; a managed server rarely lets the agent read `mysql.global_priv`,
+  which borrowing the site's own account needs, so the site's triggers and views are owned by that
+  throwaway account for the import's life rather than kept as the site's.
 - **Not on an external server:** the startup sweep (its accounts and scratch databases are dropped
   by the code that made them, also when it fails), `Unborrow`, tuning, the primary database.
 

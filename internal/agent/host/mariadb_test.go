@@ -348,3 +348,45 @@ func TestImportScratchWithTriggers(t *testing.T) {
 		t.Fatalf("stdin %q", fx.Calls()[0].Stdin)
 	}
 }
+
+// F-5-1 / SR-T7: an import into a site database on an external server runs
+// as a throwaway account scoped to exactly that one database, never as the
+// server's administrator, and its DEFINER clauses are rewritten to
+// CURRENT_USER. --one-database is a client filter, not a privilege boundary,
+// so the containment is the server's own grant.
+func TestRemoteImportUsesAScopedAccountNotTheAdmin(t *testing.T) {
+	log := &sqlLog{}
+	fx := &FakeExec{Respond: func(FakeCall) FakeReply { return FakeReply{Code: 0} }}
+	m := &MariaDBAdmin{
+		Remote:  &RemoteServer{ID: 3, Host: "db.example.com", Port: 3307, TLS: true, AdminUser: "cgadmin", AdminPassword: "s3cret"},
+		WorkDir: t.TempDir(), Tools: fx, execFn: log.exec(""),
+	}
+	dump := "CREATE DEFINER=`root`@`localhost` TRIGGER t BEFORE INSERT ON x FOR EACH ROW SET @a = 1;"
+	if err := m.Import(context.Background(), "site_3", strings.NewReader(dump), ImportAs{Site: "site_3"}); err != nil {
+		t.Fatal(err)
+	}
+	c := fx.Calls()[0]
+	// The dump is piped through the client scoped to one database.
+	if c.Name != "mariadb" || !strings.Contains(strings.Join(c.Args, " "), "--one-database site_3") {
+		t.Fatalf("import args %v", c.Args)
+	}
+	// It never signs in as the administrator.
+	file := strings.TrimPrefix(c.Args[0], "--defaults-file=")
+	if _, err := os.Stat(file); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("defaults file left behind")
+	}
+	joined := strings.Join(log.stmts, "\n")
+	if strings.Contains(joined, "cgadmin") {
+		t.Fatalf("the administrator was used to run the dump:\n%s", joined)
+	}
+	// A scoped cgq_ account is created, granted on exactly site_3, and dropped.
+	if !strings.Contains(joined, "CREATE USER ?@'%'") ||
+		!strings.Contains(joined, "GRANT ") || !strings.Contains(joined, "`site\\_3`.* TO ?@'%'") ||
+		!strings.Contains(joined, "DROP USER IF EXISTS ?@'%'") {
+		t.Fatalf("expected a scoped grant on site_3 and a drop, got:\n%s", joined)
+	}
+	// The site keeps nothing of the dump's DEFINER clauses.
+	if !strings.Contains(c.Stdin, "CREATE DEFINER=CURRENT_USER TRIGGER") {
+		t.Fatalf("DEFINER not rewritten to CURRENT_USER: %q", c.Stdin)
+	}
+}
