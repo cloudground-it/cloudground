@@ -23,7 +23,9 @@ Functions on their own. What changes for a person running the panel:
   installed for each release, so a rollback brings back the same dependencies, and a failed
   install leaves the live release as it was;
 - **a bearer token**, checked by nginx before the function starts (401 without it), shown once
-  and renewable; and allowed CORS origins per function.
+  and renewable; and allowed CORS origins per function;
+- shorter texts across the panel, in all five languages: hints that only repeated their label are
+  gone, and the ones left say what is not obvious.
 
 **Upgrading from v0.8.x: the functions' URLs change.** At its first start the panel moves every
 function out of its site, with its code, releases, variables and secrets. The old address
