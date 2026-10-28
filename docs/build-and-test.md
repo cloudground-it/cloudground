@@ -46,6 +46,11 @@ Docker run uses the host's own Linux architecture on purpose: under amd64 emulat
 machine `openat2` is missing, and the `sitefs` confinement tests fail for reasons that have nothing
 to do with the code.
 
+CI also runs `make docker-vulncheck` (govulncheck: it fails on a known vulnerability the Go code
+can reach, in the standard library or a module) and `npm audit --omit=dev --audit-level=high` in
+`ui/`. A fix is a toolchain bump in `go.mod` (and `GO_RELEASE_IMAGE` in the `Makefile`) or a
+dependency update.
+
 The UI has its own test, run by CI: `npm test` in `ui/` checks that every locale has exactly the
 keys and placeholders of `en.json` and compiles.
 

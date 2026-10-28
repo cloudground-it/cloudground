@@ -1,8 +1,9 @@
 # Every push to main and every pull request: the gates `make docker-test`,
 # `make docker-nginx-test`, `make docker-install-test`,
 # `make docker-php-test` and the UI build run
-# locally, plus a release dry run that proves `make release` refuses what is
-# not signed.
+# locally, a check for known vulnerabilities in the Go code and the UI's
+# dependencies, plus a release dry run that proves `make release` refuses what
+# is not signed.
 name: CI
 
 on:
@@ -30,6 +31,25 @@ jobs:
       # nginx, sshd or PHP of the runner's to stumble on.
       - name: gofmt, vet and tests (make docker-test)
         run: make docker-test
+
+  vulnerabilities:
+    name: known vulnerabilities
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # Fails only on a vulnerability the code can reach (make docker-vulncheck).
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      # The UI ships as a static bundle; its dependencies still run at build
+      # time, so a high or critical advisory in them fails the job.
+      - name: npm audit
+        run: cd ui && npm audit --omit=dev --audit-level=high
 
   ui:
     name: UI build and locales

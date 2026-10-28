@@ -29,7 +29,7 @@ UI_BUILD_DIR = /tmp/cloudground-ui
 DOCKER_NODE = docker run --rm -v "$(CURDIR)/ui":$(UI_BUILD_DIR) -v cloudground-ui-modules:$(UI_BUILD_DIR)/node_modules -w $(UI_BUILD_DIR) $(NODE_IMAGE)
 
 .PHONY: build ui test vet dist clean e2e-bin e2e-index api-doc \
-	docker-test docker-dist docker-demo docker-e2e-bin docker-e2e-index docker-api-doc docker-nginx-test docker-install-test docker-php-test docker-upgrade-bundle \
+	docker-test docker-dist docker-demo docker-e2e-bin docker-e2e-index docker-api-doc docker-nginx-test docker-install-test docker-php-test docker-upgrade-bundle docker-vulncheck \
 	release release-build release-sign release-verify release-require-key \
 	docker-release docker-release-build docker-release-repro
 
@@ -80,6 +80,12 @@ clean:
 
 docker-test:
 	$(DOCKER_GO) sh -c 'bad=$$(gofmt -l internal cmd e2e scripts); if [ -n "$$bad" ]; then echo "$$bad"; echo "gofmt: the files above need formatting"; exit 1; fi; go vet ./... && go vet -tags e2e ./e2e/... && go test -race -timeout 30m ./...'
+
+# Known vulnerabilities in the Go standard library and the modules, reported
+# only where the code calls the vulnerable function (as CI does).
+GOVULNCHECK = golang.org/x/vuln/cmd/govulncheck@v1.9.0
+docker-vulncheck:
+	$(DOCKER_GO) go run $(GOVULNCHECK) ./...
 
 docker-dist:
 	$(DOCKER_NODE) sh -c 'npm ci --silent --no-audit --no-fund && npm run build --silent'
@@ -145,7 +151,7 @@ docker-php-test:
 RELEASE_TAG ?= $(shell git describe --tags --exact-match 2>/dev/null)
 RELEASE_DIR  = dist/release/$(RELEASE_TAG)
 SIGNING_KEY ?=
-GO_RELEASE_IMAGE   ?= golang:1.26.9
+GO_RELEASE_IMAGE   ?= golang:1.26.10
 NODE_RELEASE_IMAGE ?= node:22.23.3
 # A worktree's .git names the main repository by its host path: the
 # container sees it at the same path, so -buildvcs can read the commit.
