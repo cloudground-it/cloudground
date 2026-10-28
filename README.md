@@ -18,9 +18,9 @@ promoted.
 **[Try the demo](https://get.cloudground.it/demo/)**: the real panel with sample data, in your
 browser (nothing you do there leaves it). Website and guide: [cloudground.it](https://cloudground.it).
 
-> **Status: pre-release.** CloudGround has had a full internal security review but no external
-> audit yet ([SECURITY.md](./SECURITY.md)). Run it on servers you can rebuild, and keep backups
-> off the box.
+> **Status: 1.0.** The API, `cgctl` and the MCP tools stay compatible through 1.x, and every
+> release restores the backups of the ones before it. The code has had two internal security
+> reviews and no external audit ([SECURITY.md](./SECURITY.md)): keep backups off the box.
 
 ## What it does
 
