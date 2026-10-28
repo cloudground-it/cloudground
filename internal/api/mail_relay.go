@@ -192,11 +192,29 @@ var errNoRecipient = errors.New("no recipient")
 // maxMailRecipients bounds one message's recipients.
 const maxMailRecipients = 50
 
+// siteNamesAddress reports whether addr is on one of the site's names: its
+// domain, an alias, or a subdomain of either.
+func siteNamesAddress(site state.Site, addr string) bool {
+	_, domain, ok := strings.Cut(addr, "@")
+	if !ok {
+		return false
+	}
+	domain = strings.ToLower(strings.TrimSuffix(domain, "."))
+	for _, name := range append([]string{site.Domain}, site.Aliases...) {
+		if name = strings.ToLower(name); domain == name || strings.HasSuffix(domain, "."+name) {
+			return true
+		}
+	}
+	return false
+}
+
 // prepareMessage readies a message a site handed over (SPEC.md §14.2 step
 // 5): its recipients (those named, and with fromHeaders its To, Cc and
 // Bcc), without its Bcc header, with a From and a Date when it has none,
-// with CRLF line ends.
-func prepareMessage(raw []byte, named []string, fromHeaders bool, from string, now time.Time) (msg []byte, to []string, err error) {
+// with CRLF line ends. With own set (the server-wide relay), a From or
+// Sender naming an address own refuses is removed, from takes its place,
+// and the address given becomes the Reply-To when there is none.
+func prepareMessage(raw []byte, named []string, fromHeaders bool, from string, own func(string) bool, now time.Time) (msg []byte, to []string, err error) {
 	raw = bytes.ReplaceAll(raw, []byte("\r\n"), []byte("\n"))
 	head, body, found := bytes.Cut(raw, []byte("\n\n"))
 	if !found {
@@ -240,8 +258,29 @@ func prepareMessage(raw []byte, named []string, fromHeaders bool, from string, n
 	if len(to) > maxMailRecipients {
 		return nil, nil, fmt.Errorf("more than %d recipients", maxMailRecipients)
 	}
-	// The header lines as they came, Bcc's (and its continuations) left
-	// out, so nothing else of the message is rewritten.
+	// A From or Sender the site may not use goes (SPEC.md §14.2 step 5).
+	drop := map[string]bool{"bcc": true}
+	var replyTo string
+	if own != nil {
+		for _, h := range []string{"From", "Sender"} {
+			if parsed.Header.Get(h) == "" {
+				continue
+			}
+			list, err := parsed.Header.AddressList(h)
+			ok := err == nil && len(list) > 0
+			for _, a := range list {
+				ok = ok && own(a.Address)
+			}
+			if !ok {
+				drop[strings.ToLower(h)] = true
+				if h == "From" && err == nil && len(list) > 0 && parsed.Header.Get("Reply-To") == "" {
+					replyTo = list[0].String()
+				}
+			}
+		}
+	}
+	// The header lines as they came, those dropped (and their
+	// continuations) left out, so nothing else of the message is rewritten.
 	var out bytes.Buffer
 	skipping := false
 	for _, line := range bytes.Split(head, []byte("\n")) {
@@ -253,14 +292,17 @@ func prepareMessage(raw []byte, named []string, fromHeaders bool, from string, n
 			continue
 		}
 		name, _, _ := bytes.Cut(line, []byte(":"))
-		skipping = strings.EqualFold(strings.TrimSpace(string(name)), "Bcc")
+		skipping = drop[strings.ToLower(strings.TrimSpace(string(name)))]
 		if !skipping {
 			out.Write(line)
 			out.WriteString("\r\n")
 		}
 	}
-	if parsed.Header.Get("From") == "" {
+	if parsed.Header.Get("From") == "" || drop["from"] {
 		out.WriteString("From: " + from + "\r\n")
+	}
+	if replyTo != "" {
+		out.WriteString("Reply-To: " + replyTo + "\r\n")
 	}
 	if parsed.Header.Get("Date") == "" {
 		out.WriteString("Date: " + now.Format(time.RFC1123Z) + "\r\n")
