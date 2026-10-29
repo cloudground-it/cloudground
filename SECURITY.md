@@ -6,11 +6,14 @@ does not promise.
 
 ## Where it stands
 
-- **No external security audit so far.** The code had a full internal review in October 2026; its
-  findings, and what changed after each, are in
-  [docs/security-model.md](./docs/security-model.md#findings-of-the-internal-review).
+- **No external security audit so far.** The code had two internal reviews in October 2026. Their
+  findings, and what changed after each, are in docs/security-model.md:
+  [the first](./docs/security-model.md#findings-of-the-internal-review) and
+  [the second](./docs/security-model.md#findings-of-the-second-review-october-2026).
 - Until an independent review has happened, run CloudGround on servers you can rebuild, keep the
   backups on storage outside the server, and weigh that before trusting it with something critical.
+- If sites of different people share a server, prefer Ubuntu 26.04: on 24.04 a site's code can bind
+  any free port ([Limits](./docs/security-model.md#limits-stated-plainly)).
 
 ## Checking what you install
 

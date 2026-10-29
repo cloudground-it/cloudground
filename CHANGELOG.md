@@ -7,6 +7,48 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v1.0.0
+
+The first stable release. 1.0 is a promise about compatibility: the API, `cgctl` and the MCP tools
+stay compatible through 1.x, an update within 1.x never takes away what a 1.x release offers, and
+every release restores the backups of every release before it. What changes for a person running
+the panel:
+
+- **move the backups**: Settings → Backups → Move takes every backup to a new repository, either
+  by copying the snapshots across or after you copied the files yourself. The panel checks that
+  every backup is there before it points anything at the new place, then runs a restore test of
+  each site's latest backup from it. An SFTP destination shows the panel's key to add there;
+- **restore on a new server**: a fresh CloudGround connected to an existing repository lists the
+  sites it holds from other servers, and restores one in full: the site is created with its
+  type, PHP version, aliases and cache settings, and its database accounts come back with their
+  own passwords, so the application connects as before. Each backup now carries a short
+  description of its site for this; a backup from before 1.0 asks for the type and PHP version;
+- **restores across updates, proved**: the end-to-end suite installs real older releases, backs a
+  site up on each, updates to the new release from the panel and restores it in every mode;
+- **a stable API**: docs/api.md says what stays the same through 1.x, and how anything that will
+  go is announced first;
+- a managed app's new TCP port must lie outside the range the kernel hands out by itself.
+
+**Security.** The second internal review found these, all fixed in this release:
+
+- GHSA-2x3m-w3c8-7xj8 (high): an import into a database on an external server ran the dump as the
+  server's administrator; it now runs as the site's own database account;
+- GHSA-hv85-58rm-pvxx (medium): through the server's relay, a site could send mail as another site
+  or as the panel; a sender not of the site is replaced by the site's own;
+- GHSA-fc8m-vwp2-52h4 (medium): a site's code could get a visitor blocked from SSH and the panel;
+  WordPress failures now block the sites' ports only;
+- GHSA-w642-56fp-4cx4 (medium): a site's code could take a managed app's port, or the connector's,
+  while it restarted; on Ubuntu 26.04 sites and functions bind no port. Ubuntu 24.04 cannot enforce
+  this: keep apps on their unix socket there;
+- GO-2026-6809 (medium, in Go's `crypto/x509`): built with Go 1.26.10;
+- five low-severity fixes: passkey challenges, an open redirect while the MCP server is on, a
+  credential moved by an API token, Cloudflare purges, the backup archive download. The hardening
+  that came with them is in docs/security-model.md.
+
+**Upgrading from v0.9.x** is one update, from the panel or with `cgctl update`. On a server without
+`libbpf1` the update installs it and re-executes systemd, so the port rule applies at once; running
+services are not restarted. Backups taken before the update restore as before.
+
 ## v0.9.0
 
 Functions on their own. What changes for a person running the panel:
