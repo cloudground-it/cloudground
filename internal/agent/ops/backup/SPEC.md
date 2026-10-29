@@ -300,7 +300,12 @@ options it had cached before the restore.
    **emptied, not removed**: nginx creates a `fastcgi_cache_path` root only
    at start or reload, and www-data cannot recreate it under the root-owned
    cache directory (N-3; it used to be removed, and the site stopped
-   caching). The staging directory, holding the old tree, is removed.
+   caching). The staging directory, holding the old tree, is removed
+   (`removeReplaced`): a try that fails (an SFTP session still chrooted in
+   the old tree, a file held open there) is logged and tried again, 3 tries in
+   all, 1 s and then 2 s apart; one still there after them is logged as
+   an error naming its path (H-4-2). The restore's result does not depend on
+   it.
 
 **Paths** (#23): a `files` restore may name `Paths` (1 to 20, each
 relative to the site's root; the API's rules, internal/api SPEC §5.6, are

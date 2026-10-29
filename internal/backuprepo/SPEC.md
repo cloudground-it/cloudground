@@ -30,7 +30,13 @@ The host, an address or a name, must be **public**: an address literal, and
 every address a name resolves to (`Options.Resolve`, the system resolver
 with a 5 s bound), must not be loopback, private (RFC 1918, ULA),
 link-local (the cloud metadata address among them), unspecified,
-multicast, the shared space 100.64.0.0/10 or otherwise not global unicast;
+multicast, the shared space 100.64.0.0/10, "this network" 0.0.0.0/8, the IETF
+block 192.0.0.0/24, the benchmarking 198.18.0.0/15, the reserved 240.0.0.0/4
+with the broadcast address, the site-local fec0::/10, the local-use NAT64
+64:ff9b:1::/48, or otherwise not global unicast, and an IPv6 address that
+carries an IPv4 one (NAT64 64:ff9b::/96, 6to4 2002::/16) must carry a public
+one (`PublicAddr`, which the alert webhook's dialer applies too: api SPEC
+§11.3);
 `localhost` and `*.localhost` are refused without a lookup, and a name that
 does not resolve is refused. `Options.AllowPrivate`, set from
 `CLOUDGROUND_BACKUP_PRIVATE_ENDPOINT=1` in `/etc/cloudground/panel.env`

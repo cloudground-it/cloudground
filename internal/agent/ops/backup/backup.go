@@ -85,7 +85,12 @@ type Ops struct {
 	FreeSpace func(dir string) (int64, error)
 	// Hostname scopes retention to this server; nil is os.Hostname.
 	Hostname func() (string, error)
-	Log      *slog.Logger
+	// RemoveAll removes what a full restore swapped out (removeReplaced);
+	// nil is os.RemoveAll, and RetryWait the pause between its tries
+	// (nil: a second times the try). Tests replace both.
+	RemoveAll func(string) error
+	RetryWait func(try int)
+	Log       *slog.Logger
 	// Reconfigure gives a site restored from another server's backup its
 	// own credentials where the application keeps them (SPEC §5, a
 	// WordPress site's wp-config.php), once the restored tree is live. Nil

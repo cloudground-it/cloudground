@@ -392,19 +392,40 @@ func Steps(e *Env, o Options) []Step {
 			}
 			return e.writeFile(managed.PanelEnv, SetEnvLine(cur, "CLOUDGROUND_PHP_VERSION", php), envW)
 		}})
+	// The token's content is never rewritten (the API and the agent share
+	// it), but its mode and owner are put back on every run (H-3-2): an
+	// older or hand-made file readable by anyone on the box would hand them
+	// the agent.
+	tokenW := want{mode: 0o640, user: "root", group: "cloudground"}
 	add(Step{ID: "token.agent", Group: gUsers,
 		Check: func(context.Context) (bool, string) {
-			if e.exists(AgentToken) {
-				return ok("present (never rewritten)")
+			if !e.exists(AgentToken) {
+				return need(AgentToken + ": missing")
 			}
-			return need(AgentToken + ": missing")
+			if why := e.fileDiff(AgentToken, tokenW); why != "" {
+				return need(why)
+			}
+			return ok("present (never rewritten), " + fmt.Sprintf("%04o", tokenW.mode) + " root:cloudground")
 		},
 		Apply: func(context.Context) error {
+			if e.exists(AgentToken) {
+				fi, err := e.stat(AgentToken)
+				if err != nil {
+					return err
+				}
+				if !fi.Mode().IsRegular() {
+					return fmt.Errorf("%s is not a regular file: remove it, and run the installer again to make a new token", AgentToken)
+				}
+				if err := e.own(e.path(AgentToken), tokenW); err != nil {
+					return err
+				}
+				return os.Chmod(e.path(AgentToken), tokenW.mode)
+			}
 			tok, err := newToken(48)
 			if err != nil {
 				return err
 			}
-			return e.writeFile(AgentToken, []byte(tok), want{mode: 0o640, user: "root", group: "cloudground"})
+			return e.writeFile(AgentToken, []byte(tok), tokenW)
 		}})
 	for _, c := range certs {
 		pemPath := filepath.Join(certDir, c.name+".pem")

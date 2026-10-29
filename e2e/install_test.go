@@ -112,6 +112,27 @@ func (h *harness) installer(t *testing.T) {
 	h.assert(t, "R-6.1: no drift after re-converging", r.OK(), "%s", r)
 	restore()
 
+	// H-3-2: the agent's token readable by every account is drift, and a
+	// repair puts its mode back without rewriting it.
+	const tokenFile = "/etc/cloudground/agent.token"
+	tok, terr := os.ReadFile(tokenFile)
+	if terr == nil && os.Chmod(tokenFile, 0o644) == nil {
+		defer h.undo("put the agent token's mode back", func() { _ = os.Chmod(tokenFile, 0o640) })()
+		r = h.run(cgctlBinary, "doctor")
+		h.assert(t, "H-3-2: doctor reports a token readable by every account", r.Code == 1 && strings.Contains(r.Out, "+ token.agent"), "%s", r)
+		r = h.run(cgctlBinary, "install", "--skip-packages")
+		mode := os.FileMode(0)
+		if fi, err := os.Stat(tokenFile); err == nil {
+			mode = fi.Mode().Perm()
+		}
+		again, _ := os.ReadFile(tokenFile)
+		h.assert(t, "H-3-2: cgctl install puts the token's mode back, its content kept",
+			r.OK() && mode == 0o640 && string(again) == string(tok), "%s; mode %04o", r, mode)
+		h.api.relogin()
+	} else {
+		h.fail(t, "H-3-2 control: loosen the agent token's mode", "%v", terr)
+	}
+
 	h.installerFailsOnADeadAgent(t)
 }
 

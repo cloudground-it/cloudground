@@ -189,9 +189,14 @@ owner, a new one is created root-owned (what `install -d -m` does).
     line, the file is `root:cloudground 0640`. Line writer: an existing `CLOUDGROUND_PHP_VERSION=`
     line is replaced in place (every one, as `sed s///` did), else the line is appended (after a
     newline if the file does not end in one); other lines are kept byte for byte.
-12. **`token.agent`** — check: `/etc/cloudground/agent.token` exists. Apply: 48 characters from
+12. **`token.agent`** — check: `/etc/cloudground/agent.token` exists, is a regular file (not
+    followed), mode `0640` and `root:cloudground`. Apply: when missing, 48 characters from
     `[A-Za-z0-9]` (crypto/rand; before: base64 of urandom with `/+=` removed, the same alphabet),
-    no newline, written `0600` and then `root:cloudground 0640`. Never rewritten once present.
+    no newline, written `0600` and then `root:cloudground 0640`. Its content is never rewritten
+    once present (the API and the agent share it), but a looser mode or another owner is put back
+    (H-3-2: before, only its existence was checked, and a token readable by every account of the
+    box handed them the agent); one that is not a regular file (a link) fails the step, naming
+    the file to remove.
 13. **`cert.panel`** — `/etc/cloudground/certs/panel.{pem,key}`: self-signed, RSA 2048, 3650
     days, subject `CN=cloudground-panel`, key PKCS#8 PEM. Check: `panel.pem` exists. Apply: write
     both, `root:cloudground`, `panel.pem 0600`, `panel.key 0640`. (Before: openssl under umask 077;

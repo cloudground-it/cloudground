@@ -225,13 +225,70 @@ func public(a netip.Addr, host string, o Options) error {
 	if o.AllowPrivate {
 		return nil
 	}
-	a = a.Unmap()
-	if a.IsLoopback() || a.IsPrivate() || a.IsLinkLocalUnicast() || a.IsLinkLocalMulticast() ||
-		a.IsUnspecified() || a.IsMulticast() || a.IsInterfaceLocalMulticast() || cgnat.Contains(a) || !a.IsGlobalUnicast() {
+	if !PublicAddr(a) {
 		return refuse("the backup repository's host %s is a private or local address; set CLOUDGROUND_BACKUP_PRIVATE_ENDPOINT=1 to allow a private endpoint", host)
 	}
 	return nil
 }
 
+// PublicAddr reports whether a is an address of the public internet: the
+// one rule for every address the panel or the agent dials on a user's word
+// (SPEC §2: a backup endpoint, an alert webhook). Not loopback, private
+// (RFC 1918, ULA), link-local (the cloud metadata address), unspecified,
+// multicast, the shared space, "this network" 0.0.0.0/8, the IETF block
+// 192.0.0.0/24, the benchmarking 198.18.0.0/15, the reserved 240.0.0.0/4
+// with the broadcast address, the deprecated site-local fec0::/10 and the
+// local-use NAT64 prefix, or otherwise not global unicast; and an IPv6
+// address that embeds an IPv4 one (NAT64, 6to4) is judged by that one.
+func PublicAddr(a netip.Addr) bool {
+	a = a.Unmap()
+	if !a.IsValid() || a.IsLoopback() || a.IsPrivate() || a.IsLinkLocalUnicast() || a.IsLinkLocalMulticast() ||
+		a.IsUnspecified() || a.IsMulticast() || a.IsInterfaceLocalMulticast() || !a.IsGlobalUnicast() {
+		return false
+	}
+	for _, p := range notPublic {
+		if p.Contains(a) {
+			return false
+		}
+	}
+	if v4, ok := embeddedIPv4(a); ok {
+		return PublicAddr(v4)
+	}
+	return true
+}
+
 // cgnat is the shared address space (RFC 6598), not public either.
 var cgnat = netip.MustParsePrefix("100.64.0.0/10")
+
+// notPublic are the special ranges netip's predicates leave as global
+// unicast.
+var notPublic = []netip.Prefix{
+	cgnat,
+	netip.MustParsePrefix("0.0.0.0/8"),
+	netip.MustParsePrefix("192.0.0.0/24"),
+	netip.MustParsePrefix("198.18.0.0/15"),
+	netip.MustParsePrefix("240.0.0.0/4"),
+	netip.MustParsePrefix("fec0::/10"),
+	netip.MustParsePrefix("64:ff9b:1::/48"), // local-use NAT64 (RFC 8215): a translator of the network's own
+}
+
+var (
+	nat64     = netip.MustParsePrefix("64:ff9b::/96")
+	sixToFour = netip.MustParsePrefix("2002::/16")
+)
+
+// embeddedIPv4 is the IPv4 address a well-known-prefix NAT64 (RFC 6052) or
+// a 6to4 (RFC 3056) address carries.
+func embeddedIPv4(a netip.Addr) (netip.Addr, bool) {
+	if !a.Is6() {
+		return netip.Addr{}, false
+	}
+	b := a.As16()
+	switch {
+	case nat64.Contains(a):
+		return netip.AddrFrom4([4]byte{b[12], b[13], b[14], b[15]}), true
+	case sixToFour.Contains(a):
+		return netip.AddrFrom4([4]byte{b[2], b[3], b[4], b[5]}), true
+	}
+	return netip.Addr{}, false
+}

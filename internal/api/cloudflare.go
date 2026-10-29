@@ -177,8 +177,16 @@ func (s *Server) runCloudflareRanges(ctx context.Context, r *jobs.Run) error {
 	}
 	now := time.Now().UTC()
 	v4, v6 := rng.Strings()
+	// Who may name a visitor's address changes with this list: what a new
+	// one adds or drops is put on record (H-7-2, cfips SPEC §2). The list in
+	// use is read before the new one is stored: after a restart it comes
+	// from the store.
+	prev := s.cloudflareRanges()
 	if err := s.Store.SetCloudflareRanges(state.CloudflareRanges{V4: v4, V6: v6, FetchedAt: now}); err != nil {
 		return err
+	}
+	if added, removed := rng.Diff(prev); len(added)+len(removed) > 0 {
+		s.Log.Warn("Cloudflare's ranges differ from the list in use", "added", fmt.Sprint(added), "removed", fmt.Sprint(removed))
 	}
 	s.cfMu.Lock()
 	s.cfRanges = &cfRangesInUse{r: rng, at: now}

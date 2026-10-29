@@ -27,11 +27,13 @@ var (
 	}
 )
 
-// Bounds of a list (SPEC §2).
+// Bounds of a list (SPEC §2). Cloudflare's widest networks are a /13 and a
+// /29: a list with a wider one is not theirs, and taking it would trust
+// whoever sends from that space to name the visitor's address.
 const (
 	maxPerFamily = 100
-	minBits4     = 8
-	minBits6     = 20
+	minBits4     = 12
+	minBits6     = 29
 )
 
 // Ranges is a checked list: each family sorted, without repeats.
@@ -123,4 +125,20 @@ func (r Ranges) Strings() (v4, v6 []string) {
 		return out
 	}
 	return str(r.V4), str(r.V6)
+}
+
+// Diff is what changed from old to r: the networks added and those gone.
+func (r Ranges) Diff(old Ranges) (added, removed []netip.Prefix) {
+	now, was := r.Prefixes(), old.Prefixes()
+	for _, p := range now {
+		if !slices.Contains(was, p) {
+			added = append(added, p)
+		}
+	}
+	for _, p := range was {
+		if !slices.Contains(now, p) {
+			removed = append(removed, p)
+		}
+	}
+	return added, removed
 }

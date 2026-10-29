@@ -1489,7 +1489,9 @@ one. The `cloudflare.ranges` job (jobs SPEC §8, §9: daily, and at the first
 wake after a start) runs only while a site has `real_ip` on: `GET
 https://api.cloudflare.com/client/v4/ips` (10 s, at most 64 KiB), the
 JSON's `result.ipv4_cidrs` and `result.ipv6_cidrs`, checked by `cfips.Parse`
-(a list it refuses is not used). The good list is stored (`meta` key
+(a list it refuses is not used; no network wider than /12 or /29). A good list
+that differs from the one in use is logged as a warning naming the networks
+added and those gone (`cfips.Ranges.Diff`). The good list is stored (`meta` key
 `cloudflare_ranges`, `{v4, v6, fetched_at}`) and sent to the agent
 (`SetCloudflareRanges`, every run: the agent rewrites its file only when it
 changed). A failed fetch fails the job (quiet: logged, no alert) and
@@ -2440,7 +2442,9 @@ one has an id, a name and the connection the agent uses.
 A server is `{id, name, host, port, tls, ca_cert, admin_user}` (table `db_servers`, migration 33,
 state SPEC) and one sealed secret, `dbserver.<id>.admin_password`. `name` is `^[a-z][a-z0-9-]{1,31}$`
 and unique; `host` a host name or an IP address (at most 253 characters, no spaces, no `/`, no
-`@`); `port` 1–65535 (3306 when left out); `tls` is `required` (the default: the connection and
+`@`; not a link-local address, the cloud metadata address 169.254.169.254 among them, nor the
+unspecified or a multicast one, and the agent's test refuses a name that resolves to one:
+`rpc.DBHostRefused`, ops/db SPEC §9; loopback and private addresses stay allowed); `port` 1–65535 (3306 when left out); `tls` is `required` (the default: the connection and
 every account made on the server insist on TLS, and the server's certificate is checked against
 `ca_cert`, a PEM bundle of public certificates, or the system's authorities when it is empty) or
 `off`; `admin_user` the account the agent administers with, one that may create databases and
@@ -3165,10 +3169,12 @@ a task alert; nested, so it clashes with no field a chat tool reads.
   hanging endpoint costs one 10 s timeout per round of four and a failed
   post is tried again at the next run (every five minutes).
 - The client follows no redirect (a 3xx is a failure) and its dialer
-  refuses, on the address actually dialled, loopback, private, link-local
-  (169.254/16, fe80::/10), shared (100.64/10), multicast and unspecified
-  addresses and the server's own: the URL cannot reach what only the server
-  can.
+  refuses, on the address actually dialled, every address that is not public
+  (`backuprepo.PublicAddr`, internal/backuprepo SPEC §2: loopback, private,
+  link-local 169.254/16 and fe80::/10, shared 100.64/10, multicast,
+  unspecified, 0.0.0.0/8, 192.0.0.0/24, 198.18.0.0/15, 240.0.0.0/4 and the
+  broadcast address, and an IPv6 form that carries one of them) and the
+  server's own: the URL cannot reach what only the server can.
 - The URL is a credential and the panel's journal is readable by read-only
   accounts (`GET /api/logs`): a failure is logged with its status or cause,
   never the URL. The agent's errors are logged with every URL password

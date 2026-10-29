@@ -758,3 +758,44 @@ func TestFinishedOnAnUpgrade(t *testing.T) {
 		t.Fatalf("first install end text: %q", out.String())
 	}
 }
+
+// H-3-2: a token file with a looser mode is put back to 0640 on the next
+// run, its content kept; one that is not a regular file is not followed.
+func TestAgentTokenModeIsCorrected(t *testing.T) {
+	m := newMachine(t, "26.04")
+	o := m.options(false)
+	o.SkipPackages = true
+	m.mustApply(o)
+	before := m.read(AgentToken)
+	if err := os.Chmod(m.path(AgentToken), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	d := o
+	d.Doctor = true
+	if got := needed(Plan(bg, Steps(m.env, d))); !slices.Contains(got, "token.agent") {
+		t.Fatalf("a 0644 token is not drift: %v", got)
+	}
+	m.mustApply(o)
+	fi, err := os.Stat(m.path(AgentToken))
+	if err != nil || fi.Mode().Perm() != 0o640 {
+		t.Fatalf("token mode after the run: %v %v", fi.Mode(), err)
+	}
+	if m.read(AgentToken) != before {
+		t.Fatal("the token was rewritten")
+	}
+	if err := os.Remove(m.path(AgentToken)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("/etc/shadow", m.path(AgentToken)); err != nil {
+		t.Fatal(err)
+	}
+	var tokenStep Step
+	for _, s := range Steps(m.env, o) {
+		if s.ID == "token.agent" {
+			tokenStep = s
+		}
+	}
+	if err := tokenStep.Apply(bg); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+		t.Fatalf("a symlinked token: %v", err)
+	}
+}

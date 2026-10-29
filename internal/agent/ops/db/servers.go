@@ -3,9 +3,12 @@ package db
 import (
 	"context"
 	"crypto/tls"
+	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
@@ -170,6 +173,9 @@ type Remotes struct {
 	WorkDir string
 	// Tools runs mariadb-dump and the mariadb client.
 	Tools host.Exec
+	// Resolve is how a server's name becomes addresses (Test); nil is the
+	// system resolver.
+	Resolve func(ctx context.Context, host string) ([]netip.Addr, error)
 
 	mu       sync.RWMutex
 	servers  map[int64]host.RemoteServer
@@ -306,6 +312,9 @@ func (r *Remotes) Target(id int64) (Target, error) {
 // Test connects with the credentials given and reports the server's version
 // when its administrator can create accounts and grant privileges.
 func (r *Remotes) Test(ctx context.Context, p rpc.DBServerParams) (rpc.DBServerTestResult, error) {
+	if err := r.checkAddrs(ctx, p.Host); err != nil {
+		return rpc.DBServerTestResult{}, err
+	}
 	if p.Kind == rpc.KindPostgres {
 		return r.testPG(ctx, p)
 	}
@@ -324,6 +333,36 @@ func (r *Remotes) Test(ctx context.Context, p rpc.DBServerParams) (rpc.DBServerT
 		return rpc.DBServerTestResult{}, agentrpc.Invalid("%s cannot create accounts and grant privileges: it needs ALL PRIVILEGES WITH GRANT OPTION", p.AdminUser)
 	}
 	return rpc.DBServerTestResult{Version: version[0]}, nil
+}
+
+// checkAddrs refuses a server whose name resolves to an address the agent
+// never connects (rpc.DBHostRefused: link-local, unspecified, multicast),
+// before it sends the administrator's credentials anywhere (H-5-1). The
+// API refuses such a literal already; a name is resolved here, where the
+// connection is made. A name that does not resolve is left to the
+// connection, which says so.
+func (r *Remotes) checkAddrs(ctx context.Context, h string) error {
+	h = strings.Trim(h, "[]")
+	var addrs []netip.Addr
+	if a, err := netip.ParseAddr(h); err == nil {
+		addrs = []netip.Addr{a}
+	} else {
+		resolve := r.Resolve
+		if resolve == nil {
+			resolve = func(ctx context.Context, h string) ([]netip.Addr, error) {
+				ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+				defer cancel()
+				return net.DefaultResolver.LookupNetIP(ctx, "ip", h)
+			}
+		}
+		addrs, _ = resolve(ctx, h)
+	}
+	for _, a := range addrs {
+		if why := rpc.DBHostRefused(a); why != "" {
+			return agentrpc.Invalid("the database server %s resolves to %s, %s: the agent never connects there", h, a.Unmap(), why)
+		}
+	}
+	return nil
 }
 
 // connectError is what a person is told of a failed connection: the
