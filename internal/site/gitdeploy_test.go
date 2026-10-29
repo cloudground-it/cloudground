@@ -28,6 +28,8 @@ func TestCheckGitRepo(t *testing.T) {
 		"git@example.com:-oProxyCommand=x", "git@example.com:../x", "ftp://example.com/a",
 		"file:///etc", "file:///srv/sites/other.com/tmp/r", "file://" + root, "file://" + root + "/../other/r",
 		"file://host/srv/sites/example.com/r", "/srv/sites/example.com/r", "file://" + root + "/a/../b",
+		// N-8-1: one slash or two is not a file URL to git.
+		"file:" + root + "/tmp/repo.git", "file:" + root, "FILE://" + root + "/tmp/repo.git",
 		"https://" + strings.Repeat("a", 600),
 	} {
 		if err := CheckGitRepo(bad, root); err == nil {

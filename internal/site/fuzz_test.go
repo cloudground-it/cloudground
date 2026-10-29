@@ -117,9 +117,10 @@ func FuzzCheckGitRepo(f *testing.F) {
 			}
 		}
 		if strings.HasPrefix(low, "file:") {
-			// The path as the check reads it. ("file:/x", one slash, is
-			// accepted too; git reads it as ssh to a host "file": noted in
-			// the review ledger, harmless in the fetch's sandbox.)
+			// Spelled file:///: git reads "file:/x" as ssh to a host "file".
+			if !strings.HasPrefix(repo, "file:///") {
+				t.Fatalf("accepted a file repository git does not read as one: %q", repo)
+			}
 			u, err := url.Parse(repo)
 			if err != nil {
 				t.Fatalf("accepted %q, which does not parse", repo)
