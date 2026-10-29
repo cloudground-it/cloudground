@@ -1157,7 +1157,7 @@
     "banFor": "Block for (minutes)",
     "block": "Block an address",
     "blocked": "{address} is blocked",
-    "blockedHint": "Their packets are dropped on every port: SSH, the sites and this panel.",
+    "blockedHint": "Their packets are dropped on every port: SSH, the sites and this panel. A block caused by a site’s WordPress keeps the address from the sites only.",
     "blockedTitle": "Blocked addresses",
     "blockHint": "Its packets are dropped on every port at once. This server, loopback, Cloudflare’s network and the addresses always allowed cannot be blocked.",
     "disallowed": "{address} is no longer always allowed",

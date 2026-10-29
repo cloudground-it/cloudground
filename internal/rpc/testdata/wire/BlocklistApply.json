@@ -4,6 +4,9 @@
       "block": [
         "Block"
       ],
+      "block_web": [
+        "BlockWeb"
+      ],
       "allow": [
         "Allow"
       ]

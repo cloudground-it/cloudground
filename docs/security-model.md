@@ -108,8 +108,9 @@ can open; on TCP, loopback included, the peer address counts and the header is i
 
 **The block list** (issue #21, internal/blocklist/SPEC.md). Repeated failed sign-ins at SSH,
 WordPress (wp-login.php, XML-RPC, application passwords) and the panel block the address for a
-while, on every port: one netfilter table of the panel's, `inet cloudground`, drops its packets
-before sshd, nginx or the panel see them (6 failures in 10 minutes block for an hour by default;
+while: one netfilter table of the panel's, `inet cloudground`, drops its packets before sshd, nginx
+or the panel see them, on every port for SSH and panel failures and on the sites' ports for
+WordPress ones (6 failures in 10 minutes block for an hour by default;
 an IPv6 address counts as its /64). Addresses can also be blocked by hand. Loopback, the server's
 own addresses and an allowlist are never blocked, and the panel refuses a block that holds the
 address of the person making it; an operator locked out anyway gets back in from the server's
@@ -156,9 +157,9 @@ Kept because a list of what was wrong says more about a codebase than a list of 
   which slows a guesser to a handful of tries an hour per address (per /64 for IPv6); a botnet of
   many addresses still gets that many tries from each. Keys only is the defence against that.
 - A site's own code can mark any of its POST responses as a failed sign-in, so it can get the
-  addresses that post to it blocked on the whole server (its own visitors). It cannot name an
-  address that did not send it a request; the allowlist and the server's own addresses are never
-  blocked.
+  addresses that post to it blocked from every site on the server (its own visitors), though not
+  from SSH or the panel. It cannot name an address that did not send it a request; the allowlist
+  and the server's own addresses are never blocked.
 - Drift detection covers the files the panel rendered. It is not a file-integrity monitor.
 - The sandbox limits what a compromised site can reach. It does not make vulnerable application code
   safe. A way out of the sandbox is a vulnerability: report it as `SECURITY.md` says.
