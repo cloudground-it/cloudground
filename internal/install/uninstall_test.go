@@ -69,6 +69,7 @@ func installed(t *testing.T) *machine {
 	m.write(mariadbTuning, "[mysqld]\nlocal_infile = 0\n", 0o644)
 	m.write("/usr/local/bin/panel-agent.bak", "old\n", 0o755)
 	m.write("/var/cache/cloudground/a.test/x", "cached\n", 0o644)
+	m.write("/var/lib/cloudground-runtimes/node/22/bin/node", "binary\n", 0o755)
 	m.write("/var/log/cloudground/a.test/access.log", "GET /\n", 0o644)
 	// A function (#143): its code, units, slice, nginx file, environment and lineage.
 	m.write("/srv/functions/hello/releases/01JC0000000000000000000001/index.js", "exports.handler = () => 1;\n", 0o640)
@@ -145,7 +146,7 @@ var removedByDefault = []string{
 	"/etc/systemd/system/cloudground-fn-3.socket", "/etc/systemd/system/cloudground-fn-3@.service", "/etc/systemd/system/cg-fn.slice",
 	"/etc/nginx/sites-enabled/cloudground-functions-internal.conf", "/etc/cloudground-fn",
 	"/etc/cloudground", "/etc/cloudground-php", "/var/lib/cloudground", "/var/lib/cloudground-agent",
-	"/var/lib/cloudground-signatures", "/etc/clamav/cloudground-freshclam.conf",
+	"/var/lib/cloudground-signatures", "/var/lib/cloudground-runtimes", "/etc/clamav/cloudground-freshclam.conf",
 	"/var/cache/cloudground", "/var/log/cloudground", "/run/cloudground", "/var/www/cloudground-acme",
 }
 

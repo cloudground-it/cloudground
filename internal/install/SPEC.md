@@ -783,7 +783,7 @@ purge.
 `uninstall_test.go`, on the fakes of §1, after a full install and a site added by hand: the default
 tier removes every path of §9.2 (listed in the test), keeps the site's tree, user (locked), MariaDB
 tuning and an operator's vhost, drops nothing, restores nginx.conf and the default site, stops and
-disables nginx, writes the
+disables nginx, removes the runtimes `/var/lib/cloudground-runtimes` (#214), writes the
 kept state and `backup.env` (values from a real state database, a quote in the password), and a
 second inventory has nothing to do; `--remove-sites` drops exactly the CloudGround databases and
 accounts, not `mysql` nor an unrelated one; a state database planted as a link stops the run before
