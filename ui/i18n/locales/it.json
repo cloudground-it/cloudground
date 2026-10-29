@@ -679,6 +679,29 @@
       "full": "Tutto (file e database)",
       "files": "Solo i file",
       "database": "Solo i database"
+    },
+    "move": {
+      "open": "Sposta i backup",
+      "title": "Sposta i backup",
+      "hint": "Tutti i backup passano al nuovo repository. Il pannello cambia solo dopo aver controllato che ci siano tutti.",
+      "from": "Repository attuale",
+      "to": "Nuovo repository",
+      "toHelp": "Una cartella sul server, oppure s3:…, b2:…, sftp:…, rest:… come lo scrive restic.",
+      "same": "È il repository attuale.",
+      "how": "Come",
+      "mode": {
+        "copy": "Li copia il pannello",
+        "moved": "Già copiati"
+      },
+      "modeHint": {
+        "copy": "Il pannello copia ogni snapshot con restic. Con repository grandi servono ore. Non può copiare tra due account S3 o B2 con chiavi diverse, né tra due server SFTP: copia tu i file, poi scegli «Già copiati».",
+        "moved": "Hai copiato tu il repository (rsync, rclone, lo strumento del provider). Il pannello lo controlla soltanto."
+      },
+      "passwordHelp": "Lascia vuoto se è la stessa di adesso.",
+      "keysHelp": "Lascia vuoto per tenere quelle delle impostazioni.",
+      "safe": "Non cambia niente finché il controllo non passa. Il vecchio repository resta com’è: cancellalo quando i ripristini di prova sono passati.",
+      "start": "Sposta",
+      "started": "Spostamento avviato"
     }
   },
   "ssl": {

@@ -76,6 +76,8 @@ handler.
 | `BackupParams` | `Kind` is empty (full), `full`, `files` or `database` | `backup kind must be full, files, or database` |
 | `RestoreParams` | `Mode`, trimmed and lower-cased, is empty (full), `full`, `files` or `database` | `restore mode must be full, files, or database` |
 | `ForgetSnapshotParams` | `SnapshotID` is 8 to 64 hex digits | `invalid snapshot id` |
+| `RepositoryInfoParams` | at most 100 000 `Expect` IDs, each 8 to 64 hex digits (#192) | `too many snapshot ids`, `invalid snapshot id` |
+| `CopyRepositoryParams` | `From` and `To` each have a repository and a password, and are not the same repository (#192) | `repository and password required`, `the two repositories are the same` |
 | `RemoveReleasesParams` | at most 100 `ReleaseIDs`, each a release ID (never `initial`) | `at most 100 releases at a time`, `invalid release id "<id>"` |
 | `SiteDatabaseParams`, `DBUserParams` | `ServerID`, when not 0, is positive | `invalid database server` |
 | `DBServerParams` (`TestDBServer`) | `Kind` empty, `mariadb` or `postgres` (PostgreSQL needs `TLS`); `Host` a host name or an address (at most 253 characters, none of space, `/`, `@`), `Port` 1–65535, `AdminUser` one line of at most 80 characters, `AdminPassword` not empty and without a line break, `CACert` empty or PEM certificates, at most 64 KiB | the rule's sentence |

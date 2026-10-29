@@ -75,6 +75,12 @@ func (o *Ops) BackupRetention(ctx context.Context, p rpc.RetentionParams) (rpc.R
 	if err != nil {
 		return rpc.RetentionResult{}, err
 	}
+	// The plan's snapshots with the IDs they had before a copy (SPEC §5),
+	// from the site's own list: what the panel's records and db: tags
+	// may name. Nothing is planned on a list that could not be read.
+	if err := o.withOriginals(ctx, repo, p.Site.Domain, groups); err != nil {
+		return rpc.RetentionResult{}, err
+	}
 	res, err := planRetention(groups, p.Protect)
 	if err != nil {
 		return rpc.RetentionResult{}, err
@@ -88,11 +94,41 @@ func (o *Ops) BackupRetention(ctx context.Context, p rpc.RetentionParams) (rpc.R
 	return res, nil
 }
 
+// withOriginals fills in the original ID of each planned snapshot that
+// has one, from the site's snapshot list.
+func (o *Ops) withOriginals(ctx context.Context, repo host.Repo, domain string, groups []host.ForgetGroup) error {
+	out, err := o.run(ctx, repo, metaTimeout, "snapshots", "--json", "--tag", tagSite+domain)
+	if err != nil {
+		return err
+	}
+	snaps, err := host.DecodeSnapshots(out)
+	if err != nil {
+		return fmt.Errorf("read the site's snapshots: %w", err)
+	}
+	original := map[string]string{}
+	for _, s := range snaps {
+		if s.Original != "" {
+			original[s.ID] = s.Original
+		}
+	}
+	for g := range groups {
+		for _, list := range [][]host.Snapshot{groups[g].Keep, groups[g].Remove} {
+			for i := range list {
+				if list[i].Original == "" {
+					list[i].Original = original[list[i].ID]
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // planRetention decides, from restic's plan, what is forgotten and what is
 // kept.
 func planRetention(groups []host.ForgetGroup, protect []string) (rpc.RetentionResult, error) {
 	res := rpc.RetentionResult{Forgotten: []string{}, Kept: []string{}}
 	tags := map[string][]string{}
+	original := map[string]string{}
 	var remove []string
 	for _, g := range groups {
 		for _, s := range g.Keep {
@@ -101,6 +137,7 @@ func planRetention(groups []host.ForgetGroup, protect []string) (rpc.RetentionRe
 		}
 		for _, s := range g.Remove {
 			tags[s.ID] = s.Tags
+			original[s.ID] = s.Original
 			switch {
 			case len(g.Keep) == 0:
 				// keep-within always keeps a group's newest: this is not
@@ -109,7 +146,9 @@ func planRetention(groups []host.ForgetGroup, protect []string) (rpc.RetentionRe
 				res.Kept = append(res.Kept, s.ID)
 			case !ValidSnapshotID(s.ID):
 				return rpc.RetentionResult{}, fmt.Errorf("restic's retention plan has an invalid snapshot id")
-			case protected(s.ID, protect):
+			case protected(s.ID, protect), s.Original != "" && protected(s.Original, protect):
+				// The panel's record of a copied snapshot holds its
+				// original ID (SPEC §5).
 				res.Kept = append(res.Kept, s.ID)
 			default:
 				remove = append(remove, s.ID)
@@ -118,10 +157,13 @@ func planRetention(groups []host.ForgetGroup, protect []string) (rpc.RetentionRe
 	}
 	paired := pairedDatabases(res.Kept, tags)
 	for _, id := range remove {
-		if protected(id, paired) {
+		if protected(id, paired) || original[id] != "" && protected(original[id], paired) {
 			res.Kept = append(res.Kept, id)
 		} else {
 			res.Forgotten = append(res.Forgotten, id)
+			if o := original[id]; o != "" && ValidSnapshotID(o) {
+				res.Originals = append(res.Originals, o)
+			}
 		}
 	}
 	return res, nil

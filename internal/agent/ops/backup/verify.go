@@ -63,11 +63,12 @@ func (o *Ops) restoreTest(ctx context.Context, repo host.Repo, s state.Site, id,
 	}
 	defer unlock()
 	// What a restore would refuse is not a passing test (SR-T6).
-	snap, err := o.siteSnapshot(ctx, repo, s, id)
+	snaps := o.siteSnaps(repo, s)
+	snap, err := o.siteSnapshot(ctx, snaps, id)
 	if err != nil {
 		return "", err
 	}
-	if err := o.restoreFiles(ctx, repo, id, work); err != nil {
+	if err := o.restoreFiles(ctx, repo, snap.ID, work); err != nil {
 		return "", err
 	}
 	// A site with databases is restorable only with them: every database
@@ -76,7 +77,7 @@ func (o *Ops) restoreTest(ctx context.Context, repo host.Repo, s state.Site, id,
 	if err != nil {
 		return "", err
 	}
-	parts, err := o.databaseParts(ctx, repo, s, snap)
+	parts, err := o.databaseParts(ctx, snaps, snap)
 	if err != nil {
 		return "", fmt.Errorf("database snapshot: %w", err)
 	}

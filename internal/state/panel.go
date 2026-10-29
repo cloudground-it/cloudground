@@ -158,38 +158,45 @@ func (s *Store) PanelSettings() (PanelSettings, error) {
 func (s *Store) UpdatePanelSettings(fn func(*PanelSettings) error) (PanelSettings, error) {
 	var out PanelSettings
 	err := s.writeTx(func(conn *sql.Conn, ctx context.Context) error {
-		q := connExec{conn: conn, ctx: ctx}
-		p, err := scanPanel(conn.QueryRowContext(ctx, `SELECT `+panelCols+` FROM panel_settings WHERE id=1`))
-		if err == nil {
-			p.BackupRepository, err = s.openRepoFrom(q, p.BackupRepository)
-		}
-		if err != nil {
-			return err
-		}
-		if err := fn(&p); err != nil {
-			return err
-		}
-		repo, err := s.storedRepo(q, p.BackupRepository)
-		if err != nil {
-			return err
-		}
-		mail, err := json.Marshal(panelMail{Relay: p.Mail, AlertEmails: splitEmails(p.AlertEmails)})
-		if err != nil {
-			return err
-		}
-		if _, err := conn.ExecContext(ctx, `UPDATE panel_settings SET acme_email=?, panel_domain=?, probe_target=?,
-			backup_repository=?, backup_s3_access_key=?, backup_s3_region=?, require_2fa_admin=?, require_2fa_all=?, update_check=?, update_channel=?, vulnerability_check=?, malware_scan=?, mail=?, mcp_enabled=?, functions_domain=?, functions_migration=? WHERE id=1`,
-			p.ACMEEmail, p.PanelDomain, p.ProbeTarget, repo, p.BackupS3AccessKey, p.BackupS3Region,
-			p.Require2FAAdmin, p.Require2FAAll, p.UpdateCheck, p.UpdateChannel, p.VulnerabilityCheck, p.MalwareScan, string(mail), p.MCPEnabled, p.FunctionsDomain, p.FunctionsMigration); err != nil {
-			return fmt.Errorf("update panel settings: %w", err)
-		}
-		out = p
-		return nil
+		var err error
+		out, err = s.updatePanelTx(conn, ctx, fn)
+		return err
 	})
 	if err == nil {
 		s.publish(events.SettingsChanged, 0, nil)
 	}
 	return out, err
+}
+
+// updatePanelTx is UpdatePanelSettings inside the caller's write
+// transaction.
+func (s *Store) updatePanelTx(conn *sql.Conn, ctx context.Context, fn func(*PanelSettings) error) (PanelSettings, error) {
+	q := connExec{conn: conn, ctx: ctx}
+	p, err := scanPanel(conn.QueryRowContext(ctx, `SELECT `+panelCols+` FROM panel_settings WHERE id=1`))
+	if err == nil {
+		p.BackupRepository, err = s.openRepoFrom(q, p.BackupRepository)
+	}
+	if err != nil {
+		return PanelSettings{}, err
+	}
+	if err := fn(&p); err != nil {
+		return PanelSettings{}, err
+	}
+	repo, err := s.storedRepo(q, p.BackupRepository)
+	if err != nil {
+		return PanelSettings{}, err
+	}
+	mail, err := json.Marshal(panelMail{Relay: p.Mail, AlertEmails: splitEmails(p.AlertEmails)})
+	if err != nil {
+		return PanelSettings{}, err
+	}
+	if _, err := conn.ExecContext(ctx, `UPDATE panel_settings SET acme_email=?, panel_domain=?, probe_target=?,
+		backup_repository=?, backup_s3_access_key=?, backup_s3_region=?, require_2fa_admin=?, require_2fa_all=?, update_check=?, update_channel=?, vulnerability_check=?, malware_scan=?, mail=?, mcp_enabled=?, functions_domain=?, functions_migration=? WHERE id=1`,
+		p.ACMEEmail, p.PanelDomain, p.ProbeTarget, repo, p.BackupS3AccessKey, p.BackupS3Region,
+		p.Require2FAAdmin, p.Require2FAAll, p.UpdateCheck, p.UpdateChannel, p.VulnerabilityCheck, p.MalwareScan, string(mail), p.MCPEnabled, p.FunctionsDomain, p.FunctionsMigration); err != nil {
+		return PanelSettings{}, fmt.Errorf("update panel settings: %w", err)
+	}
+	return p, nil
 }
 
 // writeTx runs fn inside BEGIN IMMEDIATE on a dedicated connection, so the

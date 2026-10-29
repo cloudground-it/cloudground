@@ -43,6 +43,11 @@ type Repo struct {
 	// SSHKey is the panel's private key for an sftp: repository (#23);
 	// empty for any other, or to use root's own ssh configuration.
 	SSHKey string
+	// From is the source of a `restic copy` (#192): it reaches restic as
+	// RESTIC_FROM_REPOSITORY and RESTIC_FROM_PASSWORD, its Env and SSHKey
+	// with this repository's (the caller has checked they agree). Nil for
+	// every other command.
+	From *Repo
 }
 
 // Restic runs restic against one repository.
@@ -100,10 +105,19 @@ func (r *ResticCLI) env(repo Repo) []string {
 		}
 	}
 	env := append(append([]string(nil), base...), "RESTIC_REPOSITORY="+repo.URL, "RESTIC_PASSWORD="+repo.Password)
-	for k, v := range repo.Env {
-		if ResticEnvKeys[k] && v != "" && !strings.ContainsAny(v, "\x00\n") {
-			env = append(env, k+"="+v)
+	seen := map[string]bool{}
+	add := func(vars map[string]string) {
+		for k, v := range vars {
+			if ResticEnvKeys[k] && v != "" && !strings.ContainsAny(v, "\x00\n") && !seen[k] {
+				seen[k] = true
+				env = append(env, k+"="+v)
+			}
 		}
+	}
+	add(repo.Env)
+	if repo.From != nil {
+		env = append(env, "RESTIC_FROM_REPOSITORY="+repo.From.URL, "RESTIC_FROM_PASSWORD="+repo.From.Password)
+		add(repo.From.Env)
 	}
 	return env
 }
@@ -115,13 +129,19 @@ func (r *ResticCLI) Run(ctx context.Context, repo Repo, args ...string) ([]byte,
 }
 
 func (r *ResticCLI) RunIO(ctx context.Context, repo Repo, stdin io.Reader, stdout io.Writer, args ...string) error {
-	if repo.URL == "" || repo.Password == "" {
+	if repo.URL == "" || repo.Password == "" || repo.From != nil && (repo.From.URL == "" || repo.From.Password == "") {
 		return errors.New("restic: repository and password are required")
 	}
 	if stdout == nil {
 		stdout = io.Discard
 	}
-	sftp, err := r.sftpArgs(repo)
+	keyed := repo
+	if repo.SSHKey == "" && repo.From != nil {
+		// One sftp.command serves both repositories of a copy: the
+		// source's, when only the source is reached over SFTP.
+		keyed = *repo.From
+	}
+	sftp, err := r.sftpArgs(keyed)
 	if err != nil {
 		return err
 	}
@@ -214,6 +234,26 @@ type Snapshot struct {
 	Hostname string    `json:"hostname"`
 	Paths    []string  `json:"paths"`
 	Tags     []string  `json:"tags"`
+	// Original is the ID the snapshot had before `restic copy` (or a
+	// rewrite) gave it a new one; "" for a snapshot never copied.
+	Original string `json:"original,omitempty"`
+}
+
+// RepoConfig is what `restic cat config` prints that the agent reads.
+type RepoConfig struct {
+	ID string `json:"id"`
+}
+
+// DecodeRepoConfig decodes `restic cat config`.
+func DecodeRepoConfig(out []byte) (RepoConfig, error) {
+	var c RepoConfig
+	if err := json.Unmarshal(bytes.TrimSpace(out), &c); err != nil {
+		return RepoConfig{}, fmt.Errorf("restic cat config: %w", err)
+	}
+	if len(c.ID) != 64 || strings.Trim(c.ID, "0123456789abcdef") != "" {
+		return RepoConfig{}, errors.New("restic cat config: no repository id")
+	}
+	return c, nil
 }
 
 // DecodeSnapshots decodes `restic snapshots --json`.

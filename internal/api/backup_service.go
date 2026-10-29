@@ -156,6 +156,9 @@ func (s *Server) runVerifyBackup(ctx context.Context, r *jobs.Run) error {
 	if err != nil {
 		return err
 	}
+	if !slices.Contains(r.Job().Locks, jobs.RepoLock(b.Repository)) {
+		return jobs.ErrRequeue // the record moved to another repository (§5.9)
+	}
 	site, err := s.Store.GetSite(b.SiteID)
 	if err != nil {
 		return err
@@ -262,6 +265,9 @@ func (s *Server) runForget(ctx context.Context, r *jobs.Run) error {
 	if err != nil {
 		return err
 	}
+	if !slices.Contains(r.Job().Locks, jobs.RepoLock(b.Repository)) {
+		return jobs.ErrRequeue // the record moved to another repository (§5.9)
+	}
 	site, err := s.Store.GetSite(b.SiteID)
 	if err != nil {
 		return err
@@ -291,7 +297,7 @@ func (s *Server) runForget(ctx context.Context, r *jobs.Run) error {
 	if err := s.Store.DeleteBackup(b.ID); err != nil && !errors.Is(err, state.ErrNotFound) {
 		return fmt.Errorf("snapshot %s was deleted but its record could not be: %w", b.SnapshotID, err)
 	}
-	if _, err := s.Store.DeleteBackupsBySnapshot(site.ID, b.Repository, res.Forgotten); err != nil {
+	if _, err := s.Store.DeleteBackupsBySnapshot(site.ID, b.Repository, append(res.Forgotten, res.Originals...)); err != nil {
 		return fmt.Errorf("snapshot %s was deleted but its records could not be: %w", b.SnapshotID, err)
 	}
 	if len(res.Forgotten) > 0 {

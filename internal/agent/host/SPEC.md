@@ -426,12 +426,22 @@ Interface `Nginx`: `Test`, `Reload`, `BuildInfo`.
   `ssh` reads nothing of root's own `~/.ssh`. A sandboxed run binds
   `SSHDir` read-only. Without a key, an `sftp:` repository runs as before
   (root's own ssh configuration).
+- **Copy** (#192). `Repo.From`, set only for `restic copy`, is the
+  source: `RESTIC_FROM_REPOSITORY` and `RESTIC_FROM_PASSWORD` join the
+  environment, and the source's `Env` adds what the destination's does not
+  set (the caller has refused two different values of one variable: restic
+  reads one set for both). The `sftp.command` is the destination's when it
+  has a key, else the source's: restic applies its `-o` options to both
+  repositories, so two SFTP repositories on different hosts cannot be
+  copied between in one run (the caller refuses them).
 - Exit codes (restic ≥ 0.17, documented): 1 fatal, 3 backup read some files
   incompletely (`ErrIncomplete`), 10 repository does not exist
   (`ErrRepoNotFound`), 11 lock failed (`ErrRepoLocked`), 12 wrong password
   (`ErrWrongPassword`), 130 interrupted.
 - Decoders: `DecodeBackupSummary` (the `summary` message of `backup --json`),
-  `DecodeSnapshots` (`snapshots --json`), `DecodeForgetPlan` (`forget
+  `DecodeSnapshots` (`snapshots --json`, with each snapshot's `original`:
+  the ID it had before a copy), `DecodeRepoConfig` (`cat config`: its `id`,
+  64 hex digits), `DecodeForgetPlan` (`forget
   --dry-run --json`, which may be preceded by non-JSON lines).
 - **Output.** `Run` and `RunSandboxed` keep restic's stdout in a
   `ResticOutput` (`NewResticOutput(args)`, also what a caller of `RunIO`

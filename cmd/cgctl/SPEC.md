@@ -119,6 +119,23 @@ the databases named, out of those the snapshot holds; without one, every databas
 `POST /api/backups/<id>/restore {confirm, mode, databases?}`. An unknown flag, `--database`
 without a name, or a wrong number of the other arguments is a usage error (exit 2).
 
+## 6.6 backup move (#192)
+
+    cgctl backup move <repository> --copy|--already-copied [--repository-password-file <file>]
+        [--credentials-file <json-file>]
+
+Moves every backup to another repository (internal/api SPEC §5.9): `--copy` has the panel copy
+the snapshots there (`mode: copy`), `--already-copied` says they were copied by hand (`mode:
+moved`, checked: the same repository, every recorded snapshot in it). Exactly one of the two.
+The new repository's password (when it is not the current one) is read from
+`--repository-password-file` (its line ending dropped) and its object-store credentials from
+`--credentials-file`, a JSON object of `s3_access_key`, `s3_secret_key`, `s3_region`,
+`b2_account_id`, `b2_account_key`, so no secret is an argument `ps` shows. A file over 64 KiB,
+empty, unreadable or (for the credentials) not such an object, an unknown flag or key, or not
+exactly one repository, is a usage error (exit 2). The request is `POST
+/api/backups/repository/move`, a session-only route: it signs in with the password (§2.3).
+`--wait` follows the move to its end.
+
 ## 6.3 blocklist (#21)
 
     cgctl blocklist                                         the block list (GET /api/blocklist)

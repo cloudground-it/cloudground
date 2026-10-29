@@ -131,10 +131,12 @@ internal/agent/ops/db/accounts.go      F9b site databases, SR tenant data, wordp
 internal/agent/ops/db/registry.go      F9b site databases, SR tenant data, wordpress backups, external database server, external postgresql server
 internal/agent/ops/backup/databases.go F9b site databases, wordpress backups, R-4.3 deploys and backups, external database server, external postgresql server
 internal/api/alert_service.go          wordpress status and drift, R-4.3 proxies and alerts, R-4.3 deploys and backups, mail relay
-internal/api/backup_service.go         wordpress backups, R-4.3 deploys and backups, F9b site databases, wordpress updates, backup destinations and selective restore
+internal/api/backup_move.go            backup repository move
+internal/state/backups.go              wordpress backups, R-4.3 deploys and backups, backup repository move
+internal/api/backup_service.go         wordpress backups, R-4.3 deploys and backups, F9b site databases, wordpress updates, backup destinations and selective restore, backup repository move
 internal/api/backup_selective.go       backup destinations and selective restore
 internal/api/backup_routes.go          wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, F9b site databases, backup destinations and selective restore
-internal/api/backup_retention.go       wordpress backups
+internal/api/backup_retention.go       wordpress backups, backup repository move
 internal/api/panel_settings.go         wordpress backups, R-4.6 backup interruption, R-6.3 release channel, R-10.5 root boundary, mail relay
 internal/api/mail*.go                  mail relay
 internal/mailgate/**                   mail relay
@@ -197,11 +199,12 @@ internal/throttle/**                   ALL
 internal/agent/ops/dbstudio/wordpress.go wordpress cleanup, F4b Quarry, SR tenant data
 internal/agent/ops/dbstudio/**         F4b Quarry, F9b Quarry service, SR tenant data
 internal/api/site_wpcleanup.go         wordpress cleanup
-internal/agent/ops/backup/archive.go   backup destinations and selective restore
-internal/agent/ops/backup/restore.go   wordpress backups, R-4.3 deploys and backups, SR tenant data, R-10.5 root boundary, F9b site databases, backup destinations and selective restore
-internal/agent/ops/backup/**           wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, SR tenant data, R-10.5 root boundary, F9b site databases
+internal/agent/ops/backup/archive.go   backup destinations and selective restore, backup repository move
+internal/agent/ops/backup/repository.go backup repository move
+internal/agent/ops/backup/restore.go   wordpress backups, R-4.3 deploys and backups, SR tenant data, R-10.5 root boundary, F9b site databases, backup destinations and selective restore, backup repository move
+internal/agent/ops/backup/**           wordpress backups, R-4.3 deploys and backups, R-4.6 backup interruption, SR tenant data, R-10.5 root boundary, F9b site databases, backup repository move
 internal/agent/ops_backup.go           wordpress backups, R-4.6 backup interruption, helper units, R-10.5 root boundary
-internal/agent/host/restic.go          wordpress backups, R-4.6 backup interruption, helper units, R-10.5 root boundary
+internal/agent/host/restic.go          wordpress backups, R-4.6 backup interruption, helper units, R-10.5 root boundary, backup repository move
 internal/agent/ops/cache/**            woocommerce, wordpress cache, wordpress backups, migration import
 internal/agent/ops/certs/**            wordpress certificates, wordpress status and drift, R-3.9 certificates and panel
 internal/agent/host/acme.go            wordpress certificates, R-3.9 certificates and panel
@@ -297,6 +300,7 @@ internal/agentrpc/limit.go             R-10.5 agent limits
 internal/agentrpc/**                   ALL
 internal/rpc/**                        ALL
 internal/state/mcp.go                  mcp server
+internal/state/panel.go                wordpress backups, R-4.6 backup interruption, R-6.3 release channel, R-10.5 root boundary, mail relay, backup destinations and selective restore, backup repository move
 internal/state/**                      ALL
 internal/site/**                       ALL
 internal/version/**                    ALL
@@ -316,6 +320,7 @@ cmd/cgctl/statepeek.go                 R-6.5 upgrade
 # container run (make docker-install-test).
 cmd/cgctl/uninstall.go                 NONE
 cmd/cgctl/sitecreate.go                F9b site creation
+cmd/cgctl/backupmove.go                backup repository move
 cmd/cgctl/commands.go                  R-4.6 cgctl tokens, F9b site creation, F9b site databases, git deploy webhook
 cmd/cgctl/**                           R-4.6 cgctl tokens
 cmd/cg-site-shell/**                   R-4.5 site shell, R-10.5 root boundary

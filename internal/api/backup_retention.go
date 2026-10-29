@@ -218,7 +218,7 @@ func (s *Server) applyBackupRetention(ctx context.Context, siteID int64, repo, p
 	}, &res); err != nil {
 		return err
 	}
-	if _, err := s.Store.DeleteBackupsBySnapshot(site.ID, repo, res.Forgotten); err != nil {
+	if _, err := s.Store.DeleteBackupsBySnapshot(site.ID, repo, append(res.Forgotten, res.Originals...)); err != nil {
 		return fmt.Errorf("%d snapshots were removed but their records could not be: %w", len(res.Forgotten), err)
 	}
 	if len(res.Forgotten) > 0 {

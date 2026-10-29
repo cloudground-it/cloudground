@@ -679,6 +679,29 @@
       "full": "Tout (fichiers et bases de données)",
       "files": "Fichiers seulement",
       "database": "Bases de données seulement"
+    },
+    "move": {
+      "open": "Déplacer les sauvegardes",
+      "title": "Déplacer les sauvegardes",
+      "hint": "Toutes les sauvegardes passent dans le nouveau dépôt. Le panneau ne bascule qu’après avoir vérifié qu’elles y sont toutes.",
+      "from": "Dépôt actuel",
+      "to": "Nouveau dépôt",
+      "toHelp": "Un dossier du serveur, ou s3:…, b2:…, sftp:…, rest:… comme restic l’écrit.",
+      "same": "C’est le dépôt actuel.",
+      "how": "Comment",
+      "mode": {
+        "copy": "Le panneau les copie",
+        "moved": "Déjà copiées"
+      },
+      "modeHint": {
+        "copy": "Le panneau copie chaque snapshot avec restic. Un gros dépôt prend des heures. Il ne peut pas copier entre deux comptes S3 ou B2 aux clés différentes, ni entre deux serveurs SFTP : copiez vous-même les fichiers, puis choisissez « Déjà copiées ».",
+        "moved": "Vous avez copié le dépôt vous-même (rsync, rclone, l’outil de votre fournisseur). Le panneau le vérifie seulement."
+      },
+      "passwordHelp": "Laissez vide s’il ne change pas.",
+      "keysHelp": "Laissez vide pour garder celles des paramètres.",
+      "safe": "Rien ne change tant que la vérification n’a pas réussi. L’ancien dépôt reste tel quel : supprimez-le une fois les tests de restauration réussis.",
+      "start": "Déplacer",
+      "started": "Déplacement lancé"
     }
   },
   "ssl": {

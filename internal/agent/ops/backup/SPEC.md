@@ -26,6 +26,8 @@ other tool itself.
 | `ArchiveSnapshot` | `ArchiveParams{Site, Repository, Password, SnapshotID, Part, Env}` → `ArchiveResult{Name, Size}` | Sites, 7 h |
 | `ReadArchiveChunk` | `ArchiveChunkParams{Site, Name, Offset, Length}` → `ArchiveChunkResult{Data, Size}` | Sites, read-only, 2 min |
 | `DeleteArchive` | `ArchiveChunkParams{Site, Name}` → `{"deleted": true}` | Sites, 1 min |
+| `RepositoryInfo` | `RepositoryInfoParams{Repository, Password, Env, Expect}` → `RepositoryInfoResult{ID, Snapshots, Missing}` | read-only, 15 min |
+| `CopyRepository` | `CopyRepositoryParams{From, To}` (each `TestBackupParams`) → `CopyRepositoryResult{ID, Snapshots}` | 13 h |
 
 Names and parameters are the API's; they do not change here.
 
@@ -49,7 +51,8 @@ dumped, restored or tested; an external database is not one of them.
 - Every call has its own bound, inside the request's deadline: metadata
   (`cat config`, `init`, `snapshots`) 2 min; data (`backup`, `restore`,
   `dump`, `check`) 6 h; the retention plan 10 min, its prune 3 h; the
-  `forget` of an abandoned snapshot 2 min. A hung repository fails; it does
+  `forget` of an abandoned snapshot 2 min; a `copy` between two
+  repositories 12 h (§13). A hung repository fails; it does
   not hold the repository lock for every other site.
 - **Cancellation.** The request's context is restic's: when the API goes
   away, or the method's deadline or a call's own bound passes, restic is
@@ -167,8 +170,23 @@ swapped in whatever tree the ID named, another site's included. A snapshot
 of a server that has since changed its hostname is refused too: the
 repository is still readable with restic by hand.
 
+**A snapshot ID, after a copy** (#192). `restic copy` gives every snapshot
+it copies a new ID and records the old one in the copy's `original` field
+(restic keeps the first ID through a chain of copies: A → B → C still names
+A's). A record of the panel, and every `db:<id>` tag, keeps the ID the
+snapshot had when it was taken. So an ID is resolved in two steps
+(`resolve`): `snapshots --json <id>` first; when that lists nothing, the
+site's snapshots (`snapshots --json --tag site:<domain>`, read once per
+call) are searched for the one whose `original` names the ID (either may be
+a prefix of the other, as everywhere here). Two such snapshots are
+`invalid` (`ambiguous`); none is `not_found` as before. The snapshot found
+is then checked exactly as one found by its own ID, and restic is given its
+real ID. Nothing is retagged: retagging gives a snapshot a new ID again.
+This holds for the file snapshot and each database snapshot, in restores,
+restore tests (§6), archives (§12) and deletions (§9).
+
 **Database source.** Each `db:<id>` tag of the file snapshot names a
-database snapshot (`databaseParts`). Each must exist, carry `site:<domain>`
+database snapshot (`databaseParts`, resolved as above). Each must exist, carry `site:<domain>`
 and `part:database`, have this server's hostname; its `dbname:` tag names
 the database it holds (one without, from before Fase 9b, is the site's
 primary; a site without a primary cannot take it: `invalid`), the same name
@@ -305,15 +323,23 @@ throughout.
 1. Plan: `forget --dry-run --json --tag site:<domain> --host <hostname>
    --keep-within <n>d`; another site, or another server sharing the
    repository, is never in scope. Decoded with `host.DecodeForgetPlan`.
+   Each planned snapshot's `original` (§5) is read from the site's list
+   (`snapshots --json --tag site:<domain>`, decoded strictly; a list that
+   cannot be read stops the run), whether or not the plan carries it.
 2. A group with nothing to keep is not acted on (keep-within always keeps a
    group's newest: an empty keep list means the output is not what it looks
    like). A planned removal with an invalid ID fails the run.
 3. Removals matching a protected ID (either may be a prefix of the other:
-   the panel may hold a short ID) are kept.
+   the panel may hold a short ID) are kept. A snapshot matches by its ID or
+   by its `original` (§5: the panel's record of a copied snapshot holds the
+   ID it had before the copy).
 4. Every kept files snapshot keeps the database snapshot its `db:` tag
-   names (they are taken a moment apart and can fall in different groups at
-   the window's edge).
+   names, by ID or `original` (they are taken a moment apart and can fall
+   in different groups at the window's edge).
 5. The rest: `forget --prune <ids…>`. Nothing to remove runs nothing.
+6. Result: the IDs forgotten and kept, and in `Originals` the `original`
+   of every forgotten snapshot that has one, so the panel drops the records
+   that hold it.
 
 ## 9. ForgetSnapshot (R-4.3)
 
@@ -326,22 +352,24 @@ snapshot's ID (full or short). Exclusive lock throughout (a prune).
 2. The site's snapshots are listed: `snapshots --json --tag site:<domain>`,
    decoded strictly (output that does not decode fails). A snapshot of
    another site is never in that list, whatever ID is asked for.
-3. The ID is matched against the list, either being a prefix of the other.
+3. The ID is matched against the list, either being a prefix of the other;
+   when no snapshot's ID matches, against each snapshot's `original` (§5).
    None: the result is `Missing: true` (the panel then drops its record),
    and every database snapshot of the site that no files snapshot of the
-   list names in its `db:` tag is forgotten (the files half went without
+   list names in its `db:` tag (by its ID or its `original`) is forgotten (the files half went without
    it; nothing can restore from it; under the exclusive lock no backup is
    between its two snapshots); they are the result's `Forgotten`. Two: `invalid` (`ambiguous`): a short ID that
    names two snapshots names neither.
 4. A snapshot tagged `part:database` is the database half of a backup:
    `invalid`, delete the backup it belongs to.
-5. The database snapshot its `db:` tag names goes with it, when the list
-   has it as a `part:database` snapshot of the site; one the tag names that
-   is gone is not an error.
+5. The database snapshot its `db:` tag names (by ID or `original`) goes
+   with it, when the list has it as a `part:database` snapshot of the site;
+   one the tag names that is gone is not an error.
 6. `forget <files id> [<database id>]` (full IDs), without `--prune`, on
    the plan's bound (§2): the data goes at the next `PruneRepository`. restic's typed failures keep their messages (§2: wrong
    password `invalid`, locked `conflict`, missing repository `not_found`).
-7. Result: the full IDs forgotten.
+7. Result: the full IDs forgotten, and in `Originals` the `original` of
+   each that has one (the panel drops the records holding either).
 
 ## 10. PruneRepository (R-4.3)
 
@@ -380,6 +408,48 @@ A download of a backup (internal/api SPEC §5.7). `Part` is `full`
 `backup-<hex>-(full|files|database).tar.gz` (else `invalid`; a missing
 one `not_found`), and returns them with the file's size. `DeleteArchive`
 removes it (a missing one is no error).
+
+## 13. RepositoryInfo and CopyRepository (#192)
+
+What the panel's move of the repository (internal/api SPEC §5.9) asks of
+the agent. Both check every repository they name as §2 does.
+
+**RepositoryInfo** reads a repository without changing it: `cat config`
+(its `id`, 64 hex digits, else an error), then `snapshots --json` (shared
+lock), decoded strictly. `Expect` lists snapshot IDs (at most 100 000, each
+8 to 64 hex digits, `rpc` validation); `Missing` is every one of them that
+no snapshot of the repository names, by its ID or its `original` (§5), in
+the order given. `Snapshots` is how many the repository holds. A repository
+that does not exist is `not_found` (§2); it is never initialised here.
+
+**CopyRepository** copies every snapshot of `From` into `To`:
+
+1. `From` and `To` must be two repositories (`invalid` "the two
+   repositories are the same" for one URL); each is checked (§2).
+2. One environment serves both, since restic reads the source from
+   `RESTIC_FROM_REPOSITORY`/`RESTIC_FROM_PASSWORD` and uses the same
+   `AWS_*`/`B2_*` variables and the same `-o` options for the two: a
+   credential both need with different values is `invalid` ("the two
+   repositories need different <name> values, and restic copies with one
+   set: copy the snapshots yourself, then move with the files already
+   copied"), and so are two SFTP repositories on different hosts (one
+   `sftp.command` names one host). The panel's SFTP key, when either is an
+   SFTP repository, is that repository's (host SPEC: restic, SFTP key).
+3. `From` must open (`cat config`): a missing one is `not_found`, a wrong
+   password `invalid` (§2).
+4. `To`: `cat config`; a repository that does not exist is made with
+   `init --from-repo <From> --copy-chunker-params` (exclusive lock on
+   `To`), so the copied data deduplicates as it did; a wrong password stops
+   (`invalid`).
+5. `copy --from-repo <From>` with the shared lock of both repositories,
+   taken in the order of their URLs (two copies the other way round cannot
+   wait on each other), on the copy's bound (§2). restic copies only what
+   `To` does not hold yet (a snapshot already copied is skipped), so a copy
+   run again after a failure carries on. The source is never changed.
+6. Result: `To`'s ID and how many snapshots it holds now.
+
+A failed copy leaves `To` with whatever it had copied; nothing of the
+panel points at it until the panel's move has checked it (api SPEC §5.9).
 
 ## 11. Tests
 

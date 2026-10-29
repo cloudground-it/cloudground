@@ -171,6 +171,9 @@ const toc = computed(() => [
   { id: 'updates', label: t('settings.updates') }
 ])
 
+// Moving every backup to another repository (issue 192).
+const moveOpen = ref(false)
+
 async function testRepo() {
   await run(async () => {
     const r = await api.post<{ snapshots: number }>('/api/backups/test')
@@ -303,6 +306,7 @@ async function selfUpdate() {
               <template v-if="isAdmin" #footer>
                 <UButton :label="t('common.save')" :loading="busy" :disabled="!backupDirty" @click="save(BACKUP_KEYS)" />
                 <UButton color="neutral" variant="outline" icon="i-cg-signal" :label="t('settings.testRepo')" :disabled="busy || backupDirty || !saved.backup_repository" @click="testRepo" />
+                <UButton color="neutral" variant="outline" icon="i-cg-backup" :label="t('backup.move.open')" :disabled="busy || backupDirty || !saved.backup_repository" @click="moveOpen = true" />
                 <span class="text-[13px] text-muted">{{ backupDirty ? t('ux.backup.saveFirst') : t('ux.backup.testHelp') }}</span>
               </template>
             </PanelSection>
@@ -411,6 +415,7 @@ async function selfUpdate() {
             </PanelSection>
           </div>
         </div>
+        <BackupMoveDialog v-if="isAdmin" v-model:open="moveOpen" :current="saved.backup_repository ?? ''" />
       </UContainer>
     </template>
   </UDashboardPanel>

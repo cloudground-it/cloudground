@@ -349,6 +349,8 @@ func (s *Server) routeTable() []route {
 			Section: secBackups, Doc: "delete the snapshot from the repository (queued under its lock); refused for one whose restore test has not run and for the site's newest verified one"},
 		{Method: post, Path: "/api/backups/test", Policy: policyAdmin, Handle: s.handleTestBackupRepo,
 			Section: secBackups, Doc: "try the backup repository's credentials"},
+		{Method: post, Path: "/api/backups/repository/move", Policy: policyAdmin, AdminOnly: "move the backups", SessionOnly: true, Handle: s.handleMoveBackupRepository,
+			Section: secBackups, Doc: "move every backup to another repository: `mode` `copy` (the panel copies the snapshots) or `moved` (they are already there: same repository ID, every recorded snapshot present); `repository`, and its `password` and credentials when they differ (`s3_access_key`, `s3_secret_key`, `s3_region`, `b2_account_id`, `b2_account_key`). Queued; the records and the setting change only once the check passed, then each site's newest backup is test-restored from there. `copy` cannot copy between two S3 or B2 accounts with different keys, or between two SFTP servers (restic copies with one set of credentials): copy the files yourself and use `moved`"},
 		{Method: get, Path: "/api/sites/{id}/usage", Policy: policySignedIn, Load: loadSite, Handle: s.handleSiteUsage,
 			Section: secSites, Doc: "the site's resource usage for `range` `24h` (five-minute samples) or `30d` (hourly averages, with the hour's CPU peak): CPU as a share of its allowance, memory, IO and disk; its effective `limits`; the `latest` sample"},
 		{Method: get, Path: "/api/sites/{id}/vulnerabilities", Policy: policySignedIn, Load: loadSite, Handle: s.handleGetVulnerabilities,

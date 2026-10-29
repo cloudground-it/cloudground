@@ -67,14 +67,15 @@ func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[str
 	}
 	defer unlock()
 
-	files, err := o.siteSnapshot(ctx, repo, s, p.SnapshotID)
+	snaps := o.siteSnaps(repo, s)
+	files, err := o.siteSnapshot(ctx, snaps, p.SnapshotID)
 	if err != nil {
 		return nil, err
 	}
 	var dumps []dumpFile
 	var skipped []string
 	if withDB {
-		parts, err := o.databaseParts(ctx, repo, s, files)
+		parts, err := o.databaseParts(ctx, snaps, files)
 		if err != nil {
 			return nil, err
 		}
@@ -123,13 +124,13 @@ func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[str
 	}
 
 	if len(p.Paths) > 0 {
-		if err := o.restorePaths(ctx, repo, s, p.SnapshotID, work, p.Paths); err != nil {
+		if err := o.restorePaths(ctx, repo, s, files.ID, work, p.Paths); err != nil {
 			return nil, err
 		}
 		done["paths"] = strings.Join(p.Paths, ",")
 		return done, nil
 	}
-	if err := o.restoreFiles(ctx, repo, p.SnapshotID, work); err != nil {
+	if err := o.restoreFiles(ctx, repo, files.ID, work); err != nil {
 		return nil, err
 	}
 	if err := o.swapIn(ctx, s, work, dumps); err != nil {

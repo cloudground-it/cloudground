@@ -212,6 +212,22 @@ func (s *Server) dropIfStatus(id int64, status state.SiteStatus) {
 	s.rollbackCreatedSite(site)
 }
 
+// recordRepoLocks is ResolveLocks for the kinds that run against a
+// record's repository (a verify, a deletion): the lock of the repository
+// the record names now, which a move of the repository changes (SPEC.md
+// §5.9).
+func (s *Server) recordRepoLocks(j state.Job) []string {
+	var p backupPayload
+	if json.Unmarshal([]byte(j.Payload), &p) != nil {
+		return j.Locks
+	}
+	b, err := s.Store.GetBackup(p.BackupID)
+	if err != nil {
+		return j.Locks
+	}
+	return []string{jobs.RepoLock(b.Repository)}
+}
+
 // repoLocks is ResolveLocks for the kinds that run against the configured
 // repository: the lock of the repository as configured now.
 func (s *Server) repoLocks(j state.Job) []string {
@@ -230,7 +246,7 @@ func (s *Server) registerJobKinds() {
 		"wp.update", "cache.warm", "wp.cleanup",
 		"database.export", "database.import", "dbstudio.export", "dbstudio.import",
 		"database.create", "database.drop",
-		"migration.import", "migration.pull", "panel.certificate", "functions.certificate", "functions.migrate", "backup.restore", "backup.archive", "php.extension", "runtime.install",
+		"migration.import", "migration.pull", "panel.certificate", "functions.certificate", "functions.migrate", "backup.restore", "backup.archive", "backup.move", "php.extension", "runtime.install",
 		"apt.update", "apt.upgrade",
 	} {
 		q.Register(jobs.Kind{Name: name})
@@ -285,12 +301,12 @@ func (s *Server) registerJobKinds() {
 		},
 	})
 	q.Register(jobs.Kind{Name: "backup.verify", Run: s.runVerifyBackup, Rerun: true,
-		RerunDelay: repoRerunDelay, NoCancel: verifyNoCancel})
+		ResolveLocks: s.recordRepoLocks, RerunDelay: repoRerunDelay, NoCancel: verifyNoCancel})
 	q.Register(jobs.Kind{Name: "backup.retention", Run: s.runRetention, Rerun: true,
 		ResolveLocks: s.repoLocks, RerunDelay: repoRerunDelay})
 	// A deletion is idempotent (a snapshot already gone only drops its
 	// record) and runs under the lock of the repository it is in.
-	q.Register(jobs.Kind{Name: "backup.forget", Run: s.runForget, Rerun: true, RerunDelay: repoRerunDelay})
+	q.Register(jobs.Kind{Name: "backup.forget", Run: s.runForget, Rerun: true, ResolveLocks: s.recordRepoLocks, RerunDelay: repoRerunDelay})
 	q.Register(jobs.Kind{Name: "backup.prune", Run: s.runPrune, Rerun: true, Quiet: true,
 		ResolveLocks: s.repoLocks, RerunDelay: repoRerunDelay})
 	s.registerDeployKinds(q)
