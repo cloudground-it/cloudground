@@ -121,8 +121,14 @@ func (h *harness) externalDatabaseServer(t *testing.T) {
 		"admin_user": extAdmin, "admin_password": "not-the-password"})
 	h.assert(t, "#30: a server whose password is wrong is refused at registration, with the server's words", c == 400 && strings.Contains(string(b), "denied"),
 		"= %d %s", c, head(b, 300))
+	// H-5-1: the cloud metadata address is never a database server; the
+	// administrator's credentials go nowhere near it.
+	c, b = h.api.post("/api/db-servers", map[string]any{"name": "cge2e-meta", "host": "169.254.169.254", "port": 3306, "tls": "off",
+		"admin_user": extAdmin, "admin_password": extPW})
+	h.assert(t, "H-5-1: a link-local host (the metadata address) is refused at registration", c == 400 && strings.Contains(string(b), "never connects there"),
+		"= %d %s", c, head(b, 300))
 	_, lb := h.api.get("/api/db-servers")
-	h.assert(t, "#30: and none is stored", strings.TrimSpace(string(lb)) == "[]" || !strings.Contains(string(lb), "cge2e-ext"), "%s", head(lb, 300))
+	h.assert(t, "#30: and none is stored", strings.TrimSpace(string(lb)) == "[]" || (!strings.Contains(string(lb), "cge2e-ext") && !strings.Contains(string(lb), "cge2e-meta")), "%s", head(lb, 300))
 
 	c, b = h.api.post("/api/db-servers", map[string]any{"name": "cge2e-ext", "host": "127.0.0.1", "port": extPort, "tls": "off",
 		"admin_user": extAdmin, "admin_password": extPW})

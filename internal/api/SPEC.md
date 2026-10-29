@@ -2442,7 +2442,9 @@ one has an id, a name and the connection the agent uses.
 A server is `{id, name, host, port, tls, ca_cert, admin_user}` (table `db_servers`, migration 33,
 state SPEC) and one sealed secret, `dbserver.<id>.admin_password`. `name` is `^[a-z][a-z0-9-]{1,31}$`
 and unique; `host` a host name or an IP address (at most 253 characters, no spaces, no `/`, no
-`@`); `port` 1–65535 (3306 when left out); `tls` is `required` (the default: the connection and
+`@`; not a link-local address, the cloud metadata address 169.254.169.254 among them, nor the
+unspecified or a multicast one, and the agent's test refuses a name that resolves to one:
+`rpc.DBHostRefused`, ops/db SPEC §9; loopback and private addresses stay allowed); `port` 1–65535 (3306 when left out); `tls` is `required` (the default: the connection and
 every account made on the server insist on TLS, and the server's certificate is checked against
 `ca_cert`, a PEM bundle of public certificates, or the system's authorities when it is empty) or
 `off`; `admin_user` the account the agent administers with, one that may create databases and

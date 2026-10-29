@@ -394,7 +394,11 @@ pushed.
 - **The table.** `SetDBServers{Servers: [{id, host, port, tls, ca_cert, admin_user,
   admin_password}]}` replaces the agent's list, in memory only (never written to disk; the
   passwords are secrets of the panel's store). A server that disappears or changes loses its
-  adapter and open pool. `TestDBServer{Server}` connects with the credentials given, runs `SELECT
+  adapter and open pool. `TestDBServer{Server}` first resolves the host and refuses (`invalid`) a
+  name with a link-local, unspecified or multicast address among its addresses
+  (`rpc.DBHostRefused`: the cloud metadata address is link-local), before the administrator's
+  credentials go anywhere (the API refuses such a literal already); loopback and private
+  addresses pass. It then connects with the credentials given, runs `SELECT
   VERSION()`, and checks the administrator can create accounts (`SHOW GRANTS` names `ALL PRIVILEGES`
   with `GRANT OPTION`, or `CREATE USER` and `CREATE`): `{version}`, or `invalid` with the reason.
   A call that names a server the agent has no connection for is `unavailable`, `unknown database

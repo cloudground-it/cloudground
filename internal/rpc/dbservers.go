@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
 	"unicode"
 )
@@ -42,7 +43,32 @@ func CheckDBServerHost(h string) error {
 	if strings.HasPrefix(h, "-") {
 		return errors.New("the host cannot start with -")
 	}
+	if a, err := netip.ParseAddr(strings.Trim(h, "[]")); err == nil {
+		if why := DBHostRefused(a); why != "" {
+			return fmt.Errorf("the host %s is %s: the panel never connects there", h, why)
+		}
+	}
 	return nil
+}
+
+// DBHostRefused says why the agent never connects a database server's
+// address, "" when it may (H-5-1): a link-local one (the cloud metadata
+// address 169.254.169.254 among them), the unspecified one or a multicast
+// one. Loopback and private addresses stay allowed: a server on this box's
+// loopback or on the LAN is a database server's normal place. The API
+// checks a literal address; the agent checks every address a name resolves
+// to before it connects (ops/db SPEC).
+func DBHostRefused(a netip.Addr) string {
+	a = a.Unmap()
+	switch {
+	case a.IsLinkLocalUnicast():
+		return "a link-local address"
+	case a.IsUnspecified():
+		return "the unspecified address"
+	case a.IsMulticast() || a.IsLinkLocalMulticast() || a.IsInterfaceLocalMulticast():
+		return "a multicast address"
+	}
+	return ""
 }
 
 // CheckDBServerCA refuses a CA bundle that is not PEM certificates.

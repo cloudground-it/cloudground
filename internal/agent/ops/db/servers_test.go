@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net/netip"
 	"os"
 	"strings"
 	"testing"
@@ -317,5 +318,34 @@ func TestBackedUpDatabasesLeavesOutProviderBackedServers(t *testing.T) {
 	}
 	if all, _ := f.o.SiteDatabases(ctx, f.site); len(all) != 2 {
 		t.Fatalf("the site still has both: %v", all)
+	}
+}
+
+// H-5-1: a server whose name resolves to a link-local, unspecified or
+// multicast address is refused before anything is sent to it; loopback and
+// private ones are a database server's normal place and pass on to the
+// connection.
+func TestTestRefusesLinkLocal(t *testing.T) {
+	r := &Remotes{WorkDir: t.TempDir(), Resolve: func(_ context.Context, h string) ([]netip.Addr, error) {
+		return map[string][]netip.Addr{
+			"metadata.internal": {netip.MustParseAddr("169.254.169.254")},
+			"mixed.example":     {netip.MustParseAddr("10.0.0.5"), netip.MustParseAddr("fe80::1")},
+			"lan.example":       {netip.MustParseAddr("10.0.0.5")},
+		}[h], nil
+	}}
+	for _, h := range []string{"metadata.internal", "mixed.example", "169.254.169.254", "[fe80::1]", "0.0.0.0", "::", "224.0.0.9"} {
+		err := r.checkAddrs(context.Background(), h)
+		if err == nil || !strings.Contains(err.Error(), "never connects there") {
+			t.Errorf("%s: %v", h, err)
+		}
+	}
+	for _, h := range []string{"lan.example", "127.0.0.1", "::1", "10.0.0.5", "db.example.com"} {
+		if err := r.checkAddrs(context.Background(), h); err != nil {
+			t.Errorf("%s refused: %v", h, err)
+		}
+	}
+	p := rpc.DBServerParams{Host: "metadata.internal", Port: 3306, AdminUser: "admin", AdminPassword: "pw"}
+	if _, err := r.Test(context.Background(), p); err == nil || !strings.Contains(err.Error(), "169.254.169.254") {
+		t.Fatalf("Test went on to a link-local server: %v", err)
 	}
 }
