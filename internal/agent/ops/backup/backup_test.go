@@ -35,6 +35,9 @@ const (
 	repoURL = "/var/backups/cloudground/repo"
 )
 
+// manifestSnap is the site's description's snapshot (SPEC §4).
+const manifestSnap = "4d4d4d4d4d4d4d4d"
+
 // fakeRestic is a stand-in for restic, first on PATH, driven through the
 // real adapter. In its state directory it logs each call's argv to log and
 // its repository to repos; exit-<cmd> (cmd "backup-stdin", "backup-files"
@@ -58,7 +61,7 @@ if [ "$cmd" = cat ] && [ -f "$d/missing$key" ]; then echo "Fatal: repository doe
 if [ "$cmd" = init ]; then rm -f "$d/missing$key"; fi
 sub=$cmd
 if [ "$cmd" = backup ]; then
-  case " $* " in *" --stdin "*) sub=backup-stdin ;; *) sub=backup-files ;; esac
+  case " $* " in *" cloudground-site.json "*) sub=backup-manifest ;; *" --stdin "*) sub=backup-stdin ;; *) sub=backup-files ;; esac
 fi
 if [ -f "$d/hang-$sub" ]; then
   echo $$ > "$d/pid"
@@ -82,7 +85,8 @@ cat) cat "$d/config$key" 2>/dev/null || cat "$d/config" 2>/dev/null || true ;;
 init|check|prune|copy) ;;
 forget) case " $* " in *" --dry-run "*) cat "$d/plan" ;; esac ;;
 backup)
-  if [ $sub = backup-stdin ]; then cat > "$d/stdin"; id=` + dbID + `
+  if [ $sub = backup-manifest ]; then cat > "$d/manifest"; id=` + manifestSnap + `
+  elif [ $sub = backup-stdin ]; then cat > "$d/stdin"; id=` + dbID + `
   else echo "$*" > "$d/files-args"; id=` + filesID + `; fi
   echo '{"message_type":"status","percent_done":1}'
   echo "{\"message_type\":\"summary\",\"snapshot_id\":\"$id\",\"total_bytes_processed\":7}"
@@ -327,7 +331,7 @@ func TestBackupFilesKindTakesNoDump(t *testing.T) {
 	if _, err := f.backup("files"); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(f.log(), "--stdin") || len(f.m.Imported) != 0 {
+	if strings.Contains(f.log(), "database.sql") || len(f.m.Imported) != 0 {
 		t.Fatalf("a files backup dumped the database:\n%s", f.log())
 	}
 	if _, err := f.backup("everything"); agentrpc.CodeOf(err) != agentrpc.CodeInvalid {

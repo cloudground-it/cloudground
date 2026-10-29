@@ -62,6 +62,24 @@ func (o *Ops) mariaOfServer(id int64) (host.MariaDB, error) {
 	return o.Servers.Maria(id)
 }
 
+// DatabaseKind is the engine of the server a site's database is on
+// (mariadb or postgres) and whether that server is an external one, for the
+// site's backup manifest (ops/backup SPEC §4).
+func (o *Ops) DatabaseKind(ctx context.Context, database string) (engine string, external bool, err error) {
+	id, err := o.serverOf(ctx, database)
+	if err != nil || id == 0 {
+		return rpc.KindMariaDB, false, err
+	}
+	_, pg, err := o.pgOfServer(id)
+	if err != nil {
+		return "", true, err
+	}
+	if pg {
+		return rpc.KindPostgres, true, nil
+	}
+	return rpc.KindMariaDB, true, nil
+}
+
 // serverOf is the server a database is on: a scratch database's is the
 // server it was made on (the staged replacement's), a recorded database's the
 // record's, any other the box's.

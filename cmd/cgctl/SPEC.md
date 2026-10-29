@@ -136,6 +136,20 @@ exactly one repository, is a usage error (exit 2). The request is `POST
 /api/backups/repository/move`, a session-only route: it signs in with the password (§2.3).
 `--wait` follows the move to its end.
 
+## 6.7 backup foreign and backup import (#193)
+
+    cgctl backup foreign
+    cgctl backup import <snapshot> <domain> [--type <type>] [--php <version>]
+
+`backup foreign` lists the sites the backup repository holds that this panel has none of, from
+any server (`GET /api/backups/foreign`). `backup import` restores one (`POST
+/api/backups/foreign/restore {snapshot, confirm, type?, php_version?}`, internal/api SPEC
+§5.10): `<domain>` is typed to confirm and must be the backup's; `--type` and `--php` (also
+`--flag=value`) are for a backup without a description of the site, taken before 1.0. An unknown
+flag, a flag without its value or not exactly the two arguments is a usage error (exit 2). Both
+are session-only routes: they sign in with the password (§2.3). `--wait` follows the restore to
+its end.
+
 ## 6.3 blocklist (#21)
 
     cgctl blocklist                                         the block list (GET /api/blocklist)

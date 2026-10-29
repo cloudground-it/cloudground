@@ -702,6 +702,24 @@
       "safe": "No cambia nada hasta que la comprobación pase. El repositorio antiguo queda como está: bórralo cuando pasen las pruebas de restauración.",
       "start": "Trasladar",
       "started": "Traslado iniciado"
+    },
+    "foreign": {
+      "open": "Restaurar desde otro servidor",
+      "title": "Restaurar desde otro servidor",
+      "hint": "Sitios del repositorio de copias de seguridad que este panel no tiene, de cualquier servidor. Una restauración crea el sitio y recupera su copia.",
+      "server": "Servidor",
+      "reload": "Recargar",
+      "none": "Nada que restaurar",
+      "noneHint": "Todos los sitios del repositorio de copias de seguridad ya están en este panel. Para restaurar los sitios de otro servidor, apunta antes las copias a su repositorio.",
+      "noManifest": "Copia anterior a la 1.0: tú eliges el tipo",
+      "count": "{n} copias de seguridad",
+      "restoreTitle": "Restaurar {domain}",
+      "restoreHint": "El sitio se crea en este servidor y su copia de seguridad más reciente se restaura entera. Luego se hace una copia aquí.",
+      "askType": "Esta copia de seguridad no dice qué tipo de sitio es. Elige el tipo y la versión de PHP que tenía.",
+      "confirm": "Escribe {domain} para confirmar",
+      "start": "Restaurar",
+      "started": "Restauración iniciada",
+      "limits": "Las bases de datos de un servidor de base de datos externo, y los sitios guardados fuera de la carpeta habitual de sitios, no se restauran aquí."
     }
   },
   "ssl": {

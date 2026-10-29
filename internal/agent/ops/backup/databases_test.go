@@ -79,7 +79,7 @@ func TestBackupOfASiteWithoutDatabases(t *testing.T) {
 	if _, err := f.backup("full"); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(f.log(), "--stdin") {
+	if strings.Contains(f.log(), "database.sql") {
 		t.Fatalf("a database was dumped:\n%s", f.log())
 	}
 	f.seed(false, "")

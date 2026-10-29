@@ -84,6 +84,11 @@ func (o *Ops) restoreTest(ctx context.Context, repo host.Repo, s state.Site, id,
 	if len(databases) > 0 && len(parts) == 0 {
 		return "", agentrpc.Invalid("the backup has no database snapshot")
 	}
+	// The site's description, when the backup has one, must read: it is
+	// what another server creates the site from (SPEC §4, §14).
+	if _, err := o.readManifest(ctx, repo, snaps.find, snap, s.Domain); err != nil {
+		return "", err
+	}
 	dumps, err := o.fetchDumps(ctx, repo, parts, work)
 	if err != nil {
 		return "", err

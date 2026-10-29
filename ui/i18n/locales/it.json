@@ -702,6 +702,24 @@
       "safe": "Non cambia niente finché il controllo non passa. Il vecchio repository resta com’è: cancellalo quando i ripristini di prova sono passati.",
       "start": "Sposta",
       "started": "Spostamento avviato"
+    },
+    "foreign": {
+      "open": "Ripristina da un altro server",
+      "title": "Ripristina da un altro server",
+      "hint": "Siti nel repository dei backup che questo pannello non ha, da qualsiasi server. Il ripristino crea il sito e rimette il suo backup.",
+      "server": "Server",
+      "reload": "Ricarica",
+      "none": "Niente da ripristinare",
+      "noneHint": "Ogni sito del repository dei backup è già su questo pannello. Per ripristinare i siti di un altro server, punta prima i backup al suo repository.",
+      "noManifest": "Backup precedente alla 1.0: scegli tu il tipo",
+      "count": "{n} backup",
+      "restoreTitle": "Ripristina {domain}",
+      "restoreHint": "Il sito viene creato su questo server e il suo backup più recente viene ripristinato per intero. Poi ne viene fatto un backup qui.",
+      "askType": "Questo backup non dice che tipo di sito è. Scegli il tipo e la versione PHP che aveva.",
+      "confirm": "Scrivi {domain} per confermare",
+      "start": "Ripristina",
+      "started": "Ripristino avviato",
+      "limits": "I database tenuti su un server di database esterno, e i siti tenuti fuori dalla solita cartella dei siti, non si ripristinano da qui."
     }
   },
   "ssl": {

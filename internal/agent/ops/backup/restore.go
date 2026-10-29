@@ -47,6 +47,14 @@ func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[str
 	if len(p.Paths) > rpc.MaxRestorePaths {
 		return nil, agentrpc.Invalid("at most %d paths", rpc.MaxRestorePaths)
 	}
+	if p.Foreign != nil {
+		// The one restore that takes another server's snapshot (SPEC §5):
+		// whole, into the site the panel has just created for it.
+		if err := p.Validate(); err != nil {
+			return nil, agentrpc.Invalid("%s", err.Error())
+		}
+		mode = "full"
+	}
 	databases, err := o.siteDatabases(ctx, s)
 	if err != nil {
 		return nil, err
@@ -68,6 +76,9 @@ func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[str
 	defer unlock()
 
 	snaps := o.siteSnaps(repo, s)
+	if p.Foreign != nil {
+		snaps.foreign = p.Foreign.Hostname
+	}
 	files, err := o.siteSnapshot(ctx, snaps, p.SnapshotID)
 	if err != nil {
 		return nil, err
@@ -81,6 +92,9 @@ func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[str
 		}
 		if len(parts) == 0 {
 			return nil, agentrpc.Invalid("snapshot %s has no database backup of its own (it predates them, and the dump inside the site's files is not trusted); restore it in files mode", p.SnapshotID)
+		}
+		if parts, err = renameParts(parts, p.Foreign); err != nil {
+			return nil, err
 		}
 		var keep []dbPart
 		if keep, skipped, err = o.restorePlan(ctx, s, parts, p.Databases); err != nil {
@@ -133,7 +147,7 @@ func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[str
 	if err := o.restoreFiles(ctx, repo, files.ID, work); err != nil {
 		return nil, err
 	}
-	if err := o.swapIn(ctx, s, work, dumps); err != nil {
+	if err := o.swapIn(ctx, s, work, dumps, p.Foreign); err != nil {
 		return nil, err
 	}
 	return done, nil
@@ -173,7 +187,7 @@ func checkRestored(tree *sitefs.Root, siteRoot string) (string, error) {
 // swapIn puts the restored tree in work/files live in place of the site's
 // root, importing each dump into its database on the way, and undoes all
 // of it if the site does not come up.
-func (o *Ops) swapIn(ctx context.Context, s state.Site, work string, dumps []dumpFile) (err error) {
+func (o *Ops) swapIn(ctx context.Context, s state.Site, work string, dumps []dumpFile, foreign *rpc.ForeignRestore) (err error) {
 	tree, err := sitefs.Open(filepath.Join(work, filesDir), sitefs.Owner{})
 	if err != nil {
 		return err
@@ -243,6 +257,13 @@ func (o *Ops) swapIn(ctx context.Context, s state.Site, work string, dumps []dum
 			_ = o.ReloadNginx()
 		}
 		return cause
+	}
+	// A site from another server's backup gets its own credentials where
+	// the application keeps them, before PHP starts on the restored tree.
+	if foreign != nil && o.Reconfigure != nil {
+		if err := o.Reconfigure(ctx, s, *foreign); err != nil {
+			return undo(fmt.Errorf("give the restored site its own credentials: %w", err))
+		}
 	}
 	// A restart, not a reload: the master's mount namespace binds the
 	// directory that was at the root's path when it started, the old tree;

@@ -258,6 +258,12 @@ func (s *Server) registerJobKinds() {
 		Canceled:    func(j state.Job) { s.dropIfStatus(j.SiteID, state.SiteProvisioning) },
 		Interrupted: func(j state.Job) { s.markIfStatus(j.SiteID, state.SiteProvisioning) },
 	})
+	// A restore from another server's backup creates its site first, as
+	// site.create does (SPEC.md §5.10).
+	q.Register(jobs.Kind{Name: "backup.import",
+		Canceled:    func(j state.Job) { s.dropIfStatus(j.SiteID, state.SiteProvisioning) },
+		Interrupted: func(j state.Job) { s.markIfStatus(j.SiteID, state.SiteProvisioning) },
+	})
 	// Canceled before its start, a delete changed nothing: the site gets
 	// back the status it had.
 	q.Register(jobs.Kind{Name: "site.delete",

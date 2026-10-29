@@ -83,6 +83,7 @@ const columns = computed(() => [
         <UPageHeader :title="t('nav.sites')" :description="t('ux.pages.sites', sites?.length ?? 0)">
           <template v-if="isAdmin" #links>
             <!-- On an empty list the empty state's own action is the primary one. -->
+            <UButton color="neutral" variant="outline" icon="i-cg-restore" :label="t('backup.foreign.open')" to="/sites/restore" />
             <UButton v-bind="sites?.length ? { color: 'primary', variant: 'solid' } : {}" icon="i-cg-plus" :label="t('site.new')" to="/sites/new" />
           </template>
         </UPageHeader>
@@ -98,7 +99,10 @@ const columns = computed(() => [
             icon="i-cg-sites"
             :title="t('site.emptyTitle')"
             :description="t('site.emptyHint')"
-            :actions="isAdmin ? [{ label: t('site.createFirst'), icon: 'i-cg-plus', color: 'primary', variant: 'solid', to: '/sites/new' }] : []"
+            :actions="isAdmin ? [
+              { label: t('site.createFirst'), icon: 'i-cg-plus', color: 'primary', variant: 'solid', to: '/sites/new' },
+              { label: t('backup.foreign.open'), icon: 'i-cg-restore', color: 'neutral', variant: 'outline', to: '/sites/restore' }
+            ] : []"
           />
         </PanelSection>
 

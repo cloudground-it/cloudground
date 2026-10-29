@@ -7,7 +7,20 @@
       "kind": "Kind",
       "env": {
         "key": "Env"
-      }
+      },
+      "accounts": [
+        {
+          "name": "Name",
+          "password": "Password",
+          "primary": true,
+          "grants": [
+            {
+              "database": "Database",
+              "level": "Level"
+            }
+          ]
+        }
+      ]
     },
     "zero": {
       "site": "@state.Site",

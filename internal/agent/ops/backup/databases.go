@@ -11,6 +11,7 @@ import (
 	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/db"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
+	"github.com/cloudground-it/cloudground/internal/rpc"
 	"github.com/cloudground-it/cloudground/internal/state"
 )
 
@@ -62,7 +63,7 @@ func (o *Ops) databaseParts(ctx context.Context, l *siteSnaps, files host.Snapsh
 		if !ValidSnapshotID(snap.ID) {
 			return nil, fmt.Errorf("the repository lists an invalid snapshot id")
 		}
-		if o.ours(snap, s) != "" || !slices.Contains(snap.Tags, tagDatabase) {
+		if o.ours(snap, s, l.foreign) != "" || !slices.Contains(snap.Tags, tagDatabase) || snap.Hostname != files.Hostname {
 			return nil, agentrpc.Invalid("snapshot %s is not a database backup of %s made on this server", dbID, s.Domain)
 		}
 		name, tables := "", -1
@@ -92,6 +93,26 @@ func (o *Ops) databaseParts(ctx context.Context, l *siteSnaps, files host.Snapsh
 		parts = append(parts, dbPart{ID: snap.ID, Name: name, Tables: tables})
 	}
 	return parts, nil
+}
+
+// renameParts imports each database of another server's backup into the
+// database the panel made for it on the new site (SPEC §5: the primary is
+// renamed with the site); without a foreign restore it changes nothing.
+func renameParts(parts []dbPart, f *rpc.ForeignRestore) ([]dbPart, error) {
+	if f == nil {
+		return parts, nil
+	}
+	out := make([]dbPart, 0, len(parts))
+	for _, p := range parts {
+		if to, ok := f.Databases[p.Name]; ok {
+			p.Name = to
+		}
+		if slices.ContainsFunc(out, func(q dbPart) bool { return q.Name == p.Name }) {
+			return nil, agentrpc.Invalid("two databases of the backup would go into %s", p.Name)
+		}
+		out = append(out, p)
+	}
+	return out, nil
 }
 
 // dumpFile is a database's dump fetched into the work directory.

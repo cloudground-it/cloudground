@@ -702,6 +702,24 @@
       "safe": "Rien ne change tant que la vérification n’a pas réussi. L’ancien dépôt reste tel quel : supprimez-le une fois les tests de restauration réussis.",
       "start": "Déplacer",
       "started": "Déplacement lancé"
+    },
+    "foreign": {
+      "open": "Restaurer depuis un autre serveur",
+      "title": "Restaurer depuis un autre serveur",
+      "hint": "Les sites du dépôt de sauvegarde que ce panneau n’a pas, de n’importe quel serveur. Une restauration crée le site et remet sa sauvegarde.",
+      "server": "Serveur",
+      "reload": "Recharger",
+      "none": "Rien à restaurer",
+      "noneHint": "Chaque site du dépôt de sauvegarde est déjà sur ce panneau. Pour restaurer les sites d’un autre serveur, pointez d’abord les sauvegardes vers son dépôt.",
+      "noManifest": "Sauvegarde antérieure à la 1.0 : vous choisissez le type",
+      "count": "{n} sauvegardes",
+      "restoreTitle": "Restaurer {domain}",
+      "restoreHint": "Le site est créé sur ce serveur et sa sauvegarde la plus récente est restaurée en entier. Puis il est sauvegardé ici.",
+      "askType": "Cette sauvegarde ne dit pas quel type de site c’est. Choisissez le type et la version de PHP qu’il avait.",
+      "confirm": "Tapez {domain} pour confirmer",
+      "start": "Restaurer",
+      "started": "Restauration lancée",
+      "limits": "Les bases de données d’un serveur de base de données externe, et les sites rangés hors du dossier habituel des sites, ne se restaurent pas ici."
     }
   },
   "ssl": {

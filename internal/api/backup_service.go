@@ -93,9 +93,13 @@ func (s *Server) snapshotAndVerify(ctx context.Context, r *jobs.Run, scheduled b
 // pending its restore test, under kind. A snapshot stored but not recorded
 // is never tested or offered: that is an error, not a success.
 func (s *Server) snapshot(ctx context.Context, site state.Site, repo, password, kind string) (state.Backup, error) {
+	accounts, err := s.siteAccounts(site)
+	if err != nil {
+		return state.Backup{}, fmt.Errorf("read the site's database accounts: %w", err)
+	}
 	var res rpc.BackupResult
 	if err := agentrpc.Into(ctx, s.Agent, agentrpc.RunBackup, rpc.BackupParams{
-		Env: s.backupEnv(), Site: site, Repository: repo, Password: password, Kind: "full",
+		Env: s.backupEnv(), Site: site, Repository: repo, Password: password, Kind: "full", Accounts: accounts,
 	}, &res); err != nil {
 		return state.Backup{}, err
 	}
@@ -105,6 +109,33 @@ func (s *Server) snapshot(ctx context.Context, site state.Site, repo, password, 
 		return state.Backup{}, fmt.Errorf("snapshot %s was stored but could not be recorded: %w", res.SnapshotID, err)
 	}
 	return b, nil
+}
+
+// siteAccounts is the site's database accounts on this server, with their
+// passwords and grants, for its backup's description (SPEC.md §5.10,
+// ops/backup SPEC §4): another server recreates them as they are. An
+// account on an external server is not one of them.
+func (s *Server) siteAccounts(site state.Site) ([]rpc.ManifestAccount, error) {
+	users, err := s.Store.ListDBUsers(site.ID)
+	if err != nil {
+		return nil, err
+	}
+	var out []rpc.ManifestAccount
+	for _, u := range users {
+		if u.ServerID != 0 {
+			continue
+		}
+		pw, err := s.Store.Secret(u.Secret)
+		if err != nil {
+			return nil, err
+		}
+		if pw == "" {
+			continue
+		}
+		primary := site.Config.Database.Enabled && !site.Config.Database.External && u.Name == site.Config.Database.User
+		out = append(out, rpc.ManifestAccount{Name: u.Name, Password: pw, Primary: primary, Grants: append([]state.DBGrant{}, u.Grants...)})
+	}
+	return out, nil
 }
 
 // verifyBackup is the restore test: the agent restores the snapshot into

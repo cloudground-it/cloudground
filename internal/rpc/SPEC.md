@@ -73,10 +73,12 @@ handler.
 | | `rename` has a non-blank `DestPath` | `destination path required` |
 | `SSHKeyParams` | `Action` is `list`, `add` or `delete` | `unsupported SSH key action "<a>"` |
 | `DatabaseParams` | `Name` is `site_<id>` (`site.ValidDatabaseName`: `^site_[1-9][0-9]{0,18}$`) and `User` the same (SR-R1) | `a site's database and account are site_<id>, the same name (got "<n>"/"<u>")` |
-| `BackupParams` | `Kind` is empty (full), `full`, `files` or `database` | `backup kind must be full, files, or database` |
+| `BackupParams` | `Kind` is empty (full), `full`, `files` or `database`; at most 64 `Accounts` (#193), each a database name with a password (no line break) and grants on database names, at `all` or `read` | `backup kind must be full, files, or database`, `too many database accounts`, `invalid database account`, `invalid database grant` |
 | `RestoreParams` | `Mode`, trimmed and lower-cased, is empty (full), `full`, `files` or `database` | `restore mode must be full, files, or database` |
 | `ForgetSnapshotParams` | `SnapshotID` is 8 to 64 hex digits | `invalid snapshot id` |
 | `RepositoryInfoParams` | at most 100 000 `Expect` IDs, each 8 to 64 hex digits (#192) | `too many snapshot ids`, `invalid snapshot id` |
+| `ForeignSnapshotParams` | `SnapshotID` is 8 to 64 hex digits (#193) | `invalid snapshot id` |
+| `RestoreParams` with `Foreign` (#193) | a full restore (no other mode, no `Paths`, no `Databases`); `Hostname` 1 to 253 characters, no space, slash or control character; at most 64 `Databases`, each name on both sides a database name (`site.ValidDBName`); no line break in `DBPassword` or `ConnectorToken` | `a restore from another server is a full restore`, `a restore from another server restores everything`, `invalid hostname of the other server`, `too many databases`, `invalid database name`, `invalid site credentials` |
 | `CopyRepositoryParams` | `From` and `To` each have a repository and a password, and are not the same repository (#192) | `repository and password required`, `the two repositories are the same` |
 | `RemoveReleasesParams` | at most 100 `ReleaseIDs`, each a release ID (never `initial`) | `at most 100 releases at a time`, `invalid release id "<id>"` |
 | `SiteDatabaseParams`, `DBUserParams` | `ServerID`, when not 0, is positive | `invalid database server` |

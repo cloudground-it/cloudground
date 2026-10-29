@@ -1,0 +1,32 @@
+{
+  "params": {
+    "full": {
+      "repository": "Repository",
+      "password": "Password",
+      "env": {
+        "key": "Env"
+      }
+    },
+    "zero": {
+      "repository": "",
+      "password": ""
+    }
+  },
+  "result": {
+    "full": {
+      "sites": [
+        {
+          "domain": "Domain",
+          "hostname": "Hostname",
+          "snapshot": "Snapshot",
+          "time": "2026-01-02T03:04:05Z",
+          "snapshots": 7,
+          "manifest": true
+        }
+      ]
+    },
+    "zero": {
+      "sites": null
+    }
+  }
+}

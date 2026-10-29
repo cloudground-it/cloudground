@@ -70,8 +70,9 @@ For every request, in this order; the first step that refuses answers.
    `/api/tokens` routes, `POST /api/sites/{id}/ssh-shell` (R-4.5), `GET` and
    `PUT /api/sites/{id}/routing` (R-5.4), and the panel's own governance:
    `POST /api/firewall/rule`, `POST /api/firewall/enable`, `POST
-   /api/panel/certificate`, `POST /api/panel/update` and `POST
-   /api/backups/repository/move` (§5.9). So a leaked token cannot mint another, create an
+   /api/panel/certificate`, `POST /api/panel/update`, `POST
+   /api/backups/repository/move` (§5.9), `GET /api/backups/foreign` and
+   `POST /api/backups/foreign/restore` (§5.10). So a leaked token cannot mint another, create an
    admin, reset a password, open a site's shell, open the firewall or
    replace the panel's binary. `PUT /api/settings` is an `admin` row a token
    reaches, and its handler refuses a token any change but to `acme_email`
@@ -127,6 +128,7 @@ panel itself (§1.2 step 6):
 | `notify_webhook` | it would receive every alert |
 | `cloudflare_api_token` | it is the DNS credential of the panel's certificates |
 | `update_channel`, `update_check`, `POST /api/panel/update` | it would choose what the panel runs |
+| `GET /api/backups/foreign`, `POST /api/backups/foreign/restore` | it would read and restore another server's sites, the one restore that takes another server's snapshot |
 | `POST /api/firewall/rule` | it would open the server's ports |
 | `POST /api/firewall/enable` | it would change what reaches the server |
 | `POST /api/panel/certificate` | it would choose the certificate admins trust |
@@ -1826,6 +1828,8 @@ accounts read it).
 | `POST /api/sites/{id}/backups/retention` (`admin`) | 412; 400 `this site has no backup retention window` | `202`, job `backup.retention` |
 | `PUT /api/sites/{id}/backups/policy` (`manage`) | §5.5 | `200` with the policy |
 | `POST /api/backups/repository/move` (`admin`, sessions only) | §5.9 | `202 {"task"}`, job `backup.move` |
+| `GET /api/backups/foreign` (`admin`, sessions only) | §5.10 | `200 {"sites"}` |
+| `POST /api/backups/foreign/restore` (`admin`, sessions only) | §5.10 | `202 {"site", "task"}`, job `backup.import` |
 
 ### 5.6 Restoring one file or folder (#23)
 
@@ -1967,6 +1971,93 @@ start: it is requeued under the new lock when the two differ (jobs SPEC
 route through the panel's socket session (an admin's, never a token) and
 follows the task (cmd/cgctl SPEC).
 
+### 5.10 Restoring a site from another server (#193, `backup_foreign.go`)
+
+A restore takes only this server's snapshots (ops/backup SPEC §5), and a new
+panel has no record of the backups already in its repository: when a server
+is lost, its sites come back here. Both routes are an administrator's,
+**signed in with a session** (an API token gets 403, §1.2.1): the restore
+is the one exception to the hostname rule, and it creates a site.
+
+`GET /api/backups/foreign`: the agent's `RepositorySites` of the
+configured repository (412 when backups are not configured), less every
+domain this panel already has as a site or an alias (`nameOwners`), any
+host: `200 {"sites": [{"domain", "hostname", "snapshot", "time",
+"snapshots", "manifest"}]}`, sorted by domain. A backup of a site of this
+panel taken by another server is not listed (the site is here).
+
+`POST /api/backups/foreign/restore` `{"snapshot", "confirm", "type"?,
+"php_version"?}`. Refusals, in order: a body that does not decode → 400
+`malformed request`; `snapshot` not a snapshot ID → 400 `invalid snapshot
+id`; backups not configured → 412; the agent's `ForeignSnapshot` (its
+`not_found`, `invalid` for a part or a snapshot of no site, as §1.7);
+`confirm` other than the snapshot's `site:` domain → 400 `type the site's
+domain to confirm the restore`; no description and no `type` → 400 `this
+backup has no description of the site (it was made before 1.0): give its
+type, and its PHP version for a PHP site`; a `proxy` type → 400. Then the
+site is checked and created exactly as `POST /api/sites` creates one (§3.2:
+every refusal there applies, the domain or an alias already a site's →
+409, a PHP version not installed → 400, and `site.create` is audited),
+from the description: domain, aliases, type, profile, PHP version (the
+request's `type` and `php_version` win when given), cache and object
+cache, runtime and start command, and a database when the backup holds one.
+A WordPress site is installed with a placeholder account, which the
+restored database replaces. Audited `backup.import` (`snapshot <8 hex>
+made on <host>`): **202** `{"site", "task"}`.
+
+**The same names, the same passwords.** An application's configuration
+(a Laravel `.env`, a PHP config file, wp-config.php) names its database,
+its account and the password, and the panel does not know where it keeps
+them. So the site comes back with the backup's: it keeps the **ID** it
+had on the other server when this panel has no site with it (its user
+`cg-site-<id>` and the default names `site_<id>` are then the same), its
+primary database and account keep their names (a name of the `site_<n>`
+shape only with ID `n`: it belongs to the site with that number) and the
+account its password, from the description's accounts. When a name
+cannot be kept (the ID is taken here), the panel's own name is used and
+the restore rewrites a WordPress site's database settings (ops/backup SPEC
+§5, `Credentials`); any other type is told, in the job's log, the names
+to put in its configuration. A backup without a description gets the
+panel's names and a new password, and the same rewrite.
+
+The job `backup.import` (not resumable; the site's lock and the
+repository's; canceled or interrupted as `site.create`):
+
+1. The provisioning of §3.2 (its failures and rollbacks).
+2. Every other database of the backup (its `dbname:` names, other than its
+   primary) is made on this server under its own name, as §6.5 makes one;
+   a name that is not free here is a progress warning, and the restore
+   leaves that database out. Then every other account of the description
+   is made as §6.5 makes one, with its own password and its grants (on the
+   databases as they are named here); one that cannot be made is a
+   progress warning.
+3. `RestoreSnapshot` in full with `Foreign`: the snapshot's host, the
+   backup's primary mapped to the new site's (the primary is the one the
+   description says; without one, the only database, else the one named
+   `site_<n>`), the new site's database password and connector token
+   (ops/backup SPEC §5). A failure fails the job and keeps the site, as
+   provisioned (`<domain> was created but its backup could not be restored
+   (delete it to try again)`).
+4. The page cache is emptied; audited `backup.imported` by `system`.
+5. A full backup of the site on this server, restore-tested (§5.3): from
+   now on the site has a record here and its own backups; retention here
+   only ever touches this server's (ops/backup SPEC §8), so the snapshots
+   the site came from stay until their own server, or an administrator,
+   removes them.
+
+**Not restored here**, said in the panel's page and in the job's log: a
+database the backup's server kept on an external database server (the
+description says so; it is left out, as an account on one), and a site
+whose root on the other server was not `<sites root>/<domain>` (the
+restore then fails with the agent's `the snapshot does not contain the
+site's files`, and the site created for it is kept for a delete). Such a
+site is restored with restic by hand.
+
+`cgctl backup foreign` lists, `cgctl backup import <snapshot> <domain>
+[--type <type>] [--php <version>]` restores (cmd/cgctl SPEC); both sign in
+with a password. The panel's page is Sites › Restore from another server,
+also offered on an empty site list.
+
 ### 5.5 The policy
 
 A site's policy is `config.backups`: `enabled`, `schedule` (`hourly`,
@@ -2018,7 +2109,9 @@ job; the store's `site.changed` event tells the pages. Audited
   /backups` answers **409** `a reverse-proxy site has nothing to back up`,
   and a new proxy site's policy is off. A site with no database backs up
   its files alone; a site's databases are each dumped and restore-tested
-  (ops/backup SPEC §4, §6). A restore may name `databases` (only these of
+  (ops/backup SPEC §4, §6). Every backup sends the site's database
+  accounts on this server, with their passwords and grants, for its
+  description (`BackupParams.Accounts`, §5.10). A restore may name `databases` (only these of
   the backup's; each must be a database of the site, else 400; a `files`
   restore with `databases` is 400).
 - **backup.verify** (rerun; **cannot be canceled**, queued or running):
@@ -2081,7 +2174,13 @@ download), `backup repository move` (§5.9: a local repository copied and
 moved both ways, the old one deleted, the old records restored in every
 mode, tested and downloaded from the new one; another repository and a
 missing snapshot refused, the records left where they were).
-`backup_move_test.go` (§5.9: the refusals, the session-only row, the copy
+`backup_foreign_test.go` (§5.10: the refusals, the session-only rows, the
+listing without this panel's sites, the site made from the description or
+from the type given, the databases mapped, the restore sent with the
+foreign host, the backup after it, a failed restore keeping the site);
+e2e `restore from another server` (a WordPress site with a second
+database backed up, the hostname changed, the site deleted: listed,
+restored from the repository, serving its post and file). `backup_move_test.go` (§5.9: the refusals, the session-only row, the copy
 and the check, the transaction, the verifies, a failure leaving the records
 and the setting as they were).
 ## 6. Site proxies (R-4.3)

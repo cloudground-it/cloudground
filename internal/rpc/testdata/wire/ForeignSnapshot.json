@@ -1,0 +1,78 @@
+{
+  "params": {
+    "full": {
+      "repository": "Repository",
+      "password": "Password",
+      "env": {
+        "key": "Env"
+      },
+      "snapshot_id": "SnapshotID"
+    },
+    "zero": {
+      "repository": "",
+      "password": "",
+      "snapshot_id": ""
+    }
+  },
+  "result": {
+    "full": {
+      "id": "ID",
+      "domain": "Domain",
+      "hostname": "Hostname",
+      "time": "2026-01-02T03:04:05Z",
+      "manifest": {
+        "format": 7,
+        "cloudground": "CloudGround",
+        "site_id": 7,
+        "domain": "Domain",
+        "aliases": [
+          "Aliases"
+        ],
+        "type": "Type",
+        "profile": "Profile",
+        "php_version": "PHPVersion",
+        "runtime": {
+          "version": "Version",
+          "start": "Start"
+        },
+        "cache": {
+          "enabled": true,
+          "ttl_sec": 7,
+          "object_cache": true
+        },
+        "databases": [
+          {
+            "name": "Name",
+            "engine": "Engine",
+            "primary": true,
+            "external": true
+          }
+        ],
+        "accounts": [
+          {
+            "name": "Name",
+            "password": "Password",
+            "primary": true,
+            "grants": [
+              {
+                "database": "Database",
+                "level": "Level"
+              }
+            ]
+          }
+        ],
+        "root": "Root"
+      },
+      "databases": [
+        "Databases"
+      ]
+    },
+    "zero": {
+      "id": "",
+      "domain": "",
+      "hostname": "",
+      "time": "0001-01-01T00:00:00Z",
+      "databases": null
+    }
+  }
+}
