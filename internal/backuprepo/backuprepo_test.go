@@ -82,3 +82,21 @@ func TestValidateOptions(t *testing.T) {
 		t.Error("rclone: accepted without rclone")
 	}
 }
+
+// H-7-1: the one public-address rule, the backup endpoints' and the alert
+// webhook's.
+func TestPublicAddr(t *testing.T) {
+	for _, s := range []string{"127.0.0.1", "::1", "10.0.0.1", "172.16.5.4", "192.168.0.1", "fd00::1", "169.254.169.254", "fe80::1",
+		"0.0.0.0", "::", "0.1.2.3", "100.64.0.1", "192.0.0.8", "198.18.0.1", "198.19.255.255", "224.0.0.1", "ff02::1",
+		"240.0.0.1", "255.255.255.255", "fec0::1", "::ffff:10.0.0.1", "64:ff9b::7f00:1", "64:ff9b::a9fe:a9fe",
+		"64:ff9b:1::1", "2002:7f00:1::", "2002:c0a8:101::1"} {
+		if PublicAddr(netip.MustParseAddr(s)) {
+			t.Errorf("%s is public", s)
+		}
+	}
+	for _, s := range []string{"1.1.1.1", "8.8.8.8", "2606:4700:4700::1111", "::ffff:1.1.1.1", "64:ff9b::808:808", "2002:808:808::1", "203.0.113.10"} {
+		if !PublicAddr(netip.MustParseAddr(s)) {
+			t.Errorf("%s is not public", s)
+		}
+	}
+}

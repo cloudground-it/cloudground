@@ -3165,10 +3165,12 @@ a task alert; nested, so it clashes with no field a chat tool reads.
   hanging endpoint costs one 10 s timeout per round of four and a failed
   post is tried again at the next run (every five minutes).
 - The client follows no redirect (a 3xx is a failure) and its dialer
-  refuses, on the address actually dialled, loopback, private, link-local
-  (169.254/16, fe80::/10), shared (100.64/10), multicast and unspecified
-  addresses and the server's own: the URL cannot reach what only the server
-  can.
+  refuses, on the address actually dialled, every address that is not public
+  (`backuprepo.PublicAddr`, internal/backuprepo SPEC §2: loopback, private,
+  link-local 169.254/16 and fe80::/10, shared 100.64/10, multicast,
+  unspecified, 0.0.0.0/8, 192.0.0.0/24, 198.18.0.0/15, 240.0.0.0/4 and the
+  broadcast address, and an IPv6 form that carries one of them) and the
+  server's own: the URL cannot reach what only the server can.
 - The URL is a credential and the panel's journal is readable by read-only
   accounts (`GET /api/logs`): a failure is logged with its status or cause,
   never the URL. The agent's errors are logged with every URL password

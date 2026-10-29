@@ -139,12 +139,16 @@ func TestWebhookPostsConcurrentlyAndMarksEach(t *testing.T) {
 // The dialer refuses what only the server can reach.
 func TestWebhookRefusesInwardAddresses(t *testing.T) {
 	for _, a := range []string{"127.0.0.1", "::1", "10.1.2.3", "172.16.0.1", "192.168.1.1", "169.254.169.254",
-		"fe80::1", "100.64.0.1", "0.0.0.0", "224.0.0.1", "::ffff:127.0.0.1"} {
+		"fe80::1", "100.64.0.1", "0.0.0.0", "224.0.0.1", "::ffff:127.0.0.1",
+		// H-7-1: the special ranges netip calls global unicast, and IPv6
+		// forms that carry an inward IPv4 address.
+		"0.1.2.3", "192.0.0.8", "198.18.0.1", "240.0.0.1", "255.255.255.255", "fec0::1",
+		"64:ff9b::7f00:1", "64:ff9b::a9fe:a9fe", "2002:7f00:1::", "2002:a00:1::1", "64:ff9b:1::1"} {
 		if !inwardIP(net.ParseIP(a)) {
 			t.Errorf("%s is allowed", a)
 		}
 	}
-	for _, a := range []string{"1.1.1.1", "2606:4700:4700::1111"} {
+	for _, a := range []string{"1.1.1.1", "2606:4700:4700::1111", "64:ff9b::101:101", "2002:101:101::1"} {
 		if inwardIP(net.ParseIP(a)) {
 			t.Errorf("%s is refused", a)
 		}

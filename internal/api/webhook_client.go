@@ -5,17 +5,21 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"syscall"
 	"time"
+
+	"github.com/cloudground-it/cloudground/internal/backuprepo"
 )
 
 // The alert webhook's HTTP client (SPEC.md §11.3). An admin types the URL,
 // but the panel sends to it from the server, so it must not be a way to
 // reach what only the server can: the client follows no redirect, and its
-// dialer refuses loopback, link-local, private, shared (100.64/10),
-// multicast and unspecified addresses and the server's own, checked on the
-// address actually dialled (after DNS), so a name that resolves inward is
-// refused too.
+// dialer refuses every address that is not public (backuprepo.PublicAddr:
+// loopback, link-local, private, shared, multicast, unspecified, the other
+// special ranges, and an IPv6 form of one) and the server's own, checked on
+// the address actually dialled (after DNS), so a name that resolves inward
+// is refused too.
 
 // webhookHTTP is the client posts go through.
 func (s *Server) webhookHTTP() *http.Client {
@@ -36,8 +40,6 @@ var guardedWebhookClient = &http.Client{
 		IdleConnTimeout:     30 * time.Second,
 	},
 }
-
-var sharedRange = &net.IPNet{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)}
 
 // refuseInward is the dialer's check of the address it is about to dial.
 func refuseInward(_, address string, _ syscall.RawConn) error {
@@ -90,16 +92,16 @@ func (s *Server) webhookTargetProblem(ctx context.Context, host string) error {
 
 // inwardIP reports whether ip is one the webhook may not reach.
 func inwardIP(ip net.IP) bool {
-	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
-		ip.IsInterfaceLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() || sharedRange.Contains(ip) {
+	a, ok := netip.AddrFromSlice(ip)
+	if !ok || !backuprepo.PublicAddr(a) {
 		return true
 	}
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return true // cannot tell: refuse
 	}
-	for _, a := range addrs {
-		if n, ok := a.(*net.IPNet); ok && n.IP.Equal(ip) {
+	for _, x := range addrs {
+		if n, ok := x.(*net.IPNet); ok && n.IP.Equal(ip) {
 			return true
 		}
 	}
