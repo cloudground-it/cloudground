@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/cloudground-it/cloudground/internal/agent/ops/staging"
@@ -39,5 +40,11 @@ func (a *Agent) capabilities(ctx context.Context, _ agentrpc.None) (rpc.Capabili
 	if v, err := a.ResticVersion(ctx); err == nil {
 		caps.ResticVersion, caps.ResticSupported = v.Line, v.TypedExitCodes()
 	}
+	if b, err := os.ReadFile(ephemeralPortsFile); err == nil {
+		caps.EphemeralPorts, _ = rpc.ParsePortRange(string(b))
+	}
 	return caps, nil
 }
+
+// ephemeralPortsFile is the kernel's range for the ports it picks itself.
+var ephemeralPortsFile = "/proc/sys/net/ipv4/ip_local_port_range"

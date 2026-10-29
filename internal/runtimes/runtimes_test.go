@@ -95,6 +95,14 @@ func TestRenderUnit(t *testing.T) {
 	if strings.Contains(unit, "CG_SOCKET") {
 		t.Error("a port app has a socket")
 	}
+	// F-6-2: the sandbox binds no port; a port app may bind its own, TCP,
+	// and no other. A socket app gets no allowance at all.
+	if !strings.Contains(unit, "\nSocketBindDeny=1-65535\n") || !strings.Contains(unit, "\nSocketBindAllow=tcp:8000\n") || strings.Count(unit, "SocketBindAllow=") != 1 {
+		t.Errorf("port app's binds:\n%s", unit)
+	}
+	if _, sock, _ := RenderUnit(app(state.SiteNode)); !strings.Contains(sock, "\nSocketBindDeny=1-65535\n") || strings.Contains(sock, "SocketBindAllow=") {
+		t.Errorf("socket app's binds:\n%s", sock)
+	}
 	if Upstream(p) != "127.0.0.1:8000" || Upstream(app(state.SiteNode)) != "unix:/run/cloudground/app/cg-site-7/app.sock" {
 		t.Error("upstreams")
 	}

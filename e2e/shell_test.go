@@ -102,6 +102,20 @@ func (h *harness) siteShell(t *testing.T) {
 			"R-4.5: cgroup %q", strings.Join(lines[2:], " "))
 	}
 	h.check(t, "R-4.5: a command's exit status comes back through ssh", strconv.Itoa(sh(shellKey, shellUser, "exit 7").Code), "7")
+
+	// F-6-2: a site's code binds no TCP or UDP port: not the connector's
+	// 9080 (held or not), not a free one. Port 0 (an ephemeral port the
+	// kernel picks) still works. Asserted wherever this host's systemd can
+	// enforce SocketBindDeny (249 or later, built with the BPF framework:
+	// Ubuntu 26.04); skipped, with the reason, only where it says it cannot
+	// (Ubuntu 24.04's 255 is built without it: phpfpm SPEC §4.1).
+	bound := sh(shellKey, shellUser, "python3 -c '"+bindProbe+"' 9080 "+freePort+" 0")
+	if ok, why := h.socketBindSupported(); ok {
+		h.check(t, "F-6-2: the site shell cannot bind the connector's port, a free port or UDP; port 0 still works",
+			bound.Trim(), "tcp 9080 1\ntcp "+freePort+" 1\nudp "+freePort+" 1\ntcp 0 ok")
+	} else {
+		t.Logf("F-6-2: skipped, %s; the shell's binds: %q", why, bound.Trim())
+	}
 	// A tool opens one session per command (a deploy script, Ansible): a
 	// run of them, back to back, is not refused. The gate allowed 20 a
 	// minute, and the 21st command of this section was refused.
@@ -444,4 +458,39 @@ func waitGateClient(command string) string {
 		}
 	}
 	return ""
+}
+
+// bindProbe tries, on 127.0.0.1, a TCP bind of its first port, a TCP and a
+// UDP bind of its second, and a TCP bind of its third, and prints one line
+// each: "<proto> <port> ok" or "<proto> <port> <errno>" (1 is EPERM: the
+// sandbox's SocketBindDeny, F-6-2). No single quote and no $: it goes
+// through bash -c and systemd-run as one argument.
+const bindProbe = `import socket, sys
+def b(kind, port):
+    s = socket.socket(socket.AF_INET, kind)
+    try:
+        s.bind(("127.0.0.1", port))
+        return "ok"
+    except OSError as e:
+        return str(e.errno)
+    finally:
+        s.close()
+a = [int(x) for x in sys.argv[1:]]
+print("tcp", a[0], b(socket.SOCK_STREAM, a[0]))
+print("tcp", a[1], b(socket.SOCK_STREAM, a[1]))
+print("udp", a[1], b(socket.SOCK_DGRAM, a[1]))
+print("tcp", a[2], b(socket.SOCK_STREAM, a[2]))
+`
+
+// freePort is a port nothing on the test box listens on.
+const freePort = "19279"
+
+// socketBindSupported reports whether this host's systemd can enforce
+// SocketBindDeny (phpfpm SPEC §4.1), as `systemctl --version` says: version
+// 249 or later and +BPF_FRAMEWORK. When it cannot, the reason. Where it can,
+// a bind that works is a failure, libbpf missing or PID 1 not re-executed
+// after it was installed included.
+func (h *harness) socketBindSupported() (bool, string) {
+	r := h.run("systemctl", "--version")
+	return socketBindFrom(r.Out)
 }

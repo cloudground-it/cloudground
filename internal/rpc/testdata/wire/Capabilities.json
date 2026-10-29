@@ -52,7 +52,10 @@
         "python_distro": [
           "PythonDistro"
         ]
-      }
+      },
+      "ephemeral_ports": [
+        7
+      ]
     },
     "zero": {
       "agent_version": "",

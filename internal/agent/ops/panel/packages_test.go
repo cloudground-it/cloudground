@@ -173,3 +173,27 @@ func TestAgentUnitEnsuresPackages(t *testing.T) {
 		t.Fatal("the check must fit the guard's 2-minute restart wait and the unit's start timeout")
 	}
 }
+
+// F-6-2: installing libbpf1 re-executes systemd (PID 1 loads it once);
+// another package does not.
+func TestEnsureReexecsAfterLibBPF(t *testing.T) {
+	for _, c := range []struct {
+		want   []string
+		reexec bool
+	}{{[]string{"nginx", "libbpf1"}, true}, {[]string{"nginx", "nftables"}, false}} {
+		dpkg := dpkgAnswer(map[string]string{"nginx": "install ok installed"})
+		fx := &host.FakeExec{Respond: func(call host.FakeCall) host.FakeReply {
+			if call.Name == "dpkg-query" {
+				return dpkg(call)
+			}
+			return host.FakeReply{}
+		}}
+		if _, err := (&Packages{Exec: fx, Want: c.want}).Ensure(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		got := slices.ContainsFunc(fx.Calls(), func(call host.FakeCall) bool { return call.Line() == "systemctl daemon-reexec" })
+		if got != c.reexec {
+			t.Errorf("%v: daemon-reexec %v, want %v (calls %v)", c.want, got, c.reexec, fx.Calls())
+		}
+	}
+}

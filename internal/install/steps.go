@@ -234,6 +234,13 @@ func Steps(e *Env, o Options) []Step {
 					return err
 				}
 				e.recordOrWarn(func(rec *InstallRecord) { rec.Packages = addOnce(rec.Packages, missing...) })
+				// PID 1 loads libbpf once: re-executed, it enforces the
+				// sites' SocketBindDeny from now on (phpfpm SPEC §4.1).
+				if syspkg.NeedsReexec(missing) {
+					if err := e.Sd.Do(ctx, "daemon-reexec"); err != nil {
+						e.logf("systemctl daemon-reexec after installing %s: %v (the sites' port restriction takes effect at the next boot)", syspkg.LibBPF, err)
+					}
+				}
 				return nil
 			}}
 	}

@@ -97,7 +97,7 @@ owner, a new one is created root-owned (what `install -d -m` does).
    self-update installs a package a newer release added (#113, ops/panel SPEC §2.6). For a new
    install:
 
-       nginx mariadb-server certbot python3-certbot-dns-cloudflare git unzip cron nftables
+       nginx mariadb-server certbot python3-certbot-dns-cloudflare git unzip cron nftables libbpf1
        php<php>-fpm php<php>-mysql php<php>-curl php<php>-gd php<php>-intl
        php<php>-mbstring php<php>-soap php<php>-xml php<php>-zip php<php>-imagick
        php<php>-bcmath php<php>-apcu

@@ -65,7 +65,8 @@ the runtime's `bin` first, `HOME=/tmp`, `LANG=C.UTF-8`, `npm_config_update_notif
 script of internal/runtimes SPEC §4 on `/bin/sh -eu`. Output on one stream, the last 4 KiB kept. A
 non-zero exit is `invalid`: `installing the app's dependencies failed: <output>`. A runtime that is
 not installed is `failed_precondition`-like `invalid`: `Node.js 22 is not installed on this server`.
-The network is open to it (npm and PyPI); the sandbox is the site's.
+The network is open to it (npm and PyPI) for outgoing connections; the sandbox is the site's, so
+it binds no port (phpfpm SPEC §4.1).
 
 ## 4. Tests
 

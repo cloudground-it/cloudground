@@ -160,6 +160,12 @@ Kept because a list of what was wrong says more about a codebase than a list of 
   addresses that post to it blocked from every site on the server (its own visitors), though not
   from SSH or the panel. It cannot name an address that did not send it a request; the allowlist
   and the server's own addresses are never blocked.
+- On Ubuntu 24.04, systemd cannot restrict which ports a site's code binds: its systemd is built
+  without the BPF framework that enforces this. While a managed app restarts, another site's code
+  could take the app's TCP port, and then it gets the requests nginx sends there. It could take
+  the connector's loopback port while the panel restarts, and then it gets the WordPress sites'
+  connector tokens. An app on its unix socket, the default, does not have this problem. On Ubuntu
+  26.04, a site's code cannot bind any port.
 - Drift detection covers the files the panel rendered. It is not a file-integrity monitor.
 - The sandbox limits what a compromised site can reach. It does not make vulnerable application code
   safe. A way out of the sandbox is a vulnerability: report it as `SECURITY.md` says.

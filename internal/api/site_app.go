@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"slices"
 	"sort"
@@ -153,6 +154,20 @@ func (s *Server) handleSetApp(w http.ResponseWriter, r *http.Request, c *call) {
 	if err := runtimes.CheckApp(cur.Type, a); err != nil {
 		respondErr(w, http.StatusBadRequest, err.Error())
 		return
+	}
+	// F-6-2: a new TCP port must lie outside the range the kernel hands out
+	// itself, where any process could be given it while the app restarts.
+	// An app keeps the port it has.
+	if a.Port != 0 && a.Port != cur.Config.App.Port {
+		caps, err := s.capabilities(r.Context())
+		if err != nil {
+			respondAgentErr(w, 0, "", err)
+			return
+		}
+		if lo, hi := caps.EphemeralRange(); a.Port >= lo && a.Port <= hi {
+			respondErr(w, http.StatusBadRequest, fmt.Sprintf("port %d is in the range this server gives out for its own connections (%d–%d), so another program could take it while the app restarts: choose a port below %d or above %d", a.Port, lo, hi, lo, hi))
+			return
+		}
 	}
 	if a.Version != cur.Config.App.Version {
 		caps, err := s.capabilities(r.Context())

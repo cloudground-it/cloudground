@@ -1,31 +1,31 @@
-type="wordpress" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-101.service err=<nil> sha=f9ac830cde101c41
-type="wordpress" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-102.service err=<nil> sha=c96a1b30a7f6bb53
-type="wordpress" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-103.service err=<nil> sha=b9a070a52255c2a1
-type="wordpress" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-104.service err=<nil> sha=464b8eac530fa4a6
-type="woocommerce" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-105.service err=<nil> sha=5b892030a6d82282
-type="woocommerce" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-106.service err=<nil> sha=0b5f1942dbe47a84
-type="woocommerce" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-107.service err=<nil> sha=c15e9e2f19675056
-type="woocommerce" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-108.service err=<nil> sha=c7960d974a77b3d2
-type="laravel" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-109.service err=<nil> sha=d7f7ff68db562401
-type="laravel" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-110.service err=<nil> sha=662091009c959df4
-type="laravel" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-111.service err=<nil> sha=f4a8cb98dcb97128
-type="laravel" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-112.service err=<nil> sha=26366804957e4314
-type="php" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-113.service err=<nil> sha=018105ac15d66946
-type="php" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-114.service err=<nil> sha=4418f9f51299104e
-type="php" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-115.service err=<nil> sha=1457caa600a09485
-type="php" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-116.service err=<nil> sha=5fe9765e7eaaf040
-type="static" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-117.service err=<nil> sha=1086baac803e4627
-type="static" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-118.service err=<nil> sha=14eff3cb2d2c4c4b
-type="static" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-119.service err=<nil> sha=d69e6b2607cf3104
-type="static" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-120.service err=<nil> sha=262f36d5e0859893
-type="proxy" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-121.service err=<nil> sha=f38cbd31d3bcaa82
-type="proxy" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-122.service err=<nil> sha=58ae34b02cc9eb37
-type="proxy" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-123.service err=<nil> sha=e26a2d0534ba189a
-type="proxy" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-124.service err=<nil> sha=32dac9033c05e2f8
-type="" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-125.service err=<nil> sha=248eee2bcd192318
-type="" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-126.service err=<nil> sha=cc9afe58c75615f4
-type="" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-127.service err=<nil> sha=068833c20dbbfaf5
-type="" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-128.service err=<nil> sha=162501773d53e1c1
+type="wordpress" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-101.service err=<nil> sha=e4551c54802122f2
+type="wordpress" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-102.service err=<nil> sha=73f088518be71202
+type="wordpress" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-103.service err=<nil> sha=36e26cff5b67f448
+type="wordpress" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-104.service err=<nil> sha=7228c613c5f929ea
+type="woocommerce" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-105.service err=<nil> sha=d16a470cf0d625bd
+type="woocommerce" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-106.service err=<nil> sha=9a78adc413a51c30
+type="woocommerce" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-107.service err=<nil> sha=5279d343641ad354
+type="woocommerce" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-108.service err=<nil> sha=7c71993bb8f63015
+type="laravel" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-109.service err=<nil> sha=33644f19aa805144
+type="laravel" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-110.service err=<nil> sha=03b460a68843e8f2
+type="laravel" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-111.service err=<nil> sha=f9bfc8745731f7c3
+type="laravel" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-112.service err=<nil> sha=c1b7b28ac49da819
+type="php" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-113.service err=<nil> sha=1c9f6cb563b4e3ee
+type="php" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-114.service err=<nil> sha=7d0976db733d0927
+type="php" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-115.service err=<nil> sha=61fe3634257616ff
+type="php" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-116.service err=<nil> sha=903bdc2d164fe556
+type="static" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-117.service err=<nil> sha=bf700e9e13f0e82e
+type="static" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-118.service err=<nil> sha=d20807205cc1e765
+type="static" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-119.service err=<nil> sha=769400308bce3564
+type="static" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-120.service err=<nil> sha=e98f4e23ed52c30a
+type="proxy" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-121.service err=<nil> sha=741f7e5ca53258f5
+type="proxy" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-122.service err=<nil> sha=a2640fc4a5fe7336
+type="proxy" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-123.service err=<nil> sha=1dd1eccbe2b87fec
+type="proxy" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-124.service err=<nil> sha=d83938657f1a0ce4
+type="" bin=/usr/sbin ver=8.3 name=cloudground-php-cg-site-125.service err=<nil> sha=75a9f4a3cd8c43fe
+type="" bin=/usr/sbin ver=8.4 name=cloudground-php-cg-site-126.service err=<nil> sha=a99752b34a1ff4e0
+type="" bin=/opt/php/bin ver=8.3 name=cloudground-php-cg-site-127.service err=<nil> sha=89cdf71f5dcfd201
+type="" bin=/opt/php/bin ver=8.4 name=cloudground-php-cg-site-128.service err=<nil> sha=5023f5a70fd0d92a
 missing: name="" content="" err=site "a.test" missing system user, php version or root
 missing: name="" content="" err=site "b.test" missing system user, php version or root
 missing: name="" content="" err=site "c.test" missing system user, php version or root
@@ -75,6 +75,7 @@ RestrictNamespaces=yes
 RestrictRealtime=yes
 LockPersonality=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SocketBindDeny=1-65535
 CapabilityBoundingSet=
 PrivateIPC=yes
 
@@ -126,6 +127,7 @@ RestrictNamespaces=yes
 RestrictRealtime=yes
 LockPersonality=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SocketBindDeny=1-65535
 CapabilityBoundingSet=
 PrivateIPC=yes
 
