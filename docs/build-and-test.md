@@ -81,6 +81,27 @@ A golden file changes only when the output is meant to change. List the change i
 | `go test ./connector` | the connector's PHP tests, with a local `php` or a `php:8.4-cli` container (`CG_PHP_IMAGE`) |
 | `CG_UIDEV_ADDR=0.0.0.0:5252 CG_UIDEV_UI=ui/dist go test -tags uidev -run TestUIDevServer -timeout 0 ./internal/api/` | a local panel with a fake agent, to look at the UI; sign in as `admin@example.com` / `dev-password-123` |
 
+## Fuzzing
+
+The parsers and checks that take text from a user or the network and pass it to root or into a
+rendered file have native Go fuzz targets (`FuzzXxx` in a `fuzz_test.go` beside them). Each one
+checks a property of what it accepts, not only that it does not crash. For example, a redirect
+the site's check accepts renders as exactly its own locations, and an archive unpacks with
+nothing outside the tree. `make docker-test` runs their seed inputs like any test. To fuzz one,
+run it alone, in the Go container:
+
+```sh
+docker run --rm -v "$PWD":/src -w /src golang:1.26 \
+  go test -run '^$' -fuzz '^FuzzRedirectRender$' -fuzztime 30s ./internal/engine/nginx
+```
+
+The targets are in `internal/site` (domains, a whole site, redirects, git repositories),
+`internal/cronjob` (a crontab line, sh quoting), `internal/blocklist` (sshd and nginx failure
+lines), `internal/agent/ops/migration` (archive member names, unpacking), `internal/engine/nginx`
+(the tokenizer, redirect rules and routing blocks in the vhost) and `internal/api` (OAuth
+`redirect_uri`, PKCE, git webhook signatures). An input that fails is written to the package's
+`testdata/fuzz/<Target>/`. Commit it with the fix: from then on it runs with the seeds.
+
 ## What a test cannot tell you
 
 A passing unit test is not evidence that the product works on a server. Response headers, the
