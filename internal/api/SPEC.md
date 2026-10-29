@@ -1534,7 +1534,12 @@ the socket.
 - `PUT /api/sites/{id}/app` (manage, at most 512 KiB): `{version?, start?, env?, secrets?, port?,
   health_path?}`; a field left out keeps its value; `env` replaces the plain variables;
   `secrets` maps a name to its value, `""` removes it, `••••••••` keeps it (a name not given keeps
-  it too). `runtimes.CheckApp` on the result → 400 with its message; a version the agent does not
+  it too). `runtimes.CheckApp` on the result → 400 with its message; a `port` that is new (not the
+  app's current one) and inside the kernel's ephemeral range (`capabilities.ephemeral_ports`, else
+  32768–60999; the installer sets 32768–65535, install SPEC step 17) → 400 `port <n> is in the
+  range this server gives out for its own connections …`, ending with the ports the range leaves
+  (`choose a port from 1024 to 32767` there): any program could be given such a port while the app
+  restarts (F-6-2); an app keeps the port it has. A version the agent does not
   have → 412 `install <runtime> <version> on the server first (Server → Runtimes)`. Then, under the
   site's lock: the secrets are written (sealed, `site.<id>.app_env.<NAME>`), `SetAppEnv` gives the
   agent the whole environment (plain and secret values), `ApplySiteConfig` renders and restarts
@@ -2486,8 +2491,12 @@ reach the server from the box and nowhere insecurely.
 the table list, export and import, backups (`mariadb-dump` over the network, with TLS when
 required) and restores (a staged replacement inside that server), the restore test (the dump is
 checked in a scratch database on this server, whichever server it came from), and Quarry's sessions
-(a scoped account made on that server). A site's **staging copy** and a **migration** use the
-primary database, so they stay on this server. Deleting a site drops its databases and users on
+(a scoped account made on that server). An **import or restore of a database on an external server**
+runs as the site's own account (the agent cannot borrow it there), so its triggers and views keep
+their owner: the panel sends the site's database-account passwords in the agent call
+(`DBImport`/`RestoreSnapshot` `accounts`, from the secret store, only when a database is on an
+external server), and the agent uses one only for the account its record picks. A site's **staging
+copy** and a **migration** use the primary database, so they stay on this server. Deleting a site drops its databases and users on
 every server by the agent's record.
 
 **Not here.** Moving a database between servers; the primary database on an external server; a
@@ -2836,8 +2845,10 @@ make hundreds a day).
 
 **The watcher** (`watchBlocklist`, every 10 s, or at once when a block was
 made): deletes the blocks that have ended, reads and counts the agent's
-failures, and sends the list (`BlocklistApply {block, allow}`: every block
-that has not ended, every allowed prefix, each sorted) when it differs from
+failures, and sends the list (`BlocklistApply {block, block_web, allow}`:
+every block that has not ended, a `wordpress` one in `block_web`, which
+netfilter applies to the sites' ports only (internal/blocklist SPEC §5), the
+others in `block`, every allowed prefix, each sorted) when it differs from
 the last one the agent took, when the last apply failed, or when it is 10
 minutes old (netfilter forgets the table at a reboot, and nothing else
 would tell). A failed apply is logged once per distinct error.
@@ -3593,6 +3604,14 @@ site whose system user that is. In order:
    (none → 400 `no recipient`, more than 50 → 400); the `Bcc` header is
    removed; a message without `From` gets the site's sender, one without
    `Date` the time now; bare line feeds become CRLF;
+   - **through the server-wide relay, the site speaks only for itself.**
+     A `From` or `Sender` whose address is not on one of the site's names
+     (its domain, an alias, or a subdomain of either) nor the site's sender
+     is removed, the site's sender becomes the `From`, and the address the
+     site gave becomes `Reply-To` when it set none. Otherwise one site could
+     send, through the panel's own authenticated relay, as another site or
+     as the panel's alerts. A site with a relay of its own sends what its
+     relay accepts;
 6. `sendMail` through the effective relay, envelope sender the site's
    `from` or the relay's. Its failure → **502** with the relay's message.
    200 `{"sent": <recipients>}`.

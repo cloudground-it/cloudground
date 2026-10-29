@@ -42,6 +42,12 @@ func (m *mailbox) all() []outgoing {
 	return append([]outgoing{}, m.sent...)
 }
 
+func (m *mailbox) reset() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sent = nil
+}
+
 func useMailbox(s *Server) *mailbox {
 	m := &mailbox{}
 	s.mailSend = m.send
@@ -63,7 +69,7 @@ func setServerRelay(t *testing.T, s *Server, r state.MailRelay, alerts string) {
 func TestPrepareMessage(t *testing.T) {
 	raw := "To: Ann <ann@example.com>, bob@example.com\nCc: carl@example.com\nBcc: dee@example.com,\n eve@example.com\nSubject: hi\n\nline one\nline two\n"
 	now := time.Date(2026, 10, 22, 9, 0, 0, 0, time.UTC)
-	msg, to, err := prepareMessage([]byte(raw), []string{"zed@example.com"}, true, "shop@example.com", now)
+	msg, to, err := prepareMessage([]byte(raw), []string{"zed@example.com"}, true, "shop@example.com", nil, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,11 +85,11 @@ func TestPrepareMessage(t *testing.T) {
 	if strings.Contains(s, "dee@") || strings.Contains(s, "eve@") {
 		t.Fatalf("the Bcc header was sent: %q", s)
 	}
-	if _, _, err := prepareMessage([]byte("Subject: x\n\nbody"), nil, true, "a@example.com", now); err != errNoRecipient {
+	if _, _, err := prepareMessage([]byte("Subject: x\n\nbody"), nil, true, "a@example.com", nil, now); err != errNoRecipient {
 		t.Fatalf("no recipient: %v", err)
 	}
 	// Without -t only the named recipients count.
-	_, to, _ = prepareMessage([]byte(raw), []string{"zed@example.com"}, false, "a@example.com", now)
+	_, to, _ = prepareMessage([]byte(raw), []string{"zed@example.com"}, false, "a@example.com", nil, now)
 	if len(to) != 1 {
 		t.Fatalf("without -t: %v", to)
 	}
@@ -393,5 +399,61 @@ func TestAlertEmail(t *testing.T) {
 	}
 	if got, _ := s.Store.GetAlert(a.ID); got.NotifiedAt == nil {
 		t.Fatal("the emailed alert is not marked notified")
+	}
+}
+
+// §14.2 step 5: through the server-wide relay a site sends only as itself;
+// another site's or the panel's address is replaced by the site's sender.
+func TestMailGateKeepsTheSiteToItsOwnNames(t *testing.T) {
+	s, _, _ := testServer(t)
+	box := useMailbox(s)
+	site := seedActiveSite(t, s, "shop.example.com", state.SiteWordPress, "8.4", 0)
+	if _, err := s.Store.MutateSite(site.ID, func(st *state.Site) error {
+		st.Config.Mail.From = "orders@shop.example.com"
+		st.Aliases = []string{"shop.example.org"}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	s.gateUser = func(uint32) (string, error) { return site.SystemUser, nil }
+	setServerRelay(t, s, state.MailRelay{Host: "smtp.example.net", From: "alerts@panel.example.net"}, "")
+	send := func(head string) string {
+		t.Helper()
+		box.reset()
+		w := httptest.NewRecorder()
+		s.handleGateSend(w, gateRequest(1001, "t=1", "To: ann@example.com\n"+head+"Subject: x\n\nbody\n"))
+		got := box.all()
+		if w.Code != http.StatusOK || len(got) != 1 {
+			t.Fatalf("%q: %d %s", head, w.Code, w.Body.String())
+		}
+		return string(got[0].msg)
+	}
+	for _, own := range []string{"From: Shop <hello@shop.example.com>\n", "From: news@mail.shop.example.org\n", "From: orders@shop.example.com\n"} {
+		if msg := send(own); !strings.Contains(msg, strings.TrimSuffix(own, "\n")+"\r\n") || strings.Contains(msg, "Reply-To") {
+			t.Errorf("own name %q became %q", own, msg)
+		}
+	}
+	for _, foreign := range []string{"From: billing@other.example.com\n", "From: alerts@panel.example.net\n", "From: x@notshop.example.com\n", "From: a@shop.example.com, b@other.example.com\n"} {
+		msg := send(foreign)
+		if !strings.Contains(msg, "From: orders@shop.example.com\r\n") || strings.Count(msg, "From:") != 1 || !strings.Contains(msg, "Reply-To: ") {
+			t.Errorf("foreign %q became %q", foreign, msg)
+		}
+	}
+	if msg := send("From: hello@shop.example.com\nSender: alerts@panel.example.net\n"); strings.Contains(msg, "Sender:") {
+		t.Errorf("a foreign Sender stayed: %q", msg)
+	}
+	if msg := send("From: billing@other.example.com\nReply-To: help@shop.example.com\n"); strings.Count(msg, "Reply-To:") != 1 || !strings.Contains(msg, "Reply-To: help@shop.example.com") {
+		t.Errorf("the site's own Reply-To was replaced: %q", msg)
+	}
+
+	// With a relay of its own, the site sends what that relay takes.
+	if _, err := s.Store.MutateSite(site.ID, func(st *state.Site) error {
+		st.Config.Mail.Relay = &state.MailRelay{Host: "smtp.shop.example.com", From: "orders@shop.example.com"}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if msg := send("From: billing@other.example.com\n"); !strings.Contains(msg, "From: billing@other.example.com\r\n") {
+		t.Errorf("own relay: %q", msg)
 	}
 }

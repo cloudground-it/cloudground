@@ -51,8 +51,9 @@ running now. Not read-only: the reply is the only copy.
 
 ## 3. BlocklistApply
 
-`{block, allow}`, each entry an address or a CIDR (rpc SPEC §3: a block is
-no wider than /8 or /16). The agent parses them again, leaves out what
+`{block, block_web, allow}`, each entry an address or a CIDR (rpc SPEC §3: a
+block is no wider than /8 or /16); `block_web` is blocked from the sites'
+ports only (internal/blocklist SPEC §5). The agent parses them again, leaves out what
 another entry covers and runs `nft -f -` with `blocklist.NftScript` on
 standard input: the table `inet cloudground` is replaced in one transaction
 (internal/blocklist SPEC §5). Answer: how many prefixes each list became.
@@ -62,7 +63,7 @@ standard input: the table `inet cloudground` is replaced in one transaction
   SPEC §3); a server installed before it lacks it until then.
 - `nft` refuses the script → `internal` with nft's message as the detail;
   the table is as it was (the transaction is all or nothing).
-- Then the same lists go to nginx, for the sites behind Cloudflare whose
+- Then the lists go to nginx (`block` and `block_web` together), for the sites behind Cloudflare whose
   requests netfilter sees as Cloudflare's (ops/sites SPEC §10, `SetBanned`):
   a failure there is `internal`, `nginx: …`; netfilter already has the list.
 

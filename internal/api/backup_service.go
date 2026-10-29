@@ -240,11 +240,15 @@ func (s *Server) restoreWork(b state.Backup, mode, password string, databases, p
 			return err
 		}
 		progress(45, "Restoring and validating "+b.SnapshotID+" ("+mode+")")
+		var out map[string]string
 		if err := agentrpc.Into(ctx, s.Agent, agentrpc.RestoreSnapshot, rpc.RestoreParams{
 			Env: s.backupEnv(), Site: site, Repository: b.Repository, Password: password, SnapshotID: b.SnapshotID, Mode: mode,
-			Databases: databases, Paths: paths,
-		}, nil); err != nil {
+			Databases: databases, Paths: paths, Accounts: s.externalDBAccounts(site),
+		}, &out); err != nil {
 			return err
+		}
+		if w := out["warning"]; w != "" {
+			progress(88, "Warning: "+w)
 		}
 		progress(90, "Purging restored site cache")
 		s.purgeQuietly(ctx, site)

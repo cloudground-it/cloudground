@@ -182,11 +182,14 @@ InaccessiblePaths=-/etc/nginx -/etc/cloudground -/etc/letsencrypt -/etc/mysql -/
 ProtectHome=yes  PrivateTmp=yes  PrivateDevices=yes  ProtectProc=invisible  ProcSubset=pid
 NoNewPrivileges=yes  ProtectKernelTunables=yes  ProtectKernelModules=yes  ProtectKernelLogs=yes
 ProtectControlGroups=yes  ProtectClock=yes  RestrictNamespaces=yes  RestrictRealtime=yes
-LockPersonality=yes  RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6  CapabilityBoundingSet=
+LockPersonality=yes  RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6  SocketBindDeny=1-65535
+CapabilityBoundingSet=
 RestrictSUIDSGID=yes  PrivateIPC=yes  SystemCallFilter=@system-service  SystemCallErrorNumber=EPERM
 ```
 
-No site's tree, no other function's code, no log: the output is opened by systemd. The
+No site's tree, no other function's code, no log: the output is opened by systemd. No TCP or UDP
+port either (`phpfpm.NoPortBinds`, phpfpm SPEC §4.1): the call arrives on the connection systemd
+passes, and the install needs only outgoing connections. The
 **install sandbox** (`InstallSandbox(name, release)`) is the same with the release itself bound
 read-write (`BindPaths=/srv/functions/<name>/releases/<id>`) so the dependencies can be written
 there; it has the network, like the run.

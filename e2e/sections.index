@@ -374,11 +374,13 @@ e2e/parse_test.go	TestResticParsers	NONE
 e2e/parse_test.go	TestSSHDPort	NONE
 e2e/parse_test.go	TestSetCookieLine	NONE
 e2e/parse_test.go	TestSlashKey	NONE
+e2e/parse_test.go	TestSocketBindFrom	NONE
 e2e/parse_test.go	TestStagingInternalKey	NONE
 e2e/parse_test.go	TestURLPath	NONE
 e2e/parse_test.go	TestWPConfigDBName	NONE
 e2e/parse_test.go	TestWPConfigValue	NONE
 e2e/parse_test.go	TestWarmerRequests	NONE
+e2e/parse_test.go	socketBindFrom	R-4.5 site shell
 e2e/passkeys_test.go	apiClient.pk	panel passkeys
 e2e/passkeys_test.go	apiClient.pkAt	panel passkeys
 e2e/passkeys_test.go	harness.addSoftPasskey	panel passkeys
@@ -469,6 +471,7 @@ e2e/services_test.go	harness.services	R-2.4 services
 e2e/services_test.go	harness.shadowVerifies	wordpress sftp
 e2e/settings_test.go	harness.siteSettings	R-4.3 site settings
 e2e/shell_test.go	harness.siteShell	R-4.5 site shell
+e2e/shell_test.go	harness.socketBindSupported	R-4.5 site shell
 e2e/shell_test.go	sftpOpts	R-4.5 site shell
 e2e/shell_test.go	sleepers	R-4.5 site shell
 e2e/shell_test.go	waitGateClient	R-4.5 site shell

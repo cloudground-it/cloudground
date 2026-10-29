@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/cloudground-it/cloudground/internal/install/managed"
+	"github.com/cloudground-it/cloudground/internal/syspkg"
 )
 
 var bg = context.Background()
@@ -620,7 +621,7 @@ func TestSysctlLiveValues(t *testing.T) {
 	m.cmd.handle = func(line string) (string, error, bool) {
 		if line == "sysctl -p "+managed.Sysctl {
 			m.write("/proc/sys/net/core/somaxconn", "65535\n", 0o644)
-			m.write("/proc/sys/net/ipv4/ip_local_port_range", "1024\t65535\n", 0o644)
+			m.write("/proc/sys/net/ipv4/ip_local_port_range", "32768\t65535\n", 0o644)
 			return "", nil, true
 		}
 		return handle(line)
@@ -797,5 +798,30 @@ func TestAgentTokenModeIsCorrected(t *testing.T) {
 	}
 	if err := tokenStep.Apply(bg); err == nil || !strings.Contains(err.Error(), "not a regular file") {
 		t.Fatalf("a symlinked token: %v", err)
+	}
+}
+
+// F-6-2: an install that brings libbpf1 re-executes systemd once, so that
+// PID 1 loads it and enforces the sites' SocketBindDeny; one where it was
+// there already does not.
+func TestLibBPFInstallReexecsSystemd(t *testing.T) {
+	m := newMachine(t, "26.04")
+	m.pins()
+	m.mustApply(m.options(false))
+	reexecs := func() int {
+		n := 0
+		for _, c := range m.sd.calls {
+			if c == "daemon-reexec" {
+				n++
+			}
+		}
+		return n
+	}
+	if !slices.ContainsFunc(m.pkg.installs, func(p []string) bool { return slices.Contains(p, syspkg.LibBPF) }) || reexecs() != 1 {
+		t.Fatalf("installs %v, %d daemon-reexec (want 1)", m.pkg.installs, reexecs())
+	}
+	m.mustApply(m.options(false))
+	if reexecs() != 1 {
+		t.Fatalf("a second run with %s in place re-executed systemd again", syspkg.LibBPF)
 	}
 }

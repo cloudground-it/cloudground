@@ -202,13 +202,20 @@ func (s *Server) syncBlocklist(ctx context.Context, force bool) error {
 		switch {
 		case e.Kind == state.BlockKindAllow:
 			p.Allow = append(p.Allow, e.Prefix)
-		case e.ExpiresAt == nil || e.ExpiresAt.After(now):
+		case e.ExpiresAt != nil && !e.ExpiresAt.After(now):
+		case e.Source == blocklist.SourceWordPress:
+			// A site's WordPress may mark any of its answers as a failed
+			// sign-in: what it causes keeps the address from the sites, not
+			// from SSH or the panel (internal/blocklist SPEC §5).
+			p.BlockWeb = append(p.BlockWeb, e.Prefix)
+		default:
 			p.Block = append(p.Block, e.Prefix)
 		}
 	}
 	slices.Sort(p.Block)
+	slices.Sort(p.BlockWeb)
 	slices.Sort(p.Allow)
-	sum := sha256.Sum256([]byte(strings.Join(p.Block, ",") + "|" + strings.Join(p.Allow, ",")))
+	sum := sha256.Sum256([]byte(strings.Join(p.Block, ",") + "|" + strings.Join(p.BlockWeb, ",") + "|" + strings.Join(p.Allow, ",")))
 	fp := hex.EncodeToString(sum[:])
 	s.blocks.mu.Lock()
 	current := s.blocks.applied == fp && s.blocks.err == "" && now.Sub(s.blocks.appliedAt) < blocklistRefresh

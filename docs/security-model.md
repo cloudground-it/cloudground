@@ -108,8 +108,9 @@ can open; on TCP, loopback included, the peer address counts and the header is i
 
 **The block list** (issue #21, internal/blocklist/SPEC.md). Repeated failed sign-ins at SSH,
 WordPress (wp-login.php, XML-RPC, application passwords) and the panel block the address for a
-while, on every port: one netfilter table of the panel's, `inet cloudground`, drops its packets
-before sshd, nginx or the panel see them (6 failures in 10 minutes block for an hour by default;
+while: one netfilter table of the panel's, `inet cloudground`, drops its packets before sshd, nginx
+or the panel see them, on every port for SSH and panel failures and on the sites' ports for
+WordPress ones (6 failures in 10 minutes block for an hour by default;
 an IPv6 address counts as its /64). Addresses can also be blocked by hand. Loopback, the server's
 own addresses and an allowlist are never blocked, and the panel refuses a block that holds the
 address of the person making it; an operator locked out anyway gets back in from the server's
@@ -138,6 +139,35 @@ Kept because a list of what was wrong says more about a codebase than a list of 
 | Medium | The sign-in delay ("a delay, never a lock") was slept inside the account's queue of four attempts, panel and Quarry alike. Four wrong passwords a minute from one address, under the per-address limits, kept the queue full, so the real owner got `429` for as long as it went on. Quarry's default database user names (`site_<id>`) are easy to guess. | The delay is slept before the attempt queues, and the queue only holds the password check, bounded per network. Failures count per network (up to a minute of delay, spaced so that parallel guesses from one network or /48 are no faster than sequential ones) and per account from anywhere (at most 2 s), so the owner from another network gets in within a bounded delay. |
 | Low | A TOTP code was accepted anywhere in its window with no record of use, so a captured code worked for about 90 seconds. | The last accepted time step is recorded per account and only moves forward. |
 
+## Findings of the second review (October 2026)
+
+A second internal review, before 1.0, went through sign-in, the HTTP routes, the API–agent
+boundary, files and archives, SQL, the sites' sandbox, outbound calls and the release chain.
+
+| Severity | What was wrong | What changed |
+| --- | --- | --- |
+| High | An import into a database on an external MariaDB or MySQL server ran the dump as that server's administrator. `--one-database` only filters statements in the client, so a crafted dump from a site's operator could create accounts or change other databases on that server. [GHSA-2x3m-w3c8-7xj8](https://github.com/cloudground-it/cloudground/security/advisories/GHSA-2x3m-w3c8-7xj8) | The import signs in as the site's own database account, so its triggers and views keep their owner. Without that account's password, it runs as a temporary account granted on that one database, and the task says that triggers, views and routines will not run until they are recreated. The administrator account now only creates and drops accounts and takes the agent's own dumps. |
+| Medium | Through the server's mail relay, a site's code could set any `From` or `Sender`, so it could send as another site or as the panel. [GHSA-hv85-58rm-pvxx](https://github.com/cloudground-it/cloudground/security/advisories/GHSA-hv85-58rm-pvxx) | A `From` or `Sender` that is not on one of the site's names, or its sender address, is replaced by the site's sender. The address given becomes `Reply-To` when there is none. A site with a relay of its own is unchanged. |
+| Medium | A site's code could mark any POST answer as up to 100 failed sign-ins. One answer blocked whoever had posted, the panel's admin included, on every port: SSH, the panel and every site. [GHSA-fc8m-vwp2-52h4](https://github.com/cloudground-it/cloudground/security/advisories/GHSA-fc8m-vwp2-52h4) | Blocks caused by WordPress failures apply to the sites' ports (80 and 443) only. Failures at SSH and at the panel, and blocks made by hand, still close every port. |
+| Medium | A site's code could bind any free TCP or UDP port. While a managed app restarted, another site could take the app's port and get the requests nginx sends there. While the panel restarted, it could take the connector's loopback port and get the WordPress sites' connector tokens. [GHSA-w642-56fp-4cx4](https://github.com/cloudground-it/cloudground/security/advisories/GHSA-w642-56fp-4cx4) | Sites and functions run with `SocketBindDeny` and cannot bind a port. A managed app in TCP-port mode may bind its own, and a new app port must lie outside the range the kernel gives out itself. Ubuntu 24.04's systemd cannot enforce this (Limits, below). |
+| Medium | Go 1.26.9's `crypto/x509` was affected by GO-2026-6809 (compromised intermediate certificates), reachable from passkey registration. | Built with Go 1.26.10. CI runs govulncheck and fails on any vulnerability the code can reach. |
+| Low | The panel holds 1,024 passkey challenges. Sign-in challenges with no account behind them, from two IPv6 /48s, could fill them, and every passkey ceremony was refused while they did. | Sign-in challenges are limited to 32 per /48, 8 per network and 512 across the panel, so signed-in accounts always find room. |
+| Low | With the MCP server on, `/oauth/authorize` sent its errors to the client's `redirect_uri`. Anyone may register a client, so the panel was an open redirect. | Refusals are answered as a 400. |
+| Low | An API token could change where a stored credential goes (a database server's host or TLS, a site's relay host) while the panel kept using the sealed password. | With a token, that change takes the password again. |
+| Low | A valid connector token was never rate-limited, and each purge started a Cloudflare purge with the panel's token, without bound. | Cloudflare purges are coalesced per site: one at a time, at least 10 s apart. More than 300 URLs become a purge of the site's names. |
+| Low | `GET /api/backups/{id}/archive` deletes the archive once sent, yet it was not limited to same-origin requests like other reads with an effect. | It is same-origin only, like the event stream. |
+
+Hardening with no attack behind it:
+- `sitefs` changes owner and mode through the descriptor it checked, and refuses a hard link to a file it does not own.
+- The alert webhook and the backup endpoints share one rule for public addresses. It also refuses the special IPv4 ranges and the IPv6 forms of an inward address.
+- A list of Cloudflare's ranges with a network wider than /12 or /29 is refused, and a change is logged.
+- A database server on a link-local address, the cloud metadata address among them, is refused.
+- The installer puts the agent token's mode back on every run.
+- A full restore retries the removal of the files it replaced, and logs them if they stay.
+- A git file repository must be spelled `file:///`.
+- Native Go fuzz targets cover the parsers and checks that feed root or rendered files.
+- CI runs govulncheck and npm audit.
+
 ## Limits, stated plainly
 
 - No external audit yet.
@@ -156,9 +186,18 @@ Kept because a list of what was wrong says more about a codebase than a list of 
   which slows a guesser to a handful of tries an hour per address (per /64 for IPv6); a botnet of
   many addresses still gets that many tries from each. Keys only is the defence against that.
 - A site's own code can mark any of its POST responses as a failed sign-in, so it can get the
-  addresses that post to it blocked on the whole server (its own visitors). It cannot name an
-  address that did not send it a request; the allowlist and the server's own addresses are never
-  blocked.
+  addresses that post to it blocked from every site on the server (its own visitors), though not
+  from SSH or the panel. It cannot name an address that did not send it a request; the allowlist
+  and the server's own addresses are never blocked.
+- On Ubuntu 24.04, systemd cannot restrict which ports a site's code binds: its systemd is built
+  without the BPF framework that enforces this. While a managed app restarts, another site's code
+  could take the app's TCP port, and then it gets the requests nginx sends there. It could take
+  the connector's loopback port while the panel restarts, and then it gets the WordPress sites'
+  connector tokens. An app on its unix socket, the default, does not have this problem. On Ubuntu
+  26.04, a site's code cannot bind any port.
+- An import into a database on an external server runs as the site's own database account when
+  the panel has its password. Without it, the import runs as a temporary account: triggers, views
+  and routines come in but do not run until they are recreated, and the task says so.
 - Drift detection covers the files the panel rendered. It is not a file-integrity monitor.
 - The sandbox limits what a compromised site can reach. It does not make vulnerable application code
   safe. A way out of the sandbox is a vulnerability: report it as `SECURITY.md` says.

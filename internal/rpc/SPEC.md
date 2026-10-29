@@ -110,6 +110,7 @@ API holds policies only and never a copy of a fact about the host:
 | `features.http3` | nginx serves HTTP/3 (the build has `http_v3_module`) | `nginx -V`, read once per agent process |
 | `restic_version` | restic's own version line, e.g. `restic 0.19.1 compiled with go1.24.4 on linux/amd64`; empty when restic cannot be run | `restic version` (30 s), read on every call |
 | `restic_supported` | restic is 0.17 or later, the first with typed exit codes (a locked repository, a wrong password); `false` with an empty version | the same line |
+| `ephemeral_ports` | `[low, high]`, the range the kernel picks ports from itself; a managed app's new TCP port must lie outside it (internal/api SPEC, `PUT /api/sites/{id}/app`); omitted when unreadable, and `EphemeralRange()` then gives Linux's default 32768–60999 | `/proc/sys/net/ipv4/ip_local_port_range`, read on every call |
 
 The PHP list is read on every call (a version installed with apt shows up without an agent
 restart). The nginx probe is the renderer's, read once per process, as a build cannot change

@@ -377,6 +377,7 @@ RestrictNamespaces=yes
 RestrictRealtime=yes
 LockPersonality=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SocketBindDeny=1-65535
 CapabilityBoundingSet=
 PrivateIPC=yes
 

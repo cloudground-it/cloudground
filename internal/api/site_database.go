@@ -25,6 +25,47 @@ import (
 
 var errNoManagedDB = decline(http.StatusPreconditionFailed, "this site has no local managed database")
 
+// externalDBAccounts is the site's database-account passwords (user →
+// password) to hand an import that targets an external server, where the
+// agent cannot borrow the account (ops/db SR-T7). Nil when the site has no
+// database on an external server, so an import into the box's own server
+// keeps borrowing. The agent uses a password only for the account its own
+// record picks for the database.
+func (s *Server) externalDBAccounts(site state.Site) map[string]string {
+	dbs, err := s.Store.ListSiteDatabases(site.ID)
+	if err != nil {
+		s.logIfErr(err, "ListSiteDatabases")
+		return nil
+	}
+	external := false
+	for _, d := range dbs {
+		external = external || d.ServerID != 0
+	}
+	if !external {
+		return nil
+	}
+	users, err := s.Store.ListDBUsers(site.ID)
+	if err != nil {
+		s.logIfErr(err, "ListDBUsers")
+		return nil
+	}
+	out := map[string]string{}
+	for _, u := range users {
+		pw, err := s.Store.Secret(state.DBUserSecret(site.ID, u.Name))
+		if err != nil {
+			s.logIfErr(err, "Secret")
+			continue
+		}
+		if pw != "" {
+			out[u.Name] = pw
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // localDB reports whether the site has a primary database the agent
 // manages: the one its application is configured with.
 func localDB(site state.Site) bool {
@@ -149,7 +190,7 @@ func (d siteDB) replace(site state.Site, database, file, confirm string) (jobs.T
 		step(15, "Saving a rollback point, then importing "+file+" into "+database)
 		var res rpc.DBImportResult
 		if err := agentrpc.Into(ctx, agent, agentrpc.DBImport, rpc.DBImportParams{
-			Site: site, Database: database, RelPath: file,
+			Site: site, Database: database, RelPath: file, Accounts: d.s.externalDBAccounts(site),
 		}, &res); err != nil {
 			return err
 		}

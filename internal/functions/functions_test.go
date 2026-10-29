@@ -167,6 +167,10 @@ func TestUnits(t *testing.T) {
 	if !strings.Contains(inst, "BindPaths=/srv/functions/hello/releases/01JABCDEFGHJKMNPQRSTVWXYZ0") || !strings.Contains(inst, "BindReadOnlyPaths=/srv/functions/hello") {
 		t.Errorf("install sandbox:\n%s", inst)
 	}
+	// F-6-2: neither the call nor the install binds a TCP or UDP port.
+	if !strings.Contains(svc, "\nSocketBindDeny=1-65535\n") || !strings.Contains(inst, "\nSocketBindDeny=1-65535") || strings.Contains(svc+inst, "SocketBindAllow") {
+		t.Errorf("function binds:\n%s\n%s", svc, inst)
+	}
 	if sl := RenderParentSlice(); !strings.Contains(sl, "MemoryMax=50%\n") || !strings.Contains(sl, "CPUWeight=50\n") {
 		t.Errorf("slice:\n%s", sl)
 	}

@@ -188,6 +188,16 @@ func (h *harness) mailRelay(t *testing.T) {
 	h.assert(t, "#77: wp_mail() reaches the relay From the site's sender", strings.Contains(string(r.Body), "sent") && got && strings.Contains(m.Data, "From: ") &&
 		strings.Contains(m.Data, sender), "#77: page %s %q; sink %+v", r.CodeStr(), head(r.Body, 200), m)
 
+	// Through the server's relay the site sends only as itself: another
+	// sender's address is replaced by the site's (#36).
+	marker = randMarker()
+	spoof := h.runIn("From: Billing <billing@other-tenant.example.net>\nTo: dan@example.com\nSubject: "+marker+"\n\nx\n",
+		"sudo", "-u", f.fsu, "/usr/local/bin/panel-agent", "sendmail", "-t", "-i")
+	m, got = sink.waitFor(marker)
+	h.assert(t, "#36: a site's message From another sender goes From the site's sender", spoof.Code == 0 && got &&
+		strings.Contains(m.Data, "From: "+sender) && !strings.Contains(m.Data, "From: Billing") && strings.Contains(m.Data, "Reply-To: "),
+		"#36: gate %d %q; sink %+v", spoof.Code, spoof.Err, m)
+
 	// The site's test button.
 	marker = randMarker()
 	c, b = h.api.post(f.api("/mail/test"), fmt.Sprintf(`{"to":"%s@example.com"}`, marker))

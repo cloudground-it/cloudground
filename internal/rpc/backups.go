@@ -67,6 +67,11 @@ type RestoreParams struct {
 	// Foreign, set only by the panel's restore from another server (#193),
 	// lets the snapshot be another server's (ForeignRestore).
 	Foreign *ForeignRestore `json:"foreign,omitempty"`
+	// Accounts carries the site's database-account passwords (user →
+	// password) for databases on an external server, so the restore imports
+	// each as the site's own account and keeps its triggers and views
+	// (ops/db SR-T7); empty for the box's own server.
+	Accounts map[string]string `json:"accounts,omitempty"`
 }
 
 // Sites lists the site restored.
@@ -80,6 +85,9 @@ func (p *RestoreParams) Validate() error {
 	case "", "full", "files", "database":
 	default:
 		return errors.New("restore mode must be full, files, or database")
+	}
+	if err := CheckImportAccounts(p.Accounts); err != nil {
+		return err
 	}
 	if p.Foreign != nil {
 		return p.Foreign.validate(mode, p)

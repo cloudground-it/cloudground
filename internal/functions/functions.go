@@ -20,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/cloudground-it/cloudground/internal/cronjob"
+	"github.com/cloudground-it/cloudground/internal/phpfpm"
 	"github.com/cloudground-it/cloudground/internal/runtimes"
 	"github.com/cloudground-it/cloudground/internal/state"
 )
@@ -518,6 +519,8 @@ var hardening = []string{
 	"RestrictRealtime=yes",
 	"LockPersonality=yes",
 	"RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6",
+	// No TCP or UDP port: the call arrives on the socket systemd passes.
+	phpfpm.NoPortBinds,
 	"CapabilityBoundingSet=",
 	"RestrictSUIDSGID=yes",
 	"PrivateIPC=yes",

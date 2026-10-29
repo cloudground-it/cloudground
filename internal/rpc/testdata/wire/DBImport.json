@@ -3,7 +3,10 @@
     "full": {
       "site": "@state.Site",
       "database": "Database",
-      "rel_path": "RelPath"
+      "rel_path": "RelPath",
+      "accounts": {
+        "key": "Accounts"
+      }
     },
     "zero": {
       "site": "@state.Site",

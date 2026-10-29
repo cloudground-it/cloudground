@@ -1157,7 +1157,7 @@
     "banFor": "Sperren für (Minuten)",
     "block": "Adresse sperren",
     "blocked": "{address} ist gesperrt",
-    "blockedHint": "Ihre Pakete werden auf allen Ports verworfen: SSH, die Websites und dieses Panel.",
+    "blockedHint": "Ihre Pakete werden auf allen Ports verworfen: SSH, die Websites und dieses Panel. Eine Sperre, die das WordPress einer Website ausgelöst hat, hält die Adresse nur von den Websites fern.",
     "blockedTitle": "Gesperrte Adressen",
     "blockHint": "Ihre Pakete werden sofort auf allen Ports verworfen. Dieser Server, Loopback, das Netz von Cloudflare und die immer erlaubten Adressen können nicht gesperrt werden.",
     "disallowed": "{address} ist nicht mehr immer erlaubt",

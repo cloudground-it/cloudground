@@ -139,3 +139,44 @@ func TestRuntimesRoutes(t *testing.T) {
 		t.Fatal("the install did not reach the agent")
 	}
 }
+
+// F-6-2: a new TCP port is refused in the range the kernel hands out itself
+// (the agent's, else Linux's default), where another program could be given
+// it while the app restarts; one outside it is taken, and an app keeps the
+// port it already has.
+func TestAppPortOutsideTheEphemeralRange(t *testing.T) {
+	s, _, ts := testServer(t)
+	admin := setupAdmin(t, s, ts)
+	site := createViaAPI(t, s, admin, map[string]any{"domain": "port.example.com", "type": "node"})
+	path := fmt.Sprintf("/api/sites/%d/app", site.ID)
+	for _, p := range []int{32768, 40000, 60999} {
+		resp, body := admin.do("PUT", path, map[string]any{"port": p})
+		if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(body), "gives out for its own connections") {
+			t.Errorf("port %d = %d %s", p, resp.StatusCode, body)
+		}
+	}
+	for _, p := range []int{8000, 32767, 61000} {
+		if resp, body := admin.do("PUT", path, map[string]any{"port": p}); resp.StatusCode != http.StatusOK {
+			t.Errorf("port %d = %d %s", p, resp.StatusCode, body)
+		}
+	}
+	for _, c := range []struct {
+		lo, hi int
+		want   string
+	}{
+		{32768, 65535, "choose a port from 1024 to 32767"},
+		{1024, 40000, "choose a port from 40001 to 65535"},
+		{32768, 60999, "choose a port below 32768 or above 60999"},
+	} {
+		if got := portsOutside(c.lo, c.hi); got != c.want {
+			t.Errorf("portsOutside(%d, %d) = %q, want %q", c.lo, c.hi, got, c.want)
+		}
+	}
+	// An app that has such a port from before keeps it through other changes.
+	if _, err := s.Store.MutateSite(site.ID, func(st *state.Site) error { st.Config.App.Port = 45000; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if resp, body := admin.do("PUT", path, map[string]any{"start": "node other.js"}); resp.StatusCode != http.StatusOK {
+		t.Fatalf("a change beside an existing port 45000 = %d %s", resp.StatusCode, body)
+	}
+}

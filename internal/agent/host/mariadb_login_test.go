@@ -33,7 +33,7 @@ func TestDumpAndImportAsASignedInUser(t *testing.T) {
 	if err := m.DumpAs(context.Background(), as, "shop_data", &buf, "orders"); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.Import(context.Background(), "shop_data", strings.NewReader("CREATE DEFINER=`root`@`localhost` VIEW v AS SELECT 1;"), ImportAs{Login: &as}); err != nil {
+	if _, err := m.Import(context.Background(), "shop_data", strings.NewReader("CREATE DEFINER=`root`@`localhost` VIEW v AS SELECT 1;"), ImportAs{Login: &as}); err != nil {
 		t.Fatal(err)
 	}
 	calls := fx.Calls()
@@ -64,7 +64,7 @@ func TestDumpAndImportAsASignedInUser(t *testing.T) {
 		if err := m.DumpAs(context.Background(), bad, "shop_data", &buf); err == nil {
 			t.Fatalf("%+v accepted", bad)
 		}
-		if err := m.Import(context.Background(), "shop_data", strings.NewReader(""), ImportAs{Login: &bad}); err == nil {
+		if _, err := m.Import(context.Background(), "shop_data", strings.NewReader(""), ImportAs{Login: &bad}); err == nil {
 			t.Fatalf("%+v accepted for an import", bad)
 		}
 	}
@@ -110,10 +110,10 @@ func TestClientReadsOnlyTheAgentsDefaultsFile(t *testing.T) {
 	if err := m.DumpAs(context.Background(), as, "shop_data", &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.Import(context.Background(), "shop_data", strings.NewReader("SELECT 1;"), ImportAs{Login: &as}); err != nil {
+	if _, err := m.Import(context.Background(), "shop_data", strings.NewReader("SELECT 1;"), ImportAs{Login: &as}); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.Import(context.Background(), "shop_data", strings.NewReader("SELECT 1;"), ImportAs{}); err != nil {
+	if _, err := m.Import(context.Background(), "shop_data", strings.NewReader("SELECT 1;"), ImportAs{}); err != nil {
 		t.Fatal(err)
 	}
 	if len(argv) != 3 {

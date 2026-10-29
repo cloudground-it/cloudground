@@ -136,6 +136,28 @@ http.createServer((req, res) => {
 			unitText := h.run("cat", "/etc/systemd/system/"+unit).Out
 			h.assert(t, "#28: the unit holds no secret", unitText != "" && !strings.Contains(unitText, "cg28-secret-value"), "%s", head([]byte(unitText), 400))
 
+			// F-6-2: in TCP-port mode the app binds its own port through the
+			// sandbox's SocketBindDeny, and nginx reaches it there; then back
+			// to the socket.
+			const appPort = "19281"
+			// The installer leaves the ports below 32768 to services; one the
+			// kernel hands out itself is refused.
+			h.check(t, "F-6-2: the kernel hands out ports from 32768 only", strings.Join(strings.Fields(h.run("cat", "/proc/sys/net/ipv4/ip_local_port_range").Out), " "), "32768 65535")
+			c, ab = h.api.put(fmt.Sprintf("/api/sites/%d/app", nid), map[string]any{"port": 40000})
+			h.assert(t, "F-6-2: a port the kernel hands out is refused", c == 400 && strings.Contains(string(ab), "choose a port from 1024 to 32767"), "%d %s", c, head(ab, 300))
+			c, ab = h.api.put(fmt.Sprintf("/api/sites/%d/app", nid), map[string]any{"port": 19281})
+			h.check(t, "F-6-2: the app moves to a TCP port", fmt.Sprint(c), "200")
+			if c != 200 {
+				t.Logf("PUT app port: %s", head(ab, 300))
+			}
+			h.check(t, "F-6-2: the app on its own port answers through nginx", waitBody(ndom, "cg28-node-v1"), "")
+			h.assert(t, "F-6-2: the unit allows exactly its own port",
+				strings.Contains(h.run("cat", "/etc/systemd/system/"+unit).Out, "\nSocketBindAllow=tcp:"+appPort+"\n"), "%s", unit)
+			h.assert(t, "F-6-2: the app listens on its port", strings.TrimSpace(h.run("ss", "-ltnH", "sport = :"+appPort).Out) != "", "nothing on %s", appPort)
+			c, _ = h.api.put(fmt.Sprintf("/api/sites/%d/app", nid), map[string]any{"port": 0})
+			h.check(t, "F-6-2: the app moves back to its socket", fmt.Sprint(c), "200")
+			h.check(t, "F-6-2: the app on its socket answers again", waitBody(ndom, "cg28-node-v1"), "")
+
 			// It dies: systemd starts it again.
 			before := show("NRestarts")
 			// A unit that is not running has MainPID 0, and kill -9 0 would

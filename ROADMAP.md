@@ -6,19 +6,12 @@ promise that is not kept. Items are listed roughly in order of priority.
 
 Concrete work is tracked as GitHub issues, grouped in [milestones](https://github.com/cloudground-it/cloudground/milestones); this page holds only the direction.
 
-## On the way to 1.0
+## After 1.0
 
-What stands between today and 1.0 is trust in the code and in the backups.
-
-- **A second security review.** The internal review is documented in
-  [SECURITY.md](./SECURITY.md); before 1.0 the parts that hold root get a second, full pass. It is
-  not an external audit, and an outside one is still welcome.
-- **Restores across upgrades and servers.** Test restores already run on a schedule; what is
-  missing is proof that a backup taken on one release restores on the next, a way to move the
-  backup repository, and a way to restore sites on a new server from another server's backups.
-
-1.0 does not mean years in production. The end-to-end suite runs green on both supported Ubuntu
-releases; a long record on many real servers comes after it, not before.
+1.0 is a promise about compatibility (the API, `cgctl`, the MCP tools, updates and backups stay
+compatible through 1.x), not about years in production: that record starts with it. The code has
+had two internal security reviews; an external audit is the most useful help anyone can give
+([SECURITY.md](./SECURITY.md)).
 
 ## Wanted
 

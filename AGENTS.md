@@ -8,14 +8,16 @@ documentation is the separate `cloudground-docs` repository.
 
 ## Status
 
-CloudGround is pre-1.0. The code is source-available under the Elastic License 2.0
+CloudGround is at 1.x: the API, `cgctl` and the MCP tools stay compatible within a major version
+(`docs/api.md`, "Stability"), and so do updates and backups (`internal/install/SPEC.md` §11): a
+change that removes or renames something they offer waits for 2.0. The code is source-available under the Elastic License 2.0
 (`Elastic-2.0`, `LICENSE`): use, modify and self-host, including for client sites, but not as a
 hosted or managed service for others. Never call it "open source" or "free software". The PHP under
 `connector/` is GPL-2.0-or-later (`connector/LICENSE`, required for WordPress plugins).
 A package's `SPEC.md` is its contract: write or change the spec first, then the code, and say in
 the commit which section it implements.
 
-- There has been an internal security review and no external audit yet (`SECURITY.md`): treat
+- There have been two internal security reviews and no external audit (`SECURITY.md`): treat
   every change to the privilege boundary as security work.
 - Benchmark results are published only once measured on a CloudGround release (`bench/`).
 

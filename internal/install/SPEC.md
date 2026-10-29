@@ -97,7 +97,7 @@ owner, a new one is created root-owned (what `install -d -m` does).
    self-update installs a package a newer release added (#113, ops/panel SPEC §2.6). For a new
    install:
 
-       nginx mariadb-server certbot python3-certbot-dns-cloudflare git unzip cron nftables
+       nginx mariadb-server certbot python3-certbot-dns-cloudflare git unzip cron nftables libbpf1
        php<php>-fpm php<php>-mysql php<php>-curl php<php>-gd php<php>-intl
        php<php>-mbstring php<php>-soap php<php>-xml php<php>-zip php<php>-imagick
        php<php>-bcmath php<php>-apcu
@@ -235,7 +235,9 @@ http-level is rendered by the agent into `conf.d` (`internal/engine/nginx`).
     a warning (a kernel that refuses a value must not stop the install), and doctor keeps
     reporting the difference. Values: `net.core.somaxconn = 65535`, `net.ipv4.tcp_max_syn_backlog
     = 65535`, `net.core.netdev_max_backlog = 16384`, `net.ipv4.tcp_tw_reuse = 1`,
-    `net.ipv4.tcp_slow_start_after_idle = 0`, `net.ipv4.ip_local_port_range = 1024 65535`,
+    `net.ipv4.tcp_slow_start_after_idle = 0`, `net.ipv4.ip_local_port_range = 32768 65535` (the ports below stay with
+    services, so a managed app's TCP port can lie outside the range: internal/api SPEC, `PUT
+    /api/sites/{id}/app`),
     `fs.file-max = 500000`, and, pinned rather than left to the distribution (SR-T8),
     `fs.protected_hardlinks = 1` and `fs.protected_symlinks = 1`: a symlink in a sticky
     world-writable directory is followed only by its owner (or the directory's), a hard link
@@ -837,8 +839,9 @@ install --release`) on an installed server is refused (§5 step 3a) and names `c
 
 ## 11. Version compatibility
 
-Versions are `vX.Y.Z` (stable) and `vX.Y.Z-beta.N`; before 1.0 the minor (`Y`) plays the major's
-role.
+Versions are `vX.Y.Z` (stable) and `vX.Y.Z-beta.N`, with semantic versioning from 1.0.0: a patch
+fixes, a minor adds, and only a major (`X`) removes or changes what an earlier release of the same
+major offers. Before 1.0 the minor played the major's role.
 
 - **A patch release** (`Z`) fixes: no state schema step, no unit file change, no change to the
   agent protocol (internal/agentrpc), no setting or file format the previous patch cannot read. A
@@ -848,6 +851,11 @@ role.
   `daemon-reload`), and add settings with defaults. It may not remove or rename an agent method or
   a parameter field that the previous minor's API sends: a removal takes two minors (stop sending,
   then stop serving).
+- **A major release** (`X`) may remove or rename a route, a field, a `cgctl` command or flag, an
+  MCP tool, an agent method or a setting, each marked deprecated in the changelog of an earlier
+  minor. It updates from the last minor of the previous major, and restores its backups.
+- **Backups**: every release restores the backups of every earlier one, in every mode (proved by
+  the e2e section R-6.6 on backups made by real older releases).
 - **The state database** is migrated only forward and only by the API at start; a build refuses a
   database at a newer schema than its own (`SchemaNewerError`, internal/state). The way back is the
   pre-update snapshot, which a failed update restores on its own.

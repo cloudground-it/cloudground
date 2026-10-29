@@ -169,6 +169,20 @@ func (h *harness) blocklistSection(t *testing.T) {
 	}
 	h.assert(t, "#21: the failed sign-in's mark is hidden from the client", !marked, "a wp-login.php answer carried X-CloudGround-Auth")
 	h.assert(t, "#21: three failed WordPress sign-ins block the address", waitBlock("wordpress"), "blocked: %+v", h.blocklistGet().Blocked)
+	// What a site's WordPress caused keeps the address from the sites only:
+	// a site's code may mark any answer, so it must not lock anyone out of
+	// SSH or the panel (#36).
+	web := h.run("nft", "list", "set", "inet", "cloudground", "web4").Out
+	h.assert(t, "#36: the WordPress block is in the sites-only set", strings.Contains(web, blClient), "nft list set inet cloudground web4:\n%s", web)
+	sitesShut := false
+	for range 10 {
+		if sitesShut = !inNS("curl", "-sk", "-m", "5", "-o", "/dev/null", "--resolve", resolve, "https://"+f.fs+"/").OK(); sitesShut {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	h.assert(t, "#36: the WordPress-blocked client no longer reaches the sites", sitesShut, "the client still reached https://%s/", f.fs)
+	h.assert(t, "#36: the WordPress-blocked client still reaches the panel", reaches(), "the client could not reach %s:8443", h.IP)
 	unblock("WordPress")
 
 	// The panel: three wrong passwords at its sign-in.

@@ -193,6 +193,39 @@ func (h *harness) externalDatabaseServer(t *testing.T) {
 		h.assert(t, "#30: it holds the rows dumped over the network", regexp.MustCompile("INSERT INTO `t` (\\(`id`\\) )?VALUES\\s*\\(7\\)").Match(dump), "%s", head(dump[max(0, len(dump)-700):], 700))
 	}
 
+	// F-5-1: a tenant's import into its own database on the external server
+	// runs as a one-database account, never the server's administrator, so a
+	// dump that tries to touch another database or the server itself has no
+	// effect. A second database on the same server stands in for a neighbour.
+	victim, evil := d.tag+"_victim", "cge2e_evil30"
+	ext.run("CREATE DATABASE `" + victim + "`; CREATE TABLE `" + victim + "`.keep (id INT PRIMARY KEY); INSERT INTO `" + victim + "`.keep VALUES (1)")
+	defer ext.run("DROP DATABASE IF EXISTS `" + victim + "`; DROP USER IF EXISTS '" + evil + "'@'%'")
+	siteRoot := "/srv/sites/" + h.api.site(id).Domain
+	crafted := "CREATE USER IF NOT EXISTS '" + evil + "'@'%' IDENTIFIED BY 'x';\n" +
+		"DROP DATABASE IF EXISTS `" + victim + "`;\n" +
+		"CREATE TABLE cg_f51_marker (id INT);\n"
+	h.runIn(crafted, "tee", siteRoot+"/shared/cg-f51-crafted.sql")
+	_, b = h.api.post(d.base(id)+"/database/import", map[string]any{"database": name, "path": "shared/cg-f51-crafted.sql", "confirm": h.api.site(id).Domain})
+	h.api.waitTask(taskID(b), 3*time.Minute) // succeed or fail: the effect is what matters
+	h.check(t, "#30 F-5-1: the import did not create a privileged user on the server", ext.run("SELECT COUNT(*) FROM mysql.user WHERE User='"+evil+"'"), "0")
+	h.check(t, "#30 F-5-1: and did not drop the neighbour's database", ext.run("SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='"+victim+"'"), "1")
+	h.check(t, "#30 F-5-1: the neighbour's row is untouched", ext.run("SELECT id FROM `"+victim+"`.keep"), "1")
+	// A clean dump with a trigger imports, and the trigger fires afterwards:
+	// it is owned by the site's own account (the import ran as it), not a
+	// dropped temporary one.
+	clean := "CREATE TABLE cg_f51_ok (id INT PRIMARY KEY, n INT);\n" +
+		"CREATE TRIGGER cg_f51_trg BEFORE INSERT ON cg_f51_ok FOR EACH ROW SET NEW.n = 100;\n" +
+		"INSERT INTO cg_f51_ok (id) VALUES (42);\n"
+	h.runIn(clean, "tee", siteRoot+"/shared/cg-f51-ok.sql")
+	_, b = h.api.post(d.base(id)+"/database/import", map[string]any{"database": name, "path": "shared/cg-f51-ok.sql", "confirm": h.api.site(id).Domain})
+	h.check(t, "#30 F-5-1: a clean import into the site's own database succeeds", h.api.waitTask(taskID(b), 3*time.Minute), "succeeded")
+	h.check(t, "#30 F-5-1: its row is there (the trigger set n on import)", ext.run("SELECT n FROM `"+name+"`.cg_f51_ok WHERE id=42"), "100")
+	// The trigger still fires on a new write: it is owned by a live account.
+	ext.as(user, pw, name, "INSERT INTO cg_f51_ok (id) VALUES (7)")
+	h.check(t, "#30 F-5-1: the imported trigger still fires (owned by the site account, not a dropped one)", ext.run("SELECT n FROM `"+name+"`.cg_f51_ok WHERE id=7"), "100")
+	ext.run("DROP DATABASE IF EXISTS `" + victim + "`; DROP USER IF EXISTS '" + evil + "'@'%'")
+	h.run("rm", "-f", siteRoot+"/shared/cg-f51-crafted.sql", siteRoot+"/shared/cg-f51-ok.sql")
+
 	// A backup (with its restore test) and a restore into the same server.
 	_, b = h.api.post(d.base(id)+"/backups", `{}`)
 	task := taskID(b)

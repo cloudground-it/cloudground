@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"slices"
 	"sort"
@@ -154,6 +155,20 @@ func (s *Server) handleSetApp(w http.ResponseWriter, r *http.Request, c *call) {
 		respondErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	// F-6-2: a new TCP port must lie outside the range the kernel hands out
+	// itself, where any process could be given it while the app restarts.
+	// An app keeps the port it has.
+	if a.Port != 0 && a.Port != cur.Config.App.Port {
+		caps, err := s.capabilities(r.Context())
+		if err != nil {
+			respondAgentErr(w, 0, "", err)
+			return
+		}
+		if lo, hi := caps.EphemeralRange(); a.Port >= lo && a.Port <= hi {
+			respondErr(w, http.StatusBadRequest, fmt.Sprintf("port %d is in the range this server gives out for its own connections (%d–%d), so another program could take it while the app restarts: %s", a.Port, lo, hi, portsOutside(lo, hi)))
+			return
+		}
+	}
 	if a.Version != cur.Config.App.Version {
 		caps, err := s.capabilities(r.Context())
 		if err != nil {
@@ -250,4 +265,16 @@ func (s *Server) handleAppRestart(w http.ResponseWriter, r *http.Request, c *cal
 	}
 	s.audit(c.Actor(), "site.app.restart", c.Site.Domain, "")
 	respond(w, http.StatusOK, res)
+}
+
+// portsOutside says which app ports an ephemeral range leaves: an app port
+// lies in 1024–65535.
+func portsOutside(lo, hi int) string {
+	switch {
+	case hi >= 65535:
+		return fmt.Sprintf("choose a port from 1024 to %d", lo-1)
+	case lo <= 1024:
+		return fmt.Sprintf("choose a port from %d to 65535", hi+1)
+	}
+	return fmt.Sprintf("choose a port below %d or above %d", lo, hi)
 }

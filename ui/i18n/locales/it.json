@@ -1157,7 +1157,7 @@
     "banFor": "Blocca per (minuti)",
     "block": "Blocca un indirizzo",
     "blocked": "{address} è bloccato",
-    "blockedHint": "I loro pacchetti vengono scartati su ogni porta: SSH, i siti e questo pannello.",
+    "blockedHint": "I loro pacchetti vengono scartati su ogni porta: SSH, i siti e questo pannello. Un blocco causato dal WordPress di un sito tiene l’indirizzo lontano solo dai siti.",
     "blockedTitle": "Indirizzi bloccati",
     "blockHint": "I suoi pacchetti vengono scartati subito su ogni porta. Questo server, il loopback, la rete di Cloudflare e gli indirizzi sempre consentiti non si possono bloccare.",
     "disallowed": "{address} non è più sempre consentito",

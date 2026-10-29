@@ -49,3 +49,27 @@ func TestImportAs(t *testing.T) {
 		t.Fatalf("imports %q", got)
 	}
 }
+
+// SR-T7: for a database on an external server the agent takes the password
+// of the account its own record picks from the request, and only for that
+// user — a password the request supplies under any other name is ignored,
+// and the import falls back to a throwaway account.
+func TestImportAsUsesSuppliedCredentials(t *testing.T) {
+	f := newFixture(t)
+	writeRecord(t, f.o.RegistryFile, registryFile{Version: registryVersion,
+		Databases: map[string]int64{"shop": 3},
+		Users: map[string]registryUser{
+			"owner": {Site: 3, Grants: map[string]string{"shop": "all"}},
+		}})
+	// The password of the user the record picks (owner) is used.
+	ctx := WithImportAccounts(context.Background(), map[string]string{"owner": "owner-pw", "someone": "other-pw"})
+	if got := f.o.importAs(ctx, "shop"); got.Site != "owner" || got.SitePassword != "owner-pw" {
+		t.Fatalf("picked %+v, want owner with its password", got)
+	}
+	// A password supplied only under another user's name is not used: the
+	// agent never signs in as a user the record did not pick.
+	ctx = WithImportAccounts(context.Background(), map[string]string{"someone": "other-pw"})
+	if got := f.o.importAs(ctx, "shop"); got.Site != "owner" || got.SitePassword != "" {
+		t.Fatalf("picked %+v, want owner with no password (fallback)", got)
+	}
+}
