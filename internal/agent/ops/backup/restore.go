@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/release"
@@ -212,7 +213,7 @@ func (o *Ops) swapIn(ctx context.Context, s state.Site, work string, dumps []dum
 	keepStage := false
 	defer func() {
 		if !keepStage {
-			os.RemoveAll(stage)
+			o.removeReplaced(s.Domain, stage)
 		}
 	}()
 	staged := filepath.Base(stage) + "/new"
@@ -408,4 +409,35 @@ func (o *Ops) purge(s state.Site) {
 	if err := o.PurgeCache(s); err != nil && !errors.Is(err, os.ErrNotExist) {
 		o.log().Warn("purge the page cache after a restore", "site", s.Domain, "err", err)
 	}
+}
+
+// removeTries is how many times removeReplaced tries before it gives up.
+const removeTries = 3
+
+// removeReplaced removes the staging folder of a full restore, which holds
+// the files the restore swapped out (or, on a failure before the swap, the
+// unused restored ones). An SFTP session still chrooted in the old tree, or
+// a process with a file open there, can make a try fail (H-4-2): it is tried
+// again, and a folder still there after the last try is logged with its
+// path, so it is never left behind in silence. The restore's result does
+// not depend on it.
+func (o *Ops) removeReplaced(domain, stage string) {
+	remove, wait := o.RemoveAll, o.RetryWait
+	if remove == nil {
+		remove = os.RemoveAll
+	}
+	if wait == nil {
+		wait = func(try int) { time.Sleep(time.Duration(try) * time.Second) }
+	}
+	var err error
+	for try := 1; try <= removeTries; try++ {
+		if err = remove(stage); err == nil {
+			return
+		}
+		o.log().Warn("could not remove the files a restore replaced; trying again", "site", domain, "path", stage, "try", try, "err", err)
+		if try < removeTries {
+			wait(try)
+		}
+	}
+	o.log().Error("the files a restore replaced are left on disk: remove the folder by hand", "site", domain, "path", stage, "err", err)
 }
