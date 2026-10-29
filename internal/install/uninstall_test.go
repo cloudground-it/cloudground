@@ -69,6 +69,8 @@ func installed(t *testing.T) *machine {
 	m.write(mariadbTuning, "[mysqld]\nlocal_infile = 0\n", 0o644)
 	m.write("/usr/local/bin/panel-agent.bak", "old\n", 0o755)
 	m.write("/var/cache/cloudground/a.test/x", "cached\n", 0o644)
+	m.write("/var/lib/cloudground-runtimes/node/22/bin/node", "binary\n", 0o755)
+	m.write("/etc/cloudground-app/cg-site-1.env", "SECRET=1\n", 0o600)
 	m.write("/var/log/cloudground/a.test/access.log", "GET /\n", 0o644)
 	// A function (#143): its code, units, slice, nginx file, environment and lineage.
 	m.write("/srv/functions/hello/releases/01JC0000000000000000000001/index.js", "exports.handler = () => 1;\n", 0o640)
@@ -145,7 +147,7 @@ var removedByDefault = []string{
 	"/etc/systemd/system/cloudground-fn-3.socket", "/etc/systemd/system/cloudground-fn-3@.service", "/etc/systemd/system/cg-fn.slice",
 	"/etc/nginx/sites-enabled/cloudground-functions-internal.conf", "/etc/cloudground-fn",
 	"/etc/cloudground", "/etc/cloudground-php", "/var/lib/cloudground", "/var/lib/cloudground-agent",
-	"/var/lib/cloudground-signatures", "/etc/clamav/cloudground-freshclam.conf",
+	"/var/lib/cloudground-signatures", "/var/lib/cloudground-runtimes", "/etc/cloudground-app", "/etc/clamav/cloudground-freshclam.conf",
 	"/var/cache/cloudground", "/var/log/cloudground", "/run/cloudground", "/var/www/cloudground-acme",
 }
 
@@ -563,5 +565,45 @@ func TestUninstallKeepsAnEarlierKeptState(t *testing.T) {
 	}
 	if env := m.read(DefaultKeptDir + "/backup.env"); !strings.Contains(env, "repo pass") {
 		t.Errorf("this run's backup.env:\n%s", env)
+	}
+}
+
+// nginx served only CloudGround's sites: the uninstall stops and disables it,
+// else its stock site holds port 80 and a reinstall refuses (#212, SPEC §9.2).
+func TestUninstallStopsNginx(t *testing.T) {
+	m := installed(t)
+	m.cmd.tools["nginx"] = true
+	inv := m.env.TakeInventory(bg)
+	var plan bytes.Buffer
+	PrintUninstallPlan(&plan, UninstallActions(m.env, inv, UninstallOptions{}))
+	if !strings.Contains(plan.String(), "nginx.stop") {
+		t.Errorf("the plan lacks nginx.stop:\n%s", plan.String())
+	}
+	if m.sd.did("disable --now nginx") {
+		t.Error("--plan stopped nginx")
+	}
+	if err := m.uninstall(UninstallOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if !m.sd.did("disable --now nginx") {
+		t.Error("nginx was not stopped and disabled")
+	}
+	if !m.env.StoppedNginx() {
+		t.Error("the summary would not mention nginx")
+	}
+	// Run again: stopping nginx alone is not work to do.
+	if a := UninstallActions(m.env, m.env.TakeInventory(bg), UninstallOptions{}); a != nil {
+		t.Errorf("a second uninstall still has work: %d actions", len(a))
+	}
+}
+
+// Without nginx on the machine there is nothing to stop.
+func TestUninstallLeavesNoNginxAlone(t *testing.T) {
+	m := installed(t)
+	if err := m.uninstall(UninstallOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if m.sd.did("disable --now nginx") || m.env.StoppedNginx() {
+		t.Error("nginx is not installed and was still stopped")
 	}
 }

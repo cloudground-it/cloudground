@@ -210,4 +210,11 @@ http.createServer((req, res) => {
 	_, b := h.api.post(fmt.Sprintf("/api/sites/%d/rollback", pid), `{}`)
 	h.check(t, "#28: the Python site rolls back", h.api.waitTask(taskID(b), 3*time.Minute), "succeeded")
 	h.check(t, "#28: the starter answers again after the rollback", waitBody(pdom, "It runs Python 3."), "")
+
+	// #213: moved to a TCP port, the default start follows (gunicorn binds
+	// 127.0.0.1:$PORT) and nginx still gets an answer, not a 502.
+	code, ab := h.api.put(fmt.Sprintf("/api/sites/%d/app", pid), map[string]any{"port": 8000})
+	h.assert(t, "#213: a Python site on its default start moves to port 8000", code == 200 && jsonField(ab, "start") != "" && strings.Contains(jsonField(ab, "start"), "127.0.0.1:$PORT"), "%d %s", code, head(ab, 300))
+	h.check(t, "#213: the Python site answers 200 through nginx on a TCP port", waitBody(pdom, "It runs Python 3."), "")
+	h.assert(t, "#213: gunicorn listens on 127.0.0.1:8000", strings.Contains(h.run("ss", "-ltnH", "sport = :8000").Out, "127.0.0.1:8000"), "not listening")
 }

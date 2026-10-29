@@ -1546,6 +1546,13 @@ the socket.
   the app, and the settings are stored (`MutateSiteApplied`, files recorded). An agent refusal
   stores nothing; secrets written before it are put back. Audit `site.app`, detail the fields
   changed and the variable names (never a value).
+  **The default start follows the port mode** (#213): when `port` goes from 0 to a TCP port or
+  back, and the start command, as it stands after the request, is exactly the default of the old
+  mode (`runtimes.FollowPortMode`), it is replaced by the default of the new one (Python:
+  `--bind 127.0.0.1:$PORT` for a port, `--bind unix:$PORT` for the socket) and `start` is among the
+  fields changed. A custom command is never touched, and neither is Node's (`node server.js` reads
+  `$PORT` in both modes). Without it a Python app kept binding a unix socket nginx no longer asked
+  for, and answered 502.
 - `POST /api/sites/{id}/app/restart` (manage): `AppControl {restart}` → 200 the status. Audit
   `site.app.restart`.
 - `GET /api/sites/{id}/app/status` (readers): the agent's `AppStatus`: `{active, state, since,

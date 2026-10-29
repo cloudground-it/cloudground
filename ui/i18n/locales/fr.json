@@ -2164,7 +2164,7 @@
     "runtime": "Environnement d’exécution",
     "runtimeHelp": "La version sur laquelle tourne l’application. Si le serveur ne l’a pas, elle est installée avec le site.",
     "start": "Commande de démarrage",
-    "startHelp": "Lancée par le shell dans la version en ligne. L’application doit écouter sur $PORT : le chemin d’un socket unix, sauf si vous indiquez un port.",
+    "startHelp": "Lancée par le shell dans la version en ligne. L’application doit écouter sur $PORT : le chemin d’un socket unix, sauf si vous indiquez un port. La commande par défaut suit le port choisi ; une commande personnalisée doit écouter comme le port l’exige (gunicorn : --bind unix:$PORT, ou --bind 127.0.0.1:$PORT avec un port).",
     "startRule": "La commande de démarrage tient sur une ligne de 1024 caractères au plus.",
     "statusTitle": "Application",
     "statusHint": "L’application {runtime} tourne comme un service à part, sous l’utilisateur du site, et redémarre si elle s’arrête.",

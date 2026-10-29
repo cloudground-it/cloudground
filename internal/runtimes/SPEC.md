@@ -39,6 +39,15 @@ Default start commands: Node `node server.js`; Python `python -m gunicorn --bind
 --workers 2 app:app` (an ASGI app: `python -m uvicorn --uds $PORT app:app`). `python -m`, not the
 `gunicorn` script: a script's first line names the venv's absolute path, a module run does not.
 
+**The default follows the port mode** (#213). `$PORT` is the socket's path or the TCP port number,
+so a Python command must bind as the mode needs: the default for a TCP port is
+`python -m gunicorn --bind 127.0.0.1:$PORT --workers 2 app:app`. `DefaultStartFor(runtime, tcp)`
+returns the default of a mode (`DefaultStart(runtime)` is the socket's, a new site's);
+`FollowPortMode(runtime, start, fromTCP, toTCP)` returns the default of the new mode when `start`
+is exactly the default of the old one, and `start` unchanged otherwise: a custom command is never
+touched (the API applies it when the port mode changes, internal/api SPEC §3.21). Node's default
+needs nothing: `node server.js` reads `$PORT`, which `listen()` takes as a path or as a number.
+
 ## 3. The unit (`RenderUnit`)
 
 `cloudground-app-<user>.service` in the systemd directory:

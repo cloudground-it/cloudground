@@ -692,7 +692,8 @@ In order:
    where `nft` is installed, the block list's table `inet cloudground` when it exists (#21; with
    the agent gone its blocks would stay until a reboot); `logrotate.d/cloudground`; `needrestart/conf.d/cloudground.conf`; the renewal hook and `cloudground-cloudflare.ini`; the bootstrap
    vhost; **nginx.conf** (below); the default site's link, put back when recorded and its target
-   exists; `nginx -t` (a failure fails the action) and `reload nginx` when it runs; the three unit
+   exists; `nginx -t` (a failure fails the action) and `reload nginx` when it runs, then **nginx is
+   stopped and disabled** (`disable --now nginx`, #212; see below); the three unit
    files with their `.d` directories and every `cloudground-*` link in a `*.wants` directory, then
    `daemon-reload`; the binaries (`panel-api`, `panel-agent`, `cgctl` itself, `cg-site-shell`, the
    `cg-site-cron` link, their `.bak` and `.cg-update` files).
@@ -710,6 +711,14 @@ In order:
 
 Every removal is `os.RemoveAll` of an absolute path named here (never `/`), which removes a link
 rather than following it.
+
+**nginx stays installed but off** (#212): the package is the distribution's and stays, but nginx
+served only CloudGround's sites, and those are gone. Left running it would answer on port 80 with
+the distribution's stock site, and the install preflight (§1, ports 80 and 443) would refuse a
+reinstall with `port 80 is already in use`. So the default tier stops and disables it (not with
+systemd absent, as in a container, and not when nginx is not installed). The closing summary says
+so and gives the command to start it again, `systemctl enable --now nginx`. A reinstall starts
+and enables it itself.
 
 **nginx.conf**: when it is still exactly what the installer's edit (`TuneNginxConf`) makes of the
 saved original `nginx.conf.cloudground-pre`, the original comes back byte for byte; otherwise (the
@@ -773,7 +782,9 @@ purge.
 
 `uninstall_test.go`, on the fakes of §1, after a full install and a site added by hand: the default
 tier removes every path of §9.2 (listed in the test), keeps the site's tree, user (locked), MariaDB
-tuning and an operator's vhost, drops nothing, restores nginx.conf and the default site, writes the
+tuning and an operator's vhost, drops nothing, restores nginx.conf and the default site, stops and
+disables nginx, removes the runtimes `/var/lib/cloudground-runtimes` (#214) and the apps' environment files
+`/etc/cloudground-app`, writes the
 kept state and `backup.env` (values from a real state database, a quote in the password), and a
 second inventory has nothing to do; `--remove-sites` drops exactly the CloudGround databases and
 accounts, not `mysql` nor an unrelated one; a state database planted as a link stops the run before

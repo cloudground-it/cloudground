@@ -509,6 +509,11 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 			}
 			return nil
 		})
+		// It served only CloudGround's sites, which are gone: left on, its stock
+		// site would hold port 80 and a reinstall would refuse (#212).
+		if !noSystemd {
+			follow("nginx.stop", "stop and disable nginx (it served only CloudGround's sites; systemctl enable --now nginx starts it again)", sd("disable", "--now", "nginx"))
+		}
 	}
 	var unitFiles []string
 	for _, u := range []string{managed.AgentUnit, managed.APIUnit, managed.SocketUnit} {
@@ -528,7 +533,7 @@ func UninstallActions(e *Env, inv Inventory, o UninstallOptions) []Action {
 
 	// 5. The state and the directories.
 	rm("state", "/etc/cloudground", "/etc/cloudground-php", "/etc/cloudground-fn", "/var/lib/cloudground", "/var/lib/cloudground-agent",
-		"/var/lib/cloudground-signatures", "/etc/clamav/cloudground-freshclam.conf", "/var/cache/cloudground", "/var/log/cloudground", "/run/cloudground", acmeWebroot,
+		"/var/lib/cloudground-signatures", "/var/lib/cloudground-runtimes", "/etc/cloudground-app", "/etc/clamav/cloudground-freshclam.conf", "/var/cache/cloudground", "/var/log/cloudground", "/run/cloudground", acmeWebroot,
 		"/var/log/cloudground-install.log", "/tmp/cloudground-install.log")
 	if e.Acct != nil {
 		if _, _, ok := e.Acct.User("cloudground"); ok {
@@ -1040,4 +1045,10 @@ func (e *Env) untuneNginx() error {
 		return preErr
 	}
 	return nil
+}
+
+// StoppedNginx says whether the uninstall stopped nginx (it is installed and
+// systemd runs), for the closing summary (SPEC §9.2).
+func (e *Env) StoppedNginx() bool {
+	return e.Cmd.LookPath("nginx") && e.Sd != nil && e.Sd.Running()
 }

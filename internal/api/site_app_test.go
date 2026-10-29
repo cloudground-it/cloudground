@@ -180,3 +180,58 @@ func TestAppPortOutsideTheEphemeralRange(t *testing.T) {
 		t.Fatalf("a change beside an existing port 45000 = %d %s", resp.StatusCode, body)
 	}
 }
+
+// #213 (SPEC §3.21): a Python app on its default start command gets the
+// default of the new port mode when the port changes, and back; a custom
+// command is never touched.
+func TestAppDefaultStartFollowsThePortMode(t *testing.T) {
+	s, agent, ts := testServer(t)
+	admin := setupAdmin(t, s, ts)
+	site := createViaAPI(t, s, admin, map[string]any{"domain": "py.example.com", "type": "python"})
+	path := fmt.Sprintf("/api/sites/%d/app", site.ID)
+	const sock = "python -m gunicorn --bind unix:$PORT --workers 2 app:app"
+	const tcp = "python -m gunicorn --bind 127.0.0.1:$PORT --workers 2 app:app"
+	put := func(body map[string]any) appView {
+		t.Helper()
+		resp, b := admin.do("PUT", path, body)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("put %v = %d %s", body, resp.StatusCode, b)
+		}
+		var v appView
+		_ = json.Unmarshal(b, &v)
+		return v
+	}
+	if v := put(map[string]any{"port": 8000}); v.Port != 8000 || v.Start != tcp {
+		t.Fatalf("to a port: %+v", v)
+	}
+	agent.mu.Lock()
+	ref, _ := agent.lastParams[agentrpc.ApplySiteConfig.Name()].(rpc.SiteRef)
+	agent.mu.Unlock()
+	if ref.Site.Config.App.Start != tcp {
+		t.Fatalf("the agent got start %q", ref.Site.Config.App.Start)
+	}
+	// The form sends the start it showed along with the new port.
+	if v := put(map[string]any{"port": 0, "start": tcp}); v.Port != 0 || v.Start != sock {
+		t.Fatalf("back to the socket: %+v", v)
+	}
+	// A change that keeps the mode leaves the command alone.
+	if v := put(map[string]any{"health_path": "/up"}); v.Start != sock {
+		t.Fatalf("no mode change: %+v", v)
+	}
+	// A custom command is never touched, in either direction.
+	custom := "python -m gunicorn --bind unix:$PORT --workers 4 app:app"
+	if v := put(map[string]any{"start": custom, "port": 8001}); v.Start != custom {
+		t.Fatalf("custom to a port: %+v", v)
+	}
+	if v := put(map[string]any{"port": 0}); v.Start != custom {
+		t.Fatalf("custom back: %+v", v)
+	}
+	// Node's default is the same in both modes.
+	node := createViaAPI(t, s, admin, map[string]any{"domain": "nd.example.com", "type": "node"})
+	resp, b := admin.do("PUT", fmt.Sprintf("/api/sites/%d/app", node.ID), map[string]any{"port": 8002})
+	var v appView
+	_ = json.Unmarshal(b, &v)
+	if resp.StatusCode != http.StatusOK || v.Start != "node server.js" {
+		t.Fatalf("node = %d %+v", resp.StatusCode, v)
+	}
+}
