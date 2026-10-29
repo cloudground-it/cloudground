@@ -104,3 +104,32 @@ func TestParseUninstallFlags(t *testing.T) {
 		t.Fatalf("%+v %v", f, err)
 	}
 }
+
+// withNginx makes nginx "installed" and systemd "running" for the summary.
+type withNginx struct{ install.Commands }
+
+func (withNginx) LookPath(name string) bool { return name == "nginx" }
+
+type runningSd struct{ install.Systemd }
+
+func (runningSd) Running() bool { return true }
+
+// The closing summary says nginx was stopped and how to start it again
+// (#212), and says nothing when it was not touched.
+func TestUninstallSummaryTellsNginxIsStopped(t *testing.T) {
+	env := uninstallRoot(t)
+	opts := install.UninstallOptions{KeptDir: install.DefaultKeptDir}
+	var out bytes.Buffer
+	printKeptAfter(&out, install.Inventory{}, opts, env)
+	if strings.Contains(out.String(), "nginx") {
+		t.Errorf("the summary mentions nginx, which was not touched:\n%s", out.String())
+	}
+	env.Cmd, env.Sd = withNginx{}, runningSd{}
+	out.Reset()
+	printKeptAfter(&out, install.Inventory{}, opts, env)
+	for _, want := range []string{"nginx was stopped and disabled", "systemctl enable --now nginx"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("the summary lacks %q:\n%s", want, out.String())
+		}
+	}
+}

@@ -205,6 +205,10 @@ func printKeptAfter(w io.Writer, inv install.Inventory, o install.UninstallOptio
 		}
 		fmt.Fprintln(w, "; nothing serves them now.")
 	}
+	if env.StoppedNginx() {
+		fmt.Fprintln(w, "\nnginx was stopped and disabled: it served only CloudGround's sites. It is still installed;")
+		fmt.Fprintln(w, "to start it again: systemctl enable --now nginx")
+	}
 	if readme := filepath.Join(o.KeptDir, install.KeptReadme); env.Exists(readme) {
 		fmt.Fprintf(w, "What was kept, and how to use it: %s\n", readme)
 	}

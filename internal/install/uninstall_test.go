@@ -565,3 +565,43 @@ func TestUninstallKeepsAnEarlierKeptState(t *testing.T) {
 		t.Errorf("this run's backup.env:\n%s", env)
 	}
 }
+
+// nginx served only CloudGround's sites: the uninstall stops and disables it,
+// else its stock site holds port 80 and a reinstall refuses (#212, SPEC §9.2).
+func TestUninstallStopsNginx(t *testing.T) {
+	m := installed(t)
+	m.cmd.tools["nginx"] = true
+	inv := m.env.TakeInventory(bg)
+	var plan bytes.Buffer
+	PrintUninstallPlan(&plan, UninstallActions(m.env, inv, UninstallOptions{}))
+	if !strings.Contains(plan.String(), "nginx.stop") {
+		t.Errorf("the plan lacks nginx.stop:\n%s", plan.String())
+	}
+	if m.sd.did("disable --now nginx") {
+		t.Error("--plan stopped nginx")
+	}
+	if err := m.uninstall(UninstallOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if !m.sd.did("disable --now nginx") {
+		t.Error("nginx was not stopped and disabled")
+	}
+	if !m.env.StoppedNginx() {
+		t.Error("the summary would not mention nginx")
+	}
+	// Run again: stopping nginx alone is not work to do.
+	if a := UninstallActions(m.env, m.env.TakeInventory(bg), UninstallOptions{}); a != nil {
+		t.Errorf("a second uninstall still has work: %d actions", len(a))
+	}
+}
+
+// Without nginx on the machine there is nothing to stop.
+func TestUninstallLeavesNoNginxAlone(t *testing.T) {
+	m := installed(t)
+	if err := m.uninstall(UninstallOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if m.sd.did("disable --now nginx") || m.env.StoppedNginx() {
+		t.Error("nginx is not installed and was still stopped")
+	}
+}

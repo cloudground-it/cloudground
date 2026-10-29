@@ -137,6 +137,7 @@ cgctl uninstall --remove-sites --purge-packages
 | --- | --- | --- |
 | CloudGround's services, units, drop-ins, binaries, its nginx, sshd, sysctl, logrotate, cron and certbot hook files, the panel user, its state | removed | removed |
 | nginx.conf, the distribution's default site | put back as they were | put back |
+| nginx itself (the package) | stays installed, **stopped and disabled** (`systemctl enable --now nginx` starts it) | same |
 | the sites' files under `/srv/sites` | **kept** (nothing serves them) | deleted |
 | the site users `cg-site-<id>` | **kept, locked** (they own the files) | deleted, with their groups |
 | the sites' databases and database accounts, MariaDB and its tuning file | **kept** | the CloudGround ones dropped; tuning removed |
