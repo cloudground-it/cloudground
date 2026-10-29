@@ -135,7 +135,7 @@ cgctl uninstall --remove-sites --purge-packages
 
 | | default | `--remove-sites` |
 | --- | --- | --- |
-| CloudGround's services, units, drop-ins, binaries, its nginx, sshd, sysctl, logrotate, cron and certbot hook files, the panel user, its state, the Node.js runtimes it installed (`/var/lib/cloudground-runtimes`) | removed | removed |
+| CloudGround's services, units, drop-ins, binaries, its nginx, sshd, sysctl, logrotate, cron and certbot hook files, the panel user, its state, the Node.js runtimes it installed (`/var/lib/cloudground-runtimes`), the apps' environment files (`/etc/cloudground-app`) | removed | removed |
 | nginx.conf, the distribution's default site | put back as they were | put back |
 | nginx itself (the package) | stays installed, **stopped and disabled** (`systemctl enable --now nginx` starts it) | same |
 | the sites' files under `/srv/sites` | **kept** (nothing serves them) | deleted |

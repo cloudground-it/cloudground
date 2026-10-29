@@ -21,6 +21,8 @@ the commits.
 - **`cgctl uninstall` removes the runtimes** the panel installed, the Node.js
   versions (`/var/lib/cloudground-runtimes`), like the other directories CloudGround owns. They stayed
   behind.
+- **`cgctl uninstall` removes the apps' environment files** (`/etc/cloudground-app`): they hold the
+  secrets of Node.js and Python apps and stayed on the server.
 
 **Upgrading from v1.0.1** is one update, from the panel or with `cgctl update`.
 
