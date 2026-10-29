@@ -160,6 +160,18 @@ func TestAppPortOutsideTheEphemeralRange(t *testing.T) {
 			t.Errorf("port %d = %d %s", p, resp.StatusCode, body)
 		}
 	}
+	for _, c := range []struct {
+		lo, hi int
+		want   string
+	}{
+		{32768, 65535, "choose a port from 1024 to 32767"},
+		{1024, 40000, "choose a port from 40001 to 65535"},
+		{32768, 60999, "choose a port below 32768 or above 60999"},
+	} {
+		if got := portsOutside(c.lo, c.hi); got != c.want {
+			t.Errorf("portsOutside(%d, %d) = %q, want %q", c.lo, c.hi, got, c.want)
+		}
+	}
 	// An app that has such a port from before keeps it through other changes.
 	if _, err := s.Store.MutateSite(site.ID, func(st *state.Site) error { st.Config.App.Port = 45000; return nil }); err != nil {
 		t.Fatal(err)

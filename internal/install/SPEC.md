@@ -235,7 +235,9 @@ http-level is rendered by the agent into `conf.d` (`internal/engine/nginx`).
     a warning (a kernel that refuses a value must not stop the install), and doctor keeps
     reporting the difference. Values: `net.core.somaxconn = 65535`, `net.ipv4.tcp_max_syn_backlog
     = 65535`, `net.core.netdev_max_backlog = 16384`, `net.ipv4.tcp_tw_reuse = 1`,
-    `net.ipv4.tcp_slow_start_after_idle = 0`, `net.ipv4.ip_local_port_range = 1024 65535`,
+    `net.ipv4.tcp_slow_start_after_idle = 0`, `net.ipv4.ip_local_port_range = 32768 65535` (the ports below stay with
+    services, so a managed app's TCP port can lie outside the range: internal/api SPEC, `PUT
+    /api/sites/{id}/app`),
     `fs.file-max = 500000`, and, pinned rather than left to the distribution (SR-T8),
     `fs.protected_hardlinks = 1` and `fs.protected_symlinks = 1`: a symlink in a sticky
     world-writable directory is followed only by its owner (or the directory's), a hard link

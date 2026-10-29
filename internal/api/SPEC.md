@@ -1536,9 +1536,10 @@ the socket.
   `secrets` maps a name to its value, `""` removes it, `••••••••` keeps it (a name not given keeps
   it too). `runtimes.CheckApp` on the result → 400 with its message; a `port` that is new (not the
   app's current one) and inside the kernel's ephemeral range (`capabilities.ephemeral_ports`, else
-  32768–60999) → 400 `port <n> is in the range this server gives out for its own connections …`:
-  any program could be given such a port while the app restarts (F-6-2); an app keeps the port it
-  has. A version the agent does not
+  32768–60999; the installer sets 32768–65535, install SPEC step 17) → 400 `port <n> is in the
+  range this server gives out for its own connections …`, ending with the ports the range leaves
+  (`choose a port from 1024 to 32767` there): any program could be given such a port while the app
+  restarts (F-6-2); an app keeps the port it has. A version the agent does not
   have → 412 `install <runtime> <version> on the server first (Server → Runtimes)`. Then, under the
   site's lock: the secrets are written (sealed, `site.<id>.app_env.<NAME>`), `SetAppEnv` gives the
   agent the whole environment (plain and secret values), `ApplySiteConfig` renders and restarts

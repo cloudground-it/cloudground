@@ -27,7 +27,9 @@ the panel:
   site up on each, updates to the new release from the panel and restores it in every mode;
 - **a stable API**: docs/api.md says what stays the same through 1.x, and how anything that will
   go is announced first;
-- a managed app's new TCP port must lie outside the range the kernel hands out by itself.
+- the kernel hands out ports from 32768 to 65535 for the server's own connections, no longer from
+  1024: the ports below stay with services, and a managed app's new TCP port must be one of them.
+  An app keeps the port it has.
 
 **Security.** The second internal review found these, all fixed in this release:
 

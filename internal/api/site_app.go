@@ -165,7 +165,7 @@ func (s *Server) handleSetApp(w http.ResponseWriter, r *http.Request, c *call) {
 			return
 		}
 		if lo, hi := caps.EphemeralRange(); a.Port >= lo && a.Port <= hi {
-			respondErr(w, http.StatusBadRequest, fmt.Sprintf("port %d is in the range this server gives out for its own connections (%d–%d), so another program could take it while the app restarts: choose a port below %d or above %d", a.Port, lo, hi, lo, hi))
+			respondErr(w, http.StatusBadRequest, fmt.Sprintf("port %d is in the range this server gives out for its own connections (%d–%d), so another program could take it while the app restarts: %s", a.Port, lo, hi, portsOutside(lo, hi)))
 			return
 		}
 	}
@@ -265,4 +265,16 @@ func (s *Server) handleAppRestart(w http.ResponseWriter, r *http.Request, c *cal
 	}
 	s.audit(c.Actor(), "site.app.restart", c.Site.Domain, "")
 	respond(w, http.StatusOK, res)
+}
+
+// portsOutside says which app ports an ephemeral range leaves: an app port
+// lies in 1024–65535.
+func portsOutside(lo, hi int) string {
+	switch {
+	case hi >= 65535:
+		return fmt.Sprintf("choose a port from 1024 to %d", lo-1)
+	case lo <= 1024:
+		return fmt.Sprintf("choose a port from %d to 65535", hi+1)
+	}
+	return fmt.Sprintf("choose a port below %d or above %d", lo, hi)
 }

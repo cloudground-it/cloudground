@@ -140,6 +140,11 @@ http.createServer((req, res) => {
 			// sandbox's SocketBindDeny, and nginx reaches it there; then back
 			// to the socket.
 			const appPort = "19281"
+			// The installer leaves the ports below 32768 to services; one the
+			// kernel hands out itself is refused.
+			h.check(t, "F-6-2: the kernel hands out ports from 32768 only", strings.Join(strings.Fields(h.run("cat", "/proc/sys/net/ipv4/ip_local_port_range").Out), " "), "32768 65535")
+			c, ab = h.api.put(fmt.Sprintf("/api/sites/%d/app", nid), map[string]any{"port": 40000})
+			h.assert(t, "F-6-2: a port the kernel hands out is refused", c == 400 && strings.Contains(string(ab), "choose a port from 1024 to 32767"), "%d %s", c, head(ab, 300))
 			c, ab = h.api.put(fmt.Sprintf("/api/sites/%d/app", nid), map[string]any{"port": 19281})
 			h.check(t, "F-6-2: the app moves to a TCP port", fmt.Sprint(c), "200")
 			if c != 200 {

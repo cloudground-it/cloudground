@@ -621,7 +621,7 @@ func TestSysctlLiveValues(t *testing.T) {
 	m.cmd.handle = func(line string) (string, error, bool) {
 		if line == "sysctl -p "+managed.Sysctl {
 			m.write("/proc/sys/net/core/somaxconn", "65535\n", 0o644)
-			m.write("/proc/sys/net/ipv4/ip_local_port_range", "1024\t65535\n", 0o644)
+			m.write("/proc/sys/net/ipv4/ip_local_port_range", "32768\t65535\n", 0o644)
 			return "", nil, true
 		}
 		return handle(line)
