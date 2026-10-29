@@ -47,8 +47,9 @@ machine `openat2` is missing, and the `sitefs` confinement tests fail for reason
 to do with the code.
 
 CI also runs `make docker-vulncheck` (govulncheck: it fails on a known vulnerability the Go code
-can reach, in the standard library or a module) and `npm audit --omit=dev --audit-level=high` in
-`ui/`. A fix is a toolchain bump in `go.mod` (and `GO_RELEASE_IMAGE` in the `Makefile`) or a
+can reach, in the standard library or a module) and `npm audit --omit=dev --audit-level=critical`
+in `ui/` (npm cannot tell a build-time dependency from one in the bundle, so a high advisory is
+fixed by hand rather than failing every pull request). A fix is a toolchain bump in `go.mod` (and `GO_RELEASE_IMAGE` in the `Makefile`) or a
 dependency update.
 
 The UI has its own test, run by CI: `npm test` in `ui/` checks that every locale has exactly the
