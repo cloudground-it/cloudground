@@ -1,0 +1,115 @@
+# https://get.cloudground.it/ is GitHub Pages of this repository, serving
+# the newest stable release's stamped install.sh at / (as index.html:
+# Pages serves it as text/html, which curl | bash does not look at) and at
+# /install.sh, and that release's panel demo (ui/demo, docs/demo.md) under
+# /demo/. Its trust argument is internal/install/SPEC.md §6.1; the
+# repository settings and DNS it needs are in .github/RELEASING.md.
+#
+# The release workflow calls it for the newest stable release. To publish
+# the site again for the release marked latest:
+#   gh workflow run pages.yml -f tag=vX.Y.Z
+name: Pages
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release marked latest (vX.Y.Z)
+        type: string
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  pages:
+    if: github.repository == 'cloudground-it/cloudground'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      TAG: ${{ inputs.tag }}
+    steps:
+      # The checkout comes first: it cleans the workspace, and from v0.7.0 to
+      # v1.0.2 it deleted the site built before it, so only /demo/ was served.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      # The published release, as GitHub serves it: only the release marked
+      # latest, and only if it is signed by a key the binaries trust.
+      - name: The release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "$TAG" | grep -qE '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' || { echo "::error::$TAG is not a stable release"; exit 1; }
+          latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          [ "$latest" = "$TAG" ] || { echo "::error::$TAG is not the release marked latest ($latest)"; exit 1; }
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir "dist/release/$TAG"
+          make release-verify RELEASE_TAG="$TAG"
+
+      - name: The site
+        run: |
+          f="dist/release/$TAG/install.sh"
+          sum=$(sha256sum "dist/release/$TAG/cgctl" | cut -d' ' -f1)
+          if ! { grep -qF "CLOUDGROUND_VERSION:-$TAG}" "$f" && grep -qF "CLOUDGROUND_CGCTL_SHA256:-$sum}" "$f"; }; then
+            echo "::error::install.sh does not name $TAG and its cgctl"; exit 1
+          fi
+          mkdir site
+          cp "$f" site/install.sh
+          cp "$f" site/index.html
+          # Pages takes the custom domain from the repository's settings when
+          # it deploys from Actions; the file records it beside the site.
+          echo get.cloudground.it > site/CNAME
+          (cd site && sha256sum install.sh)
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.23.3'
+      - name: The demo
+        run: |
+          (cd ui && npm ci --no-audit --no-fund && npm test && npm run build:demo)
+          test -f ui/dist-demo/index.html
+          mkdir -p site/demo
+          cp -R ui/dist-demo/. site/demo/
+          test -f site/install.sh && test -f site/index.html
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/
+
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+      # What a server's curl gets, once the deployment is live.
+      - name: Check get.cloudground.it
+        run: |
+          want=$(sha256sum site/install.sh | cut -d' ' -f1)
+          for path in / /install.sh; do
+            for _ in $(seq 1 30); do
+              got=$(curl -fsSL "https://get.cloudground.it$path" | sha256sum | cut -d' ' -f1) || got=
+              [ "$got" = "$want" ] && break
+              sleep 10
+            done
+            [ "$got" = "$want" ] || { echo "::error::https://get.cloudground.it$path does not serve $TAG's install.sh"; exit 1; }
+            echo "https://get.cloudground.it$path serves $TAG's install.sh"
+          done

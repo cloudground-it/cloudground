@@ -530,8 +530,8 @@ every binary (internal/version §4) with no server of CloudGround's to run. The 
 - `https://github.com/cloudground-it/cloudground/releases/download/vX.Y.Z/install.sh`: a pinned
   release's copy;
 - `https://get.cloudground.it/` (and `/install.sh`): GitHub Pages of the same repository, deployed
-  by the release workflow's `pages` job from the same build artifact, for the newest stable release
-  only; `/` is the script published as `index.html` (Pages serves it as `text/html`, which `curl
+  by `.github/workflows/pages.yml` (the release workflow's `pages` job, or run by hand) from the
+  published release once its signature verifies, for the release marked latest only; `/` is the script published as `index.html` (Pages serves it as `text/html`, which `curl
   -fsSL … | bash` ignores). The domain is the repository's Pages setting (the job's `CNAME` file
   only records it). Setup and DNS: `.github/RELEASING.md`.
 

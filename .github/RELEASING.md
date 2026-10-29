@@ -56,8 +56,10 @@ go run ./scripts/release-sign keygen release.key   # prints the public key
 4. The **publish** job verifies again (`make release-verify`), attests the provenance of every file
    (`actions/attest-build-provenance`) and creates the GitHub Release, marked latest only when its
    tag is the newest stable one.
-5. The **pages** job, for that newest stable release only, publishes its `install.sh` on GitHub
-   Pages (`get.cloudground.it`, below).
+5. The **pages** job (`.github/workflows/pages.yml`), for that newest stable release only,
+   publishes its `install.sh` on GitHub Pages (`get.cloudground.it`, below) and checks that the
+   domain serves it. To publish the site again without a release, for the release marked latest:
+   `gh workflow run pages.yml -f tag=vX.Y.Z`.
 
 Locally, the same release from the same commit: `make docker-release SIGNING_KEY=<file>` (pinned
 containers), and `make docker-release-repro` checks two builds are identical.
@@ -85,10 +87,10 @@ hops to `releases/latest/download/install.sh` (internal/install/SPEC.md §6).
 | --- | --- |
 | `https://github.com/cloudground-it/cloudground/releases/latest/download/install.sh` | the `install.sh` asset of the release GitHub marks *latest*. The publish job marks a release latest only when it is the newest stable tag by version (a patch to an older line is published, not as latest); a beta never. **The documented command until the domain exists.** |
 | `https://github.com/cloudground-it/cloudground/releases/download/vX.Y.Z/install.sh` | that release's copy: the pinned install |
-| `https://get.cloudground.it/` and `/install.sh` | GitHub Pages of this repository, deployed by the release workflow's `pages` job for the newest stable release only, from the same build artifact: `index.html` and `install.sh` are both the stamped script (Pages serves `/` as `index.html`, as `text/html`, which `curl -fsSL … \| bash` does not look at), and `CNAME` holds `get.cloudground.it` |
+| `https://get.cloudground.it/` and `/install.sh` | GitHub Pages of this repository, deployed by `.github/workflows/pages.yml` for the release marked latest only, from the published release once its signature verifies: `index.html` and `install.sh` are both the stamped script (Pages serves `/` as `index.html`, as `text/html`, which `curl -fsSL … \| bash` does not look at), and `CNAME` holds `get.cloudground.it` |
 
 The same deployment carries the panel's demo under `https://get.cloudground.it/demo/` (`docs/demo.md`): the
-`pages` job builds it from the tag (`npm run build:demo`), so the demo is the newest stable release's interface
+`pages` workflow builds it from the tag (`npm run build:demo`), so the demo is the newest stable release's interface
 and needs no setting or secret of its own.
 
 The bootstrap itself downloads the binaries from the GitHub release, never from Pages. What the
