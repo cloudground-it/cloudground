@@ -3,6 +3,7 @@ package e2e
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -299,5 +300,41 @@ func TestIsGateClient(t *testing.T) {
 		if got := IsGateClient([]byte(c.cmdline), []byte(c.env), c.command); got != c.want {
 			t.Errorf("IsGateClient(%q, %q, %q) = %v, want %v", c.cmdline, c.env, c.command, got, c.want)
 		}
+	}
+}
+
+// socketBindFrom reads `systemctl --version`.
+func socketBindFrom(out string) (bool, string) {
+	first, _, _ := strings.Cut(out, "\n")
+	var v int
+	if _, err := fmt.Sscanf(first, "systemd %d", &v); err != nil {
+		return false, fmt.Sprintf("systemctl --version is %q", first)
+	}
+	switch {
+	case v < 249:
+		return false, fmt.Sprintf("systemd %d is older than 249, which added SocketBindDeny", v)
+	case strings.Contains(out, "-BPF_FRAMEWORK") || !strings.Contains(out, "+BPF_FRAMEWORK"):
+		return false, fmt.Sprintf("systemd %d is built without the BPF framework (-BPF_FRAMEWORK)", v)
+	}
+	return true, ""
+}
+
+// The e2e asserts the port rule where systemd can enforce it, and says why
+// it skips where it cannot (F-6-2).
+func TestSocketBindFrom(t *testing.T) {
+	v255 := "systemd 255 (255.4-1ubuntu8.18)\n+PAM +AUDIT +SELINUX -BPF_FRAMEWORK -XKBCOMMON +UTMP\n"
+	v259 := "systemd 259 (259.9-0ubuntu0.1)\n+PAM +AUDIT +BPF_FRAMEWORK +BTF -XKBCOMMON\n"
+	v248 := "systemd 248 (248.3)\n+PAM +BPF_FRAMEWORK\n"
+	if ok, why := socketBindFrom(v259); !ok {
+		t.Errorf("259 +BPF_FRAMEWORK: %s", why)
+	}
+	if ok, why := socketBindFrom(v255); ok || !strings.Contains(why, "without the BPF framework") {
+		t.Errorf("255 -BPF_FRAMEWORK: %v %q", ok, why)
+	}
+	if ok, why := socketBindFrom(v248); ok || !strings.Contains(why, "older than 249") {
+		t.Errorf("248: %v %q", ok, why)
+	}
+	if ok, _ := socketBindFrom("junk"); ok {
+		t.Error("junk enforces")
 	}
 }

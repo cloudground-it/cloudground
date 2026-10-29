@@ -83,7 +83,26 @@ func (p *Packages) Ensure(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return missing, fmt.Errorf("install %s: %w", strings.Join(missing, " "), err)
 	}
+	if syspkg.NeedsReexec(missing) {
+		p.reexec(ctx)
+	}
 	return missing, nil
+}
+
+// reexec runs `systemctl daemon-reexec`, so that PID 1 loads the libbpf
+// just installed and enforces the sandbox's SocketBindDeny (phpfpm SPEC
+// §4.1). Running units and jobs survive it. The update guard's restart of
+// the agent, which waits on this very start, loses its connection and
+// enqueues the restart again (host.DBusSystemd retries an idempotent job
+// once); that start finds nothing missing and does not re-execute. A
+// failure is logged, never fatal: the sandbox is then enforced from the
+// next boot.
+func (p *Packages) reexec(ctx context.Context) {
+	if _, err := p.Exec.Run(ctx, host.Cmd{Name: "systemctl", Args: []string{"daemon-reexec"}, Env: host.AptEnv[:2], Timeout: 2 * time.Minute}); err != nil {
+		p.log().Warn("systemctl daemon-reexec after installing "+syspkg.LibBPF+" failed: the sites' port restriction takes effect at the next boot", "err", err)
+		return
+	}
+	p.log().Info("systemd re-executed to load " + syspkg.LibBPF + ": the sites' port restriction is enforced")
 }
 
 func (p *Packages) apt(ctx context.Context, what string, args ...string) error {

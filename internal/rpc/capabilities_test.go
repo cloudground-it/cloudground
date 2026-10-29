@@ -27,3 +27,22 @@ func TestCapabilitiesHelpers(t *testing.T) {
 		t.Fatal("an unknown match protects nothing")
 	}
 }
+
+// F-6-2: the kernel's own port range, as /proc gives it, and the default
+// when the agent sent none that makes sense.
+func TestEphemeralRange(t *testing.T) {
+	if got, ok := ParsePortRange("32768\t60999\n"); !ok || got[0] != 32768 || got[1] != 60999 {
+		t.Fatalf("parse: %v %v", got, ok)
+	}
+	for _, bad := range []string{"", "1", "60999 32768", "0 100", "1 70000", "a b"} {
+		if _, ok := ParsePortRange(bad); ok {
+			t.Errorf("%q parsed", bad)
+		}
+	}
+	if lo, hi := (Capabilities{EphemeralPorts: []int{40000, 50000}}).EphemeralRange(); lo != 40000 || hi != 50000 {
+		t.Errorf("sent range: %d-%d", lo, hi)
+	}
+	if lo, hi := (Capabilities{}).EphemeralRange(); lo != 32768 || hi != 60999 {
+		t.Errorf("default: %d-%d", lo, hi)
+	}
+}

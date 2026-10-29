@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"strconv"
 	"strings"
 	"time"
 )
@@ -28,6 +29,37 @@ type Capabilities struct {
 	ResticSupported bool `json:"restic_supported"`
 	// Runtimes are the Node.js and Python versions installed (#28).
 	Runtimes RuntimesResult `json:"runtimes"`
+	// EphemeralPorts is the kernel's range for the ports it picks itself
+	// (net.ipv4.ip_local_port_range, low and high): a managed app's new TCP
+	// port must lie outside it (F-6-2). Empty when the agent could not read
+	// it (DefaultEphemeralPorts applies).
+	EphemeralPorts []int `json:"ephemeral_ports,omitempty"`
+}
+
+// DefaultEphemeralPorts is Linux's default ip_local_port_range.
+var DefaultEphemeralPorts = [2]int{32768, 60999}
+
+// EphemeralRange is EphemeralPorts, or the default when the agent sent none
+// that makes sense.
+func (c Capabilities) EphemeralRange() (low, high int) {
+	if len(c.EphemeralPorts) == 2 && c.EphemeralPorts[0] >= 1 && c.EphemeralPorts[0] <= c.EphemeralPorts[1] && c.EphemeralPorts[1] <= 65535 {
+		return c.EphemeralPorts[0], c.EphemeralPorts[1]
+	}
+	return DefaultEphemeralPorts[0], DefaultEphemeralPorts[1]
+}
+
+// ParsePortRange reads ip_local_port_range ("32768\t60999\n").
+func ParsePortRange(text string) ([]int, bool) {
+	f := strings.Fields(text)
+	if len(f) != 2 {
+		return nil, false
+	}
+	lo, err1 := strconv.Atoi(f[0])
+	hi, err2 := strconv.Atoi(f[1])
+	if err1 != nil || err2 != nil || lo < 1 || lo > hi || hi > 65535 {
+		return nil, false
+	}
+	return []int{lo, hi}, true
 }
 
 // HasPHP reports whether version is installed. An empty list (the agent

@@ -28,7 +28,7 @@ Node, `<root>/current/.venv/bin` then `/usr/bin` for Python.
 | `start` | the start command, run by `/bin/sh -c` in `<root>/current` | one line, 1–1024 bytes, no NUL |
 | `env` | plain environment variables, shown in the panel | at most 100 with the secrets; name `^[A-Z_][A-Z0-9_]{0,63}$`; value at most 4096 bytes, no line break or NUL |
 | `secrets` | the names of the secret variables, whose values are sealed (`site.<id>.app_env.<NAME>`, state SPEC) | names as `env`, not also in `env` |
-| `port` | `0`: the app listens on a unix socket (the default); else a TCP port on 127.0.0.1 | 0 or 1024–65535, not a reserved port (internal/engine SPEC §7.3) |
+| `port` | `0`: the app listens on a unix socket (the default); else a TCP port on 127.0.0.1 | 0 or 1024–65535, not a reserved port (internal/engine SPEC §7.3); a new one also outside the kernel's ephemeral range, checked by the API (internal/api SPEC, `PUT /api/sites/{id}/app`) |
 | `health_path` | what the health probe asks for | `""` (`/`) or a path as the uptime check's |
 
 Reserved names, refused in `env` and `secrets`: `PORT`, `HOST`, `PATH`, `HOME`, `USER`,

@@ -105,15 +105,16 @@ func (h *harness) siteShell(t *testing.T) {
 
 	// F-6-2: a site's code binds no TCP or UDP port: not the connector's
 	// 9080 (held or not), not a free one. Port 0 (an ephemeral port the
-	// kernel picks) still works. Only where this host's systemd enforces
-	// SocketBindDeny (phpfpm SPEC §4.1): Ubuntu 24.04's is built without
-	// the BPF framework and ignores it.
+	// kernel picks) still works. Asserted wherever this host's systemd can
+	// enforce SocketBindDeny (249 or later, built with the BPF framework:
+	// Ubuntu 26.04); skipped, with the reason, only where it says it cannot
+	// (Ubuntu 24.04's 255 is built without it: phpfpm SPEC §4.1).
 	bound := sh(shellKey, shellUser, "python3 -c '"+bindProbe+"' 9080 "+freePort+" 0")
-	if h.portBindsEnforced() {
+	if ok, why := h.socketBindSupported(); ok {
 		h.check(t, "F-6-2: the site shell cannot bind the connector's port, a free port or UDP; port 0 still works",
 			bound.Trim(), "tcp 9080 1\ntcp "+freePort+" 1\nudp "+freePort+" 1\ntcp 0 ok")
 	} else {
-		t.Logf("F-6-2: this host's systemd does not enforce SocketBindDeny (no BPF framework or libbpf); the shell's binds: %q", bound.Trim())
+		t.Logf("F-6-2: skipped, %s; the shell's binds: %q", why, bound.Trim())
 	}
 	// A tool opens one session per command (a deploy script, Ansible): a
 	// run of them, back to back, is not refused. The gate allowed 20 a
@@ -484,12 +485,12 @@ print("tcp", a[2], b(socket.SOCK_STREAM, a[2]))
 // freePort is a port nothing on the test box listens on.
 const freePort = "19279"
 
-// portBindsEnforced reports whether this host's systemd enforces
-// SocketBindDeny (phpfpm SPEC §4.1): a root unit with the rule tries a bind
-// of freePort. Ubuntu 24.04's systemd, without the BPF framework, ignores
-// the rule and the bind works.
-func (h *harness) portBindsEnforced() bool {
-	r := h.run("systemd-run", "--quiet", "--wait", "--pipe", "-p", "SocketBindDeny=1-65535",
-		"python3", "-c", bindProbe, freePort, freePort, "0")
-	return strings.HasPrefix(r.Trim(), "tcp "+freePort+" 1\n")
+// socketBindSupported reports whether this host's systemd can enforce
+// SocketBindDeny (phpfpm SPEC §4.1), as `systemctl --version` says: version
+// 249 or later and +BPF_FRAMEWORK. When it cannot, the reason. Where it can,
+// a bind that works is a failure, libbpf missing or PID 1 not re-executed
+// after it was installed included.
+func (h *harness) socketBindSupported() (bool, string) {
+	r := h.run("systemctl", "--version")
+	return socketBindFrom(r.Out)
 }

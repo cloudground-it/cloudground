@@ -118,10 +118,15 @@ mail gates) and outgoing connections are not concerned. A managed app in TCP-por
 `AllowPortBind(port)` (`SocketBindAllow=tcp:<port>`), and an allow wins over the deny (internal/runtimes
 SPEC §3). systemd enforces the rule with a cgroup BPF program, which it loads through `libbpf.so.1`
 (`libbpf1`, internal/syspkg). Ubuntu 26.04's systemd 259 has the BPF framework. Ubuntu 24.04's 255
-is built without it (`-BPF_FRAMEWORK` in `systemd --version`) and ignores the line, as does any
-systemd that started before libbpf was installed (until it is re-executed). The unit still starts
-and the rest of the sandbox stands, but there the ports are not held. The e2e checks the rule only
-where the host enforces it.
+is built without it (`-BPF_FRAMEWORK` in `systemd --version`) and ignores the line. A systemd
+that started before libbpf was installed ignores it too, until it is re-executed, so the installer
+and the agent's package step run `systemctl daemon-reexec` after an install that brought `libbpf1`,
+and only then (`syspkg.NeedsReexec`). Running units and jobs survive it. The update guard's restart of
+the agent, which waits on that very start, is enqueued again once (host SPEC: an idempotent job
+whose connection is lost). Where the line is ignored, the unit still starts and the rest of the
+sandbox stands, but the ports are not held (docs/security-model.md, "Limits, stated plainly"). The
+e2e asserts the rule wherever `systemctl --version` says 249 or later with `+BPF_FRAMEWORK`, so a
+bind that works there is a failure, and skips with the reason only where it does not.
 
 `RunSandbox(site)` is `Sandbox(site)` plus `RunHardening` (R-10.5): `RestrictSUIDSGID=yes`,
 `PrivateIPC=yes`, `SystemCallFilter=@system-service`, `SystemCallErrorNumber=EPERM`

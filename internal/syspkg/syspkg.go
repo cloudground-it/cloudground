@@ -16,10 +16,19 @@ var Base = []string{"software-properties-common", "curl", "gnupg", "ca-certifica
 // cron runs the sites' jobs (/etc/cron.d); minimal images ship without it.
 // nftables is the block list's (internal/blocklist SPEC §5): ufw drives
 // netfilter without it, and not every image has the nft command.
-// libbpf1 is what systemd loads to enforce the sandbox's SocketBindDeny
+// LibBPF is what systemd loads to enforce the sandbox's SocketBindDeny
 // (internal/phpfpm SPEC §4.1); iproute2 brings it on most images, a
 // minimal one may lack it, and systemd then ignores the line.
-var system = []string{"nginx", "mariadb-server", "certbot", "python3-certbot-dns-cloudflare", "git", "unzip", "cron", "nftables", "libbpf1"}
+var system = []string{"nginx", "mariadb-server", "certbot", "python3-certbot-dns-cloudflare", "git", "unzip", "cron", "nftables", LibBPF}
+
+// LibBPF is the package of libbpf.so.1.
+const LibBPF = "libbpf1"
+
+// NeedsReexec reports whether installing these packages calls for
+// `systemctl daemon-reexec`: systemd tries to load libbpf once, and a PID 1
+// that started without it keeps ignoring SocketBind* until it is executed
+// again.
+func NeedsReexec(installed []string) bool { return slices.Contains(installed, LibBPF) }
 
 // phpExtensions are the PHP packages installed for a PHP version, as
 // php<version>-<name>. php-redis is no longer among them (R-6.1): the object

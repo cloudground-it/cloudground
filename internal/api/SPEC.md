@@ -1529,7 +1529,11 @@ the socket.
 - `PUT /api/sites/{id}/app` (manage, at most 512 KiB): `{version?, start?, env?, secrets?, port?,
   health_path?}`; a field left out keeps its value; `env` replaces the plain variables;
   `secrets` maps a name to its value, `""` removes it, `••••••••` keeps it (a name not given keeps
-  it too). `runtimes.CheckApp` on the result → 400 with its message; a version the agent does not
+  it too). `runtimes.CheckApp` on the result → 400 with its message; a `port` that is new (not the
+  app's current one) and inside the kernel's ephemeral range (`capabilities.ephemeral_ports`, else
+  32768–60999) → 400 `port <n> is in the range this server gives out for its own connections …`:
+  any program could be given such a port while the app restarts (F-6-2); an app keeps the port it
+  has. A version the agent does not
   have → 412 `install <runtime> <version> on the server first (Server → Runtimes)`. Then, under the
   site's lock: the secrets are written (sealed, `site.<id>.app_env.<NAME>`), `SetAppEnv` gives the
   agent the whole environment (plain and secret values), `ApplySiteConfig` renders and restarts
