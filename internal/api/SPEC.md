@@ -2486,8 +2486,12 @@ reach the server from the box and nowhere insecurely.
 the table list, export and import, backups (`mariadb-dump` over the network, with TLS when
 required) and restores (a staged replacement inside that server), the restore test (the dump is
 checked in a scratch database on this server, whichever server it came from), and Quarry's sessions
-(a scoped account made on that server). A site's **staging copy** and a **migration** use the
-primary database, so they stay on this server. Deleting a site drops its databases and users on
+(a scoped account made on that server). An **import or restore of a database on an external server**
+runs as the site's own account (the agent cannot borrow it there), so its triggers and views keep
+their owner: the panel sends the site's database-account passwords in the agent call
+(`DBImport`/`RestoreSnapshot` `accounts`, from the secret store, only when a database is on an
+external server), and the agent uses one only for the account its record picks. A site's **staging
+copy** and a **migration** use the primary database, so they stay on this server. Deleting a site drops its databases and users on
 every server by the agent's record.
 
 **Not here.** Moving a database between servers; the primary database on an external server; a

@@ -120,7 +120,7 @@ func TestMariaDBRejectsBadNames(t *testing.T) {
 		if err := m.Dump(ctx, bad, &bytes.Buffer{}); !errors.Is(err, ErrInvalidDatabase) {
 			t.Fatalf("%q: %v", bad, err)
 		}
-		if err := m.Import(ctx, bad, strings.NewReader(""), ImportAs{}); !errors.Is(err, ErrInvalidDatabase) {
+		if _, err := m.Import(ctx, bad, strings.NewReader(""), ImportAs{}); !errors.Is(err, ErrInvalidDatabase) {
 			t.Fatalf("%q: %v", bad, err)
 		}
 	}
@@ -136,7 +136,7 @@ func TestImportIsSandboxedAndScoped(t *testing.T) {
 		log := &sqlLog{}
 		fx := &FakeExec{Respond: func(FakeCall) FakeReply { return FakeReply{Code: code} }}
 		m := &MariaDBAdmin{WorkDir: t.TempDir(), Tools: fx, execFn: log.exec("")}
-		err := m.Import(context.Background(), "site_db", strings.NewReader("SELECT 1;"), ImportAs{})
+		_, err := m.Import(context.Background(), "site_db", strings.NewReader("SELECT 1;"), ImportAs{})
 		if (err != nil) != (code != 0) {
 			t.Fatalf("code %d: err = %v", code, err)
 		}
@@ -182,7 +182,7 @@ func TestFakeMariaDB(t *testing.T) {
 		t.Fatal("account not tracked")
 	}
 	acct.Close()
-	if err := f.Import(ctx, "db1", strings.NewReader("x"), ImportAs{}); err != nil || f.Imported["db1"] != "x" || f.OpenAccounts() != 0 {
+	if _, err := f.Import(ctx, "db1", strings.NewReader("x"), ImportAs{}); err != nil || f.Imported["db1"] != "x" || f.OpenAccounts() != 0 {
 		t.Fatalf("%v %v %d", err, f.Imported, f.OpenAccounts())
 	}
 }
@@ -217,7 +217,7 @@ func TestDumpAndImportAreNotCutShort(t *testing.T) {
 	if err := m.Dump(ctx, "site_db", &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.Import(ctx, "site_db", strings.NewReader("SELECT 1;"), ImportAs{}); err != nil {
+	if _, err := m.Import(ctx, "site_db", strings.NewReader("SELECT 1;"), ImportAs{}); err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range fx.Calls() {
@@ -291,7 +291,7 @@ func TestImportAsTheSiteAccount(t *testing.T) {
 				return nil, fmt.Errorf("unexpected %s %v", q, args)
 			}}
 		dump := "CREATE DEFINER=`root`@`localhost` VIEW v AS SELECT 1;"
-		err := m.Import(context.Background(), "site_3", strings.NewReader(dump), ImportAs{Site: "site_3"})
+		_, err := m.Import(context.Background(), "site_3", strings.NewReader(dump), ImportAs{Site: "site_3"})
 		if (err != nil) != (code != 0) {
 			t.Fatalf("code %d: %v", code, err)
 		}
@@ -316,7 +316,7 @@ func TestImportAsTheSiteAccount(t *testing.T) {
 func TestImportAsRefusesOtherAccounts(t *testing.T) {
 	for _, user := range []string{"root", "mysql", "cgq_0123456789abcdef", "site_0"} {
 		m := &MariaDBAdmin{WorkDir: t.TempDir(), Tools: &FakeExec{}, execFn: (&sqlLog{}).exec("")}
-		if err := m.Import(context.Background(), "site_3", strings.NewReader("SELECT 1;"), ImportAs{Site: user}); err == nil {
+		if _, err := m.Import(context.Background(), "site_3", strings.NewReader("SELECT 1;"), ImportAs{Site: user}); err == nil {
 			t.Errorf("borrowed %q", user)
 		}
 	}
@@ -327,7 +327,7 @@ func TestImportAsRefusesOtherAccounts(t *testing.T) {
 			}
 			return []string{""}, nil
 		}}
-	if err := m.Import(context.Background(), "site_3", strings.NewReader("SELECT 1;"), ImportAs{Site: "site_3"}); err == nil {
+	if _, err := m.Import(context.Background(), "site_3", strings.NewReader("SELECT 1;"), ImportAs{Site: "site_3"}); err == nil {
 		t.Error("borrowed a unix_socket account")
 	}
 }
@@ -338,7 +338,7 @@ func TestImportScratchWithTriggers(t *testing.T) {
 	log := &sqlLog{}
 	fx := &FakeExec{}
 	m := &MariaDBAdmin{WorkDir: t.TempDir(), Tools: fx, execFn: log.exec("")}
-	if err := m.Import(context.Background(), "cgv_0123456789abcdef", strings.NewReader("CREATE DEFINER=root@localhost TRIGGER t"), ImportAs{Triggers: true}); err != nil {
+	if _, err := m.Import(context.Background(), "cgv_0123456789abcdef", strings.NewReader("CREATE DEFINER=root@localhost TRIGGER t"), ImportAs{Triggers: true}); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(log.stmts[1], "GRANT "+scopedWritePrivileges+", TRIGGER ON `cgv\\_0123456789abcdef`.*") {
@@ -346,5 +346,78 @@ func TestImportScratchWithTriggers(t *testing.T) {
 	}
 	if fx.Calls()[0].Stdin != "CREATE DEFINER=CURRENT_USER TRIGGER t" {
 		t.Fatalf("stdin %q", fx.Calls()[0].Stdin)
+	}
+}
+
+func remoteAdmin(t *testing.T, log *sqlLog) *MariaDBAdmin {
+	t.Helper()
+	return &MariaDBAdmin{
+		Remote:  &RemoteServer{ID: 3, Host: "db.example.com", Port: 3307, TLS: true, AdminUser: "cgadmin", AdminPassword: "s3cret"},
+		WorkDir: t.TempDir(), Tools: &FakeExec{Respond: func(FakeCall) FakeReply { return FakeReply{Code: 0} }}, execFn: log.exec(""),
+	}
+}
+
+// F-5-1 / SR-T7: an import of a site's database on an external server signs
+// in as the site's own account with the password the panel sent, never as
+// the server's administrator and never as a throwaway account; its triggers
+// keep their owner (DEFINER CURRENT_USER).
+func TestRemoteImportUsesTheSiteAccount(t *testing.T) {
+	log := &sqlLog{}
+	m := remoteAdmin(t, log)
+	acct, definer, tempSite, err := m.importActor(context.Background(), "site_3", ImportAs{Site: "site_3", SitePassword: "the-site-pw"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(acct.DefaultsFile)
+	if acct.User != "site_3" || !strings.Contains(string(b), "user=site_3\n") || !strings.Contains(string(b), "the-site-pw") {
+		t.Fatalf("not signed in as the site account: user=%q\n%s", acct.User, b)
+	}
+	if definer != "CURRENT_USER" || tempSite {
+		t.Fatalf("definer=%q tempSite=%v", definer, tempSite)
+	}
+	if strings.Contains(string(b), "cgadmin") {
+		t.Fatal("the administrator's credentials are in the defaults file")
+	}
+	// No throwaway account was created.
+	if joined := strings.Join(log.stmts, "\n"); strings.Contains(joined, "CREATE USER") {
+		t.Fatalf("a throwaway account was made:\n%s", joined)
+	}
+	_ = acct.Close()
+}
+
+// Without the password (the fallback) the import runs as a throwaway account
+// scoped to the one database, never the administrator, and Import reports it
+// so the caller can warn that the dump's triggers and views will not run.
+func TestRemoteImportFallsBackToAScopedAccount(t *testing.T) {
+	log := &sqlLog{}
+	m := remoteAdmin(t, log)
+	fx := m.Tools.(*FakeExec)
+	dump := "CREATE DEFINER=`root`@`localhost` TRIGGER t BEFORE INSERT ON x FOR EACH ROW SET @a = 1;"
+	note, err := m.Import(context.Background(), "site_3", strings.NewReader(dump), ImportAs{Site: "site_3"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !note.SiteUnderTempAccount || note.DefinersRewritten != 1 {
+		t.Fatalf("note %+v", note)
+	}
+	c := fx.Calls()[0]
+	if c.Name != "mariadb" || !strings.Contains(strings.Join(c.Args, " "), "--one-database site_3") {
+		t.Fatalf("import args %v", c.Args)
+	}
+	file := strings.TrimPrefix(c.Args[0], "--defaults-file=")
+	if _, err := os.Stat(file); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("defaults file left behind")
+	}
+	joined := strings.Join(log.stmts, "\n")
+	if strings.Contains(joined, "cgadmin") {
+		t.Fatalf("the administrator was used to run the dump:\n%s", joined)
+	}
+	if !strings.Contains(joined, "CREATE USER ?@'%'") ||
+		!strings.Contains(joined, "GRANT ") || !strings.Contains(joined, "`site\\_3`.* TO ?@'%'") ||
+		!strings.Contains(joined, "DROP USER IF EXISTS ?@'%'") {
+		t.Fatalf("expected a scoped grant on site_3 and a drop, got:\n%s", joined)
+	}
+	if !strings.Contains(c.Stdin, "CREATE DEFINER=CURRENT_USER TRIGGER") {
+		t.Fatalf("DEFINER not rewritten to CURRENT_USER: %q", c.Stdin)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cloudground-it/cloudground/internal/agent/host"
+	"github.com/cloudground-it/cloudground/internal/agent/ops/db"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/release"
 	"github.com/cloudground-it/cloudground/internal/agent/sitefs"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
@@ -24,6 +25,10 @@ const filesDir = "files"
 // RestoreSnapshot restores a snapshot over the live site: its files, its
 // database or both (SPEC §5). The server holds the site's lock.
 func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[string]string, error) {
+	// A database on an external server is imported as the site's own account
+	// with the password the panel sent; a fallback collects a warning.
+	ctx = db.WithImportAccounts(ctx, p.Accounts)
+	ctx, imported := db.WithImportWarnings(ctx)
 	mode := strings.ToLower(strings.TrimSpace(p.Mode))
 	if mode == "" {
 		mode = "full"
@@ -109,6 +114,12 @@ func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[str
 		}
 	}
 	done := map[string]string{"restored": p.SnapshotID, "target": s.RootPath, "mode": mode}
+	finish := func() map[string]string {
+		if msgs := imported.Messages(); len(msgs) > 0 {
+			done["warning"] = strings.Join(msgs, "; ")
+		}
+		return done
+	}
 	if len(dumps) > 0 {
 		names := make([]string, len(dumps))
 		for i, d := range dumps {
@@ -135,7 +146,7 @@ func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[str
 		}
 		o.purge(s)
 		done["target"] = done["databases"]
-		return done, nil
+		return finish(), nil
 	}
 
 	if len(p.Paths) > 0 {
@@ -151,7 +162,7 @@ func (o *Ops) RestoreSnapshot(ctx context.Context, p rpc.RestoreParams) (map[str
 	if err := o.swapIn(ctx, s, work, dumps, p.Foreign); err != nil {
 		return nil, err
 	}
-	return done, nil
+	return finish(), nil
 }
 
 // restoreFiles restores a snapshot's files into work/files.

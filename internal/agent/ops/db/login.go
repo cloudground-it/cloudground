@@ -65,7 +65,7 @@ func (o *Ops) ImportAsLogin(ctx context.Context, s state.Site, login Login, data
 	if merr != nil {
 		return rpc.DBImportResult{}, merr
 	}
-	err = m.Import(ctx, database, f, host.ImportAs{Login: &host.Credentials{User: login.User, Password: login.Password}})
+	_, err = m.Import(ctx, database, f, host.ImportAs{Login: &host.Credentials{User: login.User, Password: login.Password}})
 	if err != nil {
 		msg := "the import stopped at a statement the server refused; what ran before it stays"
 		if len(warnings) > 0 {

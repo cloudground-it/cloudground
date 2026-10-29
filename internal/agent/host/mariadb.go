@@ -93,7 +93,7 @@ type MariaDB interface {
 	DumpAs(ctx context.Context, as Credentials, database string, w io.Writer, tables ...string) error
 	// Import feeds r to the sandboxed mariadb client, as the account as
 	// says, with every DEFINER clause rewritten to that account.
-	Import(ctx context.Context, database string, r io.Reader, as ImportAs) error
+	Import(ctx context.Context, database string, r io.Reader, as ImportAs) (ImportNote, error)
 	// Unborrow puts back their own authentication alone on the site
 	// accounts (those tenant accepts) an import cut short left with a
 	// second password. Run it at start, before serving.
@@ -467,6 +467,13 @@ type ImportAs struct {
 	// every DEFINER clause names it, so the triggers, views and routines
 	// of the dump are the site's and keep working. Empty: a scoped account, for the agent's scratch databases.
 	Site string
+	// SitePassword is Site's own password, which the panel keeps and sends
+	// for a database on an external server (the agent cannot borrow there).
+	// With it the import signs in as Site itself (loginAccount), so the
+	// site's triggers and views keep their owner; its DEFINER clauses become
+	// CURRENT_USER, which is Site. Empty: the import falls back to a
+	// throwaway one-database account (SR-T7).
+	SitePassword string
 	// Triggers grants the scoped account TRIGGER too, with DEFINER clauses
 	// rewritten to CURRENT_USER: the restore test, whose database (and
 	// every object in it) is dropped with the account. Without it a
@@ -486,42 +493,94 @@ func (as ImportAs) definer() string {
 	return "CURRENT_USER"
 }
 
-func (m *MariaDBAdmin) Import(ctx context.Context, database string, r io.Reader, as ImportAs) error {
+// ImportNote is what an import noticed, for the operator (SR-T7).
+type ImportNote struct {
+	// DefinersRewritten is how many DEFINER clauses the filter replaced.
+	DefinersRewritten int
+	// SiteUnderTempAccount is true when a site database was imported under a
+	// throwaway one-database account (no site-account password was given on
+	// an external server), so objects with a DEFINER are owned by an account
+	// that is dropped and will not run.
+	SiteUnderTempAccount bool
+}
+
+func (m *MariaDBAdmin) Import(ctx context.Context, database string, r io.Reader, as ImportAs) (ImportNote, error) {
 	if !ValidDatabaseName(database) {
-		return ErrInvalidDatabase
+		return ImportNote{}, ErrInvalidDatabase
 	}
-	var acct *ScopedAccount
-	var err error
-	switch {
-	case as.Login != nil:
-		acct, err = m.loginAccount(*as.Login)
-	case as.Site != "" && m.Remote != nil:
-		acct, err = m.adminClientFile()
-	case as.Site != "":
-		acct, err = m.borrow(ctx, as.Site)
-	case as.Triggers:
-		acct, err = m.scopedAccount(ctx, database, scopedWritePrivileges+", TRIGGER")
-	default:
-		acct, err = m.ScopedAccount(ctx, database, false)
-	}
+	acct, definer, tempSite, err := m.importActor(ctx, database, as)
 	if err != nil {
-		return err
+		return ImportNote{}, err
 	}
 	pr, pw := io.Pipe()
-	rewrote := make(chan error, 1)
+	rewrote := make(chan struct {
+		n   int
+		err error
+	}, 1)
 	go func() {
-		_, err := RewriteDefiners(pw, r, m.definerOf(as))
+		n, err := RewriteDefiners(pw, r, definer)
 		pw.CloseWithError(err)
-		rewrote <- err
+		rewrote <- struct {
+			n   int
+			err error
+		}{n, err}
 	}()
 	_, err = m.Tools.Run(ctx, Cmd{Name: "mariadb", Args: m.importArgs(acct.DefaultsFile, database), Stdin: pr, Stdout: io.Discard, Timeout: DataTimeout})
 	// The client may stop reading first (it failed): unblock the filter.
 	pr.CloseWithError(errImportEnded)
-	ferr := <-rewrote
+	rw := <-rewrote
+	ferr := rw.err
 	if errors.Is(ferr, errImportEnded) || errors.Is(ferr, io.ErrClosedPipe) {
 		ferr = nil
 	}
-	return errors.Join(err, ferr, acct.Close())
+	note := ImportNote{DefinersRewritten: rw.n, SiteUnderTempAccount: tempSite && rw.n > 0}
+	return note, errors.Join(err, ferr, acct.Close())
+}
+
+// importActor is the account an import runs as, the DEFINER its clauses are
+// rewritten to, and whether a site database fell back to a throwaway
+// account. The account is never the server's administrator: a dump is tenant
+// content, so it runs with no more than one database's privileges, enforced
+// by the server's own grants (SR-T7).
+//
+//   - A signed-in database user (Login) runs as itself, scoped by its own
+//     grants; its DEFINER names it.
+//   - A site database import runs as the site's own account, so the site's
+//     triggers and views keep their owner: on the box's own server by
+//     borrowing it, on an external server by signing in with the password
+//     the panel sent (SitePassword), DEFINER CURRENT_USER.
+//   - Without that password on an external server (borrowing needs
+//     mysql.global_priv, which a managed server rarely grants) the import
+//     falls back to a throwaway account scoped to exactly that one database
+//     (GRANT … ON `db`.* only, never the administrator), DEFINER
+//     CURRENT_USER; the caller is told so it can warn that imported
+//     triggers and views will not run. The administrator is used only to
+//     create and drop the throwaway account, never to run a dump.
+func (m *MariaDBAdmin) importActor(ctx context.Context, database string, as ImportAs) (acct *ScopedAccount, definer string, tempSite bool, err error) {
+	switch {
+	case as.Login != nil:
+		acct, err = m.loginAccount(*as.Login)
+		return acct, m.definerOf(as), false, err
+	case as.Site != "" && as.SitePassword != "":
+		// The site's own account, with its own password: ownership is kept.
+		acct, err = m.loginAccount(Credentials{User: as.Site, Password: as.SitePassword})
+		return acct, "CURRENT_USER", false, err
+	case as.Site != "" && m.Remote != nil:
+		// Fallback: a throwaway account on the external server, with TRIGGER
+		// so the dump's triggers and views import (owned by this account,
+		// which is dropped — the caller warns about them).
+		acct, err = m.scopedAccount(ctx, database, scopedWritePrivileges+", TRIGGER")
+		return acct, "CURRENT_USER", true, err
+	case as.Site != "":
+		acct, err = m.borrow(ctx, as.Site)
+		return acct, m.definerOf(as), false, err
+	case as.Triggers:
+		acct, err = m.scopedAccount(ctx, database, scopedWritePrivileges+", TRIGGER")
+		return acct, m.definerOf(as), false, err
+	default:
+		acct, err = m.ScopedAccount(ctx, database, false)
+		return acct, m.definerOf(as), false, err
+	}
 }
 
 // errImportEnded closes the filter's pipe once the client has exited.

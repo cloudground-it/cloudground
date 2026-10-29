@@ -23,6 +23,9 @@
         "db_password": "DBPassword",
         "connector_token": "ConnectorToken",
         "credentials": true
+      },
+      "accounts": {
+        "key": "Accounts"
       }
     },
     "zero": {

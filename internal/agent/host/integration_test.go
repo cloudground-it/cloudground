@@ -141,7 +141,8 @@ func TestIntegrationMariaDB(t *testing.T) {
 	}
 
 	// Import: plain SQL goes in.
-	must(m.Import(ctx, "cgit_a", strings.NewReader("CREATE TABLE t (v INT); INSERT INTO t VALUES (7);"), ImportAs{}))
+	_, impErr := m.Import(ctx, "cgit_a", strings.NewReader("CREATE TABLE t (v INT); INSERT INTO t VALUES (7);"), ImportAs{})
+	must(impErr)
 	rows, err := m.QueryStrings(ctx, "SELECT v FROM cgit_a.t")
 	must(err)
 	if len(rows) != 1 || rows[0] != "7" {
@@ -149,7 +150,7 @@ func TestIntegrationMariaDB(t *testing.T) {
 	}
 	// R-0.1: a client command is refused by --sandbox, and nothing runs.
 	marker := t.TempDir() + "/pwned"
-	err = m.Import(ctx, "cgit_a", strings.NewReader("system touch "+marker+"\n"), ImportAs{})
+	_, err = m.Import(ctx, "cgit_a", strings.NewReader("system touch "+marker+"\n"), ImportAs{})
 	if err == nil {
 		t.Fatal("--sandbox let a client command through")
 	}
@@ -161,7 +162,7 @@ func TestIntegrationMariaDB(t *testing.T) {
 	secret := filepath.Join(t.TempDir(), "secret.txt")
 	must(os.WriteFile(secret, []byte("root-only-secret\n"), 0o600))
 	must(m.Exec(ctx, "SET GLOBAL local_infile = 1"))
-	err = m.Import(ctx, "cgit_a", strings.NewReader("CREATE TABLE loot (v TEXT); LOAD DATA LOCAL INFILE '"+secret+"' INTO TABLE loot;"), ImportAs{})
+	_, err = m.Import(ctx, "cgit_a", strings.NewReader("CREATE TABLE loot (v TEXT); LOAD DATA LOCAL INFILE '"+secret+"' INTO TABLE loot;"), ImportAs{})
 	must(m.Exec(ctx, "SET GLOBAL local_infile = 0"))
 	if err == nil {
 		t.Fatal("LOAD DATA LOCAL INFILE was imported")
@@ -170,7 +171,7 @@ func TestIntegrationMariaDB(t *testing.T) {
 		t.Fatalf("the client sent a local file: %v", loot)
 	}
 	// The scoped account cannot reach another tenant's database.
-	if err := m.Import(ctx, "cgit_a", strings.NewReader("INSERT INTO cgit_a.t SELECT LENGTH(v) FROM cgit_b.secret;"), ImportAs{}); err == nil {
+	if _, err := m.Import(ctx, "cgit_a", strings.NewReader("INSERT INTO cgit_a.t SELECT LENGTH(v) FROM cgit_b.secret;"), ImportAs{}); err == nil {
 		t.Fatal("import read another database")
 	}
 	left, _ := m.QueryStrings(ctx, "SELECT User FROM mysql.user WHERE User LIKE 'cgq\\_%'")

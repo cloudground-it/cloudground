@@ -284,10 +284,19 @@ The agent's database domain over it is `internal/agent/ops/db`.
   `'localhost'` (and `` `localhost` ``) as `'%'` and add `REQUIRE SSL` to a `CREATE USER` or `ALTER
   USER … WITH MAX_USER_CONNECTIONS` when `TLS`. The tools reach it with `--protocol=tcp` and a
   defaults file (still `0600`, still the only option file read) that names `host`, `port` and, with
-  TLS, `ssl-ca` (the CA written beside it, or the system bundle) and `ssl-verify-server-cert`. An
-  `ImportAs.Site` import runs as the administrator in that file with `--one-database`, its DEFINER
-  clauses read as the site's account on `` `%` ``, because borrowing a site's account needs
-  `mysql.global_priv`; `Unborrow` does nothing. Errors never include the password.
+  TLS, `ssl-ca` (the CA written beside it, or the system bundle) and `ssl-verify-server-cert`. A
+  dump the agent itself issues (`Dump`) reads as the administrator in that file. An **import never
+  does**: a dump is tenant content, and `--one-database` is a client-side filter, not a privilege
+  boundary (it skips statements only after a `USE` of another database, so leading and server-level
+  statements — `GRANT`, `CREATE USER`, `DROP DATABASE other` — would run as the administrator).
+  Borrowing a site's account needs `mysql.global_priv`, which a managed server rarely grants, so an
+  `ImportAs.Site` import on a remote server signs in as the account itself with the password the
+  panel sent (`ImportAs.SitePassword`, `loginAccount`), DEFINER `CURRENT_USER`, so the site's
+  triggers and views keep their owner. Without that password it falls back to a throwaway `cgq_`
+  account scoped to exactly that one database (`GRANT … ON ``<db>``.* `` with `TRIGGER`, host part
+  `` `%` ``, `REQUIRE SSL` under TLS), dropped afterwards, DEFINER `CURRENT_USER`; `Import` returns
+  an `ImportNote` so the caller can warn that objects with a definer will not run. `Unborrow` does
+  nothing. Errors never include the password.
 - **`ScopedAccount(ctx, db, readOnly)`** — the semantics of the agent's
   `scopedDBUser`, unchanged:
   - account `cgq_<16 hex>@localhost`, a 32-character base64url password,

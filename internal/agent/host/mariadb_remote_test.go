@@ -143,7 +143,8 @@ func TestRemoteAdapterArgsAndDefiner(t *testing.T) {
 	if got := (&MariaDBAdmin{}).definerOf(ImportAs{Site: "site_1"}); got != "`site_1`@`localhost`" {
 		t.Errorf("local definer %q", got)
 	}
-	// An import as a site's account is the administrator's file, never a borrow.
+	// adminClientFile signs in as the administrator, for a dump the agent
+	// itself issues; an import never uses it (importActor).
 	dir := t.TempDir()
 	m.WorkDir = dir
 	acct, err := m.adminClientFile()
