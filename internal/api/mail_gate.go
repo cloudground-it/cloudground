@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os/user"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -128,8 +129,12 @@ func (s *Server) handleGateSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	from := siteSender(site, relay)
+	var own func(string) bool // the site's own relay: whatever it accepts
+	if scope == "server" {
+		own = func(addr string) bool { return strings.EqualFold(addr, from) || siteNamesAddress(site, addr) }
+	}
 	q := r.URL.Query()
-	msg, to, err := prepareMessage(raw, q["to"], q.Get("t") == "1", from, time.Now())
+	msg, to, err := prepareMessage(raw, q["to"], q.Get("t") == "1", from, own, time.Now())
 	if err != nil {
 		refuse(http.StatusBadRequest, err.Error())
 		return

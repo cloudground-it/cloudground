@@ -3593,6 +3593,14 @@ site whose system user that is. In order:
    (none → 400 `no recipient`, more than 50 → 400); the `Bcc` header is
    removed; a message without `From` gets the site's sender, one without
    `Date` the time now; bare line feeds become CRLF;
+   - **through the server-wide relay, the site speaks only for itself.**
+     A `From` or `Sender` whose address is not on one of the site's names
+     (its domain, an alias, or a subdomain of either) nor the site's sender
+     is removed, the site's sender becomes the `From`, and the address the
+     site gave becomes `Reply-To` when it set none. Otherwise one site could
+     send, through the panel's own authenticated relay, as another site or
+     as the panel's alerts. A site with a relay of its own sends what its
+     relay accepts;
 6. `sendMail` through the effective relay, envelope sender the site's
    `from` or the relay's. Its failure → **502** with the relay's message.
    200 `{"sent": <recipients>}`.
