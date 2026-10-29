@@ -126,10 +126,16 @@ func (s *Store) CreateSite(site Site) (Site, error) {
 		return Site{}, err
 	}
 	stamp := now()
+	// An ID given is kept (a site restored from another server keeps the
+	// one it had there, internal/api SPEC §5.10); 0 takes the next.
+	var given any
+	if site.ID > 0 {
+		given = site.ID
+	}
 	res, err := s.db.Exec(`INSERT INTO sites
-		(domain, aliases, type, profile, engine, php_version, system_user, root_path, status, staging_of, config, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		site.Domain, aliases, string(site.Type), string(site.Profile), string(site.Engine), site.PHPVersion,
+		(id, domain, aliases, type, profile, engine, php_version, system_user, root_path, status, staging_of, config, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		given, site.Domain, aliases, string(site.Type), string(site.Profile), string(site.Engine), site.PHPVersion,
 		site.SystemUser, site.RootPath, string(site.Status), site.StagingOf, cfg, stamp, stamp)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed: sites.domain") {

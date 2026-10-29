@@ -57,7 +57,7 @@ func (o *Ops) RunBackup(ctx context.Context, p rpc.BackupParams) (rpc.BackupResu
 	// The site's description first (SPEC §4): what another server needs to
 	// create the site again before restoring it.
 	// Its databases are the ones this backup holds.
-	manifest, err := o.manifestOf(ctx, p.Site, databases)
+	manifest, err := o.manifestOf(ctx, p.Site, databases, p.Accounts)
 	if err != nil {
 		return rpc.BackupResult{}, err
 	}

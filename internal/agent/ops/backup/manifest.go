@@ -31,11 +31,12 @@ const (
 	tagManifest     = "manifest:"
 )
 
-// manifestOf describes site s with its backed-up databases.
-func (o *Ops) manifestOf(ctx context.Context, s state.Site, databases []string) (rpc.SiteManifest, error) {
+// manifestOf describes site s with its backed-up databases and the
+// accounts the panel sent.
+func (o *Ops) manifestOf(ctx context.Context, s state.Site, databases []string, accounts []rpc.ManifestAccount) (rpc.SiteManifest, error) {
 	m := rpc.SiteManifest{
-		Format: rpc.ManifestFormat, CloudGround: version.Version, Domain: s.Domain, Aliases: append([]string{}, s.Aliases...),
-		Type: s.Type, Profile: s.Profile, PHPVersion: s.PHPVersion, Root: s.RootPath,
+		Format: rpc.ManifestFormat, CloudGround: version.Version, SiteID: s.ID, Domain: s.Domain, Aliases: append([]string{}, s.Aliases...),
+		Type: s.Type, Profile: s.Profile, PHPVersion: s.PHPVersion, Root: s.RootPath, Accounts: accounts,
 		Cache:     rpc.ManifestCache{Enabled: s.Config.CacheEnabled, TTLSec: s.Config.CacheTTLSec, ObjectCache: s.Config.ObjectCache},
 		Databases: []rpc.ManifestDatabase{},
 	}

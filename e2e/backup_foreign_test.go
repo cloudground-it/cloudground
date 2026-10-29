@@ -15,14 +15,17 @@ import (
 
 // restoreFromAnotherServer (#193, internal/api SPEC §5.10, ops/backup SPEC
 // §4, §5, §14): a WordPress site with a marker post, a marker file and a
-// second database holding a marker row is backed up into a repository of the
-// section's own. The box then plays another server: its hostname changes
+// second database holding a marker row, and a plain PHP site whose own
+// config file holds its database's name, account and password, are backed
+// up into a repository of the section's own. The box then plays another server: its hostname changes
 // (put back at the end) and the site is deleted, its backups kept. The
 // repository's other sites list it, with its server and its description;
 // an API token and an operator are refused, and so is a wrong domain; the
 // restore creates the site again, serving the post and the file, with the
 // second database's row back, wp-config.php naming the new site's database,
-// and a backup of its own taken here.
+// and a backup of its own taken here; the PHP site comes back with its ID,
+// its database account and its password, so its unchanged config file
+// still connects.
 func (h *harness) restoreFromAnotherServer(t *testing.T) {
 	base := fmt.Sprintf("/var/backups/cloudground/e2e-foreign-%d", h.pid)
 	raw := make([]byte, 24)
@@ -73,6 +76,50 @@ func (h *harness) restoreFromAnotherServer(t *testing.T) {
 	_, bb := h.api.post(fmt.Sprintf("/api/sites/%d/backups", id), map[string]any{})
 	h.check(t, "#193 control: the site's backup passes its restore test", h.api.waitTask(taskIDOf(bb), 15*time.Minute), "succeeded")
 
+	// A PHP site that keeps its database credentials in its own config.
+	pdom := h.dom("bforeignphp")
+	c, pb := h.api.post("/api/sites", fmt.Sprintf(`{"domain":%q,"type":"php","create_database":true}`, pdom))
+	var pmade struct {
+		Site struct {
+			ID int64 `json:"id"`
+		} `json:"site"`
+		Summary struct {
+			Database *struct {
+				Name     string `json:"name"`
+				User     string `json:"user"`
+				Password string `json:"password"`
+			} `json:"database"`
+		} `json:"summary"`
+	}
+	_ = json.Unmarshal(pb, &pmade)
+	pid := pmade.Site.ID
+	if c != 202 || pid == 0 || pmade.Summary.Database == nil || h.api.waitActive(pid, 5*time.Minute) != "active" {
+		h.fail(t, "#193 control: the section's PHP site provisions with a database", "HTTP %d %s", c, head(pb, 300))
+		return
+	}
+	pdeleted := false
+	defer func() {
+		if !pdeleted {
+			h.api.relogin()
+			h.api.deleteSite(pid)
+			h.api.teardownGone(pid)
+		}
+	}()
+	pdb := pmade.Summary.Database
+	psite := h.api.site(pid)
+	pcur := "/srv/sites/" + pdom + "/current"
+	h.mustWriteAs(t, pcur+"/cg-config.php", fmt.Sprintf("<?php return ['name' => %q, 'user' => %q, 'password' => %q];\n", pdb.Name, pdb.User, pdb.Password), psite.SystemUser)
+	h.mustWriteAs(t, pcur+"/cg-db.php", `<?php $c = require __DIR__ . '/cg-config.php';
+$m = new mysqli('127.0.0.1', $c['user'], $c['password'], $c['name'], 3306);
+$r = $m->query('SELECT v FROM cg_marker');
+echo $r->fetch_row()[0];
+`, psite.SystemUser)
+	r = h.run("mariadb", pdb.Name, "-e", "CREATE TABLE cg_marker (v VARCHAR(64)); INSERT INTO cg_marker VALUES ('"+marker+"');")
+	h.assert(t, "#193 control: the PHP site's database holds a marker row", r.OK(), "%s", r)
+	h.check(t, "#193 control: the PHP site reads its row with its own config", strings.TrimSpace(string(h.get(pdom, "/cg-db.php").Body)), marker)
+	_, bb = h.api.post(fmt.Sprintf("/api/sites/%d/backups", pid), map[string]any{})
+	h.check(t, "#193 control: the PHP site's backup passes its restore test", h.api.waitTask(taskIDOf(bb), 15*time.Minute), "succeeded")
+
 	foreign := func() (list []struct {
 		Domain   string `json:"domain"`
 		Hostname string `json:"hostname"`
@@ -91,15 +138,16 @@ func (h *harness) restoreFromAnotherServer(t *testing.T) {
 		_ = json.Unmarshal(b, &out)
 		return out.Sites, c
 	}
-	listed := func() (string, string, bool) {
+	listedOf := func(d string) (string, string, bool) {
 		list, _ := foreign()
 		for _, s := range list {
-			if s.Domain == dom {
+			if s.Domain == d {
 				return s.Snapshot, s.Hostname, s.Manifest
 			}
 		}
 		return "", "", false
 	}
+	listed := func() (string, string, bool) { return listedOf(dom) }
 	_, status := foreign()
 	snapHere, _, _ := listed()
 	h.assert(t, "#193: a site this panel has is not among the other servers' sites", status == 200 && snapHere == "", "HTTP %d, listed %q", status, snapHere)
@@ -134,6 +182,9 @@ func (h *harness) restoreFromAnotherServer(t *testing.T) {
 	h.check(t, "#193 control: the site is deleted, its backups kept", h.api.deleteSite(id), "202")
 	h.check(t, "#193 control: the site is gone", h.api.teardownGone(id), "yes")
 	deleted = true
+	h.check(t, "#193 control: the PHP site is deleted, its backups kept", h.api.deleteSite(pid), "202")
+	h.check(t, "#193 control: the PHP site is gone", h.api.teardownGone(pid), "yes")
+	pdeleted = true
 
 	snap, host, manifest := listed()
 	h.assert(t, "#193: the deleted site is listed with the server that backed it up and its description",
@@ -215,6 +266,32 @@ func (h *harness) restoreFromAnotherServer(t *testing.T) {
 		_, list := h.api.get(fmt.Sprintf("/api/sites/%d/backups", made.Site.ID))
 		h.assert(t, "#193 control: the site's own backup here is a new snapshot", !strings.Contains(string(list), snap), "the record names the snapshot the site came from")
 	}
+	h.check(t, "#193: the restored site keeps the ID it had", fmt.Sprint(made.Site.ID), fmt.Sprint(id))
+
+	// The PHP site: the same ID, database, account and password, so the
+	// config file it came back with still connects.
+	psnap, _, pmanifest := listedOf(pdom)
+	h.assert(t, "#193 control: the deleted PHP site is listed with its description", psnap != "" && pmanifest, "snapshot %q", psnap)
+	c, prb := h.api.post("/api/backups/foreign/restore", map[string]string{"snapshot": psnap, "confirm": pdom})
+	var pnew struct {
+		Site struct {
+			ID int64 `json:"id"`
+		} `json:"site"`
+	}
+	_ = json.Unmarshal(prb, &pnew)
+	if pnew.Site.ID != 0 {
+		defer func() { h.api.relogin(); h.api.deleteSite(pnew.Site.ID); h.api.teardownGone(pnew.Site.ID) }()
+	}
+	pst := h.api.waitTask(taskIDOf(prb), 25*time.Minute)
+	if pst != "succeeded" {
+		_, tb := h.api.get(fmt.Sprintf("/api/tasks/%d", taskIDOf(prb)))
+		t.Logf("backup.import (PHP): HTTP %d %s", c, head(tb, 800))
+	}
+	h.check(t, "#193: the PHP site is created and restored", pst, "succeeded")
+	h.check(t, "#193: the restored PHP site keeps the ID it had", fmt.Sprint(pnew.Site.ID), fmt.Sprint(pid))
+	h.check(t, "#193: the restored PHP site still connects with the config file it came back with",
+		strings.TrimSpace(string(h.get(pdom, "/cg-db.php").Body)), marker)
+
 	_, audit := h.api.get("/api/audit")
 	h.assert(t, "#193: the restore is audited", contains(audit, "backup.import") && contains(audit, "backup.imported"), "no backup.import(ed) in the audit log")
 }

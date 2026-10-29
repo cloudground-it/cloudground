@@ -111,14 +111,21 @@ read), with the init failure joined. restic before 0.17 (Ubuntu 24.04's
 2b. **The site's description** (#193): `backup --stdin --stdin-filename
    cloudground-site.json --tag site:<domain> --tag kind:<kind> --tag
    part:manifest --json --quiet`, fed `rpc.SiteManifest` as JSON: format 1,
-   the CloudGround release, domain, aliases, type, profile, PHP version, a
-   Node.js or Python site's runtime version and start command, the page
-   and object cache settings, the site's root, and each database the backup
-   holds with its engine (`mariadb`, `postgres`), whether it is the primary
-   and whether it is on an external server (`ops/db.DatabaseKind`). It is
-   what another server creates the site from before restoring it (§14);
-   no secret is in it. Taken before the databases; a failure fails the
-   backup, and every later failure forgets it with the rest.
+   the CloudGround release, the site's ID, domain, aliases, type, profile,
+   PHP version, a Node.js or Python site's runtime version and start
+   command, the page and object cache settings, the site's root, each
+   database the backup holds with its engine (`mariadb`, `postgres`),
+   whether it is the primary and whether it is on an external server
+   (`ops/db.DatabaseKind`), and the site's database accounts on this
+   server as the panel sends them (`BackupParams.Accounts`: name,
+   password, grants, which is the primary's). It is what another server
+   creates the site from before restoring it (§14), with the same
+   accounts, so an application whose configuration holds them connects
+   again. The passwords are in it on purpose: the snapshot is encrypted
+   with the repository's key like every other, and the backup already
+   holds the databases' data and, for WordPress, wp-config.php. Taken
+   before the databases; a failure fails the backup, and every later
+   failure forgets it with the rest.
 3. **Files**: `backup --json --quiet --tag site:<domain> --tag kind:<kind>
    [--tag db:<database snapshot id>]… --tag manifest:<description id>
    --exclude <root>/tmp <root>`, one `db:` tag per database snapshot.
@@ -187,14 +194,18 @@ the rule above as this server's would, and only that host's. The
 restore is then whole (`Mode` full, no `Paths`, no `Databases`, else
 `invalid` before anything is read), every database part must have been
 recorded by the same host as the files snapshot, `Foreign.Databases` maps
-a database of the backup to the new site's (the panel renames the
-primary with the site: `site_<old id>` → `site_<new id>`; two parts landing
-in one database are `invalid`), and once the restored tree is live, before
-PHP starts on it, `Reconfigure` writes the new site's credentials where
-the application keeps them: for WordPress, `wp config set` of `DB_NAME`,
-`DB_USER`, `DB_HOST`, and `DB_PASSWORD` and `CLOUDGROUND_SITE_TOKEN` from
-stdin, as the site user in its sandbox (the restored wp-config.php holds
-the old server's); a failure undoes the restore (step 7). Every other check
+a database of the backup to the new site's (only when the panel could
+not give the new site the backup's names, internal/api SPEC §5.10; two
+parts landing in one database are `invalid`), and once the restored tree
+is live, before PHP starts on it, `Reconfigure` writes what of this
+server the application must know, as the site user in its sandbox: for
+WordPress, the connector token (`CLOUDGROUND_SITE_TOKEN`, from stdin: the
+restored wp-config.php holds the old panel's), and, with
+`Foreign.Credentials` (a backup without a description, or names the new
+site could not keep), `DB_NAME`, `DB_USER`, `DB_HOST` and, from stdin,
+`DB_PASSWORD`. Any other type keeps its own configuration: the panel gave
+it the same database names, accounts and passwords. A failure undoes the
+restore (step 7). Every other check
 of this section stays. Restore tests, archives, deletions and retention
 never take another server's snapshot.
 Before, a files restore checked nothing of the snapshot's own tags and

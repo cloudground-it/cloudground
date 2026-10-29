@@ -718,7 +718,8 @@
       "askType": "Questo backup non dice che tipo di sito è. Scegli il tipo e la versione PHP che aveva.",
       "confirm": "Scrivi {domain} per confermare",
       "start": "Ripristina",
-      "started": "Ripristino avviato"
+      "started": "Ripristino avviato",
+      "limits": "I database tenuti su un server di database esterno, e i siti tenuti fuori dalla solita cartella dei siti, non si ripristinano da qui."
     }
   },
   "ssl": {

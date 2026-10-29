@@ -39,32 +39,29 @@ func (a *Agent) CheckRestic(ctx context.Context) {
 }
 
 // reconfigureRestored gives a WordPress site restored from another
-// server's backup its own database credentials and connector token in
-// wp-config.php (ops/backup SPEC §5), as provisioning wrote them: the
-// restored file holds the old server's. Secrets go on stdin, never in argv.
-// Other site types keep their credentials where their owner put them.
+// server's backup this panel's connector token in wp-config.php, and its
+// database settings when the panel could not keep the backup's
+// (Credentials; ops/backup SPEC §5), as provisioning wrote them. Secrets go
+// on stdin, never in argv. Other site types keep their configuration: the
+// panel gave them the backup's names, accounts and passwords.
 func (a *Agent) reconfigureRestored(ctx context.Context, s state.Site, f rpc.ForeignRestore) error {
 	if s.Type != state.SiteWordPress && s.Type != state.SiteWooCommerce {
 		return nil
 	}
-	d := s.Config.Database
-	if !d.Enabled || d.External {
-		return nil
-	}
-	steps := []struct {
+	type step struct {
 		what, secret string
 		args         []string
-	}{
-		{"database name", "", []string{"config", "set", "DB_NAME", d.Name}},
-		{"database user", "", []string{"config", "set", "DB_USER", d.User}},
-		{"database host", "", []string{"config", "set", "DB_HOST", d.Host + ":" + strconv.Itoa(d.Port)}},
-		{"database password", f.DBPassword, []string{"config", "set", "DB_PASSWORD", "--prompt"}},
+	}
+	var steps []step
+	if d := s.Config.Database; f.Credentials && d.Enabled && !d.External {
+		steps = append(steps,
+			step{"database name", "", []string{"config", "set", "DB_NAME", d.Name}},
+			step{"database user", "", []string{"config", "set", "DB_USER", d.User}},
+			step{"database host", "", []string{"config", "set", "DB_HOST", d.Host + ":" + strconv.Itoa(d.Port)}},
+			step{"database password", f.DBPassword, []string{"config", "set", "DB_PASSWORD", "--prompt"}})
 	}
 	if f.ConnectorToken != "" {
-		steps = append(steps, struct {
-			what, secret string
-			args         []string
-		}{"connector token", f.ConnectorToken, []string{"config", "set", "CLOUDGROUND_SITE_TOKEN", "--prompt"}})
+		steps = append(steps, step{"connector token", f.ConnectorToken, []string{"config", "set", "CLOUDGROUND_SITE_TOKEN", "--prompt"}})
 	}
 	for _, st := range steps {
 		if _, err := a.wpcli().Run(ctx, host.Invocation{

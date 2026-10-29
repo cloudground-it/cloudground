@@ -74,7 +74,7 @@ const columns = computed(() => [
 
     <template #body>
       <UContainer class="flex flex-col gap-6">
-        <UPageHeader :title="t('backup.foreign.title')" :description="t('backup.foreign.hint')">
+        <UPageHeader :title="t('backup.foreign.title')" :description="`${t('backup.foreign.hint')} ${t('backup.foreign.limits')}`">
           <template #links>
             <UButton color="neutral" variant="outline" icon="i-cg-refresh" :label="t('backup.foreign.reload')" :loading="pending" @click="refresh()" />
           </template>

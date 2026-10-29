@@ -23,6 +23,7 @@
       "manifest": {
         "format": 7,
         "cloudground": "CloudGround",
+        "site_id": 7,
         "domain": "Domain",
         "aliases": [
           "Aliases"
@@ -45,6 +46,19 @@
             "engine": "Engine",
             "primary": true,
             "external": true
+          }
+        ],
+        "accounts": [
+          {
+            "name": "Name",
+            "password": "Password",
+            "primary": true,
+            "grants": [
+              {
+                "database": "Database",
+                "level": "Level"
+              }
+            ]
           }
         ],
         "root": "Root"

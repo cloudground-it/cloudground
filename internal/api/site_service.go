@@ -49,6 +49,9 @@ type newSite struct {
 	DatabaseName     string `json:"database_name"`
 	DatabaseUser     string `json:"database_user"`
 	DatabasePassword string `json:"database_password"`
+	// keepID, set only by a restore from another server (§5.10), is the
+	// ID the site had there: kept when no site of this panel has it.
+	keepID int64
 }
 
 // siteKinds are the types a site can be created as.
@@ -299,6 +302,14 @@ func (svc siteService) prepare(ctx context.Context, actor string, req newSite) (
 	rec, db, err := checkNewSite(&req)
 	if err != nil {
 		return preparedSite{}, err
+	}
+	if req.keepID > 0 {
+		switch _, err := srv.Store.GetSite(req.keepID); {
+		case errors.Is(err, state.ErrNotFound):
+			rec.ID = req.keepID
+		case err != nil:
+			return preparedSite{}, err
+		}
 	}
 	caps, err := srv.capabilities(ctx)
 	if err != nil {

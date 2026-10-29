@@ -718,7 +718,8 @@
       "askType": "Cette sauvegarde ne dit pas quel type de site c’est. Choisissez le type et la version de PHP qu’il avait.",
       "confirm": "Tapez {domain} pour confirmer",
       "start": "Restaurer",
-      "started": "Restauration lancée"
+      "started": "Restauration lancée",
+      "limits": "Les bases de données d’un serveur de base de données externe, et les sites rangés hors du dossier habituel des sites, ne se restaurent pas ici."
     }
   },
   "ssl": {

@@ -718,7 +718,8 @@
       "askType": "Dieses Backup sagt nicht, was für eine Website es ist. Wähle den Typ und die PHP-Version, die sie hatte.",
       "confirm": "Gib {domain} zur Bestätigung ein",
       "start": "Wiederherstellen",
-      "started": "Wiederherstellung gestartet"
+      "started": "Wiederherstellung gestartet",
+      "limits": "Datenbanken auf einem externen Datenbankserver und Websites außerhalb des üblichen Website-Ordners werden hier nicht wiederhergestellt."
     }
   },
   "ssl": {

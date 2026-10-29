@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -15,15 +16,26 @@ import (
 
 const foreignSnap = "f00df00d11112222333344445555666677778888999900001111222233334444"
 
-// foreignWP is a WordPress backup of shop.example.com taken on old-box,
-// with its description: a primary and a second database.
+// The backup's accounts' passwords.
+const (
+	oldPrimaryPassword = "old-primary-password-0123"
+	oldReaderPassword  = "old-reader-password-0123"
+)
+
+// foreignWP is a WordPress backup of shop.example.com taken on old-box, where
+// it was site 12, with its description: a primary and a second database,
+// the primary account (granted the second too) and a reader of the second.
 func foreignWP() rpc.ForeignSnapshotResult {
 	return rpc.ForeignSnapshotResult{
 		ID: foreignSnap, Domain: "shop.example.com", Hostname: "old-box", Time: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
 		Databases: []string{"site_12", "shop_extra"},
-		Manifest: &rpc.SiteManifest{Format: 1, Domain: "shop.example.com", Aliases: []string{"www.shop.example.com"},
+		Manifest: &rpc.SiteManifest{Format: 1, SiteID: 12, Domain: "shop.example.com", Aliases: []string{"www.shop.example.com"},
 			Type: state.SiteWordPress, PHPVersion: "8.3", Cache: rpc.ManifestCache{Enabled: true, ObjectCache: true},
-			Databases: []rpc.ManifestDatabase{{Name: "site_12", Engine: "mariadb", Primary: true}, {Name: "shop_extra", Engine: "mariadb"}}},
+			Databases: []rpc.ManifestDatabase{{Name: "site_12", Engine: "mariadb", Primary: true}, {Name: "shop_extra", Engine: "mariadb"}},
+			Accounts: []rpc.ManifestAccount{
+				{Name: "site_12", Password: oldPrimaryPassword, Primary: true, Grants: []state.DBGrant{{Database: "site_12", Level: "all"}, {Database: "shop_extra", Level: "all"}}},
+				{Name: "shop_reader", Password: oldReaderPassword, Grants: []state.DBGrant{{Database: "shop_extra", Level: "read"}}},
+			}},
 	}
 }
 
@@ -125,13 +137,29 @@ func TestForeignRestoreCreatesAndRestores(t *testing.T) {
 		!site.Config.CacheEnabled || !site.Config.ObjectCache || site.Status != state.SiteActive {
 		t.Fatalf("site = %+v", site)
 	}
+	// The ID it had there is free here: the same user, database and
+	// account, with the account's own password.
+	if site.ID != 12 || site.SystemUser != "cg-site-12" || site.Config.Database.Name != "site_12" || site.Config.Database.User != "site_12" {
+		t.Fatalf("the site did not keep its ID and names: %+v", site)
+	}
+	if pw, _ := s.Store.Secret(state.SiteSecret(site.ID, state.SiteSecretDBPassword)); pw != oldPrimaryPassword {
+		t.Fatalf("the primary account's password is %q, not the backup's", pw)
+	}
 	p, _ := agent.lastParams[agentrpc.RestoreSnapshot.Name()].(rpc.RestoreParams)
-	if p.Foreign == nil || p.Foreign.Hostname != "old-box" || p.Foreign.Databases["site_12"] != site.Config.Database.Name ||
-		p.Foreign.DBPassword == "" || p.Foreign.ConnectorToken == "" || p.SnapshotID != foreignSnap || p.Mode != "full" {
+	if p.Foreign == nil || p.Foreign.Hostname != "old-box" || len(p.Foreign.Databases) != 0 || p.Foreign.Credentials ||
+		p.Foreign.ConnectorToken == "" || p.SnapshotID != foreignSnap || p.Mode != "full" {
 		t.Fatalf("RestoreSnapshot = %+v (foreign %+v)", p, p.Foreign)
 	}
 	if db, _ := agent.lastParams[agentrpc.CreateDatabase.Name()].(rpc.SiteDatabaseParams); db.Name != "shop_extra" {
 		t.Fatalf("the backup's other database was not made: %+v", db)
+	}
+	u, _ := agent.lastParams[agentrpc.CreateDBUser.Name()].(rpc.DBUserParams)
+	if u.User != "shop_reader" || u.Password != oldReaderPassword || len(u.Grants) != 1 || u.Grants[0] != (state.DBGrant{Database: "shop_extra", Level: "read"}) {
+		t.Fatalf("the backup's other account was not made as it was: %+v", u)
+	}
+	g, _ := agent.lastParams[agentrpc.SetDBGrants.Name()].(rpc.DBUserParams)
+	if g.User != "site_12" || len(g.Grants) != 2 {
+		t.Fatalf("the primary account's grants were not set as they were: %+v", g)
 	}
 	list, _ := s.Store.ListBackups(site.ID, 10)
 	if len(list) != 1 || list[0].VerifyStatus != state.VerifyPassed {
@@ -145,6 +173,43 @@ func TestForeignRestoreCreatesAndRestores(t *testing.T) {
 	}
 	if !asked || !done {
 		t.Fatalf("audit: %+v", events)
+	}
+}
+
+// §5.10: a backup's ID taken here: the site gets the panel's names, the
+// primary is renamed into its database and WordPress's settings are
+// rewritten.
+func TestForeignRestoreWithItsIDTaken(t *testing.T) {
+	s, agent, c := foreignSetup(t)
+	for i := range 12 {
+		seedActiveSite(t, s, "seed"+string(rune('a'+i))+".example.com", state.SiteStatic, "", 0)
+	}
+	_, body := c.do("POST", "/api/backups/foreign/restore", map[string]any{"snapshot": foreignSnap, "confirm": "shop.example.com", "php_version": "8.4"})
+	if j := waitTaskEnd(t, s, taskOf(t, body).ID); j.Status != state.JobSucceeded {
+		t.Fatalf("backup.import = %s %q", j.Status, j.Error)
+	}
+	site, _ := s.Store.GetSiteByDomain("shop.example.com")
+	if site.ID == 12 || site.Config.Database.Name == "site_12" {
+		t.Fatalf("the site took an ID another site has: %+v", site)
+	}
+	p, _ := agent.lastParams[agentrpc.RestoreSnapshot.Name()].(rpc.RestoreParams)
+	if p.Foreign == nil || p.Foreign.Databases["site_12"] != site.Config.Database.Name || !p.Foreign.Credentials {
+		t.Fatalf("RestoreSnapshot foreign = %+v", p.Foreign)
+	}
+}
+
+// §5.10, ops/backup SPEC §4: every backup carries the site's accounts on
+// this server, with their passwords, for its description.
+func TestBackupCarriesTheSiteAccounts(t *testing.T) {
+	s, agent, c := foreignSetup(t)
+	site := createViaAPI(t, s, c, map[string]any{"domain": "acc.example.com", "type": "php", "create_database": true, "database_password": oldPrimaryPassword})
+	if resp, body := c.do("POST", "/api/sites/"+strconv.FormatInt(site.ID, 10)+"/backups", nil); resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("backup = %d %s", resp.StatusCode, body)
+	}
+	waitForTasks(t, s)
+	p, _ := agent.lastParams[agentrpc.RunBackup.Name()].(rpc.BackupParams)
+	if len(p.Accounts) != 1 || p.Accounts[0].Name != site.Config.Database.User || p.Accounts[0].Password != oldPrimaryPassword || !p.Accounts[0].Primary {
+		t.Fatalf("RunBackup accounts = %+v", p.Accounts)
 	}
 }
 

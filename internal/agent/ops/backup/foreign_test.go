@@ -20,7 +20,9 @@ func TestBackupStoresTheSiteDescription(t *testing.T) {
 	f := newFixture(t)
 	f.site.Aliases = []string{"www.docs.example.com"}
 	f.site.Config.CacheEnabled = true
-	if _, err := f.backup("full"); err != nil {
+	accounts := []rpc.ManifestAccount{{Name: "site_3", Password: "the-account-password", Primary: true,
+		Grants: []state.DBGrant{{Database: "site_3", Level: "all"}}}}
+	if _, err := f.o.RunBackup(ctx, rpc.BackupParams{Site: f.site, Repository: repoURL, Password: "pw", Kind: "full", Accounts: accounts}); err != nil {
 		t.Fatal(err)
 	}
 	log := f.log()
@@ -41,8 +43,13 @@ func TestBackupStoresTheSiteDescription(t *testing.T) {
 		len(m.Databases) != 1 || m.Databases[0] != (rpc.ManifestDatabase{Name: "site_3", Engine: "mariadb", Primary: true}) {
 		t.Fatalf("description = %+v", m)
 	}
-	if strings.Contains(string(raw), "password") {
-		t.Fatalf("a secret in the description: %s", raw)
+	// The site's ID and its accounts, passwords included: another server
+	// makes them as they were (the snapshot is encrypted like the rest).
+	if m.SiteID != 3 || len(m.Accounts) != 1 || m.Accounts[0].Name != "site_3" || m.Accounts[0].Password != "the-account-password" || !m.Accounts[0].Primary {
+		t.Fatalf("description's site and accounts = %d %+v", m.SiteID, m.Accounts)
+	}
+	if strings.Contains(string(raw), `"pw"`) {
+		t.Fatalf("the repository's password in the description: %s", raw)
 	}
 }
 

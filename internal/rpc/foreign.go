@@ -24,6 +24,7 @@ const MaxManifest = 64 << 10
 type SiteManifest struct {
 	Format      int                `json:"format"`
 	CloudGround string             `json:"cloudground"`
+	SiteID      int64              `json:"site_id"`
 	Domain      string             `json:"domain"`
 	Aliases     []string           `json:"aliases"`
 	Type        state.SiteType     `json:"type"`
@@ -32,7 +33,41 @@ type SiteManifest struct {
 	Runtime     *ManifestRuntime   `json:"runtime,omitempty"`
 	Cache       ManifestCache      `json:"cache"`
 	Databases   []ManifestDatabase `json:"databases"`
+	Accounts    []ManifestAccount  `json:"accounts,omitempty"`
 	Root        string             `json:"root"`
+}
+
+// ManifestAccount is one of the site's database accounts on its server,
+// with its password and grants, so another server recreates it as it was
+// and the application's configuration still holds (#193). Primary marks
+// the account the site's primary database is configured with.
+type ManifestAccount struct {
+	Name     string          `json:"name"`
+	Password string          `json:"password"`
+	Primary  bool            `json:"primary,omitempty"`
+	Grants   []state.DBGrant `json:"grants"`
+}
+
+// MaxManifestAccounts bounds the accounts a backup describes.
+const MaxManifestAccounts = 64
+
+// validAccounts holds a backup's accounts to names, grants and passwords a
+// server can take.
+func validAccounts(accounts []ManifestAccount) error {
+	if len(accounts) > MaxManifestAccounts {
+		return errors.New("too many database accounts")
+	}
+	for _, a := range accounts {
+		if !site.ValidDBName(a.Name) || a.Password == "" || strings.ContainsAny(a.Password, "\x00\r\n") {
+			return errors.New("invalid database account")
+		}
+		for _, g := range a.Grants {
+			if !site.ValidDBName(g.Database) || !site.ValidGrant(g.Level) {
+				return errors.New("invalid database grant")
+			}
+		}
+	}
+	return nil
 }
 
 // ManifestRuntime is a Node.js or Python site's runtime and start command.
@@ -119,6 +154,9 @@ type ForeignRestore struct {
 	Databases      map[string]string `json:"databases,omitempty"`
 	DBPassword     string            `json:"db_password,omitempty"`
 	ConnectorToken string            `json:"connector_token,omitempty"`
+	// Credentials writes the new site's database settings too (a backup
+	// without a description, or names the new site could not keep).
+	Credentials bool `json:"credentials,omitempty"`
 }
 
 // validate holds a foreign restore to a whole restore of a named server's

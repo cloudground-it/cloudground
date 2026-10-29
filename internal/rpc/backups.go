@@ -22,16 +22,19 @@ type BackupParams struct {
 	Password   string            `json:"password"`
 	Kind       string            `json:"kind"`
 	Env        map[string]string `json:"env,omitempty"`
+	// Accounts are the site's database accounts on this server, with their
+	// passwords, for the backup's description (#193, ops/backup SPEC §4).
+	Accounts []ManifestAccount `json:"accounts,omitempty"`
 }
 
 // Sites lists the site backed up.
 func (p *BackupParams) Sites() []*state.Site { return []*state.Site{&p.Site} }
 
-// Validate requires a known kind.
+// Validate requires a known kind and accounts a server can take.
 func (p *BackupParams) Validate() error {
 	switch p.Kind {
 	case "", "full", "files", "database":
-		return nil
+		return validAccounts(p.Accounts)
 	}
 	return errors.New("backup kind must be full, files, or database")
 }

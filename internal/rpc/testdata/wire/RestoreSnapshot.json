@@ -21,7 +21,8 @@
           "key": "Databases"
         },
         "db_password": "DBPassword",
-        "connector_token": "ConnectorToken"
+        "connector_token": "ConnectorToken",
+        "credentials": true
       }
     },
     "zero": {

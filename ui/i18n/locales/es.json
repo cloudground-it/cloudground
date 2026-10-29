@@ -718,7 +718,8 @@
       "askType": "Esta copia de seguridad no dice qué tipo de sitio es. Elige el tipo y la versión de PHP que tenía.",
       "confirm": "Escribe {domain} para confirmar",
       "start": "Restaurar",
-      "started": "Restauración iniciada"
+      "started": "Restauración iniciada",
+      "limits": "Las bases de datos de un servidor de base de datos externo, y los sitios guardados fuera de la carpeta habitual de sitios, no se restauran aquí."
     }
   },
   "ssl": {

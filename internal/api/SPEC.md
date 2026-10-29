@@ -2000,12 +2000,25 @@ every refusal there applies, the domain or an alias already a site's →
 409, a PHP version not installed → 400, and `site.create` is audited),
 from the description: domain, aliases, type, profile, PHP version (the
 request's `type` and `php_version` win when given), cache and object
-cache, runtime and start command, and a database when the backup holds one
-(the new site's own `site_<id>`: a name of the `site_<n>` shape belongs to
-the site with that number). A WordPress site is installed with a
-placeholder account, which the restored database replaces. Audited
-`backup.import` (`snapshot <8 hex> made on <host>`): **202** `{"site",
-"task"}`.
+cache, runtime and start command, and a database when the backup holds one.
+A WordPress site is installed with a placeholder account, which the
+restored database replaces. Audited `backup.import` (`snapshot <8 hex>
+made on <host>`): **202** `{"site", "task"}`.
+
+**The same names, the same passwords.** An application's configuration
+(a Laravel `.env`, a PHP config file, wp-config.php) names its database,
+its account and the password, and the panel does not know where it keeps
+them. So the site comes back with the backup's: it keeps the **ID** it
+had on the other server when this panel has no site with it (its user
+`cg-site-<id>` and the default names `site_<id>` are then the same), its
+primary database and account keep their names (a name of the `site_<n>`
+shape only with ID `n`: it belongs to the site with that number) and the
+account its password, from the description's accounts. When a name
+cannot be kept (the ID is taken here), the panel's own name is used and
+the restore rewrites a WordPress site's database settings (ops/backup SPEC
+§5, `Credentials`); any other type is told, in the job's log, the names
+to put in its configuration. A backup without a description gets the
+panel's names and a new password, and the same rewrite.
 
 The job `backup.import` (not resumable; the site's lock and the
 repository's; canceled or interrupted as `site.create`):
@@ -2014,7 +2027,10 @@ repository's; canceled or interrupted as `site.create`):
 2. Every other database of the backup (its `dbname:` names, other than its
    primary) is made on this server under its own name, as §6.5 makes one;
    a name that is not free here is a progress warning, and the restore
-   leaves that database out.
+   leaves that database out. Then every other account of the description
+   is made as §6.5 makes one, with its own password and its grants (on the
+   databases as they are named here); one that cannot be made is a
+   progress warning.
 3. `RestoreSnapshot` in full with `Foreign`: the snapshot's host, the
    backup's primary mapped to the new site's (the primary is the one the
    description says; without one, the only database, else the one named
@@ -2028,6 +2044,14 @@ repository's; canceled or interrupted as `site.create`):
    only ever touches this server's (ops/backup SPEC §8), so the snapshots
    the site came from stay until their own server, or an administrator,
    removes them.
+
+**Not restored here**, said in the panel's page and in the job's log: a
+database the backup's server kept on an external database server (the
+description says so; it is left out, as an account on one), and a site
+whose root on the other server was not `<sites root>/<domain>` (the
+restore then fails with the agent's `the snapshot does not contain the
+site's files`, and the site created for it is kept for a delete). Such a
+site is restored with restic by hand.
 
 `cgctl backup foreign` lists, `cgctl backup import <snapshot> <domain>
 [--type <type>] [--php <version>]` restores (cmd/cgctl SPEC); both sign in
@@ -2085,7 +2109,9 @@ job; the store's `site.changed` event tells the pages. Audited
   /backups` answers **409** `a reverse-proxy site has nothing to back up`,
   and a new proxy site's policy is off. A site with no database backs up
   its files alone; a site's databases are each dumped and restore-tested
-  (ops/backup SPEC §4, §6). A restore may name `databases` (only these of
+  (ops/backup SPEC §4, §6). Every backup sends the site's database
+  accounts on this server, with their passwords and grants, for its
+  description (`BackupParams.Accounts`, §5.10). A restore may name `databases` (only these of
   the backup's; each must be a database of the site, else 400; a `files`
   restore with `databases` is 400).
 - **backup.verify** (rerun; **cannot be canceled**, queued or running):

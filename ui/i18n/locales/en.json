@@ -718,7 +718,8 @@
       "askType": "This backup does not say what kind of site it is. Choose the type and PHP version it had.",
       "confirm": "Type {domain} to confirm",
       "start": "Restore",
-      "started": "Restore started"
+      "started": "Restore started",
+      "limits": "Databases kept on an external database server, and sites kept outside the usual sites folder, are not restored here."
     }
   },
   "ssl": {

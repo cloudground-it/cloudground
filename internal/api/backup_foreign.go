@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -95,7 +96,7 @@ func (s *Server) handleForeignRestore(w http.ResponseWriter, r *http.Request, c 
 		respondErr(w, http.StatusBadRequest, "type the site's domain to confirm the restore")
 		return
 	}
-	site, primary, err := foreignNewSite(snap, req)
+	site, plan, err := foreignNewSite(snap, req)
 	if err != nil {
 		replyFailure(w, err)
 		return
@@ -111,7 +112,7 @@ func (s *Server) handleForeignRestore(w http.ResponseWriter, r *http.Request, c 
 		locks:   append(siteLocks(p.site.ID), jobs.RepoLock(repo)),
 		payload: jobRecord{SiteID: p.site.ID, Domain: p.site.Domain},
 	}, func(ctx context.Context, rec state.Site, progress func(int, string)) error {
-		return s.importSite(ctx, p, rec, snap, primary, progress)
+		return s.importSite(ctx, p, rec, snap, plan, progress)
 	})
 	if err != nil {
 		s.rollbackCreatedSite(p.site)
@@ -125,13 +126,24 @@ func (s *Server) handleForeignRestore(w http.ResponseWriter, r *http.Request, c 
 // another server's are never taken over by a new site (§3.2 step 6).
 var siteNameRe = regexp.MustCompile(`^site_[0-9]+$`)
 
+// importPlan is what a restore from another server keeps of the backup:
+// its primary database's name ("" for one from before they were named),
+// the account the primary was configured with, and the other accounts.
+type importPlan struct {
+	primary  string
+	account  *rpc.ManifestAccount
+	accounts []rpc.ManifestAccount
+	external map[string]bool
+}
+
 // foreignNewSite is the site a backup of another server describes, as
-// POST /api/sites would take it, and the name of the backup's primary
-// database ("" for a backup from before they were named, which the agent
-// restores into the site's primary itself).
-func foreignNewSite(snap rpc.ForeignSnapshotResult, req foreignRestore) (newSite, string, error) {
+// POST /api/sites would take it, with the backup's ID, database names and
+// primary password where this panel can keep them (§5.10), and the plan of
+// the rest.
+func foreignNewSite(snap rpc.ForeignSnapshotResult, req foreignRestore) (newSite, importPlan, error) {
 	m := snap.Manifest
 	site := newSite{Domain: snap.Domain, Type: req.Type, PHPVersion: req.PHPVersion}
+	plan := importPlan{primary: backupPrimary(snap), external: map[string]bool{}}
 	if m != nil {
 		if site.Type == "" {
 			site.Type = string(m.Type)
@@ -147,17 +159,44 @@ func foreignNewSite(snap rpc.ForeignSnapshotResult, req foreignRestore) (newSite
 		if m.Runtime != nil {
 			site.RuntimeVersion, site.StartCommand = m.Runtime.Version, m.Runtime.Start
 		}
+		site.keepID = m.SiteID
+		for _, d := range m.Databases {
+			if d.External {
+				plan.external[d.Name] = true
+			}
+		}
+		for i := range m.Accounts {
+			if m.Accounts[i].Primary && plan.account == nil {
+				plan.account = &m.Accounts[i]
+			} else {
+				plan.accounts = append(plan.accounts, m.Accounts[i])
+			}
+		}
 	}
 	if site.Type == "" {
-		return newSite{}, "", refuse(probInvalid, "this backup has no description of the site (it was made before 1.0): give its type, and its PHP version for a PHP site")
+		return newSite{}, importPlan{}, refuse(probInvalid, "this backup has no description of the site (it was made before 1.0): give its type, and its PHP version for a PHP site")
 	}
 	if state.SiteType(site.Type) == state.SiteProxy {
-		return newSite{}, "", refuse(probInvalid, "a reverse-proxy site has no backup to restore")
+		return newSite{}, importPlan{}, refuse(probInvalid, "a reverse-proxy site has no backup to restore")
 	}
-	primary := backupPrimary(snap)
 	if len(snap.Databases) > 0 && !startsWithDB(state.SiteType(site.Type)) {
 		yes := true
 		site.CreateDatabase = &yes
+	}
+	if len(snap.Databases) > 0 || startsWithDB(state.SiteType(site.Type)) {
+		// The backup's names, unless they are the panel's own site_<n>:
+		// those come back by keeping the ID.
+		if plan.primary != "" && !siteNameRe.MatchString(plan.primary) {
+			site.DatabaseName = plan.primary
+		}
+		if a := plan.account; a != nil {
+			if !siteNameRe.MatchString(a.Name) {
+				site.DatabaseUser = a.Name
+			}
+			if dbPasswordProblem(a.Password) == "" {
+				site.DatabasePassword = a.Password
+			}
+		}
 	}
 	if isWordPress(state.SiteType(site.Type)) {
 		// Placeholders: the restored database brings the site's own accounts.
@@ -166,7 +205,7 @@ func foreignNewSite(snap rpc.ForeignSnapshotResult, req foreignRestore) (newSite
 		site.AdminUser = "cloudground-restore"
 		site.AdminPassword = randomToken(24)
 	}
-	return site, primary, nil
+	return site, plan, nil
 }
 
 // backupPrimary is the primary database of a backup: the one its
@@ -192,9 +231,9 @@ func backupPrimary(snap rpc.ForeignSnapshotResult) string {
 }
 
 // importSite is the backup.import job (§5.10): the normal provisioning, the
-// backup's other databases made, the restore of the backup whole, then a
-// backup of the site on this server, restore-tested.
-func (s *Server) importSite(ctx context.Context, p preparedSite, rec state.Site, snap rpc.ForeignSnapshotResult, primary string, progress func(int, string)) error {
+// backup's other databases and accounts made, the restore of the backup
+// whole, then a backup of the site on this server, restore-tested.
+func (s *Server) importSite(ctx context.Context, p preparedSite, rec state.Site, snap rpc.ForeignSnapshotResult, plan importPlan, progress func(int, string)) error {
 	if err := s.siteSvc().provision(ctx, rec, p.sec, p.admin, func(pct int, msg string) { progress(pct*3/10, msg) }); err != nil {
 		return err
 	}
@@ -205,15 +244,24 @@ func (s *Server) importSite(ctx context.Context, p preparedSite, rec state.Site,
 	kept := func(err error) error {
 		return fmt.Errorf("%s was created but its backup could not be restored (delete it to try again): %w", site.Domain, err)
 	}
-	// The backup's databases: its primary goes into the new site's primary;
-	// any other is made under its own name when that name is free here.
+	if snap.Manifest != nil && snap.Manifest.SiteID > 0 && site.ID != snap.Manifest.SiteID {
+		progress(32, fmt.Sprintf("Site ID %d is taken on this panel: %s is site %d here", snap.Manifest.SiteID, site.Domain, site.ID))
+	}
+	// The backup's primary goes into the new site's primary, renamed only
+	// when its name could not be kept.
+	d := site.Config.Database
 	rename := map[string]string{}
-	if primary != "" && site.Config.Database.Enabled && !site.Config.Database.External {
-		rename[primary] = site.Config.Database.Name
+	if plan.primary != "" && d.Enabled && !d.External && plan.primary != d.Name {
+		rename[plan.primary] = d.Name
 	}
 	var skipped []string
 	for _, name := range snap.Databases {
-		if name == "" || name == primary {
+		if name == "" || name == plan.primary {
+			continue
+		}
+		if plan.external[name] {
+			skipped = append(skipped, name)
+			progress(35, "warning: the database "+name+" was on an external database server; it is not restored here")
 			continue
 		}
 		if err := s.addDatabaseNow(ctx, site, name); err != nil {
@@ -222,6 +270,40 @@ func (s *Server) importSite(ctx context.Context, p preparedSite, rec state.Site,
 			continue
 		}
 		progress(35, "Database "+name+" created")
+	}
+	mapGrants := func(gs []state.DBGrant) []state.DBGrant {
+		var out []state.DBGrant
+		for _, g := range gs {
+			if to, ok := rename[g.Database]; ok {
+				g.Database = to
+			}
+			if g.Database != "" && !slices.Contains(skipped, g.Database) {
+				out = append(out, g)
+			}
+		}
+		return out
+	}
+	dbs := s.databases()
+	// The primary account's grants beyond its own database (made by the
+	// provisioning with all of the primary).
+	if a := plan.account; a != nil && a.Name == d.User && len(a.Grants) > 1 {
+		if _, err := dbs.setGrants(ctx, "system", site, d.User, mapGrants(a.Grants)); err != nil {
+			progress(37, fmt.Sprintf("warning: the grants of %s cannot be set as they were (%v)", d.User, err))
+		}
+	}
+	for _, a := range plan.accounts {
+		if _, err := dbs.createUser(ctx, "system", site, newDBUser{Name: a.Name, Password: a.Password, Grants: mapGrants(a.Grants)}); err != nil {
+			progress(38, fmt.Sprintf("warning: the database user %s cannot be made here (%v)", a.Name, err))
+			continue
+		}
+		progress(38, "Database user "+a.Name+" created, with its password")
+	}
+	// What the application's configuration names is kept unless it could
+	// not be: then a WordPress site's is rewritten, and any other is told.
+	credentials := snap.Manifest == nil || plan.account == nil || plan.account.Name != d.User ||
+		plan.account.Password != p.sec.dbPassword || len(rename) > 0
+	if credentials && d.Enabled && !isWordPress(site.Type) {
+		progress(39, fmt.Sprintf("note: the application's database settings must name database %s, user %s and the password the site's Databases tab sets: the backup's could not be kept", d.Name, d.User))
 	}
 	repo, password, err := s.backupRepository()
 	if err != nil {
@@ -234,13 +316,14 @@ func (s *Server) importSite(ctx context.Context, p preparedSite, rec state.Site,
 	var done map[string]string
 	if err := agentrpc.Into(context.WithoutCancel(ctx), s.Agent, agentrpc.RestoreSnapshot, rpc.RestoreParams{
 		Env: s.backupEnv(), Site: site, Repository: repo, Password: password, SnapshotID: snap.ID, Mode: "full",
-		Foreign: &rpc.ForeignRestore{Hostname: snap.Hostname, Databases: rename, DBPassword: p.sec.dbPassword, ConnectorToken: p.sec.connectorToken},
+		Foreign: &rpc.ForeignRestore{Hostname: snap.Hostname, Databases: rename, DBPassword: p.sec.dbPassword,
+			ConnectorToken: p.sec.connectorToken, Credentials: credentials},
 	}, &done); err != nil {
 		return kept(err)
 	}
 	s.purgeQuietly(ctx, site)
 	if names := strings.Trim(done["skipped"]+","+strings.Join(skipped, ","), ","); names != "" {
-		progress(80, "warning: not restored, no such database here: "+names)
+		progress(80, "warning: not restored here: "+names)
 	}
 	s.audit("system", "backup.imported", site.Domain, fmt.Sprintf("restored from snapshot %s made on %s", shortID(snap.ID), snap.Hostname))
 
