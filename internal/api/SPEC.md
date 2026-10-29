@@ -3472,7 +3472,8 @@ Rules the API holds before it stores a setting (`site.CheckGitDeploy`, shared wi
   is read with the deploy key, never with a token in the address), `ssh://<user>@<host>[:port]/<path>`,
   `<user>@<host>:<path>` (scp style), or `file:///<path>` **inside the site's own directory**
   (a repository kept in the site's tree; any other local path is refused: the fetch sees only the
-  site, §15.5). `http://`, `git://` and every other scheme are refused (`400`).
+  site, §15.5), spelled with its three slashes: git reads `file:/<path>` as scp style, ssh to a
+  host named `file`, so that is refused. `http://`, `git://` and every other scheme are refused (`400`).
 - `branch`: 1–100 characters of `A-Za-z0-9._/-`, not starting with `-`, `/` or `.`, not ending
   with `/`, `.` or `.lock`, no `..` or `//`. Default `main`.
 - `build_command`: empty (none), else one line of at most 1 024 characters

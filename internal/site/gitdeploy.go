@@ -111,7 +111,9 @@ func CheckGitRepo(repo, root string) error {
 			return errors.New("an ssh repository is ssh://user@host/path")
 		}
 	case "file":
-		if u.Host != "" || !filepath.IsAbs(u.Path) || filepath.Clean(u.Path) != u.Path || root == "" {
+		// file:///path, spelled out: git reads "file:/path" (one slash) as
+		// user@host:path, ssh to a host named "file" (N-8-1).
+		if !strings.HasPrefix(repo, "file:///") || u.Host != "" || !filepath.IsAbs(u.Path) || filepath.Clean(u.Path) != u.Path || root == "" {
 			return errors.New("a file repository is file:///path")
 		}
 		if rel, err := filepath.Rel(root, u.Path); err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, "../") {
