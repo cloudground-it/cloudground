@@ -7,6 +7,23 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v1.0.2
+
+- **a reinstall after `cgctl uninstall` goes through**: it stopped at "port 80 is already in use",
+  because the uninstall kept nginx and nginx went on answering with its stock page. The uninstall
+  now stops and disables nginx, which served only CloudGround's sites, and says so at the end with
+  the command to start it again (`systemctl enable --now nginx`). The package stays installed.
+- **a Python app moved to a TCP port keeps working**: with the default start command the app still
+  bound a unix socket, and the site answered 502. When you set a port, the default command now
+  binds `127.0.0.1:$PORT`, and back to the socket when you clear the port. A command you wrote
+  yourself is never changed; the start command's help says it must bind as the port needs. Node.js
+  apps were not concerned.
+- **`cgctl uninstall` removes the runtimes** the panel installed, the Node.js
+  versions (`/var/lib/cloudground-runtimes`), like the other directories CloudGround owns. They stayed
+  behind.
+
+**Upgrading from v1.0.1** is one update, from the panel or with `cgctl update`.
+
 ## v1.0.1
 
 - **an update from the panel brings the release's kernel settings**: a server updated to v1.0.0
