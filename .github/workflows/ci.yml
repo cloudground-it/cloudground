@@ -46,10 +46,11 @@ jobs:
       # Fails only on a vulnerability the code can reach (make docker-vulncheck).
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
-      # The UI ships as a static bundle; its dependencies still run at build
-      # time, so a high or critical advisory in them fails the job.
+      # The UI ships as a static bundle. npm audit cannot tell what reaches it
+      # from what only runs at build time, so the job fails on a critical
+      # advisory; high ones are fixed by Dependabot's updates and by hand.
       - name: npm audit
-        run: cd ui && npm audit --omit=dev --audit-level=high
+        run: cd ui && npm audit --omit=dev --audit-level=critical
 
   ui:
     name: UI build and locales
