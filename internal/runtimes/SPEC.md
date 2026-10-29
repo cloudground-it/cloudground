@@ -88,6 +88,10 @@ WantedBy=multi-user.target
   `listen(process.env.PORT)` and gunicorn's `unix:$PORT` both take a path.
 - With `port`, `PORT` is the number and nginx proxies to `127.0.0.1:<port>`. Any local process can
   reach a loopback port; the panel says so beside the setting.
+- The sandbox binds no TCP or UDP port (internal/phpfpm SPEC §4.1, `NoPortBinds`). With `port`, the
+  unit adds `SocketBindAllow=tcp:<port>` after it, so the app can bind its own port (IPv4 or IPv6, as
+  Node's `listen(port)` does) and no other, and no other site can take that port while the app
+  restarts (where systemd enforces it: phpfpm SPEC §4.1). A socket app gets no allowance.
 - `EnvironmentFile` is read by systemd, as root, before the user is changed: the file is root's,
   0600, and the app sees its values in its environment and nowhere else. `-`: a missing file is no
   error.

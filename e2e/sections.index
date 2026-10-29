@@ -453,6 +453,7 @@ e2e/services_test.go	harness.serviceRows	R-2.4 services
 e2e/services_test.go	harness.services	R-2.4 services
 e2e/services_test.go	harness.shadowVerifies	wordpress sftp
 e2e/settings_test.go	harness.siteSettings	R-4.3 site settings
+e2e/shell_test.go	harness.portBindsEnforced	R-4.5 site shell
 e2e/shell_test.go	harness.siteShell	R-4.5 site shell
 e2e/shell_test.go	sftpOpts	R-4.5 site shell
 e2e/shell_test.go	sleepers	R-4.5 site shell

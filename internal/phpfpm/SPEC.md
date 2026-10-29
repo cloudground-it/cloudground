@@ -108,6 +108,21 @@ does not rely on it (APCu and OPcache map anonymous memory, sessions are in `<ro
 POSIX semaphores and `shm_open` need it, so it stays writable. The master, the shell and each run
 get separate instances.
 
+`NoPortBinds` (`SocketBindDeny=1-65535`) keeps a site's code from binding any TCP or UDP port, IPv4 or
+IPv6 (F-6-2). nginx proxies to an app's loopback port, and WordPress sends its connector token to
+`127.0.0.1:9080`. Either port, left free while its owner restarts, could otherwise be taken by
+another site's process. The rule names ports 1–65535, not `any`: systemd 259's `any` also refuses
+`bind()` to port 0, which a client that binds before it sends needs, while a port the kernel picks
+from the ephemeral range is nobody's. `connect()`, unix sockets (PHP-FPM's `listen`, the shell and
+mail gates) and outgoing connections are not concerned. A managed app in TCP-port mode adds
+`AllowPortBind(port)` (`SocketBindAllow=tcp:<port>`), and an allow wins over the deny (internal/runtimes
+SPEC §3). systemd enforces the rule with a cgroup BPF program, which it loads through `libbpf.so.1`
+(`libbpf1`, internal/syspkg). Ubuntu 26.04's systemd 259 has the BPF framework. Ubuntu 24.04's 255
+is built without it (`-BPF_FRAMEWORK` in `systemd --version`) and ignores the line, as does any
+systemd that started before libbpf was installed (until it is re-executed). The unit still starts
+and the rest of the sandbox stands, but there the ports are not held. The e2e checks the rule only
+where the host enforces it.
+
 `RunSandbox(site)` is `Sandbox(site)` plus `RunHardening` (R-10.5): `RestrictSUIDSGID=yes`,
 `PrivateIPC=yes`, `SystemCallFilter=@system-service`, `SystemCallErrorNumber=EPERM`
 (`LockPersonality=yes` is in `Sandbox` already). Every run of a site off the request path takes it: the SSH shell, cron jobs

@@ -20,6 +20,7 @@ RestrictNamespaces=yes
 RestrictRealtime=yes
 LockPersonality=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SocketBindDeny=1-65535
 CapabilityBoundingSet=
 ===== "x.test"
 ProtectSystem=strict
@@ -43,6 +44,7 @@ RestrictNamespaces=yes
 RestrictRealtime=yes
 LockPersonality=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SocketBindDeny=1-65535
 CapabilityBoundingSet=
 ===== ""
 ProtectSystem=strict
@@ -66,4 +68,5 @@ RestrictNamespaces=yes
 RestrictRealtime=yes
 LockPersonality=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SocketBindDeny=1-65535
 CapabilityBoundingSet=

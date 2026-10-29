@@ -293,6 +293,9 @@ func RenderUnit(s state.Site) (name, content string, err error) {
 		"# master's and every run's confinement, internal/phpfpm).",
 	)
 	add(phpfpm.RunSandbox(s)...)
+	if s.Config.App.Port != 0 {
+		add("# Its own port, and no other (NoPortBinds in the sandbox).", phpfpm.AllowPortBind(s.Config.App.Port))
+	}
 	add("", "[Install]", "WantedBy=multi-user.target")
 	return UnitName(u), b.String(), nil
 }

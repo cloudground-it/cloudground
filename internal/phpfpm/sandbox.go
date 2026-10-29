@@ -2,6 +2,7 @@ package phpfpm
 
 import (
 	"path/filepath"
+	"strconv"
 
 	"github.com/cloudground-it/cloudground/internal/state"
 )
@@ -15,8 +16,8 @@ import (
 // an empty tmpfs with only this site bound into it, and the same for its
 // logs. This, not open_basedir, is the tenant boundary. Other tenants'
 // processes are invisible (ProtectProc), /tmp and /dev are private, setuid
-// binaries gain nothing (NoNewPrivileges, no capabilities), and no
-// namespace can be made.
+// binaries gain nothing (NoNewPrivileges, no capabilities), no
+// namespace can be made, and no TCP or UDP port can be bound (NoPortBinds).
 //
 // PrivateDevices binds the host's /dev/shm into the private /dev, where
 // every site could leave files for every other: each unit mounts a tmpfs of
@@ -55,6 +56,22 @@ func RunSandbox(site state.Site) []string {
 // there, where the host's is half of RAM.
 const ShmSize = "64M"
 
+// NoPortBinds keeps a site's code from binding any TCP or UDP port, IPv4 or
+// IPv6 (SPEC §4.1): a loopback port that nginx or WordPress trusts (the
+// connector's 9080, another app's port) cannot be taken while its owner is
+// down. Port 0 is not matched, so a client that binds before it sends still
+// gets an ephemeral port from the kernel; unix sockets (PHP-FPM's listen,
+// the shell gate, the mail gate) are not concerned. An app in TCP-port mode
+// adds AllowPortBind for its own port. systemd enforces it with a cgroup
+// BPF program: a systemd without the BPF framework (Ubuntu 24.04's 255), or
+// without libbpf at hand, ignores the line, and the sandbox is otherwise
+// unchanged.
+const NoPortBinds = "SocketBindDeny=1-65535"
+
+// AllowPortBind is the line that lets a unit bind its own TCP port (IPv4 and
+// IPv6) through NoPortBinds.
+func AllowPortBind(port int) string { return "SocketBindAllow=tcp:" + strconv.Itoa(port) }
+
 func Sandbox(site state.Site) []string {
 	logDir := filepath.Join(LogRoot, site.Domain)
 	return []string{
@@ -79,6 +96,7 @@ func Sandbox(site state.Site) []string {
 		"RestrictRealtime=yes",
 		"LockPersonality=yes",
 		"RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6",
+		NoPortBinds,
 		"CapabilityBoundingSet=",
 	}
 }
