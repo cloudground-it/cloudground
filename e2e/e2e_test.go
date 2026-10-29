@@ -133,6 +133,7 @@ var sections = []section{
 	{name: "PHP extensions and backup hour", run: (*harness).phpExtensions},
 	{name: "woocommerce teardown", run: (*harness).woocommerceTeardown, fixtures: []string{fxWooSite}},
 	{name: "R-6.5 upgrade", run: (*harness).upgrade},
+	{name: "R-6.6 restore across updates", run: (*harness).restoreAcrossUpdates},
 }
 
 // TestE2E is the end-to-end suite: the sections above, against the server

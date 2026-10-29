@@ -117,6 +117,38 @@ of a full run. A box on which it was interrupted is put back by installing your 
 (`CLOUDGROUND_LOCAL_BUILD=…`) after removing `/var/lib/cloudground-agent/highest-release`, which then
 names a test release.
 
+## The restore-across-updates section
+
+`R-6.6 restore across updates` proves that a backup taken on a real older release restores after an
+update to the current build (#37). It runs only when `CG_E2E_RESTORE_BUNDLE` names its bundle,
+and only on a panel without sites: for each old release it takes the panel's state away, installs
+that release on an empty state, sets it up with the printed token, backs up a WordPress site with a
+marker post and a marker file, and updates from the panel to the current build. There the old
+backup is restore-tested and restored in every mode, downloaded, and left alone by retention.
+
+The bundle holds real releases: each old tag is built from its own source (`git archive`) in the
+`golang:<version>` image its own `go.mod` names, the current tree is labelled the highest tag plus
+one patch, and all of them are signed with a throwaway key and take updates from
+`http://127.0.0.1:18931`, which the section serves (`scripts/restore-upgrade-bundle.sh`; it runs
+docker itself, so it is run on the workstation):
+
+```sh
+make docker-restore-upgrade-bundle docker-e2e-bin       # RESTORE_TAGS="v0.1.0 v0.9.0" by default
+scp dist/restore-upgrade/restore-upgrade-bundle.tar.gz dist/cg-e2e root@<public-ip>:/root/
+ssh -n root@<public-ip> 'tar -C /root -xzf restore-upgrade-bundle.tar.gz &&
+  CG_E2E_RESTORE_BUNDLE=/root/restore-upgrade-bundle timeout 90m ./cg-e2e -test.v -test.run "^TestE2E$/^R-6.6_restore_across_updates$"'
+```
+
+The default old releases are the first one, v0.1.0, and the newest before the current build;
+`RESTORE_TAGS` names others. Real v0.1.0 installs and runs on Ubuntu 26.04. An old release's
+installer reads the box's development build as an installed release and refuses to replace it (it
+is not an update path), so each round removes the installed `panel-api` first: the old release is
+installed as on a new server. Each round ends with the box's own build, state, floor and snapshots
+put back (`cgctl install --from` the binaries it found), as at the end of the section. Run it alone:
+a box on which it was interrupted is put back by stopping the API, putting back the state from the
+`cg-e2e-r66-*` folder the section left in `/tmp` (`state/`), and installing your build again
+(`CLOUDGROUND_LOCAL_BUILD=…`) after removing `/var/lib/cloudground-agent/highest-release`.
+
 `cgctl uninstall` is not run on the box (it would take the suite's server apart): its check is the
 container run of `make docker-install-test`, install, uninstall and install again
 (internal/install/SPEC.md §8).

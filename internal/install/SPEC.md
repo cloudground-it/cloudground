@@ -855,6 +855,12 @@ role.
   apply to an update *from* such a release: unknown JSON fields are ignored (encoding/json), an
   unknown method is a `not_found` the API reports rather than misreads, and a request cut by the
   restart fails as `canceled` and is not retried by the agent.
+- **Backups across releases** (#37): every 1.x release restores every backup any 0.x or 1.x
+  release made (the snapshot layout and tags of ops/backup SPEC §4, the records of internal/api
+  SPEC §5.1), in every mode and as a download, and its restore test passes there; retention there
+  never forgets one it still protects. Checked on real old releases by the e2e section `R-6.6
+  restore across updates` (docs/e2e.md): each installed on an empty state, a backup taken there,
+  the panel's own update to the build under test, then the old backup restored.
 - **Jobs across the restart**: queued jobs wait for the API to come back; a running job of a kind
   that cannot resume blocks the update (§10 step 2) rather than being cut; a resumable one
   (`Rerun`, internal/jobs SPEC §6) runs again after the restart.
