@@ -259,6 +259,28 @@ so the new release brings them in itself, before it starts:
   warning with the `apt-get install` that fixes it, and the agent starts
   without the package, as before #113.
 
+### 2.7 The kernel settings a release needs
+
+The self-update installs binaries and units (§2.2), never the installer's
+files. The installer's kernel settings (`/etc/sysctl.d/60-cloudground.conf`,
+install SPEC §3 step 17) are a release's too, so the same `ensure-packages`
+start brings them in, before the packages:
+
+- **What**: the file as this release's installer renders it
+  (`install.Render`). The same content: nothing runs (the common start), and
+  a value changed at run time stays, as doctor reports it. A file that
+  differs or is missing is written (`0644`, by rename), then loaded with
+  `sysctl -p <file>` as a transient root service (`systemd-run --wait
+  --pipe --collect`, `RuntimeMaxSec=60`): `/proc/sys` is read-only in the
+  agent's sandbox (`ProtectKernelTunables`).
+- **Why it matters**: v1.0.0 moved `ip_local_port_range` to `32768 65535`
+  and refuses a new app port inside it (internal/api SPEC, `PUT
+  /api/sites/{id}/app`); a server updated from the panel kept `1024 65535`
+  until `cgctl install`, so no TCP port was left for an app.
+- **A failure** to write or to load is a warning in the journal with the
+  `sysctl -p` that fixes it, never a failed start, during an update
+  included: a kernel that refuses a value does not stop the install either.
+
 ## 3. Paths
 
 All from the agent's `Paths` (no hard-coded `/usr/local/bin`,
