@@ -694,7 +694,7 @@
         "moved": "Schon kopiert"
       },
       "modeHint": {
-        "copy": "Das Panel kopiert jeden Snapshot mit restic. Große Repositorys brauchen Stunden.",
+        "copy": "Das Panel kopiert jeden Snapshot mit restic. Große Repositorys brauchen Stunden. Zwischen zwei S3- oder B2-Konten mit verschiedenen Schlüsseln oder zwei SFTP-Servern geht das nicht: Kopiere die Dateien selbst und wähle dann „Schon kopiert“.",
         "moved": "Du hast das Repository selbst kopiert (rsync, rclone, das Werkzeug deines Anbieters). Das Panel prüft es nur."
       },
       "passwordHelp": "Leer lassen, wenn es gleich bleibt.",

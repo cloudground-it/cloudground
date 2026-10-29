@@ -694,7 +694,7 @@
         "moved": "Déjà copiées"
       },
       "modeHint": {
-        "copy": "Le panneau copie chaque snapshot avec restic. Un gros dépôt prend des heures.",
+        "copy": "Le panneau copie chaque snapshot avec restic. Un gros dépôt prend des heures. Il ne peut pas copier entre deux comptes S3 ou B2 aux clés différentes, ni entre deux serveurs SFTP : copiez vous-même les fichiers, puis choisissez « Déjà copiées ».",
         "moved": "Vous avez copié le dépôt vous-même (rsync, rclone, l’outil de votre fournisseur). Le panneau le vérifie seulement."
       },
       "passwordHelp": "Laissez vide s’il ne change pas.",

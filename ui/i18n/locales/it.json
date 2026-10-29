@@ -694,7 +694,7 @@
         "moved": "Già copiati"
       },
       "modeHint": {
-        "copy": "Il pannello copia ogni snapshot con restic. Con repository grandi servono ore.",
+        "copy": "Il pannello copia ogni snapshot con restic. Con repository grandi servono ore. Non può copiare tra due account S3 o B2 con chiavi diverse, né tra due server SFTP: copia tu i file, poi scegli «Già copiati».",
         "moved": "Hai copiato tu il repository (rsync, rclone, lo strumento del provider). Il pannello lo controlla soltanto."
       },
       "passwordHelp": "Lascia vuoto se è la stessa di adesso.",

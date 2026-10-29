@@ -1907,7 +1907,7 @@ repository's; one left out (or empty) keeps the current setting's value.
 
 | `mode` | The administrator says | The panel |
 | --- | --- | --- |
-| `copy` | copy the backups there | copies every snapshot with `restic copy` (ops/backup SPEC §13; a new repository is made first), then checks |
+| `copy` | copy the backups there | copies every snapshot with `restic copy` (ops/backup SPEC §13; a new repository is made first), then checks. restic copies with one set of credentials and one SSH command: between two S3 or B2 accounts with different keys, or two SFTP servers, the agent refuses it; the files are then copied by hand and moved with `moved`. The panel's dialog and docs/api.md say so |
 | `moved` | the files are already there (copied by hand: rsync, `rclone`, the provider's own tool) | checks only |
 
 Refusals, in order: a body that does not decode → 400 `malformed request`;

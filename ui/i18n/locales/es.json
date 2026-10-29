@@ -694,7 +694,7 @@
         "moved": "Ya copiadas"
       },
       "modeHint": {
-        "copy": "El panel copia cada snapshot con restic. Un repositorio grande tarda horas.",
+        "copy": "El panel copia cada snapshot con restic. Un repositorio grande tarda horas. No puede copiar entre dos cuentas S3 o B2 con claves distintas, ni entre dos servidores SFTP: copia tú los archivos y luego elige «Ya copiadas».",
         "moved": "Copiaste tú el repositorio (rsync, rclone, la herramienta de tu proveedor). El panel solo lo comprueba."
       },
       "passwordHelp": "Déjala vacía si es la misma de ahora.",

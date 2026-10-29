@@ -694,7 +694,7 @@
         "moved": "Already copied"
       },
       "modeHint": {
-        "copy": "The panel copies every snapshot with restic. Large repositories take hours.",
+        "copy": "The panel copies every snapshot with restic. Large repositories take hours. It cannot copy between two S3 or B2 accounts with different keys, or between two SFTP servers: copy the files yourself, then choose “Already copied”.",
         "moved": "You copied the repository yourself (rsync, rclone, your provider’s tool). The panel only checks it."
       },
       "passwordHelp": "Leave empty if it is the same as now.",
