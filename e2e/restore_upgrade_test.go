@@ -301,7 +301,8 @@ func (h *harness) restoreRound(t *testing.T, bundle string, feed *upgradeFeed, o
 	// the release's kernel settings as it starts (ops/panel SPEC §2.7).
 	dr := h.run(cgctlBinary, "doctor")
 	h.assert(t, name+": the update brings "+target+"'s kernel settings, file and running values",
-		!regexp.MustCompile(`(?m)^\W*sysctl\b`).MatchString(dr.Out), "%s", head([]byte(dr.Out), 600))
+		regexp.MustCompile(`(?m)^=\s+sysctl\s+up to date\s*$`).MatchString(dr.Out), "%s",
+		strings.Join(regexp.MustCompile(`(?m)^.*\bsysctl\b.*$`).FindAllString(dr.Out, -1), "\n"))
 	h.api.relogin()
 	if h.runningVersion() != target {
 		return
