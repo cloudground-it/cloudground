@@ -231,7 +231,8 @@ http-level is rendered by the agent into `conf.d` (`internal/engine/nginx`).
     Check: content, and (outside a container) the running kernel: each `key = value` of the file
     against `/proc/sys/<key with / for .>` (whitespace-normalised; a key the kernel lacks is not
     compared), so `doctor` reports a value something changed at run time. Apply: write the file
-    if it differs, then `sysctl -p <file>` — also when only the live values differed; a failure is
+    if it differs, then `sysctl -p <file>` — also when only the live values differed (after a
+    self-update the new agent does the same at its start: ops/panel SPEC §2.7); a failure is
     a warning (a kernel that refuses a value must not stop the install), and doctor keeps
     reporting the difference. Values: `net.core.somaxconn = 65535`, `net.ipv4.tcp_max_syn_backlog
     = 65535`, `net.core.netdev_max_backlog = 16384`, `net.ipv4.tcp_tw_reuse = 1`,

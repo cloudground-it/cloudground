@@ -142,7 +142,7 @@ func TestEnsureMainFailsOnlyDuringAnUpdate(t *testing.T) {
 	var buf bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&buf, nil))
 	sd := host.NewFakeSystemd()
-	if code := ensureMain(failing(), sd, log); code != 0 {
+	if code := ensureMain(failing(), nil, sd, log); code != 0 {
 		t.Fatalf("outside an update: exit %d", code)
 	}
 	if !strings.Contains(buf.String(), "apt-get install nftables") {
@@ -150,12 +150,12 @@ func TestEnsureMainFailsOnlyDuringAnUpdate(t *testing.T) {
 	}
 	for _, st := range []string{"active", "activating"} {
 		sd.SetUnit(host.UnitProps{Name: GuardUnit, ActiveState: st})
-		if code := ensureMain(failing(), sd, log); code != 1 {
+		if code := ensureMain(failing(), nil, sd, log); code != 1 {
 			t.Fatalf("guard %s: exit %d, want 1", st, code)
 		}
 	}
 	ok := &Packages{Exec: &host.FakeExec{Respond: dpkgAnswer(map[string]string{"nftables": "install ok installed"})}, Want: []string{"nftables"}}
-	if code := ensureMain(ok, sd, log); code != 0 {
+	if code := ensureMain(ok, nil, sd, log); code != 0 {
 		t.Fatalf("nothing missing during an update: exit %d", code)
 	}
 }

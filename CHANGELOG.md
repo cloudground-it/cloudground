@@ -7,6 +7,16 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v1.0.1
+
+- **an update from the panel brings the release's kernel settings**: a server updated to v1.0.0
+  from the panel, or with `cgctl update`, kept the kernel's old range for its own connections
+  (1024–65535), so a managed app could be given no TCP port and `cgctl doctor` reported
+  `60-cloudground.conf`. The agent now writes and loads the release's settings as it starts after
+  an update. A server installed with v1.0.0, or where `cgctl install` ran since, is not concerned.
+
+**Upgrading from v1.0.0** is one update, from the panel or with `cgctl update`.
+
 ## v1.0.0
 
 The first stable release. 1.0 is a promise about compatibility: the API, `cgctl` and the MCP tools

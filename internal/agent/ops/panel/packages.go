@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cloudground-it/cloudground/internal/agent/host"
+	"github.com/cloudground-it/cloudground/internal/install/managed"
 	"github.com/cloudground-it/cloudground/internal/syspkg"
 )
 
@@ -119,7 +120,7 @@ func (p *Packages) log() *slog.Logger {
 }
 
 // EnsureMain is `panel-agent ensure-packages`, run by systemd before the
-// agent starts. A failure fails the start only while an update is being
+// agent starts; it also brings in the release's kernel settings (Kernel). A failure fails the start only while an update is being
 // applied (the guard's unit is running): the guard then rolls the update
 // back. At any other start the agent starts anyway, without the package,
 // and says so in its journal.
@@ -128,12 +129,27 @@ func EnsureMain(args []string, log *slog.Logger) int {
 		log.Error("usage: panel-agent " + EnsurePackagesName)
 		return 2
 	}
-	return ensureMain(&Packages{Exec: host.OSExec{}, Want: syspkg.Release(), Log: log}, host.NewSystemd(), log)
+	k := &Kernel{Exec: host.OSExec{}, Path: managed.Sysctl, Log: log}
+	if want, err := KernelSettings(); err != nil {
+		log.Warn("the kernel settings of this release could not be rendered", "err", err)
+		k = nil
+	} else {
+		k.Want = want
+	}
+	return ensureMain(&Packages{Exec: host.OSExec{}, Want: syspkg.Release(), Log: log}, k, host.NewSystemd(), log)
 }
 
-func ensureMain(p *Packages, sd host.Systemd, log *slog.Logger) int {
+func ensureMain(p *Packages, k *Kernel, sd host.Systemd, log *slog.Logger) int {
 	ctx, cancel := context.WithTimeout(context.Background(), EnsureBudget)
 	defer cancel()
+	// The kernel settings first, a second's work, so a long apt run cannot
+	// leave them written and not loaded; a failure is logged and never
+	// fails the start (SPEC §2.7).
+	if k != nil {
+		if _, kerr := k.Ensure(ctx); kerr != nil {
+			log.Warn("the kernel settings this release needs could not be written", "file", k.Path, "err", kerr)
+		}
+	}
 	installed, err := p.Ensure(ctx)
 	if err == nil {
 		if len(installed) > 0 {

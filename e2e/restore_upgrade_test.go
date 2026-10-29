@@ -297,6 +297,12 @@ func (h *harness) restoreRound(t *testing.T, bundle string, feed *upgradeFeed, o
 	res := h.waitUpdateResult(r66AgentDir, since)
 	h.assert(t, name+": the update to "+target+" is healthy", res.OK && res.Version == target, "result %+v, answer %s", res, head(ub, 200))
 	h.check(t, name+": "+target+" runs after the update", h.runningVersion(), target)
+	// The self-update installs no installer file: the new agent brings in
+	// the release's kernel settings as it starts (ops/panel SPEC §2.7).
+	dr := h.run(cgctlBinary, "doctor")
+	h.assert(t, name+": the update brings "+target+"'s kernel settings, file and running values",
+		regexp.MustCompile(`(?m)^=\s+sysctl\s+up to date\s*$`).MatchString(dr.Out), "%s",
+		strings.Join(regexp.MustCompile(`(?m)^.*\bsysctl\b.*$`).FindAllString(dr.Out, -1), "\n"))
 	h.api.relogin()
 	if h.runningVersion() != target {
 		return
