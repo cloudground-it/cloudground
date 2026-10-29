@@ -2164,7 +2164,7 @@
     "runtime": "Laufzeitumgebung",
     "runtimeHelp": "Die Version, auf der die App läuft. Fehlt sie dem Server, wird sie mit der Site installiert.",
     "start": "Startbefehl",
-    "startHelp": "Von der Shell im aktiven Release ausgeführt. Die App muss auf $PORT lauschen: dem Pfad eines Unix-Sockets, außer du gibst einen Port an.",
+    "startHelp": "Von der Shell im aktiven Release ausgeführt. Die App muss auf $PORT lauschen: dem Pfad eines Unix-Sockets, außer du gibst einen Port an. Der Standardbefehl folgt dem gesetzten Port; ein eigener muss so lauschen, wie der Port es verlangt (gunicorn: --bind unix:$PORT, oder --bind 127.0.0.1:$PORT mit einem Port).",
     "startRule": "Der Startbefehl ist eine Zeile mit höchstens 1024 Zeichen.",
     "statusTitle": "App",
     "statusHint": "Die {runtime}-App läuft als eigener Dienst unter dem Site-Benutzer und startet neu, wenn sie stoppt.",

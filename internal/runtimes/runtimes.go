@@ -71,12 +71,32 @@ func ValidVersion(runtime, v string) bool {
 	return false
 }
 
-// DefaultStart is a new site's start command (SPEC §2).
-func DefaultStart(runtime string) string {
+// DefaultStart is a new site's start command (SPEC §2): the unix socket's.
+func DefaultStart(runtime string) string { return DefaultStartFor(runtime, false) }
+
+// DefaultStartFor is the default start command of a port mode: tcp for an
+// app on a loopback port, else for the unix socket. $PORT is the port or the
+// socket's path, so gunicorn must bind as the mode needs; Node's listen()
+// takes either (SPEC §2).
+func DefaultStartFor(runtime string, tcp bool) string {
 	if runtime == Node {
 		return "node server.js"
 	}
+	if tcp {
+		return "python -m gunicorn --bind 127.0.0.1:$PORT --workers 2 app:app"
+	}
 	return "python -m gunicorn --bind unix:$PORT --workers 2 app:app"
+}
+
+// FollowPortMode is the start command after the port mode changed from
+// fromTCP to toTCP: the default of the new mode when start is exactly the
+// default of the old one, else start itself. A custom command is never
+// touched (SPEC §2).
+func FollowPortMode(runtime, start string, fromTCP, toTCP bool) string {
+	if fromTCP != toTCP && start == DefaultStartFor(runtime, fromTCP) {
+		return DefaultStartFor(runtime, toTCP)
+	}
+	return start
 }
 
 // Limits (SPEC §2).

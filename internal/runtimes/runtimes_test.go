@@ -154,3 +154,31 @@ func TestNodeIndex(t *testing.T) {
 		t.Error("a malformed digest taken")
 	}
 }
+
+// #213: the default start command follows the port mode, a custom one never
+// moves, and Node's default is the same in both modes.
+func TestFollowPortMode(t *testing.T) {
+	sock, tcp := DefaultStartFor(Python, false), DefaultStartFor(Python, true)
+	if sock != DefaultStart(Python) || !strings.Contains(sock, "--bind unix:$PORT") || !strings.Contains(tcp, "--bind 127.0.0.1:$PORT") {
+		t.Fatalf("defaults: %q, %q", sock, tcp)
+	}
+	custom := "python -m gunicorn --bind unix:$PORT --workers 4 app:app"
+	for _, c := range []struct {
+		rt, start string
+		from, to  bool
+		want      string
+	}{
+		{Python, sock, false, true, tcp},
+		{Python, tcp, true, false, sock},
+		{Python, sock, false, false, sock},
+		{Python, tcp, false, true, tcp}, // already the new mode's: left alone
+		{Python, custom, false, true, custom},
+		{Python, "python app.py", true, false, "python app.py"},
+		{Node, "node server.js", false, true, "node server.js"},
+		{Node, "node dist/main.js", true, false, "node dist/main.js"},
+	} {
+		if got := FollowPortMode(c.rt, c.start, c.from, c.to); got != c.want {
+			t.Errorf("%s %q %v->%v = %q, want %q", c.rt, c.start, c.from, c.to, got, c.want)
+		}
+	}
+}

@@ -2164,7 +2164,7 @@
     "runtime": "Runtime",
     "runtimeHelp": "The version the app runs on. One the server lacks is installed with the site.",
     "start": "Start command",
-    "startHelp": "Run in the live release by the shell. The app must listen on $PORT: a unix socket path unless you set a port.",
+    "startHelp": "Run in the live release by the shell. The app must listen on $PORT: a unix socket path unless you set a port. The default command follows the port you set; a custom one must bind as the port needs (gunicorn: --bind unix:$PORT, or --bind 127.0.0.1:$PORT with a port).",
     "startRule": "The start command is one line of at most 1024 characters.",
     "statusTitle": "App",
     "statusHint": "The {runtime} app runs as a service of its own, as the site user, and starts again if it stops.",

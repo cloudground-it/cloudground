@@ -2164,7 +2164,7 @@
     "runtime": "Runtime",
     "runtimeHelp": "La versione su cui gira l'app. Se il server non ce l'ha, viene installata con il sito.",
     "start": "Comando di avvio",
-    "startHelp": "Eseguito dalla shell nel rilascio attivo. L'app deve ascoltare su $PORT: il percorso di un socket unix, se non imposti una porta.",
+    "startHelp": "Eseguito dalla shell nel rilascio attivo. L'app deve ascoltare su $PORT: il percorso di un socket unix, se non imposti una porta. Il comando predefinito segue la porta che imposti; uno personalizzato deve ascoltare come richiede la porta (gunicorn: --bind unix:$PORT, oppure --bind 127.0.0.1:$PORT con una porta).",
     "startRule": "Il comando di avvio è una riga di al massimo 1024 caratteri.",
     "statusTitle": "App",
     "statusHint": "L'app {runtime} gira come servizio a sé, con l'utente del sito, e riparte se si ferma.",

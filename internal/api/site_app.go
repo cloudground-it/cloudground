@@ -115,6 +115,16 @@ func (s *Server) handleSetApp(w http.ResponseWriter, r *http.Request, c *call) {
 	if req.HealthPath != nil {
 		a.HealthPath, changed = strings.TrimSpace(*req.HealthPath), append(changed, "health_path")
 	}
+	// #213: the default start command follows the port mode; a custom one
+	// is never touched.
+	if fromTCP, toTCP := cur.Config.App.Port != 0, a.Port != 0; fromTCP != toTCP {
+		if start := runtimes.FollowPortMode(runtimes.Of(cur.Type), a.Start, fromTCP, toTCP); start != a.Start {
+			a.Start = start
+			if !slices.Contains(changed, "start") {
+				changed = append(changed, "start")
+			}
+		}
+	}
 	// Secrets: a value sets, "" removes, the mask keeps.
 	writes := map[string]string{}
 	secrets := slices.Clone(a.Secrets)

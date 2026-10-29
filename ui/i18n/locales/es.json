@@ -2164,7 +2164,7 @@
     "runtime": "Entorno de ejecución",
     "runtimeHelp": "La versión con la que se ejecuta la app. Si el servidor no la tiene, se instala con el sitio.",
     "start": "Comando de inicio",
-    "startHelp": "Lo ejecuta la shell en la versión publicada. La app debe escuchar en $PORT: la ruta de un socket unix, salvo que indiques un puerto.",
+    "startHelp": "Lo ejecuta la shell en la versión publicada. La app debe escuchar en $PORT: la ruta de un socket unix, salvo que indiques un puerto. El comando predeterminado sigue el puerto que indiques; uno propio debe escuchar como lo pide el puerto (gunicorn: --bind unix:$PORT, o --bind 127.0.0.1:$PORT con un puerto).",
     "startRule": "El comando de inicio es una línea de 1024 caracteres como máximo.",
     "statusTitle": "App",
     "statusHint": "La app de {runtime} se ejecuta como un servicio propio, con el usuario del sitio, y vuelve a arrancar si se detiene.",
