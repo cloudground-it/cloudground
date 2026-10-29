@@ -9,9 +9,9 @@
 #            attests the build provenance, publishes the release (install.sh
 #            among its assets), marked latest only when it is the newest
 #            stable release
-#   pages    for that newest stable release only: publishes its install.sh
-#            on GitHub Pages, served as https://get.cloudground.it/, and the
-#            panel's demo (ui/demo, docs/demo.md) under /demo/
+#   pages    for that newest stable release only (pages.yml): publishes its
+#            install.sh on GitHub Pages, served as https://get.cloudground.it/,
+#            and the panel's demo (ui/demo, docs/demo.md) under /demo/
 #
 # vX.Y.Z is a stable release; vX.Y.Z-beta.N a pre-release, which only servers
 # on the beta channel are offered. Any other v* tag fails the build job.
@@ -205,59 +205,14 @@ jobs:
             --title "CloudGround $TAG" $flags dist/release/"$TAG"/*
           echo "newest_stable=$newest" >> "$GITHUB_OUTPUT"
 
-  # https://get.cloudground.it/ is GitHub Pages of this repository, serving
-  # the newest stable release's stamped install.sh at / (as index.html:
-  # Pages serves it as text/html, which curl | bash does not look at) and at
-  # /install.sh. Its trust argument is internal/install/SPEC.md §6.1; the
-  # repository settings and DNS it needs are in .github/RELEASING.md.
+  # get.cloudground.it and its demo: .github/workflows/pages.yml.
   pages:
     needs: [publish]
     if: needs.publish.outputs.newest_stable == 'true'
-    runs-on: ubuntu-24.04
     permissions:
       contents: read
       pages: write
       id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: release-unsigned
-          path: release/
-
-      - name: The site
-        run: |
-          f=release/install.sh
-          grep -qF "CLOUDGROUND_VERSION:-$TAG}" "$f" || { echo "::error::install.sh does not name $TAG"; exit 1; }
-          mkdir site
-          cp "$f" site/install.sh
-          cp "$f" site/index.html
-          # Pages takes the custom domain from the repository's settings when
-          # it deploys from Actions; the file records it beside the site.
-          echo get.cloudground.it > site/CNAME
-          (cd site && sha256sum install.sh)
-
-      # The interface of this release against sample data that runs in the
-      # browser (docs/demo.md): a static build of its own, served at
-      # https://get.cloudground.it/demo/. It sends nothing anywhere.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: '22.23.3'
-      - name: The demo
-        run: |
-          (cd ui && npm ci --no-audit --no-fund && npm test && npm run build:demo)
-          test -f ui/dist-demo/index.html
-          mkdir -p site/demo
-          cp -R ui/dist-demo/. site/demo/
-
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: site/
-
-      - id: deploy
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+    uses: ./.github/workflows/pages.yml
+    with:
+      tag: ${{ github.ref_name }}
