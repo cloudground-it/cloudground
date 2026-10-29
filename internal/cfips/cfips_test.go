@@ -1,6 +1,7 @@
 package cfips
 
 import (
+	"fmt"
 	"net/netip"
 	"strings"
 	"testing"
@@ -30,6 +31,9 @@ func TestParseRefuses(t *testing.T) {
 		{[]string{"0.0.0.0/0"}, nil, "not a public network"},
 		{[]string{"64.0.0.0/2"}, nil, "too wide"},
 		{[]string{"104.16.0.0/13"}, []string{"2000::/3"}, "too wide"},
+		// H-7-2: no wider than Cloudflare's widest, with a margin: /12, /29.
+		{[]string{"104.0.0.0/11"}, nil, "too wide"},
+		{[]string{"104.16.0.0/13"}, []string{"2a06:9800::/28"}, "too wide"},
 	} {
 		_, err := Parse(c.v4, c.v6)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
@@ -64,5 +68,25 @@ func TestParseSortsAndContains(t *testing.T) {
 	}
 	if p := r.Prefixes(); len(p) != 3 || !p[0].Addr().Is4() {
 		t.Fatalf("Prefixes: %v", p)
+	}
+}
+
+// The widest networks Cloudflare has, and a /12 and a /29, are taken; Diff
+// names what a new list adds and drops.
+func TestWidestAndDiff(t *testing.T) {
+	a, err := Parse([]string{"104.16.0.0/12", "173.245.48.0/20"}, []string{"2a06:98c0::/29"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Parse([]string{"173.245.48.0/20", "131.0.72.0/22"}, []string{"2a06:98c0::/29"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	added, removed := b.Diff(a)
+	if fmt.Sprint(added) != "[131.0.72.0/22]" || fmt.Sprint(removed) != "[104.16.0.0/12]" {
+		t.Errorf("Diff: added %v removed %v", added, removed)
+	}
+	if added, removed := a.Diff(a); len(added)+len(removed) != 0 {
+		t.Errorf("a list differs from itself: %v %v", added, removed)
 	}
 }

@@ -1489,7 +1489,9 @@ one. The `cloudflare.ranges` job (jobs SPEC §8, §9: daily, and at the first
 wake after a start) runs only while a site has `real_ip` on: `GET
 https://api.cloudflare.com/client/v4/ips` (10 s, at most 64 KiB), the
 JSON's `result.ipv4_cidrs` and `result.ipv6_cidrs`, checked by `cfips.Parse`
-(a list it refuses is not used). The good list is stored (`meta` key
+(a list it refuses is not used; no network wider than /12 or /29). A good list
+that differs from the one in use is logged as a warning naming the networks
+added and those gone (`cfips.Ranges.Diff`). The good list is stored (`meta` key
 `cloudflare_ranges`, `{v4, v6, fetched_at}`) and sent to the agent
 (`SetCloudflareRanges`, every run: the agent rewrites its file only when it
 changed). A failed fetch fails the job (quiet: logged, no alert) and

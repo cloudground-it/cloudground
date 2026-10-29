@@ -24,7 +24,7 @@ and refuses (the message names the entry):
 | an IPv4 entry in the IPv6 list, or the other way round | `<p> is in the wrong list` |
 | not masked (`104.16.0.1/13`) | `<p> is not a network address` |
 | not a global unicast network (loopback, private, link-local, multicast, the unspecified address) | `<p> is not a public network` |
-| wider than /8 (IPv4) or /20 (IPv6) | `<p> is too wide to be one of Cloudflare's networks` |
+| wider than /12 (IPv4) or /29 (IPv6): Cloudflare's widest are a /13 and a /29 | `<p> is too wide to be one of Cloudflare's networks` |
 | no IPv4 entry, more than 100 in a list | `a list of Cloudflare's ranges has 1 to 100 networks of each family` |
 
 The result is sorted, without repeats. A fetched list is used only if it
@@ -33,6 +33,9 @@ the server itself, choose the address nginx sees.
 
 `Contains(a)` reports whether an address (unmapped) is in the ranges;
 `Prefixes()` is them all, IPv4 first.
+`Diff(old)` is the networks added and those gone since `old`: the panel logs
+them when a fetched list differs from the one in use (api SPEC §3.20), so a
+change of who may name a visitor's address is on record.
 
 ## 3. Tests
 
