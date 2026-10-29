@@ -117,3 +117,16 @@ export function newRepositoryPassword(): string {
   crypto.getRandomValues(bytes)
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_')
 }
+
+/**
+ * The kind of a restic repository string, by its prefix: what credentials
+ * it needs beside the password (the move dialog, issue 192). "" for a local
+ * folder and the rest.
+ */
+export function repositoryKind(repo: string): 's3' | 'b2' | 'sftp' | '' {
+  const r = repo.trim()
+  if (r.startsWith('s3:')) return 's3'
+  if (r.startsWith('b2:')) return 'b2'
+  if (r.startsWith('sftp:')) return 'sftp'
+  return ''
+}

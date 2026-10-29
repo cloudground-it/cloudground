@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-const { blankDestination, destinationOf, newRepositoryPassword, regionOf, repositoryOf } = await import('../app/utils/backupDestination.ts')
+const { blankDestination, destinationOf, newRepositoryPassword, regionOf, repositoryKind, repositoryOf } = await import('../app/utils/backupDestination.ts')
 
 const d = (kind, fields) => ({ ...blankDestination(kind), ...fields })
 
@@ -67,4 +67,13 @@ test('a generated repository password is long and URL-safe', () => {
   assert.equal(a.length, 32)
   assert.match(a, /^[A-Za-z0-9_-]+$/)
   assert.notEqual(a, newRepositoryPassword())
+})
+
+test('the move dialog asks for what the new repository needs', () => {
+  assert.equal(repositoryKind('s3:https://s3.eu-central-1.amazonaws.com/b'), 's3')
+  assert.equal(repositoryKind(' b2:bucket:path '), 'b2')
+  assert.equal(repositoryKind('sftp:user@host:/srv/restic'), 'sftp')
+  assert.equal(repositoryKind('sftp://user@host:2222//srv/restic'), 'sftp')
+  assert.equal(repositoryKind('/mnt/backups'), '')
+  assert.equal(repositoryKind('rest:https://host/'), '')
 })
