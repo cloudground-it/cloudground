@@ -915,3 +915,61 @@ func listTree(t *testing.T, root string) string {
 	})
 	return b.String()
 }
+
+// TestParseListAroundNotices (#218): Elementor prints its deprecation log on
+// stdout at shutdown, after the JSON; a notice before it may hold brackets.
+func TestParseListAroundNotices(t *testing.T) {
+	list := `[{"name":"elementor","status":"active","version":"4.3.5","update":"none"}]`
+	notice := "PHP: 2026-11-01 16:49:04 [notice X 0][/srv/sites/x/wp-content/plugins/elementor/modules/global-classes/atomic-global-styles.php::410] " +
+		"get_cache_root_key(): Implicitly marking parameter $key as nullable is deprecated [array (\n  'trace' => '\n#0: Elementor\\Core\\Logger\\Manager -> shutdown()\n',\n)]\n"
+	for name, out := range map[string]string{
+		"after":  list + notice,
+		"before": notice + list + "\n",
+		"both":   notice + list + notice,
+	} {
+		got, err := parseList([]byte(out))
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		if len(got) != 1 || got[0].Name != "elementor" || got[0].Version != "4.3.5" {
+			t.Errorf("%s: got %+v", name, got)
+		}
+	}
+	if _, err := parseList([]byte(notice)); err == nil {
+		t.Error("a notice alone parsed as a list")
+	}
+	if v, err := coreVersion([]byte("Deprecated: x\n6.8.3\nPHP: notice [a]\n")); err != nil || v != "6.8.3" {
+		t.Errorf("coreVersion around notices = %q, %v", v, err)
+	}
+}
+
+// TestInstallSlashesTheAdminPassword (#220): wp-login.php checks the
+// password slashed, as wp_magic_quotes() leaves $_POST, so the install
+// stores it slashed too; the database password reaches wp-config.php as is.
+func TestInstallSlashesTheAdminPassword(t *testing.T) {
+	if got, want := wpSlash(`it's a "pass" \o/`), `it\'s a \"pass\" \\o/`; got != want {
+		t.Errorf("wpSlash = %q, want %q", got, want)
+	}
+	root := siteTree(t)
+	w := &fakeWP{}
+	o := newOps(t, w, &fakePHP{})
+	r, err := o.OpenSite(wpSite(root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = o.InstallWordPress(context.Background(), r, wpSite(root), "releases/r1",
+		Install{DBPassword: `db'pass\`, AdminUser: "admin", AdminPassword: `it's "mine" \ok`, AdminEmail: "a@example.com"})
+	stdin := map[string]string{}
+	for _, c := range w.calls {
+		if len(c.Args) > 1 {
+			stdin[c.Args[0]+" "+c.Args[1]] = c.Stdin
+		}
+	}
+	if got, want := stdin["core install"], `it\'s \"mine\" \\ok`; got != want {
+		t.Errorf("core install stdin = %q, want %q", got, want)
+	}
+	if got, want := stdin["config create"], `db'pass\`; got != want {
+		t.Errorf("config create stdin = %q, want %q", got, want)
+	}
+}

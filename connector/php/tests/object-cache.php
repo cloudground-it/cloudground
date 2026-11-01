@@ -119,6 +119,47 @@ if ($shared) {
 }
 check('flush_runtime', wp_cache_flush_runtime(), true);
 
+section('wp-cli changes reach PHP-FPM (#219)');
+$stale = $dir . '/.cloudground-cache-stale';
+@unlink($stale);
+new_request();
+$idOf = fn (string $key, string $group) => (new ReflectionMethod(WP_Object_Cache::class, 'id'))->invoke($GLOBALS['wp_object_cache'], $key, $group);
+if ($shared) {
+    $u = $idOf('7', 'users');
+    wp_cache_set('7', 'old hash', 'users');
+    wp_cache_set('8', 'kept', 'users');
+    file_put_contents($stale, $u . "\ncg:000000000000:other-site-key\n");
+    new_request();
+    check('a key wp-cli changed is dropped at the next request', wp_cache_get('7', 'users'), false);
+    check('other keys stay', wp_cache_get('8', 'users'), 'kept');
+    check('the list is emptied', filesize($stale), 0);
+} else {
+    wp_cache_add_non_persistent_groups('counts');
+    wp_cache_set('7', 'new hash', 'users');
+    wp_cache_delete('9', 'users');
+    wp_cache_add('fresh', 1, 'posts');
+    wp_cache_set('c', 1, 'counts');
+    check('nothing is written before the end of the run', is_file($stale), false);
+    check('wp_cache_close', wp_cache_close(), true);
+    $lines = file($stale, FILE_IGNORE_NEW_LINES);
+    check('set and delete are listed, add and non-persistent groups are not', $lines, [$idOf('7', 'users'), $idOf('9', 'users')]);
+    check('a second close adds nothing', [wp_cache_close(), count(file($stale))], [true, 2]);
+    new_request();
+    wp_cache_set('x', 1);
+    wp_cache_flush();
+    wp_cache_close();
+    check('after a flush in the run nothing more is listed', count(file($stale)), 2);
+    new_request();
+    $gen = trim((string) file_get_contents($file));
+    for ($i = 0; $i <= 2000; $i++) {
+        wp_cache_set("many$i", $i);
+    }
+    wp_cache_close();
+    check('too many keys: a new generation instead', trim((string) file_get_contents($file)) !== $gen, true);
+    check('…and the list is emptied', filesize($stale), 0);
+}
+new_request();
+
 section('unwritable generation');
 chmod($dir, 0555);
 if (@file_put_contents($dir . '/probe', 'x') === false) {

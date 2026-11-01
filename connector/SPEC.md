@@ -498,6 +498,32 @@ PHP-FPM after deleting the site's keys directly.
 `flush_group()` in PHP-FPM deletes the group's keys of the current
 generation (every blog); in wp-cli it can reach nothing, so it flushes.
 
+### 3.3.1 Single keys changed by wp-cli: the stale list
+
+A flush is for changes WordPress makes without telling the cache. A change
+it does tell the cache about (`update_option`, `wp_update_user`, a post
+save: `set`, `set_multiple`, `replace`, `delete`, `incr`/`decr` on a
+persistent group) used to stay in the wp-cli process, so PHP-FPM went on
+serving the old value: a password changed with `wp user update` was refused
+at wp-login.php until a full flush (#219).
+
+Without the shared segment, the drop-in keeps the ids of the keys it
+changed (`add` only fills a cache, so it is not listed). At the end of the
+run (`wp_cache_close()`, called from WordPress's shutdown, and a shutdown
+function of its own) it appends them, one per line, to
+`.cloudground-cache-stale` next to the generation file, under `flock`. At
+the start of every PHP-FPM request the drop-in stats that file; when it is
+not empty, it takes the lock, reads and truncates it, and deletes the
+listed ids of this site from APCu. A flush in the run drops the list (the
+new generation covers it). More than 2000 keys in one run, a key with a
+newline, a file that would pass 256 KiB (no FPM request has read it), or a
+file that cannot be written: the run writes a new generation instead.
+
+Cost: one `stat` per FPM request when nothing is listed. Measured by
+`connector/test/flush/run.sh`: wp-cli writes v2, FPM reads v2 with no
+flush; a value changed in the database alone (no cache call) still needs
+the flush.
+
 ### 3.4 One way to flush across processes: the generation
 
 wp-cli and PHP-FPM have separate APCu segments. A change made by wp-cli
@@ -513,7 +539,7 @@ laptop's Docker VM; the wp-cli timings are 10-run averages in
 
 | | wp-cli flush (generation) | FPM flush (endpoint) |
 | --- | --- | --- |
-| control: wp-cli writes, no flush, FPM reads | stale (expected) | stale |
+| control: the database changes alone, no flush, FPM reads | stale (expected) | stale |
 | FPM reads after the flush | new value | new value |
 | shared/ not writable | `flushed:false` (agent restarts the master) | n/a |
 | cost of the flush itself | 11–16 ms per process (drop-in only) | 1–2 ms per request with 50 000 entries |

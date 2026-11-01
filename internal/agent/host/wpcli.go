@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -111,3 +112,17 @@ func (w *WPCLIRunner) Run(ctx context.Context, inv Invocation) ([]byte, error) {
 }
 
 var _ WPCLI = (*WPCLIRunner)(nil)
+
+// WPLine is the last line of wp-cli's output that matches re, trimmed: a
+// plugin may print notices on stdout before or after the answer (Elementor
+// prints its deprecation log at shutdown), so the answer is never assumed
+// to be the whole output.
+func WPLine(out []byte, re *regexp.Regexp) (string, bool) {
+	lines := strings.Split(string(out), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if l := strings.TrimSpace(lines[i]); re.MatchString(l) {
+			return l, true
+		}
+	}
+	return "", false
+}

@@ -780,3 +780,16 @@ func TestWordPressTools(t *testing.T) {
 		t.Fatalf("a strange prefix: %v", err)
 	}
 }
+
+// TestLastNumberAroundNotices (#218): the count survives a plugin's notice
+// printed before or after it.
+func TestLastNumberAroundNotices(t *testing.T) {
+	for _, out := range []string{"12\n", "PHP: notice [x]\n12\n", "12\nPHP: 2026-11-01 [notice X 0] deprecated\n#0: shutdown()\n"} {
+		if n, err := lastNumber([]byte(out)); err != nil || n != 12 {
+			t.Errorf("lastNumber(%q) = %d, %v", out, n, err)
+		}
+	}
+	if _, err := lastNumber([]byte("PHP: notice\n")); err == nil {
+		t.Error("a notice alone gave a count")
+	}
+}

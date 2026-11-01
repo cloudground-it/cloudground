@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agent/ops/db"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/rpc"
@@ -133,13 +134,17 @@ func (o *Ops) SearchReplace(ctx context.Context, p rpc.DBStudioSearchReplacePara
 	return res, nil
 }
 
-// lastNumber reads the count wp-cli prints last.
+// countRe is the count `search-replace --format=count` prints.
+var countRe = regexp.MustCompile(`^[0-9]{1,18}$`)
+
+// lastNumber reads the count wp-cli prints: the last line that is a number,
+// since a plugin may print a notice before or after it.
 func lastNumber(out []byte) (int64, error) {
-	lines := strings.Fields(strings.TrimSpace(string(out)))
-	if len(lines) == 0 {
+	n, ok := host.WPLine(out, countRe)
+	if !ok {
 		return 0, fmt.Errorf("no count in the output")
 	}
-	return strconv.ParseInt(lines[len(lines)-1], 10, 64)
+	return strconv.ParseInt(n, 10, 64)
 }
 
 func (o *Ops) refresh(ctx context.Context, s state.Site) {
