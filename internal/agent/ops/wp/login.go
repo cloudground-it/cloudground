@@ -6,10 +6,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/rpc"
 )
@@ -21,6 +23,9 @@ const loginTTL = 5 * time.Minute
 // (connector/SPEC.md §2.5).
 const loginOption = "cloudground_login_"
 
+// digitsRe is a user ID as wp-cli prints it.
+var digitsRe = regexp.MustCompile(`^[0-9]{1,19}$`)
+
 // MagicLogin issues a one-shot sign-in link for the site's first
 // administrator (SPEC §2). Only the token's hash is stored, as the name of
 // an option row, which the connector reads by that name and deletes.
@@ -30,8 +35,8 @@ func (o *Ops) MagicLogin(ctx context.Context, p rpc.WPParams) (rpc.WPLoginResult
 	if err != nil {
 		return rpc.WPLoginResult{}, fmt.Errorf("list administrators: %w", err)
 	}
-	id := strings.TrimSpace(string(out))
-	if _, err := strconv.ParseUint(id, 10, 64); err != nil {
+	id, ok := host.WPLine(out, digitsRe)
+	if _, err := strconv.ParseUint(id, 10, 64); !ok || err != nil {
 		return rpc.WPLoginResult{}, agentrpc.Conflict("no administrator user found")
 	}
 

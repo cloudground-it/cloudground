@@ -45,11 +45,14 @@ final class CloudGround_Generation
 
     private static ?string $current = null;
 
-    public static function path(): string
+    /** The file wp-cli lists the keys it changed in, for PHP-FPM to drop. */
+    public const STALE = '.cloudground-cache-stale';
+
+    public static function path(string $file = self::FILE): string
     {
         // __DIR__ is where the drop-in really is: PHP resolves the link from
         // wp-content, so this is the site's shared/ directory.
-        return __DIR__ . '/' . self::FILE;
+        return __DIR__ . '/' . $file;
     }
 
     /** The generation this request uses, read once per request. */
@@ -96,6 +99,21 @@ class WP_Object_Cache
     /** @var array<string, true> */
     private array $local_groups = [];
 
+    /**
+     * Keys this process changed while PHP-FPM's copy is out of its reach
+     * (wp-cli), as id => true: written to the stale file at the end, for
+     * PHP-FPM to drop (SPEC 3.4).
+     *
+     * @var array<string, true>
+     */
+    private array $stale = [];
+    /** A key that cannot go in the stale file was changed: flush instead. */
+    private bool $staleOverflow = false;
+
+    /** More keys than this in one run, or a file past STALE_BYTES: flush. */
+    private const STALE_MAX = 2000;
+    private const STALE_BYTES = 262144;
+
     private bool $shared;
     private bool $multisite;
     private int $blog = 0;
@@ -114,6 +132,11 @@ class WP_Object_Cache
         $this->prefix = $this->site . CloudGround_Generation::current() . ':';
         if ($this->shared) {
             $this->reclaimIfMoved();
+            $this->dropStale();
+        } else {
+            // WordPress calls wp_cache_close() at shutdown; this covers a run
+            // that ends before it gets there.
+            register_shutdown_function([$this, 'close']);
         }
     }
 
@@ -129,6 +152,19 @@ class WP_Object_Cache
     private function inApcu(string $group): bool
     {
         return $this->shared && !isset($this->local_groups[$group === '' ? 'default' : $group]);
+    }
+
+    /** Remember a change PHP-FPM's copy must not outlive. */
+    private function changed(string $id, string $group): void
+    {
+        if ($this->shared || isset($this->local_groups[$group === '' ? 'default' : $group])) {
+            return;
+        }
+        if (str_contains($id, "\n") || count($this->stale) >= self::STALE_MAX) {
+            $this->staleOverflow = true;
+            return;
+        }
+        $this->stale[$id] = true;
     }
 
     private static function copy(mixed $value): mixed
@@ -212,6 +248,7 @@ class WP_Object_Cache
     {
         $id = $this->id($key, $group);
         $this->local[$id] = self::copy($data);
+        $this->changed($id, $group);
         return !$this->inApcu($group) || apcu_store($id, $this->local[$id], max(0, $expire));
     }
 
@@ -239,6 +276,7 @@ class WP_Object_Cache
         foreach ($data as $key => $value) {
             $id = $this->id($key, $group);
             $this->local[$id] = self::copy($value);
+            $this->changed($id, $group);
             $store[$id] = $this->local[$id];
             $out[$key] = true;
         }
@@ -257,6 +295,7 @@ class WP_Object_Cache
         $id = $this->id($key, $group);
         $had = array_key_exists($id, $this->local);
         unset($this->local[$id]);
+        $this->changed($id, $group);
         if (!$this->inApcu($group)) {
             return $had;
         }
@@ -281,6 +320,7 @@ class WP_Object_Cache
                 return false;
             }
             $value = max(0, (is_numeric($this->local[$id]) ? (int) $this->local[$id] : 0) + $offset);
+            $this->changed($id, $group);
             return $this->local[$id] = $value;
         }
         // Compare-and-swap, so concurrent increments are not lost; a value
@@ -314,6 +354,9 @@ class WP_Object_Cache
     public function flush(): bool
     {
         $this->local = [];
+        // A new generation covers every change so far.
+        $this->stale = [];
+        $this->staleOverflow = false;
         $next = CloudGround_Generation::next();
         if ($next === CloudGround_Generation::FIXED) {
             // No other process can be told. Inside PHP-FPM the segment can
@@ -391,6 +434,66 @@ class WP_Object_Cache
         register_shutdown_function(static function () use ($reclaim): void {
             register_shutdown_function($reclaim);
         });
+    }
+
+    /**
+     * End of a run without PHP-FPM's segment: append the keys it changed to
+     * the stale file (flock, as dropStale reads it). Too many, or a file
+     * that cannot be written: a new generation, so nothing stale is served.
+     */
+    public function close(): bool
+    {
+        if ($this->shared || ($this->stale === [] && !$this->staleOverflow)) {
+            return true;
+        }
+        $lines = $this->stale === [] ? '' : implode("\n", array_keys($this->stale)) . "\n";
+        $overflow = $this->staleOverflow;
+        $this->stale = [];
+        $this->staleOverflow = false;
+        $file = CloudGround_Generation::path(CloudGround_Generation::STALE);
+        clearstatcache(true, $file);
+        $size = @filesize($file);
+        if (!$overflow && (int) $size + strlen($lines) <= self::STALE_BYTES
+            && @file_put_contents($file, $lines, FILE_APPEND | LOCK_EX) === strlen($lines)) {
+            return true;
+        }
+        $this->flush();
+        // The new generation makes every listed key unreachable anyway.
+        @file_put_contents($file, '', LOCK_EX);
+        return true;
+    }
+
+    /**
+     * Start of a PHP-FPM request: drop the keys wp-cli listed as changed,
+     * and empty the list. One stat per request when there is nothing.
+     */
+    private function dropStale(): void
+    {
+        $file = CloudGround_Generation::path(CloudGround_Generation::STALE);
+        if (!@filesize($file)) {
+            return;
+        }
+        $h = @fopen($file, 'r+');
+        if ($h === false) {
+            return;
+        }
+        $data = '';
+        if (@flock($h, LOCK_EX)) {
+            $data = (string) stream_get_contents($h);
+            ftruncate($h, 0);
+            fflush($h);
+            flock($h, LOCK_UN);
+        }
+        fclose($h);
+        $ids = [];
+        foreach (explode("\n", $data) as $id) {
+            if ($id !== '' && str_starts_with($id, $this->site)) {
+                $ids[] = $id;
+            }
+        }
+        if ($ids !== []) {
+            apcu_delete($ids);
+        }
     }
 
     private function deleteMatching(string $regex): void
@@ -516,7 +619,7 @@ function wp_cache_supports($feature)
 
 function wp_cache_close()
 {
-    return true;
+    return $GLOBALS['wp_object_cache']->close();
 }
 
 function wp_cache_add_global_groups($groups)

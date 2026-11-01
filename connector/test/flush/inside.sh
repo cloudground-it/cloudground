@@ -39,10 +39,12 @@ echo "== correctness"
 cli set v1 >/dev/null
 echo "FPM reads (fills its APCu):                 $(fpm read.php)"
 cli set v2 >/dev/null
-echo "control, wp-cli wrote v2, no flush:         $(fpm read.php)   (stale is expected: separate segments)"
+echo "wp-cli updated to v2, no flush:             $(fpm read.php)   (v2: the stale list, #219)"
+cli db v3 >/dev/null
+echo "control, v3 in the database only:           $(fpm read.php)   (stale is expected: no cache call)"
 echo "A: wp-cli flush (new generation):           $(cli flush)"
 echo "   FPM reads:                               $(fpm read.php)"
-cli set v3 >/dev/null
+cli db v4 >/dev/null
 echo "   control before B:                        $(fpm read.php)"
 echo "B: flush inside an FPM worker:              $(fpm flush.php)"
 echo "   FPM reads:                               $(fpm read.php)"

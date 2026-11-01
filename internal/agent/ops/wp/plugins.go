@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agentrpc"
 	"github.com/cloudground-it/cloudground/internal/rpc"
 	"github.com/cloudground-it/cloudground/internal/state"
@@ -47,36 +48,52 @@ func (o *Ops) Plugins(ctx context.Context, p rpc.WPParams) (rpc.WPPluginsResult,
 // ("6.8.3", "6.9-RC1", "7.0-beta2-61234").
 var coreVersionRe = regexp.MustCompile(`^[0-9]+\.[0-9]+[0-9A-Za-z.+-]{0,40}$`)
 
-// coreVersion is the version in wp-cli's output: its last line, since a
-// plugin may print a notice before it.
+// coreVersion is the version in wp-cli's output: the last line that is one,
+// since a plugin may print a notice before or after it.
 func coreVersion(out []byte) (string, error) {
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	v := strings.TrimSpace(lines[len(lines)-1])
-	if !coreVersionRe.MatchString(v) {
+	v, ok := host.WPLine(out, coreVersionRe)
+	if !ok {
 		return "", errors.New("no version in the output")
 	}
 	return v, nil
 }
 
-// parseList decodes wp-cli's JSON list. Anything a plugin printed before
-// the array (a notice on stdout) is skipped. wp-cli gives "update" as a
+// parseList decodes wp-cli's JSON list. Anything a plugin printed on stdout
+// before or after the array (a notice, which may hold brackets of its own)
+// is skipped: the list is the first JSON array that decodes from a '['. wp-cli gives "update" as a
 // string ("available", "none", "unavailable", "version higher than
 // expected") for a plugin or theme it can check, and as the JSON boolean
 // false for one it cannot (a must-use plugin, a drop-in): false reads as
 // "none", true as "available" (SPEC §3).
 func parseList(out []byte) ([]rpc.WPPlugin, error) {
-	i := bytes.IndexByte(out, '[')
-	if i < 0 {
-		return nil, errors.New("no JSON list in the output")
-	}
-	var raw []struct {
+	type entry struct {
 		Name    string          `json:"name"`
 		Status  string          `json:"status"`
 		Version json.RawMessage `json:"version"`
 		Update  json.RawMessage `json:"update"`
 	}
-	if err := json.Unmarshal(bytes.TrimSpace(out[i:]), &raw); err != nil {
-		return nil, err
+	var raw []entry
+	var firstErr error
+	found := false
+	for rest := out; !found; {
+		i := bytes.IndexByte(rest, '[')
+		if i < 0 {
+			break
+		}
+		raw = nil
+		err := json.NewDecoder(bytes.NewReader(rest[i:])).Decode(&raw)
+		if err == nil {
+			found = true
+		} else if firstErr == nil {
+			firstErr = err
+		}
+		rest = rest[i+1:]
+	}
+	if !found {
+		if firstErr != nil {
+			return nil, firstErr
+		}
+		return nil, errors.New("no JSON list in the output")
 	}
 	items := make([]rpc.WPPlugin, 0, len(raw))
 	for _, r := range raw {

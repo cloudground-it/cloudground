@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/cloudground-it/cloudground/internal/agent/host"
 	"github.com/cloudground-it/cloudground/internal/agent/sitefs"
@@ -84,7 +85,7 @@ func (o *Ops) InstallWordPress(ctx context.Context, r *sitefs.Root, s state.Site
 	if title == "" {
 		title = s.Domain
 	}
-	steps = append(steps, step{"install WordPress", in.AdminPassword, []string{"core", "install",
+	steps = append(steps, step{"install WordPress", wpSlash(in.AdminPassword), []string{"core", "install",
 		"--url=https://" + s.Domain, "--title=" + title,
 		"--admin_user=" + in.AdminUser, "--prompt=admin_password",
 		"--admin_email=" + in.AdminEmail, "--skip-email"}})
@@ -99,6 +100,15 @@ func (o *Ops) InstallWordPress(ctx context.Context, r *sitefs.Root, s state.Site
 		o.log().Warn("setting pretty permalinks failed", "site", s.Domain, "err", err)
 	}
 	return linkShared(r, release)
+}
+
+// wpSlash is PHP's addslashes, as WordPress's wp_slash() applies it. Sign-in
+// checks the password as wp_magic_quotes() left it in $_POST, slashed
+// (wp_signon() does not unslash it), and WordPress's own forms store it
+// slashed too; `wp core install` stores it as given. Slashing it here keeps
+// a password with ' " or \ usable at wp-login.php (#220).
+func wpSlash(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `'`, `\'`, `"`, `\"`, "\x00", `\0`).Replace(s)
 }
 
 // linkShared moves the release's wp-config.php into shared/ (readable by
