@@ -372,6 +372,12 @@ func TestCertStatus(t *testing.T) {
 			t.Errorf("%s: %+v, want %+v", name, got, want)
 		}
 	}
+	if got := res.Certs["shop.example.com"].Names; len(got) != 1 || got[0] != "shop.example.com" {
+		t.Errorf("names = %v, want the certificate's SANs", got)
+	}
+	if got := res.Certs["missing.example.com"].Names; got != nil {
+		t.Errorf("a missing certificate has names %v", got)
+	}
 	for _, bad := range []string{"../../etc/shadow", "-x", "Shop.example.com", "a b"} {
 		if _, err := f.CertStatus(context.Background(), rpc.CertStatusParams{Names: []string{"shop.example.com", bad}}); codeOf(err) != agentrpc.CodeInvalid {
 			t.Errorf("%q: %v", bad, err)

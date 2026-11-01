@@ -3,6 +3,8 @@
  * A site's SFTP / SSH tab (artboard PanelSiteSFTP): the chrooted SFTP login,
  * by SSH keys only or with a password (#47), the SSH keys with their type,
  * and the SSH shell an administrator can turn on for the "shell" keys (R-4.5).
+ * The access section is one switch for SFTP and the shell: with it off the
+ * shell does not sign in, keys included (internal/agent/ops/sftp/SPEC.md §5.1).
  */
 type Access = 'sftp' | 'shell'
 type SignIn = 'keys' | 'password'
@@ -203,11 +205,12 @@ const keyColumns = computed(() => [
       <div class="flex min-w-0 flex-col gap-4">
         <USwitch
           :model-value="shellOn"
-          :disabled="!isAdmin || busy"
+          :disabled="!isAdmin || busy || (!sftpOn && !shellOn)"
           :label="t('sftp.shellToggle')"
-          :description="isAdmin ? (sftpOn ? undefined : t('sftp.shellNeedsAccess')) : t('sftp.shellAdminOnly')"
+          :description="!isAdmin ? t('sftp.shellAdminOnly') : (!sftpOn && !shellOn) ? t('sftp.shellNeedsAccess') : undefined"
           @update:model-value="v => setShell(!!v)"
         />
+        <UAlert v-if="shellOn && !sftpOn" color="warning" variant="subtle" icon="i-cg-alert-triangle" :description="t('sftp.shellBlocked')" />
         <UAlert color="warning" variant="subtle" icon="i-cg-alert-triangle" :description="t('sftp.shellWarning')" />
         <div class="mono overflow-x-auto bg-cg-code-bg px-3.5 py-3 text-[12.5px] leading-[1.75] whitespace-nowrap text-cg-code-muted" role="img" :aria-label="t('sftp.shellPreviewLabel')">
           <div class="pb-1.5 text-cg-code-muted">

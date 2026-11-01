@@ -70,6 +70,7 @@ func (h *harness) panelCertStatus(t *testing.T) {
 		Certs map[string]struct {
 			Exists   bool      `json:"exists"`
 			NotAfter time.Time `json:"not_after"`
+			Names    []string  `json:"names"`
 		} `json:"certs"`
 	}
 	if err == nil {
@@ -79,6 +80,10 @@ func (h *harness) panelCertStatus(t *testing.T) {
 	h.assert(t, "R-3.9: the panel's certificate status is the panel.pem nginx serves",
 		code == 200 && got.Exists && got.NotAfter.Equal(cert.NotAfter),
 		"R-3.9: CertStatus(cloudground-panel) = %d %s (%v); panel.pem expires %s", code, head(body, 200), err, cert.NotAfter.UTC())
+	// The names the SSL page lists are the certificate's own SANs.
+	h.assert(t, "R-3.9: the panel's certificate status lists the names panel.pem covers",
+		strings.Join(got.Names, ",") == strings.Join(cert.DNSNames, ","),
+		"R-3.9: CertStatus(cloudground-panel) names = %v; panel.pem covers %v", got.Names, cert.DNSNames)
 }
 
 // agentDrainsOnStop: a request the agent is in the middle of when systemd

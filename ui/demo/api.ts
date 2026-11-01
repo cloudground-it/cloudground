@@ -133,7 +133,7 @@ export function createDemo(opts: { now?: number } = {}) {
 
   const certOf = (s: DemoSite) => s.status !== 'active' || s.staging_of
     ? { exists: false, hsts: false }
-    : { exists: true, hsts: true, not_after: ago(now, -(s.id * 11 + 31) * DAY), days_left: s.id * 11 + 31, issuer: "Let's Encrypt (R11)" }
+    : { exists: true, hsts: true, not_after: ago(now, -(s.id * 11 + 31) * DAY), days_left: s.id * 11 + 31, issuer: "Let's Encrypt (R11)", custom: false, names: [s.domain, `www.${s.domain}`] }
 
   const backupsOf = (s: DemoSite) => s.staging_of || s.type === 'proxy'
     ? []

@@ -337,6 +337,10 @@ export interface CertificateStatus {
   not_after?: string
   days_left?: number
   issuer?: string
+  /** a certificate the operator brought; Let's Encrypt's otherwise. */
+  custom?: boolean
+  /** the DNS names it covers; absent from an agent that does not report them. */
+  names?: string[]
   last_renewal_error?: string
 }
 
