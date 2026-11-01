@@ -170,6 +170,9 @@ func (svc siteService) CertificateStatus(ctx context.Context, target state.Site)
 		out["days_left"] = int(time.Until(cert.NotAfter).Hours() / 24)
 		out["issuer"] = cert.Issuer
 		out["custom"] = cert.Custom
+		if len(cert.Names) > 0 {
+			out["names"] = cert.Names
+		}
 	}
 	if cs, err := svc.srv.Store.CertStateOf(target.ID); err == nil && cs.Error != "" {
 		out["last_renewal_error"] = cs.Error

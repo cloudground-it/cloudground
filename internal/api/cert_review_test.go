@@ -67,3 +67,30 @@ func TestBackToLetsEncryptIssuesForTheCurrentNames(t *testing.T) {
 		t.Fatalf("issued for %s %v (%s), want the domain and its new alias", got.Site.Domain, got.Site.Aliases, got.Email)
 	}
 }
+
+// GET /certificate carries the names the certificate covers, and leaves the
+// field out when the agent reports none (an agent older than the field).
+func TestCertificateStatusNames(t *testing.T) {
+	s, agent, ts := testServer(t)
+	c := setupAdmin(t, s, ts)
+	site := createWPSite(t, s, c, "names.example.com")
+	get := func() map[string]any {
+		resp, body := c.do("GET", fmt.Sprintf("/api/sites/%d/certificate", site.ID), nil)
+		var out map[string]any
+		if resp.StatusCode != http.StatusOK || json.Unmarshal(body, &out) != nil {
+			t.Fatalf("GET certificate = %d %s", resp.StatusCode, body)
+		}
+		return out
+	}
+	info := rpc.CertInfo{Exists: true, NotAfter: time.Now().Add(60 * 24 * time.Hour)}
+	agent.setResult(agentrpc.CertStatus.Name(), rpc.CertStatusResult{Certs: map[string]rpc.CertInfo{site.Domain: info}})
+	if _, ok := get()["names"]; ok {
+		t.Fatal("names present for an agent that reports none")
+	}
+	info.Names = []string{site.Domain, "www." + site.Domain}
+	agent.setResult(agentrpc.CertStatus.Name(), rpc.CertStatusResult{Certs: map[string]rpc.CertInfo{site.Domain: info}})
+	names, _ := get()["names"].([]any)
+	if len(names) != 2 || names[0] != site.Domain || names[1] != "www."+site.Domain {
+		t.Fatalf("names = %v", names)
+	}
+}

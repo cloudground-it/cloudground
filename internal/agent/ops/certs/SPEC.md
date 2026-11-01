@@ -64,7 +64,7 @@ Params `{site, email, staging, wildcard, cloudflare_token}`.
 
 ## 3. CertStatus
 
-Params `{names}`; result `{certs: name → {exists, not_after, issuer, custom}}`.
+Params `{names}`; result `{certs: name → {exists, not_after, issuer, custom, names}}`.
 
 - A name is a domain (`site.ValidateDomain`) or the panel's lineage
   `cloudground-panel`; anything else → `invalid`, before any file is read.
@@ -79,7 +79,9 @@ Params `{names}`; result `{certs: name → {exists, not_after, issuer, custom}}`
     `custom: true` (it is what the vhost serves, `engine` input);
   - otherwise `<CertLiveDir>/<domain>/fullchain.pem`.
 - The first PEM block is parsed with `crypto/x509` (no openssl):
-  `not_after` = NotAfter, `issuer` = issuer CN. Missing, not PEM, or not a
+  `not_after` = NotAfter, `issuer` = issuer CN, `names` = the DNS names it
+  covers (its SANs, in the certificate's order; omitted when it has none, and
+  by an agent older than the field). Missing, not PEM, or not a
   certificate → `{exists: false}` for that name, not an error.
 - The API's renewal pass skips `custom` certificates: renewing one with
   certbot obtained a Let's Encrypt certificate the vhost never serves (the

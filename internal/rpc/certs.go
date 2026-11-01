@@ -54,6 +54,9 @@ type CertInfo struct {
 	// Custom is a certificate the operator brought. It is served in place
 	// of Let's Encrypt's, and certbot does not renew it.
 	Custom bool `json:"custom,omitempty"`
+	// Names are the DNS names the certificate covers (its SANs, wildcards
+	// as "*.example.com"). An agent older than this field leaves it empty.
+	Names []string `json:"names,omitempty"`
 }
 
 // PanelCertParams asks for a Let's Encrypt certificate for the panel's own

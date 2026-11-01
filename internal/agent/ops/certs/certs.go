@@ -220,7 +220,7 @@ func readCertInfo(path string) (rpc.CertInfo, bool) {
 		if err != nil {
 			return rpc.CertInfo{}, false
 		}
-		return rpc.CertInfo{Exists: true, NotAfter: cert.NotAfter, Issuer: cert.Issuer.CommonName}, true
+		return rpc.CertInfo{Exists: true, NotAfter: cert.NotAfter, Issuer: cert.Issuer.CommonName, Names: cert.DNSNames}, true
 	}
 }
 
