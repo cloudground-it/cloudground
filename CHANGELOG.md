@@ -7,6 +7,29 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v1.0.3
+
+- **the Plugins page works on sites with Elementor**: it said "Could not list plugins and themes",
+  because Elementor prints a PHP notice after wp-cli's answer. The panel now reads the list around
+  any notice a plugin prints. The same fix covers the WordPress version, the one-click login and
+  the count after a search and replace.
+- **the admin password chosen when creating a WordPress site signs in**: a password with `'`, `"`
+  or `\` was refused at wp-login.php, because WordPress checks it in a different form from the one
+  the install stored. On a site created before the update, sign in from the panel and change the
+  password in WordPress, or use `wp user update`.
+- **changes made with wp-cli show on the site at once**: a password changed with
+  `wp user update`, an option set with `wp option update`, and any other change WordPress makes
+  through its object cache, reached the database but not the site's cache, so the old value stayed
+  until a full `wp cache flush`. Now the next page request drops the keys wp-cli changed. A change
+  written straight to the database (`wp db query`, phpMyAdmin) still needs a flush.
+- **the SSL page says what the site has**: active (Let's Encrypt, wildcard or your own), not
+  issued yet, issuing, failed with what to check, or expiring soon. It lists the names the
+  certificate covers, and the button reads Renew once a certificate exists.
+- **the SSH and SFTP page says that one switch covers both**: the access switch also lets the shell
+  keys in. With access off, the shell switch is greyed out and says to turn access on first.
+
+**Upgrading from v1.0.2** is one update, from the panel or with `cgctl update`.
+
 ## v1.0.2
 
 - **a reinstall after `cgctl uninstall` goes through**: it stopped at "port 80 is already in use",
