@@ -35,15 +35,15 @@
     "@nuxtjs/i18n": "^10.6.0",
     "@vueuse/core": "^15.0.0",
     "@vueuse/nuxt": "^15.0.0",
-    "nuxt": "^4.6.2",
-    "tailwindcss": "^4.3.3",
-    "vue": "^3.5.44"
+    "nuxt": "^4.6.4",
+    "tailwindcss": "^4.3.4",
+    "vue": "^3.5.45"
   },
   "devDependencies": {
-    "@intlify/message-compiler": "^11.4.16",
-    "@types/node": "^26.6.4",
+    "@intlify/message-compiler": "^11.4.18",
+    "@types/node": "^26.6.6",
     "typescript": "^6.0.3",
-    "vue-tsc": "^3.3.13"
+    "vue-tsc": "^3.3.14"
   },
   "overrides": {
     "@vueuse/core": "$@vueuse/core",
