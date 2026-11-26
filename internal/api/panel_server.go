@@ -154,6 +154,10 @@ type Server struct {
 	// fnMu orders the changes to the functions (SPEC.md §17.3).
 	fnMu sync.Mutex
 
+	// favicons keeps the sites' icons and limits their lookups
+	// (site_favicon.go).
+	favicons favicons
+
 	// dnsChecks limits the DNS readiness check; dnsLookup resolves its
 	// names (nil: the system resolver; tests replace it) (dns_check.go).
 	dnsChecks dnsGate

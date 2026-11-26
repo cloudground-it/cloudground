@@ -1585,6 +1585,40 @@ A site has no functions any more: they are a server-wide resource (§17), and th
 `/api/sites/{id}/functions*` routes are gone. `config.functions` is read only by the v0.8.x
 migration (§17.8); a staging copy still gets none of its production's.
 
+### 3.23 The site's icon (`site_favicon.go`)
+
+`GET /api/sites/{id}/favicon` (signed in, with the site's assignment, as `GET
+/api/sites/{id}`) answers the icon a browser shows for the site, for the site list and
+the site's page; the UI shows the site type's icon when there is none. The panel reads it
+as a visitor's browser would, but through this server's nginx: every request goes to
+`127.0.0.1:443`, with the site's name as SNI and `Host`, whatever the name resolves to
+(as the cache warmer does, `internal/agent/ops/wp/SPEC.md` §9). A staging site's
+internal key goes with it, so the staging password does not stop it.
+
+1. Only an `active` site is looked up; any other answers 204 at once.
+2. The home page `/` (at most 256 KiB read) names the candidates: its `<link>`
+   elements whose `rel` has `icon` or `apple-touch-icon`, in this order: SVG (by
+   `type` or a `.svg` path), then declared sizes from 64 px upward, then no declared
+   size, then sizes below 64 px largest first (an `apple-touch-icon` without `sizes`
+   counts as 180). At most 3 are fetched; then `/favicon.ico`.
+3. A candidate's address is resolved against the page's. Only `http` and `https` on
+   one of the site's own names (its domain or an alias) is fetched, and always over
+   HTTPS through the loopback. A redirect is followed, at most 3 times, while it stays
+   on the site's names. `/favicon.ico` follows none: WordPress redirects it to its own
+   logo when the site has no icon.
+4. An icon is at most 100 KiB, and its first bytes decide: PNG, ICO, GIF, JPEG, WebP
+   or SVG (`<svg` after an XML prolog, comments, a doctype and white space). The
+   content type sent is the one those bytes name, never the site's.
+5. A lookup takes 5 s at most; at most 4 run at once across the panel, and one per
+   site (a second request waits for the first's answer). Answers are kept in memory
+   per site and domain: an icon 6 hours, none 30 minutes. A restart forgets them.
+6. The answer is 200 with the icon, `Cache-Control: private, max-age=3600`, an `ETag`
+   (304 to a matching `If-None-Match`) and `Content-Security-Policy: default-src
+   'none'; style-src 'unsafe-inline'; sandbox`, so that an SVG opened on its own runs
+   nothing; or 204 with `Cache-Control: private, max-age=1800` when there is none.
+
+Nothing is written or audited.
+
 ### 3.11 Tests
 
 `site_service_test.go` (the services without HTTP: create's defaults and
