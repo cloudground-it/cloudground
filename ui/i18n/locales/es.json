@@ -2220,7 +2220,11 @@
     "hint": "Node.js y Python para los sitios Node.js y Python. Node.js viene de nodejs.org, comprobado con sus sumas de verificación publicadas; Python es el del sistema.",
     "installed": "Instalado",
     "install": "Instalar",
-    "queued": "Instalación iniciada"
+    "queued": "Instalación iniciada",
+    "col": {
+      "runtime": "Entorno de ejecución",
+      "version": "Versión"
+    }
   },
   "fn": {
     "title": "Funciones",
