@@ -207,6 +207,8 @@ func (s *Server) routeTable() []route {
 			Section: secSites, Doc: "whether a host name already points at this server (the certificate's readiness): `status` `here`, `partial`, `elsewhere`, `proxied` (a CDN hides the origin), `unresolved` or `unknown`, its A and AAAA `addresses` (a private one unnamed) and the server's public addresses; a lookup only, 3 s at most, 30 a minute per account"},
 		{Method: get, Path: "/api/sites/{id}", Policy: policySignedIn, Load: loadSite, Handle: s.handleGetSite,
 			Section: secSites, Doc: "a site and its settings"},
+		{Method: get, Path: "/api/sites/{id}/favicon", Policy: policySignedIn, Load: loadSite, Handle: s.handleSiteFavicon,
+			Section: secSites, Doc: "the icon a browser shows for the site, read through this server's nginx and kept for 6 hours: the image (PNG, ICO, GIF, JPEG, WebP or SVG, at most 100 KiB), or `204` when the site has none or is not active"},
 		{Method: del, Path: "/api/sites/{id}", Policy: policyAdmin, Load: loadSite, Handle: s.handleDeleteSite,
 			Section: secSites, Doc: "delete — returns `202`"},
 		{Method: patch, Path: "/api/sites/{id}", Policy: policyManage, Load: loadSite, Handle: s.handlePatchSite,

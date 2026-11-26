@@ -377,6 +377,8 @@ export function createDemo(opts: { now?: number } = {}) {
     ['GET', /^\/api\/logs$/, (r) => ({ path: r.query.get('source') ?? 'nginx-access', content: logText(r.query.get('source')?.includes('error') ? 'error' : 'access', 'example.com', now) })],
     ['GET', /^\/api\/sites$/, () => sites],
     ['GET', /^\/api\/sites\/(\d+)$/, (_r, m) => siteOf(m[1]!) ?? { status: 404, body: { error: 'site not found' } }],
+    // The sample sites have no icon of their own: each shows its type's.
+    ['GET', /^\/api\/sites\/(\d+)\/favicon$/, () => ({ status: 204, body: null })],
     ['GET', /^\/api\/sites\/(\d+)\/certificate$/, (_r, m) => { const s = siteOf(m[1]!); return s ? certOf(s) : notFound() }],
     ['GET', /^\/api\/sites\/(\d+)\/backups$/, (_r, m) => { const s = siteOf(m[1]!); return s ? backupsOf(s) : notFound() }],
     ['GET', /^\/api\/sites\/(\d+)\/cache-stats$/, () => ({ backend: 'nginx', hits: 183_204, misses: 4_912, entries: 1_308, mem_used: 0, mem_total: 0, hit_rate_pct: 97.4 })],

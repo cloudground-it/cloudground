@@ -251,6 +251,7 @@ Clients should ignore fields they do not know: answers gain fields within 1.x.
 | `POST` | `/api/sites` | admin | create (the database name, user and password may be chosen) — returns `202`, a task and the summary, the only answer with the database password |
 | `GET` | `/api/sites/dns-check?domain=` | manage | whether a host name already points at this server (the certificate's readiness): `status` `here`, `partial`, `elsewhere`, `proxied` (a CDN hides the origin), `unresolved` or `unknown`, its A and AAAA `addresses` (a private one unnamed) and the server's public addresses; a lookup only, 3 s at most, 30 a minute per account |
 | `GET` | `/api/sites/{id}` | auth | a site and its settings |
+| `GET` | `/api/sites/{id}/favicon` | auth | the icon a browser shows for the site, read through this server's nginx and kept for 6 hours: the image (PNG, ICO, GIF, JPEG, WebP or SVG, at most 100 KiB), or `204` when the site has none or is not active |
 | `DELETE` | `/api/sites/{id}` | admin | delete — returns `202` |
 | `PATCH` | `/api/sites/{id}` | manage | change any of the site's settings in one request (fields below) — returns `202`, the site and one task |
 | `POST` | `/api/sites/{id}/protected-paths` | manage | protect a path with a username and password, or change them (`{"path": "/wp-admin", "username": …, "password": …}`); answers the site's protected paths |

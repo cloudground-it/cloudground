@@ -142,6 +142,7 @@ const menu = computed<DropdownMenuItem[][]>(() => [[{ label: t('common.delete'),
       <UContainer class="flex flex-col gap-6">
         <UPageHeader v-if="site" :description="meta">
           <template #title>
+            <SiteIcon :site="site" size="lg" />
             <span class="min-w-0">{{ site.domain }}</span>
             <SiteStatusBadge :status="site.status" :staging="!!site.staging_of" size="lg" />
           </template>

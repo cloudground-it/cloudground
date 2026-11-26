@@ -127,6 +127,7 @@ e2e/e2e_test.go	harness.migration	migration import
 e2e/e2e_test.go	harness.runLanes	ALL
 e2e/e2e_test.go	harness.runSection	ALL
 e2e/e2e_test.go	harness.runType	site types
+e2e/e2e_test.go	harness.siteFavicon	site types
 e2e/e2e_test.go	harness.siteTypes	site types
 e2e/e2e_test.go	harness.woocommerce	woocommerce
 e2e/e2e_test.go	harness.woocommerceTeardown	woocommerce teardown
@@ -495,7 +496,7 @@ e2e/site_creation_test.go	creationFx.unquotablePasswordsRefused	F9b site creatio
 e2e/site_creation_test.go	creationFx.withAliases	F9b site creation
 e2e/site_creation_test.go	creationFx.wordpressWithChosenDB	F9b site creation
 e2e/site_creation_test.go	harness.siteCreation	F9b site creation
-e2e/site_logs_test.go	apiClient.getRaw	site log download
+e2e/site_logs_test.go	apiClient.getRaw	site types|site log download
 e2e/site_logs_test.go	harness.siteLogDownload	site log download
 e2e/sites_test.go	harness.siteLifecycle	R-3.7 site lifecycle
 e2e/sites_test.go	procsOfUID	R-3.7 site lifecycle|R-4.5 site shell

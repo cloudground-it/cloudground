@@ -3,6 +3,7 @@
 package e2e
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"net/http"
@@ -214,8 +215,13 @@ type siteType struct {
 	label, dom, json, path string
 	expect                 string // exact code, or "ok" for any non-5xx (empty app is fine)
 	prep                   func(t *testing.T, u, dom string)
-	upstream               bool // proxy: stand up a real upstream on 127.0.0.1:9099
+	upstream               bool   // proxy: stand up a real upstream on 127.0.0.1:9099
+	icon                   []byte // the icon the panel must answer; nil: none (204)
 }
+
+// e2eIcon is a whole 1x1 PNG: the static site's icon.
+var e2eIcon = []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89" +
+	"\x00\x00\x00\rIDATx\x9cc\xf8\xcf\xc0\xf0\x1f\x00\x05\x00\x01\xff\x89\x99=\x1d\x00\x00\x00\x00IEND\xaeB`\x82")
 
 // siteTypes: per type create -> active -> serves -> delete(async) -> teardown gone.
 // The types share nothing, so CG_E2E_PARALLEL=1 runs them side by side;
@@ -223,8 +229,14 @@ type siteType struct {
 // named after the type and sit directly under the section either way.
 func (h *harness) siteTypes(t *testing.T) {
 	types := []siteType{
-		{label: "static", dom: h.dom("static"), path: "/", expect: "200",
-			json: fmt.Sprintf(`{"domain":%q,"type":"static"}`, h.dom("static"))},
+		// static: a home page naming its icon (internal/api SPEC §3.23).
+		{label: "static", dom: h.dom("static"), path: "/", expect: "200", icon: e2eIcon,
+			json: fmt.Sprintf(`{"domain":%q,"type":"static"}`, h.dom("static")),
+			prep: func(t *testing.T, u, dom string) {
+				root := "/srv/sites/" + dom + "/current/"
+				h.mustWriteAs(t, root+"index.html", `<!doctype html><html><head><link rel="icon" href="/cg-icon.png" sizes="64x64"></head><body>cg-e2e</body></html>`, u)
+				h.mustWriteAs(t, root+"cg-icon.png", string(e2eIcon), u)
+			}},
 		// php: inject an index.php so PHP execution is exercised (empty = 403).
 		{label: "php", dom: h.dom("php"), path: "/", expect: "200",
 			json: fmt.Sprintf(`{"domain":%q,"type":"php","php_version":%q}`, h.dom("php"), h.PHPV),
@@ -300,9 +312,26 @@ func (h *harness) runType(t *testing.T, st siteType) {
 			h.check(t, st.label+" serves HTTP", c, st.expect)
 		}
 		h.check(t, st.label+" no PHP fatal", fatal, "no")
+		h.siteFavicon(t, st, id)
 	}
 	h.check(t, st.label+" delete accepted", h.api.deleteSite(id), "202")
 	h.check(t, st.label+" teardown completes", h.api.teardownGone(id), "yes")
+}
+
+// siteFavicon (internal/api SPEC §3.23): the panel reads the site's icon
+// through nginx. The static site's PNG comes back byte for byte as
+// image/png; every other type has none and answers 204, a new WordPress
+// too, whose /favicon.ico redirects to WordPress's own logo.
+func (h *harness) siteFavicon(t *testing.T, st siteType, id int64) {
+	code, hdr, body := h.api.getRaw(fmt.Sprintf("/api/sites/%d/favicon", id))
+	if st.icon != nil {
+		h.assert(t, st.label+" favicon is the site's icon",
+			code == http.StatusOK && hdr.Get("Content-Type") == "image/png" && bytes.Equal(body, st.icon),
+			"%s favicon: %d %q, %d bytes", st.label, code, hdr.Get("Content-Type"), len(body))
+		return
+	}
+	h.assert(t, st.label+" has no favicon", code == http.StatusNoContent && len(body) == 0,
+		"%s favicon: %d %q, %d bytes", st.label, code, hdr.Get("Content-Type"), len(body))
 }
 
 // ----------------------------------------------------------- woocommerce --

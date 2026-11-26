@@ -62,6 +62,8 @@ async function remove(s: Site) {
 
 const filterTabs = computed(() => filters.value.map(f => ({ label: f.label, value: f.id, badge: { label: String(f.n), color: 'neutral' as const, variant: 'outline' as const, class: 'mono' } })))
 const columns = computed(() => [
+  // The site's icon: a fixed square, so the domains line up.
+  { id: 'icon', header: '', meta: { class: { th: 'w-px pe-0', td: 'w-px pe-0' } } },
   { id: 'site', header: t('cg.col.site') },
   { id: 'status', header: t('cg.col.status') },
   { id: 'type', header: t('cg.col.type'), meta: { class: { th: 'hidden md:table-cell', td: 'hidden md:table-cell' } } },
@@ -121,6 +123,9 @@ const columns = computed(() => [
             :empty="t('cg.sites.noMatch')"
             :meta="{ class: { tr: (row: { original: { site: Site } }) => row.original.site.status === 'error' ? 'bg-cg-err-tint hover:bg-cg-err-tint' : '' } }"
           >
+            <template #icon-cell="{ row: { original: { site } } }">
+              <SiteIcon :site="site" />
+            </template>
             <template #site-cell="{ row: { original: { site, staging } } }">
               <span class="flex min-w-0 flex-col gap-0.5 whitespace-normal" :class="staging ? 'ps-4' : ''">
                 <NuxtLink :to="`/sites/${site.id}`" class="text-[15px] break-all text-highlighted decoration-1 underline-offset-[0.2em] hover:text-cg-blue hover:underline" :class="staging ? 'font-medium' : 'font-semibold'">

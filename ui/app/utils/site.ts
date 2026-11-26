@@ -37,3 +37,30 @@ export function orderSites(sites: Site[]): { site: Site, staging: boolean }[] {
   }
   return out
 }
+
+// The sites' icons (internal/api SPEC §3.23) as data: URLs, which the
+// panel's CSP allows for images, kept ten minutes so that the list and the
+// site's page show the same one without asking again. null: none.
+const FAVICON_TTL = 10 * 60 * 1000
+const favicons = new Map<number, { at: number, url: Promise<string | null> }>()
+
+export function siteFavicon(id: number): Promise<string | null> {
+  const now = Date.now()
+  const kept = favicons.get(id)
+  if (kept && now - kept.at < FAVICON_TTL) return kept.url
+  const url = fetch(`/api/sites/${id}/favicon`, { credentials: 'same-origin' })
+    .then(r => (r.status === 200 ? r.blob() : null))
+    .then(b => (b && b.type.startsWith('image/') ? dataURL(b) : null))
+    .catch(() => null)
+  favicons.set(id, { at: now, url })
+  return url
+}
+
+function dataURL(b: Blob): Promise<string | null> {
+  return new Promise((resolve) => {
+    const r = new FileReader()
+    r.onload = () => resolve(typeof r.result === 'string' ? r.result : null)
+    r.onerror = () => resolve(null)
+    r.readAsDataURL(b)
+  })
+}
