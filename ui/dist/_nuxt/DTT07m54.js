@@ -1,0 +1,1 @@
+import{R as e}from"./CP5z66fJ.js";function t(){let t=e()?.vnode?.scopeId;return t?{[t]:``}:{}}export{t};

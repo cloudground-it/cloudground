@@ -1,0 +1,1 @@
+import{H as e}from"./CP5z66fJ.js";var t=Symbol(`current-site`);function n(){let n=e(t);if(!n)throw Error(`useCurrentSite outside a site page`);return n}export{n,t};

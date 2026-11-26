@@ -1,0 +1,1 @@
+import{o as e}from"./B1i-wFCn.js";import{t}from"./DHnS2qa4.js";var n=null;function r(){let r=e(),i=t(`capabilities`,()=>null);return!i.value&&!n&&(n=r.get(`/api/system/capabilities`).then(e=>{i.value=e}).catch(()=>{}).finally(()=>{n=null})),i}export{r as t};

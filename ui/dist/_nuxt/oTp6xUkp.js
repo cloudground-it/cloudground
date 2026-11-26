@@ -1,0 +1,1 @@
+import{H as e}from"./CP5z66fJ.js";var t=Symbol(`current-function`);function n(){let n=e(t);if(!n)throw Error(`useCurrentFunction outside a function page`);return n}export{n,t};
