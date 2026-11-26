@@ -7,6 +7,21 @@ nothing else.
 Entries say what a person running the panel will notice. The reasons and the measurements are in
 the commits.
 
+## v1.1.0
+
+- **each site shows its own icon**: the site list has a column with the icon a browser shows for
+  the site, and the site's page shows it next to the domain. A site without one, or one that is not
+  active, shows the icon of its type. The panel reads it through the server's own nginx, so it
+  shows before the domain points here, and checks that it is an image before showing it.
+- **the Services page lines up**: the reboot notice no longer sits on the updates table, and the
+  runtimes are a table like the services above them.
+- **built with Go 1.26.11**, for GO-2026-6859 in Go's `net/http`: an HTTP/1 server could crash
+  when a request body went over its limit while the answer's headers were being written.
+- updated: Nuxt UI 4.13, Nuxt 4.6.4, Vue 3.5.46, Tailwind CSS 4.3.5, pgx 5.13, the MySQL driver
+  1.10.2, SQLite 1.62, golang.org/x/crypto 0.59.
+
+**Upgrading from v1.0.3** is one update, from the panel or with `cgctl update`.
+
 ## v1.0.3
 
 - **the Plugins page works on sites with Elementor**: it said "Could not list plugins and themes",
