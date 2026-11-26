@@ -160,7 +160,7 @@ docker-php-test:
 RELEASE_TAG ?= $(shell git describe --tags --exact-match 2>/dev/null)
 RELEASE_DIR  = dist/release/$(RELEASE_TAG)
 SIGNING_KEY ?=
-GO_RELEASE_IMAGE   ?= golang:1.26.10
+GO_RELEASE_IMAGE   ?= golang:1.26.11
 NODE_RELEASE_IMAGE ?= node:22.23.3
 # A worktree's .git names the main repository by its host path: the
 # container sees it at the same path, so -buildvcs can read the commit.
