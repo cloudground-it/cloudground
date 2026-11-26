@@ -4,19 +4,28 @@
  * Node.js and Python sites, and installing another (GET /api/runtimes,
  * POST /api/runtimes/install).
  */
+import type { TableColumn } from '@nuxt/ui'
 import type { Runtimes } from '~/types'
 
 interface RuntimesView { installed: Runtimes, available: { node: string[], python: string[] } }
+interface RuntimeRow { runtime: 'node' | 'python', label: string, version: string, full: string, installed: boolean }
 
 const { t } = useI18n()
 const api = useApi()
 const { busy, run } = useAction()
 const { data, refresh } = useLoad(() => api.get<RuntimesView>('/api/runtimes'))
 
-const rows = computed(() => {
+// The same table as the services above it, so the two line up.
+const columns = computed<TableColumn<RuntimeRow>[]>(() => [
+  { accessorKey: 'label', header: t('runtimes.col.runtime') },
+  { accessorKey: 'full', header: t('runtimes.col.version') },
+  { id: 'actions', header: () => h('span', { class: 'sr-only' }, t('cg.col.actions')), meta: { class: { td: 'text-right' } } }
+])
+
+const rows = computed<RuntimeRow[]>(() => {
   const v = data.value
   if (!v) return []
-  const row = (runtime: 'node' | 'python', label: string) => v.available[runtime].map(version => {
+  const row = (runtime: 'node' | 'python', label: string): RuntimeRow[] => v.available[runtime].map(version => {
     const have = v.installed[runtime].find(i => i.version === version)
     return { runtime, label: `${label} ${version}`, version, full: have?.full ?? '', installed: !!have }
   })
@@ -29,18 +38,21 @@ function install(runtime: string, version: string) {
 </script>
 
 <template>
-  <PanelSection id="runtimes" :title="t('runtimes.title')" :description="t('runtimes.hint')">
-    <USkeleton v-if="!data" class="h-20" />
-    <ul v-else class="m-0 flex list-none flex-col p-0">
-      <li v-for="r in rows" :key="r.runtime + r.version" class="flex items-center justify-between gap-3 border-b border-default py-2 last:border-b-0">
-        <span class="flex items-center gap-2">
-          <UIcon :name="r.runtime === 'node' ? 'i-brand-node' : 'i-brand-python'" class="size-4" aria-hidden="true" />
-          <span class="font-semibold text-highlighted">{{ r.label }}</span>
-          <span v-if="r.installed" class="font-mono text-xs text-muted">{{ r.full }}</span>
+  <PanelSection id="runtimes" flush :title="t('runtimes.title')" :description="t('runtimes.hint')">
+    <UTable :data="rows" :columns="columns" :loading="!data">
+      <template #label-cell="{ row }">
+        <span class="flex items-center gap-3">
+          <UIcon :name="row.original.runtime === 'node' ? 'i-brand-node' : 'i-brand-python'" class="size-4 shrink-0 text-muted" aria-hidden="true" />
+          <span class="font-semibold text-highlighted">{{ row.original.label }}</span>
         </span>
-        <UBadge v-if="r.installed" color="success" variant="subtle" :label="t('runtimes.installed')" />
-        <UButton v-else size="sm" color="neutral" variant="outline" icon="i-cg-download" :label="t('runtimes.install')" :disabled="busy" @click="install(r.runtime, r.version)" />
-      </li>
-    </ul>
+      </template>
+      <template #full-cell="{ row }">
+        <span class="mono text-[13px] text-muted">{{ row.original.full || '—' }}</span>
+      </template>
+      <template #actions-cell="{ row }">
+        <UBadge v-if="row.original.installed" color="success" variant="subtle" :label="t('runtimes.installed')" />
+        <UButton v-else size="sm" color="neutral" variant="outline" icon="i-cg-download" :label="t('runtimes.install')" :disabled="busy" @click="install(row.original.runtime, row.original.version)" />
+      </template>
+    </UTable>
   </PanelSection>
 </template>

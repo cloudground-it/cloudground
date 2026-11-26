@@ -134,7 +134,7 @@ const columns = computed<TableColumn<ServiceInfo>[]>(() => [
             <UButton v-if="updates?.security" color="neutral" variant="outline" :label="t('osupdates.applySecurity')" :disabled="busy" @click="upgrade(true)" />
             <UButton v-if="updates?.packages.length" icon="i-cg-download" :label="t('osupdates.applyAll')" :disabled="busy" @click="upgrade(false)" />
           </template>
-          <div v-if="updates?.reboot_required || updatesError" class="px-4 pt-4">
+          <div v-if="updates?.reboot_required || updatesError" class="p-4 sm:px-5">
             <UAlert v-if="updatesError" color="error" variant="subtle" icon="i-cg-alert-circle" :title="updatesError" />
             <UAlert
               v-else
@@ -163,9 +163,11 @@ const columns = computed<TableColumn<ServiceInfo>[]>(() => [
               <span class="text-xs text-muted">{{ row.original.origin }}</span>
             </template>
           </UTable>
-          <p v-if="updates?.lists_updated_at" class="m-0 px-4 pb-4 text-xs text-muted">
-            {{ t('osupdates.listsUpdated', { ago: fmtAgo(updates.lists_updated_at, locale) }) }}
-          </p>
+          <template v-if="updates?.lists_updated_at" #footer>
+            <p class="m-0 text-xs text-muted">
+              {{ t('osupdates.listsUpdated', { ago: fmtAgo(updates.lists_updated_at, locale) }) }}
+            </p>
+          </template>
         </PanelSection>
 
         <ServerRuntimes v-if="isAdmin" />
