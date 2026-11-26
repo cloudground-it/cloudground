@@ -1,0 +1,1 @@
+import{E as e,zt as t}from"./CP5z66fJ.js";import{i as n}from"./DQa7D62k.js";function r(r){return e(()=>!t(r)||!!n(r)?.closest(`form`))}export{r as t};

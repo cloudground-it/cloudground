@@ -1,0 +1,1 @@
+import{x as e,y as t}from"./B_BW8KS8.js";var n=[`onPointermove`,`onPointerenter`,`onPointerleave`,`data-grace-area-trigger`];function r(r,i){return i===`root`?e(r,n):t(r,[`data-state`,...n])}export{r as t};
